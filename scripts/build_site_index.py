@@ -11,6 +11,8 @@ OUTPUT = ROOT / "generated" / "site-index.json"
 
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
+HTML_TAG_RE = re.compile(r"<[^>]+>")
+CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
 
 
 def parse_frontmatter(markdown: str) -> dict[str, str]:
@@ -25,6 +27,17 @@ def parse_frontmatter(markdown: str) -> dict[str, str]:
         key, value = raw_line.split(":", 1)
         result[key.strip()] = value.strip().strip("\"'")
     return result
+
+
+def body_text(markdown: str) -> str:
+    without_frontmatter = FRONTMATTER_RE.sub("", markdown, count=1)
+    without_code = CODE_BLOCK_RE.sub("", without_frontmatter)
+    without_tags = HTML_TAG_RE.sub("", without_code)
+    return without_tags
+
+
+def count_cjk(text: str) -> int:
+    return sum(1 for char in text if "\u4e00" <= char <= "\u9fff")
 
 
 def page_slug(path: Path) -> str:
@@ -42,12 +55,15 @@ def collect_pages() -> list[dict[str, str]]:
             continue
         text = path.read_text(encoding="utf-8")
         frontmatter = parse_frontmatter(text)
+        body = body_text(text)
         pages.append(
             {
                 "slug": page_slug(path),
                 "title": frontmatter.get("title", path.stem),
                 "description": frontmatter.get("description", ""),
                 "source": path.relative_to(ROOT).as_posix(),
+                "body_chars": len(body.strip()),
+                "cjk_chars": count_cjk(body),
             }
         )
     return pages
@@ -55,6 +71,7 @@ def collect_pages() -> list[dict[str, str]]:
 
 def main() -> int:
     agents = json.loads((ROOT / "data" / "agents.json").read_text(encoding="utf-8"))
+    pages = collect_pages()
     payload = {
         "schema_version": 1,
         "site": {
@@ -63,7 +80,9 @@ def main() -> int:
         },
         "counts": {
             "agents": len(agents),
-            "pages": 0,
+            "pages": len(pages),
+            "body_chars": sum(page["body_chars"] for page in pages),
+            "cjk_chars": sum(page["cjk_chars"] for page in pages),
         },
         "agents": [
             {
@@ -74,9 +93,8 @@ def main() -> int:
             }
             for agent in agents
         ],
-        "pages": collect_pages(),
+        "pages": pages,
     }
-    payload["counts"]["pages"] = len(payload["pages"])
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

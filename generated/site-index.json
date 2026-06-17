@@ -6,7 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 9
+    "pages": 26,
+    "body_chars": 48290,
+    "cjk_chars": 22598
   },
   "agents": [
     {
@@ -36,58 +38,212 @@
   ],
   "pages": [
     {
+      "slug": "/agents/claude-code/",
+      "title": "Claude Code",
+      "description": "Claude Code 的产品表面、工具/权限、记忆、扩展和安全机制拆解。",
+      "source": "site/src/content/docs/agents/claude-code.md",
+      "body_chars": 3825,
+      "cjk_chars": 1804
+    },
+    {
+      "slug": "/agents/codex/",
+      "title": "Codex",
+      "description": "Codex 的表面、沙箱、审批、AGENTS.md、MCP、技能和自动化机制拆解。",
+      "source": "site/src/content/docs/agents/codex.md",
+      "body_chars": 3802,
+      "cjk_chars": 1439
+    },
+    {
+      "slug": "/agents/opencode/",
+      "title": "OpenCode",
+      "description": "OpenCode 的开源编码 Agent 形态、agents、permissions、providers、config 和 server 架构拆解。",
+      "source": "site/src/content/docs/agents/opencode.md",
+      "body_chars": 3919,
+      "cjk_chars": 1355
+    },
+    {
+      "slug": "/agents/pi/",
+      "title": "Pi",
+      "description": "Pi 作为情绪智能和关系型 Agent 样本的产品定位、上下文策略和工程启发。",
+      "source": "site/src/content/docs/agents/pi.md",
+      "body_chars": 3102,
+      "cjk_chars": 1299
+    },
+    {
+      "slug": "/book/",
+      "title": "Agent 工程手册",
+      "description": "AgentLab 的书籍化目录，围绕开发 Agent 过程中学到的工具、环境、提示词、上下文、缓存和案例研究组织。",
+      "source": "site/src/content/docs/book/index.md",
+      "body_chars": 2178,
+      "cjk_chars": 1339
+    },
+    {
+      "slug": "/book/reading-guide/",
+      "title": "阅读路线",
+      "description": "根据不同目的选择 AgentLab 的阅读路径。",
+      "source": "site/src/content/docs/book/reading-guide.md",
+      "body_chars": 1980,
+      "cjk_chars": 751
+    },
+    {
+      "slug": "/book/sources/",
+      "title": "来源索引",
+      "description": "AgentLab 当前引用的公开来源，按 Agent 和主题分类。",
+      "source": "site/src/content/docs/book/sources.md",
+      "body_chars": 2577,
+      "cjk_chars": 488
+    },
+    {
       "slug": "/caching/",
       "title": "缓存",
       "description": "Agent 开发中的 prompt cache、上下文复用和命中率。",
-      "source": "site/src/content/docs/caching/index.md"
+      "source": "site/src/content/docs/caching/index.md",
+      "body_chars": 395,
+      "cjk_chars": 198
+    },
+    {
+      "slug": "/comparison/matrix/",
+      "title": "能力矩阵",
+      "description": "从产品表面、上下文、工具、权限、记忆、扩展和自动化角度比较 Claude Code、Codex、Pi、OpenCode。",
+      "source": "site/src/content/docs/comparison/matrix.md",
+      "body_chars": 3869,
+      "cjk_chars": 1343
+    },
+    {
+      "slug": "/comparison/patterns/",
+      "title": "设计模式",
+      "description": "从四个 Agent 中抽取可复用的 Agent 工程设计模式。",
+      "source": "site/src/content/docs/comparison/patterns.md",
+      "body_chars": 2406,
+      "cjk_chars": 1302
     },
     {
       "slug": "/context/",
       "title": "上下文",
       "description": "Agent 如何选择、压缩和更新上下文。",
-      "source": "site/src/content/docs/context/index.md"
+      "source": "site/src/content/docs/context/index.md",
+      "body_chars": 373,
+      "cjk_chars": 216
     },
     {
       "slug": "/environments/",
       "title": "环境",
       "description": "Agent 运行环境、沙箱和 CI 的设计笔记。",
-      "source": "site/src/content/docs/environments/index.md"
+      "source": "site/src/content/docs/environments/index.md",
+      "body_chars": 385,
+      "cjk_chars": 210
+    },
+    {
+      "slug": "/foundations/agent-engineering-map/",
+      "title": "Agent 工程地图",
+      "description": "把 Agent 拆成可设计、可验证、可维护的工程层。",
+      "source": "site/src/content/docs/foundations/agent-engineering-map.md",
+      "body_chars": 1899,
+      "cjk_chars": 1243
+    },
+    {
+      "slug": "/foundations/agent-loop/",
+      "title": "Agent Loop",
+      "description": "观察、计划、行动、验证、压缩这五个步骤如何构成 Agent 的工作循环。",
+      "source": "site/src/content/docs/foundations/agent-loop.md",
+      "body_chars": 1950,
+      "cjk_chars": 1424
     },
     {
       "slug": "/",
       "title": "AgentLab",
       "description": "开发 Agent 过程中学到的工程知识、研究记录和交互实验。",
-      "source": "site/src/content/docs/index.mdx"
+      "source": "site/src/content/docs/index.mdx",
+      "body_chars": 638,
+      "cjk_chars": 288
     },
     {
       "slug": "/labs/cache-hit-demo/",
       "title": "缓存命中演示",
       "description": "用交互组件解释 prompt cache 的基本心智模型。",
-      "source": "site/src/content/docs/labs/cache-hit-demo.mdx"
+      "source": "site/src/content/docs/labs/cache-hit-demo.mdx",
+      "body_chars": 332,
+      "cjk_chars": 189
     },
     {
       "slug": "/labs/prompt-diff-viewer/",
       "title": "提示词 Diff",
       "description": "用左右 diff 查看 prompt snapshot 的版本变化。",
-      "source": "site/src/content/docs/labs/prompt-diff-viewer.mdx"
+      "source": "site/src/content/docs/labs/prompt-diff-viewer.mdx",
+      "body_chars": 324,
+      "cjk_chars": 113
+    },
+    {
+      "slug": "/mechanisms/context-memory/",
+      "title": "上下文与记忆",
+      "description": "区分临时上下文、项目规则、长期记忆和生成摘要，避免 Agent 被噪声或旧信息污染。",
+      "source": "site/src/content/docs/mechanisms/context-memory.md",
+      "body_chars": 1761,
+      "cjk_chars": 1143
+    },
+    {
+      "slug": "/mechanisms/evaluation-regression/",
+      "title": "评测与回归",
+      "description": "Agent 评测不能只看最终答案，要覆盖轨迹、工具、权限、上下文和交付质量。",
+      "source": "site/src/content/docs/mechanisms/evaluation-regression.md",
+      "body_chars": 1675,
+      "cjk_chars": 980
+    },
+    {
+      "slug": "/mechanisms/permissions-sandbox/",
+      "title": "权限与沙箱",
+      "description": "Agent 自主执行的前提是明确技术边界和交互审批。",
+      "source": "site/src/content/docs/mechanisms/permissions-sandbox.md",
+      "body_chars": 2280,
+      "cjk_chars": 1222
+    },
+    {
+      "slug": "/mechanisms/prompt-versioning/",
+      "title": "提示词版本化",
+      "description": "把提示词当作工程接口管理：snapshot、diff、changelog、测试和回滚。",
+      "source": "site/src/content/docs/mechanisms/prompt-versioning.md",
+      "body_chars": 1952,
+      "cjk_chars": 1073
+    },
+    {
+      "slug": "/mechanisms/tool-protocol/",
+      "title": "工具协议",
+      "description": "Agent 工具不只是函数调用，而是包含 schema、副作用、权限、返回值和审计的协议。",
+      "source": "site/src/content/docs/mechanisms/tool-protocol.md",
+      "body_chars": 2073,
+      "cjk_chars": 1379
+    },
+    {
+      "slug": "/operations/content-pipeline/",
+      "title": "内容生产流水线",
+      "description": "让 AgentLab 的文档、数据、交互组件和自动化任务从同一个仓库持续产出。",
+      "source": "site/src/content/docs/operations/content-pipeline.md",
+      "body_chars": 2951,
+      "cjk_chars": 1041
     },
     {
       "slug": "/prompts/",
       "title": "提示词",
       "description": "把提示词当作可版本化的工程资产。",
-      "source": "site/src/content/docs/prompts/index.md"
+      "source": "site/src/content/docs/prompts/index.md",
+      "body_chars": 436,
+      "cjk_chars": 225
     },
     {
       "slug": "/start/",
       "title": "项目定位",
       "description": "AgentLab 的内容边界、发布形态和仓库组织方式。",
-      "source": "site/src/content/docs/start/index.md"
+      "source": "site/src/content/docs/start/index.md",
+      "body_chars": 694,
+      "cjk_chars": 289
     },
     {
       "slug": "/tools/",
       "title": "工具",
       "description": "Agent 工具系统的设计笔记。",
-      "source": "site/src/content/docs/tools/index.md"
+      "source": "site/src/content/docs/tools/index.md",
+      "body_chars": 514,
+      "cjk_chars": 245
     }
   ]
 }

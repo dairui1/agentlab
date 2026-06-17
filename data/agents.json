@@ -9,7 +9,14 @@
     "priority": "high",
     "architecture_path": "research/agents/claude-code/architecture.md",
     "prompt_index_path": "research/prompts/claude-code/CHANGELOG.md",
-    "official_sources": [],
+    "official_sources": [
+      "https://code.claude.com/docs/en/overview",
+      "https://code.claude.com/docs/en/how-claude-code-works",
+      "https://code.claude.com/docs/en/permissions",
+      "https://code.claude.com/docs/en/security",
+      "https://www.anthropic.com/engineering/claude-code-auto-mode",
+      "https://www.anthropic.com/engineering/how-we-contain-claude"
+    ],
     "research_questions": [
       "How does Claude Code structure system prompts, tool policies, and workspace context?",
       "How did each public prompt snapshot change across versions?",
@@ -26,7 +33,11 @@
     "priority": "high",
     "architecture_path": "research/agents/codex/architecture.md",
     "prompt_index_path": "research/prompts/codex/CHANGELOG.md",
-    "official_sources": [],
+    "official_sources": [
+      "https://developers.openai.com/codex/codex-manual.md",
+      "https://developers.openai.com/codex/overview",
+      "https://github.com/openai/codex"
+    ],
     "research_questions": [
       "How does Codex separate local execution, sandboxing, browsing, and model prompting?",
       "What parts of the workflow are CLI, cloud, or editor mediated?",
@@ -43,7 +54,14 @@
     "priority": "medium",
     "architecture_path": "research/agents/pi/architecture.md",
     "prompt_index_path": "research/prompts/pi/CHANGELOG.md",
-    "official_sources": [],
+    "official_sources": [
+      "https://hey.pi.ai/",
+      "https://inflection.ai/",
+      "https://developers.inflection.ai/docs/inflection-3-pi",
+      "https://inflection.ai/about",
+      "https://inflection.ai/notice-on-model-training",
+      "https://inflection.ai/training-data-transparency-statement"
+    ],
     "research_questions": [
       "How does Pi optimize for conversational continuity and personal assistant behavior?",
       "Which visible product constraints reveal underlying policy and memory design?",
@@ -60,7 +78,14 @@
     "priority": "high",
     "architecture_path": "research/agents/opencode/architecture.md",
     "prompt_index_path": "research/prompts/opencode/CHANGELOG.md",
-    "official_sources": [],
+    "official_sources": [
+      "https://opencode.ai/",
+      "https://opencode.ai/docs/",
+      "https://opencode.ai/docs/agents/",
+      "https://opencode.ai/docs/config/",
+      "https://opencode.ai/docs/permissions/",
+      "https://github.com/anomalyco/opencode"
+    ],
     "research_questions": [
       "How does OpenCode define agent loops, tools, models, and permissions in code?",
       "Which implementation choices can be compared directly with Claude Code and Codex?",
