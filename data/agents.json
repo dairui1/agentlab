@@ -1,0 +1,70 @@
+[
+  {
+    "slug": "claude-code",
+    "display_name": "Claude Code",
+    "aliases": ["cc", "claude-code"],
+    "owner": "Anthropic",
+    "category": "coding-agent",
+    "status": "researching",
+    "priority": "high",
+    "architecture_path": "research/agents/claude-code/architecture.md",
+    "prompt_index_path": "research/prompts/claude-code/CHANGELOG.md",
+    "official_sources": [],
+    "research_questions": [
+      "How does Claude Code structure system prompts, tool policies, and workspace context?",
+      "How did each public prompt snapshot change across versions?",
+      "What permission and execution model does it expose to users?"
+    ]
+  },
+  {
+    "slug": "codex",
+    "display_name": "Codex",
+    "aliases": ["openai-codex", "codex-cli"],
+    "owner": "OpenAI",
+    "category": "coding-agent",
+    "status": "researching",
+    "priority": "high",
+    "architecture_path": "research/agents/codex/architecture.md",
+    "prompt_index_path": "research/prompts/codex/CHANGELOG.md",
+    "official_sources": [],
+    "research_questions": [
+      "How does Codex separate local execution, sandboxing, browsing, and model prompting?",
+      "What parts of the workflow are CLI, cloud, or editor mediated?",
+      "How do prompt and tool contracts evolve across releases?"
+    ]
+  },
+  {
+    "slug": "pi",
+    "display_name": "Pi",
+    "aliases": ["pi-ai", "inflection-pi"],
+    "owner": "Inflection",
+    "category": "conversational-agent",
+    "status": "researching",
+    "priority": "medium",
+    "architecture_path": "research/agents/pi/architecture.md",
+    "prompt_index_path": "research/prompts/pi/CHANGELOG.md",
+    "official_sources": [],
+    "research_questions": [
+      "How does Pi optimize for conversational continuity and personal assistant behavior?",
+      "Which visible product constraints reveal underlying policy and memory design?",
+      "How does its agent behavior differ from coding agents?"
+    ]
+  },
+  {
+    "slug": "opencode",
+    "display_name": "OpenCode",
+    "aliases": ["opencode-ai"],
+    "owner": "Open source community",
+    "category": "coding-agent",
+    "status": "researching",
+    "priority": "high",
+    "architecture_path": "research/agents/opencode/architecture.md",
+    "prompt_index_path": "research/prompts/opencode/CHANGELOG.md",
+    "official_sources": [],
+    "research_questions": [
+      "How does OpenCode define agent loops, tools, models, and permissions in code?",
+      "Which implementation choices can be compared directly with Claude Code and Codex?",
+      "What prompt contracts are visible in the repository?"
+    ]
+  }
+]
