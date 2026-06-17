@@ -1,0 +1,21 @@
+---
+title: 提示词 Diff
+description: 用左右 diff 查看 prompt snapshot 的版本变化。
+---
+
+import PromptDiffViewer from '../../../components/labs/PromptDiffViewer.jsx';
+
+提示词需要像代码一样审查。这个实验展示了一个左右 diff 视图：左侧是旧版本，右侧是新版本，可以按片段切换，也可以只看变化。
+
+<PromptDiffViewer client:load />
+
+## 后续数据来源
+
+这个组件后面应该读取 `generated/prompt-diffs/*.json`，而不是把示例数据写死在组件里。
+
+理想流程：
+
+1. `research/prompts/*/versions` 中新增 snapshot。
+2. 脚本生成结构化 diff。
+3. CI 校验 diff 格式。
+4. 网站自动发布新的版本历史页面。

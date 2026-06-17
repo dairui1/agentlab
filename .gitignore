@@ -22,3 +22,9 @@ build/
 
 research/private/
 tmp/
+
+node_modules/
+site/node_modules/
+site/dist/
+site/.astro/
+site/.vercel/

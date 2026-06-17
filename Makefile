@@ -1,6 +1,7 @@
 PYTHON ?= python3
+NPM ?= npm
 
-.PHONY: validate test list
+.PHONY: validate test list generated site-install site-dev site-build site-preview
 
 validate:
 	PYTHONPATH=src $(PYTHON) -m agentlab validate
@@ -10,3 +11,18 @@ test:
 
 list:
 	PYTHONPATH=src $(PYTHON) -m agentlab list
+
+generated:
+	$(PYTHON) scripts/build_site_index.py
+
+site-install:
+	cd site && $(NPM) install
+
+site-dev:
+	cd site && $(NPM) run dev
+
+site-build:
+	cd site && $(NPM) run build
+
+site-preview:
+	cd site && $(NPM) run preview

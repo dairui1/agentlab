@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "site": {
+    "framework": "Astro Starlight",
+    "base": "/agentlab"
+  },
+  "counts": {
+    "agents": 4,
+    "pages": 9
+  },
+  "agents": [
+    {
+      "slug": "claude-code",
+      "display_name": "Claude Code",
+      "category": "coding-agent",
+      "priority": "high"
+    },
+    {
+      "slug": "codex",
+      "display_name": "Codex",
+      "category": "coding-agent",
+      "priority": "high"
+    },
+    {
+      "slug": "pi",
+      "display_name": "Pi",
+      "category": "conversational-agent",
+      "priority": "medium"
+    },
+    {
+      "slug": "opencode",
+      "display_name": "OpenCode",
+      "category": "coding-agent",
+      "priority": "high"
+    }
+  ],
+  "pages": [
+    {
+      "slug": "/caching/",
+      "title": "缓存",
+      "description": "Agent 开发中的 prompt cache、上下文复用和命中率。",
+      "source": "site/src/content/docs/caching/index.md"
+    },
+    {
+      "slug": "/context/",
+      "title": "上下文",
+      "description": "Agent 如何选择、压缩和更新上下文。",
+      "source": "site/src/content/docs/context/index.md"
+    },
+    {
+      "slug": "/environments/",
+      "title": "环境",
+      "description": "Agent 运行环境、沙箱和 CI 的设计笔记。",
+      "source": "site/src/content/docs/environments/index.md"
+    },
+    {
+      "slug": "/",
+      "title": "AgentLab",
+      "description": "开发 Agent 过程中学到的工程知识、研究记录和交互实验。",
+      "source": "site/src/content/docs/index.mdx"
+    },
+    {
+      "slug": "/labs/cache-hit-demo/",
+      "title": "缓存命中演示",
+      "description": "用交互组件解释 prompt cache 的基本心智模型。",
+      "source": "site/src/content/docs/labs/cache-hit-demo.mdx"
+    },
+    {
+      "slug": "/labs/prompt-diff-viewer/",
+      "title": "提示词 Diff",
+      "description": "用左右 diff 查看 prompt snapshot 的版本变化。",
+      "source": "site/src/content/docs/labs/prompt-diff-viewer.mdx"
+    },
+    {
+      "slug": "/prompts/",
+      "title": "提示词",
+      "description": "把提示词当作可版本化的工程资产。",
+      "source": "site/src/content/docs/prompts/index.md"
+    },
+    {
+      "slug": "/start/",
+      "title": "项目定位",
+      "description": "AgentLab 的内容边界、发布形态和仓库组织方式。",
+      "source": "site/src/content/docs/start/index.md"
+    },
+    {
+      "slug": "/tools/",
+      "title": "工具",
+      "description": "Agent 工具系统的设计笔记。",
+      "source": "site/src/content/docs/tools/index.md"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+---
+title: AgentLab
+description: 开发 Agent 过程中学到的工程知识、研究记录和交互实验。
+---
+
+AgentLab 的定位是：**开发 Agent 过程中学到的东西**。
+
+它不是单纯罗列主流 Agent，而是把工具、环境、提示词、上下文、缓存、评测、部署这些工程经验整理成持续更新的文档，并在关键概念旁嵌入可交互实验。
+
+<div class="agentlab-grid">
+  <div class="agentlab-tile">
+    <strong>文档是主干</strong>
+    <p>每个主题都应该能被单独阅读、引用、更新和版本化。</p>
+  </div>
+  <div class="agentlab-tile">
+    <strong>组件解释机制</strong>
+    <p>复杂概念用交互组件演示，而不是只靠静态截图和长段解释。</p>
+  </div>
+  <div class="agentlab-tile">
+    <strong>内容来自仓库</strong>
+    <p>研究记录、结构化数据、生成产物都进仓库，自动化任务持续更新。</p>
+  </div>
+</div>
+
+## 当前雏形
+
+<div class="agentlab-flow">
+  <div class="agentlab-step"><span>01</span>研究草稿进入 `research/`</div>
+  <div class="agentlab-step"><span>02</span>稳定结论沉淀到文档</div>
+  <div class="agentlab-step"><span>03</span>结构化数据进入 `data/`</div>
+  <div class="agentlab-step"><span>04</span>组件读取数据并展示</div>
+  <div class="agentlab-step"><span>05</span>CI 校验并自动发布</div>
+</div>
+
+## 推荐入口
+
+- [工具](/agentlab/tools/)：Agent 可以调用什么，以及调用边界如何设计。
+- [缓存](/agentlab/caching/)：为什么稳定 prompt 前缀和上下文顺序会影响成本和速度。
+- [提示词](/agentlab/prompts/)：如何把 prompt 当作可版本化的工程资产。
+- [缓存命中演示](/agentlab/labs/cache-hit-demo/)：第一个交互实验。
+- [提示词 Diff](/agentlab/labs/prompt-diff-viewer/)：第二个交互实验。

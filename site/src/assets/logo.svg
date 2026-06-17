@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">AgentLab logo</title>
+  <desc id="desc">A compact grid and route mark representing agent engineering notes and experiments.</desc>
+  <rect width="64" height="64" rx="12" fill="#111827"/>
+  <path d="M18 18h12v12H18zM34 18h12v12H34zM18 34h12v12H18zM34 34h12v12H34z" fill="#f8fafc"/>
+  <path d="M30 24h4M24 30v4M40 30v4M30 40h4" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -2,6 +2,8 @@
 
 AgentLab 是一个用于沉淀 Agent 研究成果的资料库和工具箱。首期重点不是做网站，而是先把研究对象、资料来源、架构拆解、提示词版本和变更记录整理成可维护的结构。
 
+更新后的定位是：**开发 Agent 过程中学到的工程知识库 + 可交互实验室**。网站层会以文档为主干，在工具、环境、提示词、上下文、缓存等主题中嵌入交互组件。
+
 ## 当前范围
 
 - 主流 Agent 架构研究：Claude Code, Codex, Pi, OpenCode。
@@ -18,6 +20,9 @@ agentlab/
   research/
     agents/             # 每个 Agent 的架构研究页
     prompts/            # 每个 Agent 的提示词版本和 changelog
+  generated/            # 脚本生成的站点索引、diff 和报告
+  scripts/              # 内容刷新和生成脚本
+  site/                 # Starlight 文档站和交互组件
   src/agentlab/         # 本地研究工具 CLI
   tests/                # 工具的基础校验
 ```
@@ -31,6 +36,8 @@ PYTHONPATH=src python3 -m agentlab list
 PYTHONPATH=src python3 -m agentlab show claude-code
 PYTHONPATH=src python3 -m agentlab validate
 PYTHONPATH=src python3 -m agentlab new-snapshot claude-code 2026-06-17 --source-url https://example.com/source
+make generated
+make site-build
 ```
 
 如果需要安装为本地命令：
@@ -53,4 +60,4 @@ agentlab validate
 - 补全每个 Agent 的公开资料来源清单。
 - 建立 prompt snapshot 的命名规范和 diff 规则。
 - 为 Claude Code 的历史 prompt 变更建立第一批记录。
-- 设计后续网站的信息架构，优先复用当前资料结构。
+- 继续扩展 `site/` 中的文档栏目和交互实验。
