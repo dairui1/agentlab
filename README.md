@@ -37,6 +37,7 @@ PYTHONPATH=src python3 -m agentlab show claude-code
 PYTHONPATH=src python3 -m agentlab validate
 PYTHONPATH=src python3 -m agentlab new-snapshot claude-code 2026-06-17 --source-url https://example.com/source
 make generated
+make docs-stats
 make site-build
 ```
 

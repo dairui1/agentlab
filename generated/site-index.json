@@ -6,9 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 49,
-    "body_chars": 87382,
-    "cjk_chars": 40540
+    "pages": 62,
+    "body_chars": 108253,
+    "cjk_chars": 50006
   },
   "agents": [
     {
@@ -38,6 +38,14 @@
   ],
   "pages": [
     {
+      "slug": "/agents/claude-code/cloud-local-boundary/",
+      "title": "Claude Code 云端与本地边界",
+      "description": "Claude Code 多表面使用时，本地执行、远程控制和云端任务的信任边界如何变化。",
+      "source": "site/src/content/docs/agents/claude-code/cloud-local-boundary.md",
+      "body_chars": 1782,
+      "cjk_chars": 859
+    },
+    {
       "slug": "/agents/claude-code/extension-layer/",
       "title": "Claude Code 扩展层",
       "description": "CLAUDE.md、skills、subagents、hooks、MCP、plugins 在 Claude Code 中各自解决什么问题。",
@@ -60,6 +68,14 @@
       "source": "site/src/content/docs/agents/claude-code/permissions-auto-mode.md",
       "body_chars": 2122,
       "cjk_chars": 1058
+    },
+    {
+      "slug": "/agents/claude-code/prompt-tool-contract/",
+      "title": "Claude Code 提示词与工具契约",
+      "description": "从提示词、内置工具、MCP、hooks 和项目规则看 Claude Code 如何约束行动。",
+      "source": "site/src/content/docs/agents/claude-code/prompt-tool-contract.md",
+      "body_chars": 2552,
+      "cjk_chars": 1107
     },
     {
       "slug": "/agents/claude-code/",
@@ -86,6 +102,22 @@
       "cjk_chars": 790
     },
     {
+      "slug": "/agents/codex/prompt-surfaces/",
+      "title": "Codex 提示词表面",
+      "description": "Codex 的行为由系统指令、AGENTS.md、skills、MCP instructions、rules、config 和用户 prompt 共同形成。",
+      "source": "site/src/content/docs/agents/codex/prompt-surfaces.md",
+      "body_chars": 2163,
+      "cjk_chars": 659
+    },
+    {
+      "slug": "/agents/codex/review-ci-workflows/",
+      "title": "Codex 审查与 CI 工作流",
+      "description": "把 Codex 放进 PR、CI 和自动化流水线时，如何控制输入、权限、输出和验证。",
+      "source": "site/src/content/docs/agents/codex/review-ci-workflows.md",
+      "body_chars": 1461,
+      "cjk_chars": 537
+    },
+    {
       "slug": "/agents/codex/sandbox-approvals/",
       "title": "Codex 沙箱与审批",
       "description": "Codex 如何把技术沙箱、审批策略、网络控制和自动审查组合成安全执行模型。",
@@ -110,6 +142,14 @@
       "cjk_chars": 631
     },
     {
+      "slug": "/agents/opencode/config-project-rules/",
+      "title": "OpenCode 配置与项目规则",
+      "description": "OpenCode 的 global、project、remote、managed config 和 AGENTS.md 如何塑造开源 Agent 的可配置性。",
+      "source": "site/src/content/docs/agents/opencode/config-project-rules.md",
+      "body_chars": 1772,
+      "cjk_chars": 637
+    },
+    {
       "slug": "/agents/opencode/providers-models/",
       "title": "OpenCode Provider 与模型抽象",
       "description": "OpenCode 多 provider 设计给开源 Agent 带来的能力、成本和一致性问题。",
@@ -126,12 +166,28 @@
       "cjk_chars": 574
     },
     {
+      "slug": "/agents/opencode/sessions-sharing-audit/",
+      "title": "OpenCode 会话、分享与审计",
+      "description": "OpenCode 的 session、share link、import、server 和 sanitize 功能对 Agent 审计的启发。",
+      "source": "site/src/content/docs/agents/opencode/sessions-sharing-audit.md",
+      "body_chars": 1364,
+      "cjk_chars": 581
+    },
+    {
       "slug": "/agents/opencode/",
       "title": "OpenCode",
       "description": "OpenCode 的开源编码 Agent 形态、agents、permissions、providers、config 和 server 架构拆解。",
       "source": "site/src/content/docs/agents/opencode.md",
       "body_chars": 3919,
       "cjk_chars": 1355
+    },
+    {
+      "slug": "/agents/pi/data-privacy/",
+      "title": "Pi 数据与隐私",
+      "description": "关系型 Agent 中训练数据、对话数据、记忆、隐私和用户信任如何影响产品设计。",
+      "source": "site/src/content/docs/agents/pi/data-privacy.md",
+      "body_chars": 1611,
+      "cjk_chars": 939
     },
     {
       "slug": "/agents/pi/persona-safety/",
@@ -150,12 +206,60 @@
       "cjk_chars": 1019
     },
     {
+      "slug": "/agents/pi/tool-calling-design/",
+      "title": "Pi 工具调用设计",
+      "description": "当关系型 Agent 开始支持 tool calling，确认、情绪状态、隐私和现实副作用如何共同影响设计。",
+      "source": "site/src/content/docs/agents/pi/tool-calling-design.md",
+      "body_chars": 1497,
+      "cjk_chars": 820
+    },
+    {
       "slug": "/agents/pi/",
       "title": "Pi",
       "description": "Pi 作为情绪智能和关系型 Agent 样本的产品定位、上下文策略和工程启发。",
       "source": "site/src/content/docs/agents/pi.md",
       "body_chars": 3102,
       "cjk_chars": 1299
+    },
+    {
+      "slug": "/appendix/glossary/",
+      "title": "术语表",
+      "description": "AgentLab 中反复使用的 Agent 工程术语。",
+      "source": "site/src/content/docs/appendix/glossary.md",
+      "body_chars": 1681,
+      "cjk_chars": 789
+    },
+    {
+      "slug": "/appendix/prompt-taxonomy/",
+      "title": "提示词分类",
+      "description": "Agent 提示词应按角色、工具、权限、上下文、输出和安全等维度分类管理。",
+      "source": "site/src/content/docs/appendix/prompt-taxonomy.md",
+      "body_chars": 1138,
+      "cjk_chars": 761
+    },
+    {
+      "slug": "/appendix/research-questions/",
+      "title": "研究问题库",
+      "description": "AgentLab 后续围绕 Claude Code、Codex、Pi、OpenCode 和通用 Agent 工程需要继续回答的问题。",
+      "source": "site/src/content/docs/appendix/research-questions.md",
+      "body_chars": 1389,
+      "cjk_chars": 561
+    },
+    {
+      "slug": "/appendix/roadmap/",
+      "title": "路线图",
+      "description": "AgentLab 从中文电子书雏形到可交互 Agent 工程实验室的演进路线。",
+      "source": "site/src/content/docs/appendix/roadmap.md",
+      "body_chars": 1214,
+      "cjk_chars": 602
+    },
+    {
+      "slug": "/appendix/tool-risk-taxonomy/",
+      "title": "工具风险分类",
+      "description": "按副作用、数据访问和可撤销性为 Agent 工具建立风险等级。",
+      "source": "site/src/content/docs/appendix/tool-risk-taxonomy.md",
+      "body_chars": 1247,
+      "cjk_chars": 614
     },
     {
       "slug": "/book/",
