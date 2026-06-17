@@ -59,10 +59,63 @@ export default defineConfig({
         {
           label: '四个 Agent',
           items: [
-            { label: 'Claude Code', link: '/agents/claude-code/' },
-            { label: 'Codex', link: '/agents/codex/' },
-            { label: 'Pi', link: '/agents/pi/' },
-            { label: 'OpenCode', link: '/agents/opencode/' },
+            {
+              label: 'Claude Code',
+              items: [
+                { label: '总览', link: '/agents/claude-code/' },
+                { label: '扩展层', link: '/agents/claude-code/extension-layer/' },
+                { label: '权限与 Auto Mode', link: '/agents/claude-code/permissions-auto-mode/' },
+                { label: '记忆与项目规则', link: '/agents/claude-code/memory-project-rules/' },
+              ],
+            },
+            {
+              label: 'Codex',
+              items: [
+                { label: '总览', link: '/agents/codex/' },
+                { label: '沙箱与审批', link: '/agents/codex/sandbox-approvals/' },
+                { label: 'AGENTS.md 与定制层', link: '/agents/codex/customization-stack/' },
+                { label: 'MCP 与自动化', link: '/agents/codex/mcp-automation/' },
+              ],
+            },
+            {
+              label: 'Pi',
+              items: [
+                { label: '总览', link: '/agents/pi/' },
+                { label: '关系型上下文', link: '/agents/pi/relational-context/' },
+                { label: '人格与安全边界', link: '/agents/pi/persona-safety/' },
+              ],
+            },
+            {
+              label: 'OpenCode',
+              items: [
+                { label: '总览', link: '/agents/opencode/' },
+                { label: 'Agents 与权限', link: '/agents/opencode/agents-permissions/' },
+                { label: 'Provider 与模型抽象', link: '/agents/opencode/providers-models/' },
+                { label: 'Server、LSP 与 SDK', link: '/agents/opencode/server-lsp-sdk/' },
+              ],
+            },
+          ],
+        },
+        {
+          label: '实践篇',
+          items: [
+            { label: '建立 Agent 研究笔记', link: '/practices/research-notebook/' },
+            { label: '设计一个编码 Agent', link: '/practices/build-coding-agent/' },
+            { label: 'Prompt Diff 工作流', link: '/practices/prompt-diff-workflow/' },
+            { label: '权限评审清单', link: '/practices/permission-review-checklist/' },
+          ],
+        },
+        {
+          label: '实战手册',
+          items: [
+            { label: '威胁建模', link: '/playbooks/threat-model/' },
+            { label: 'MCP Server 设计', link: '/playbooks/mcp-server-design/' },
+            { label: '上下文预算', link: '/playbooks/context-budget/' },
+            { label: '缓存策略', link: '/playbooks/cache-strategy/' },
+            { label: '评测数据集', link: '/playbooks/evaluation-dataset/' },
+            { label: '多 Agent 协作', link: '/playbooks/multi-agent-handoff/' },
+            { label: '来源保鲜', link: '/playbooks/source-freshness/' },
+            { label: '文档发布', link: '/playbooks/docs-publishing/' },
           ],
         },
         {

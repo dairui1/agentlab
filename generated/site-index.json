@@ -6,9 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 26,
-    "body_chars": 48290,
-    "cjk_chars": 22598
+    "pages": 49,
+    "body_chars": 87382,
+    "cjk_chars": 40540
   },
   "agents": [
     {
@@ -38,12 +38,60 @@
   ],
   "pages": [
     {
+      "slug": "/agents/claude-code/extension-layer/",
+      "title": "Claude Code 扩展层",
+      "description": "CLAUDE.md、skills、subagents、hooks、MCP、plugins 在 Claude Code 中各自解决什么问题。",
+      "source": "site/src/content/docs/agents/claude-code/extension-layer.md",
+      "body_chars": 3241,
+      "cjk_chars": 1468
+    },
+    {
+      "slug": "/agents/claude-code/memory-project-rules/",
+      "title": "Claude Code 记忆与项目规则",
+      "description": "区分 CLAUDE.md、auto memory、项目目录和用户偏好。",
+      "source": "site/src/content/docs/agents/claude-code/memory-project-rules.md",
+      "body_chars": 1937,
+      "cjk_chars": 784
+    },
+    {
+      "slug": "/agents/claude-code/permissions-auto-mode/",
+      "title": "Claude Code 权限与 Auto Mode",
+      "description": "从权限疲劳、工具风险和自动审批角度拆解 Claude Code 的安全体验。",
+      "source": "site/src/content/docs/agents/claude-code/permissions-auto-mode.md",
+      "body_chars": 2122,
+      "cjk_chars": 1058
+    },
+    {
       "slug": "/agents/claude-code/",
       "title": "Claude Code",
       "description": "Claude Code 的产品表面、工具/权限、记忆、扩展和安全机制拆解。",
       "source": "site/src/content/docs/agents/claude-code.md",
       "body_chars": 3825,
       "cjk_chars": 1804
+    },
+    {
+      "slug": "/agents/codex/customization-stack/",
+      "title": "Codex AGENTS.md 与定制层",
+      "description": "Codex 如何通过 AGENTS.md、memories、skills、MCP、rules 和 config 把团队工作流产品化。",
+      "source": "site/src/content/docs/agents/codex/customization-stack.md",
+      "body_chars": 2014,
+      "cjk_chars": 804
+    },
+    {
+      "slug": "/agents/codex/mcp-automation/",
+      "title": "Codex MCP 与自动化",
+      "description": "Codex 如何通过 MCP、GitHub Action、SDK、非交互模式和自动化把 coding agent 嵌入工程系统。",
+      "source": "site/src/content/docs/agents/codex/mcp-automation.md",
+      "body_chars": 2030,
+      "cjk_chars": 790
+    },
+    {
+      "slug": "/agents/codex/sandbox-approvals/",
+      "title": "Codex 沙箱与审批",
+      "description": "Codex 如何把技术沙箱、审批策略、网络控制和自动审查组合成安全执行模型。",
+      "source": "site/src/content/docs/agents/codex/sandbox-approvals.md",
+      "body_chars": 2008,
+      "cjk_chars": 1010
     },
     {
       "slug": "/agents/codex/",
@@ -54,12 +102,52 @@
       "cjk_chars": 1439
     },
     {
+      "slug": "/agents/opencode/agents-permissions/",
+      "title": "OpenCode Agents 与权限",
+      "description": "OpenCode 的 Build、Plan、subagents 和 permission config 如何表达不同工作模式。",
+      "source": "site/src/content/docs/agents/opencode/agents-permissions.md",
+      "body_chars": 1832,
+      "cjk_chars": 631
+    },
+    {
+      "slug": "/agents/opencode/providers-models/",
+      "title": "OpenCode Provider 与模型抽象",
+      "description": "OpenCode 多 provider 设计给开源 Agent 带来的能力、成本和一致性问题。",
+      "source": "site/src/content/docs/agents/opencode/providers-models.md",
+      "body_chars": 1586,
+      "cjk_chars": 742
+    },
+    {
+      "slug": "/agents/opencode/server-lsp-sdk/",
+      "title": "OpenCode Server、LSP 与 SDK",
+      "description": "OpenCode 的 server 架构、LSP diagnostics 和 SDK 对 Agent 产品架构的启发。",
+      "source": "site/src/content/docs/agents/opencode/server-lsp-sdk.md",
+      "body_chars": 1658,
+      "cjk_chars": 574
+    },
+    {
       "slug": "/agents/opencode/",
       "title": "OpenCode",
       "description": "OpenCode 的开源编码 Agent 形态、agents、permissions、providers、config 和 server 架构拆解。",
       "source": "site/src/content/docs/agents/opencode.md",
       "body_chars": 3919,
       "cjk_chars": 1355
+    },
+    {
+      "slug": "/agents/pi/persona-safety/",
+      "title": "Pi 人格与安全边界",
+      "description": "从 persona、emotional intelligence、tool calling preview 和高风险主题看关系型 Agent 的工程约束。",
+      "source": "site/src/content/docs/agents/pi/persona-safety.md",
+      "body_chars": 1845,
+      "cjk_chars": 978
+    },
+    {
+      "slug": "/agents/pi/relational-context/",
+      "title": "Pi 关系型上下文",
+      "description": "Pi 这类关系型 Agent 如何区别于编码 Agent：情绪、人格、长期关系和安全边界是核心上下文。",
+      "source": "site/src/content/docs/agents/pi/relational-context.md",
+      "body_chars": 1815,
+      "cjk_chars": 1019
     },
     {
       "slug": "/agents/pi/",
@@ -90,8 +178,8 @@
       "title": "来源索引",
       "description": "AgentLab 当前引用的公开来源，按 Agent 和主题分类。",
       "source": "site/src/content/docs/book/sources.md",
-      "body_chars": 2577,
-      "cjk_chars": 488
+      "body_chars": 4028,
+      "cjk_chars": 573
     },
     {
       "slug": "/caching/",
@@ -220,6 +308,102 @@
       "source": "site/src/content/docs/operations/content-pipeline.md",
       "body_chars": 2951,
       "cjk_chars": 1041
+    },
+    {
+      "slug": "/playbooks/cache-strategy/",
+      "title": "缓存策略",
+      "description": "设计 prompt cache、工具结果缓存和上下文摘要缓存时，应该稳定什么、刷新什么、审查什么。",
+      "source": "site/src/content/docs/playbooks/cache-strategy.md",
+      "body_chars": 1062,
+      "cjk_chars": 623
+    },
+    {
+      "slug": "/playbooks/context-budget/",
+      "title": "上下文预算",
+      "description": "如何为 Agent 请求分配系统指令、项目规则、任务证据、工具输出和记忆的上下文预算。",
+      "source": "site/src/content/docs/playbooks/context-budget.md",
+      "body_chars": 1129,
+      "cjk_chars": 733
+    },
+    {
+      "slug": "/playbooks/docs-publishing/",
+      "title": "文档发布",
+      "description": "AgentLab 文档站如何从仓库内容、生成数据、CI 和部署平台形成发布闭环。",
+      "source": "site/src/content/docs/playbooks/docs-publishing.md",
+      "body_chars": 1340,
+      "cjk_chars": 556
+    },
+    {
+      "slug": "/playbooks/evaluation-dataset/",
+      "title": "评测数据集",
+      "description": "为编码 Agent、关系型 Agent 和研究型 Agent 设计可复用评测样例。",
+      "source": "site/src/content/docs/playbooks/evaluation-dataset.md",
+      "body_chars": 928,
+      "cjk_chars": 546
+    },
+    {
+      "slug": "/playbooks/mcp-server-design/",
+      "title": "MCP Server 设计",
+      "description": "设计一个给 Agent 使用的 MCP server 时，如何处理工具 schema、副作用、审批和返回值。",
+      "source": "site/src/content/docs/playbooks/mcp-server-design.md",
+      "body_chars": 1623,
+      "cjk_chars": 672
+    },
+    {
+      "slug": "/playbooks/multi-agent-handoff/",
+      "title": "多 Agent 协作",
+      "description": "主 Agent、subagent、reviewer、tool-agent 之间如何交接任务和保留信任边界。",
+      "source": "site/src/content/docs/playbooks/multi-agent-handoff.md",
+      "body_chars": 1240,
+      "cjk_chars": 581
+    },
+    {
+      "slug": "/playbooks/source-freshness/",
+      "title": "来源保鲜",
+      "description": "如何让 AgentLab 中的产品事实、链接和研究结论持续保持新鲜。",
+      "source": "site/src/content/docs/playbooks/source-freshness.md",
+      "body_chars": 1097,
+      "cjk_chars": 464
+    },
+    {
+      "slug": "/playbooks/threat-model/",
+      "title": "威胁建模",
+      "description": "为 Agent 工具、上下文、记忆、网络和自动化建立可执行威胁模型。",
+      "source": "site/src/content/docs/playbooks/threat-model.md",
+      "body_chars": 1514,
+      "cjk_chars": 714
+    },
+    {
+      "slug": "/practices/build-coding-agent/",
+      "title": "设计一个编码 Agent",
+      "description": "从最小可用架构开始，逐步加入工具、权限、上下文、记忆、评测和自动化。",
+      "source": "site/src/content/docs/practices/build-coding-agent.md",
+      "body_chars": 1726,
+      "cjk_chars": 972
+    },
+    {
+      "slug": "/practices/permission-review-checklist/",
+      "title": "权限评审清单",
+      "description": "在给 Agent 增加工具、网络、文件写入或远端动作前，需要审查哪些问题。",
+      "source": "site/src/content/docs/practices/permission-review-checklist.md",
+      "body_chars": 1385,
+      "cjk_chars": 717
+    },
+    {
+      "slug": "/practices/prompt-diff-workflow/",
+      "title": "Prompt Diff 工作流",
+      "description": "如何从 prompt snapshot 生成可审查的版本历史、左右 diff 和变更解释。",
+      "source": "site/src/content/docs/practices/prompt-diff-workflow.md",
+      "body_chars": 1082,
+      "cjk_chars": 607
+    },
+    {
+      "slug": "/practices/research-notebook/",
+      "title": "建立 Agent 研究笔记",
+      "description": "如何把公开来源、观察、推断和待验证问题组织成可持续更新的 Agent 研究库。",
+      "source": "site/src/content/docs/practices/research-notebook.md",
+      "body_chars": 1427,
+      "cjk_chars": 814
     },
     {
       "slug": "/prompts/",

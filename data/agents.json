@@ -12,6 +12,13 @@
     "official_sources": [
       "https://code.claude.com/docs/en/overview",
       "https://code.claude.com/docs/en/how-claude-code-works",
+      "https://code.claude.com/docs/en/features-overview",
+      "https://code.claude.com/docs/en/claude-directory",
+      "https://code.claude.com/docs/en/memory",
+      "https://code.claude.com/docs/en/hooks",
+      "https://code.claude.com/docs/en/skills",
+      "https://code.claude.com/docs/en/sub-agents",
+      "https://code.claude.com/docs/en/mcp",
       "https://code.claude.com/docs/en/permissions",
       "https://code.claude.com/docs/en/security",
       "https://www.anthropic.com/engineering/claude-code-auto-mode",
@@ -36,6 +43,13 @@
     "official_sources": [
       "https://developers.openai.com/codex/codex-manual.md",
       "https://developers.openai.com/codex/overview",
+      "https://developers.openai.com/codex/concepts/sandboxing",
+      "https://developers.openai.com/codex/agent-approvals-security",
+      "https://developers.openai.com/codex/guides/agents-md",
+      "https://developers.openai.com/codex/concepts/customization",
+      "https://developers.openai.com/codex/mcp",
+      "https://developers.openai.com/codex/learn/best-practices",
+      "https://developers.openai.com/codex/subagents",
       "https://github.com/openai/codex"
     ],
     "research_questions": [
@@ -84,6 +98,12 @@
       "https://opencode.ai/docs/agents/",
       "https://opencode.ai/docs/config/",
       "https://opencode.ai/docs/permissions/",
+      "https://opencode.ai/docs/tools",
+      "https://opencode.ai/docs/providers/",
+      "https://opencode.ai/docs/server/",
+      "https://opencode.ai/docs/sdk/",
+      "https://opencode.ai/docs/lsp/",
+      "https://opencode.ai/docs/cli/",
       "https://github.com/anomalyco/opencode"
     ],
     "research_questions": [
