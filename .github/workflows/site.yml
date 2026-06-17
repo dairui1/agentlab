@@ -42,6 +42,8 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - uses: actions/configure-pages@v5
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        with:
+          enablement: true
       - run: python scripts/build_site_index.py
       - run: git diff --exit-code generated/site-index.json
       - run: npm ci
