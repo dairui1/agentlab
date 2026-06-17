@@ -40,6 +40,8 @@ make generated
 make site-build
 ```
 
+当前仓库是私有仓库；如果 GitHub 计划不支持私有仓库 Pages，`site` workflow 会默认只构建不部署。后续设置仓库变量 `DEPLOY_PAGES=true` 后，workflow 才会尝试走 GitHub Pages 部署。
+
 如果需要安装为本地命令：
 
 ```bash
