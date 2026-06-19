@@ -44,7 +44,7 @@ AgentLab 不是线性教材。你可以按自己的问题进入：要做产品�
 5. [Pi](/agentlab/agents/pi/)
 6. [设计模式](/agentlab/comparison/patterns/)
 
-这条路线要避免一个常见误区：用同一种指标评价所有 Agent。编码 Agent 看重文件读写、命令执行、权限、上下文检索、测试验证和代码审查。Pi 这类关系型助手看重连续对话、语气一致性、用户安全、个人化和情绪承接。OpenCode 的价值在于开源可检查、可配置、可接多模型。不同产品的“Agent 性”不是同一种形态。
+这条路线要避免一个常见误区：用同一种指标评价所有 Agent。Claude Code 看重产品化权限、hooks、skills 和自动模式；Codex 看重沙箱、审批、`AGENTS.md`、云/本地任务和 review 工作流；Pi 看重 minimal harness、可观察性、扩展、skills 和 prompt templates；OpenCode 的价值在于开源可检查、可配置、可接多模型。不同产品的“Agent 性”不是同一种形态。
 
 ## 路线四：我要维护这个项目
 

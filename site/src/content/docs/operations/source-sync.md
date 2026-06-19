@@ -16,9 +16,9 @@ AgentLab 研究 Agent 不能只看文档和产品界面。对于公开源码或�
 | Codex | Git | `https://github.com/openai/codex.git` | `main` 分支，浅克隆，sparse checkout 研究目录 |
 | OpenCode | Git | `https://github.com/anomalyco/opencode.git` | `dev` 分支，浅克隆，sparse checkout 研究目录 |
 | Claude Code | npm | `@anthropic-ai/claude-code` | 下载公开 npm 包产物，默认排除 `*.map` |
-| Pi | unavailable | Inflection Pi | 官方没有发布 app 源码，只记录不可同步原因 |
+| Pi | Git | `https://github.com/earendil-works/pi.git` | `main` 分支，浅克隆，sparse checkout 研究目录 |
 
-Claude Code 的处理方式故意保守。公开 npm 包可以作为安装产物研究，但 source map 可能包含不适合当作常规来源使用的内容，所以默认排除。Pi 也不能用名称相似的第三方项目替代；没有官方公开源码时，研究材料应回到官方文档、产品行为和隐私/训练说明。
+Claude Code 的处理方式故意保守。公开 npm 包可以作为安装产物研究，但 source map 可能包含不适合当作常规来源使用的内容，所以默认排除。Pi 指的是 Mario Zechner 发起、现迁移到 Earendil Works 的开源 coding agent/toolkit，不是 Inflection 的聊天产品；旧入口如 `badlogic/pi-mono` 和 `@mariozechner/pi-coding-agent` 只作为迁移历史记录。
 
 ## 本地缓存
 
@@ -35,6 +35,7 @@ research/sources/cache/
   git/
     codex/
     opencode/
+    pi/
   npm/
     claude-code/
 ```

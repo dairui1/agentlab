@@ -52,7 +52,7 @@ AgentLab 暂时使用七层模型组织这本书：
 - 它如何被审计？日志、diff、工具调用、审批记录是否可回放？
 - 它如何被更新？提示词、工具、模型、配置、文档是否版本化？
 
-这些问题看起来基础，但它们直接决定 Agent 的产品形态。Claude Code 和 Codex 都把权限、沙箱、项目规则和扩展层放在产品中心。OpenCode 作为开源 Agent，把 agents、permissions、providers、config 等机制暴露给用户。Pi 的重点则不在文件系统，而在关系型体验、语气、个性和安全承接。
+这些问题看起来基础，但它们直接决定 Agent 的产品形态。Claude Code 和 Codex 都把权限、沙箱、项目规则和扩展层放在产品中心。OpenCode 作为开源 Agent，把 agents、permissions、providers、config 等机制暴露给用户。Pi 则把 minimal harness、可观察性、项目指令、skills 和扩展点放在中心。
 
 ## 文档如何反哺实现
 

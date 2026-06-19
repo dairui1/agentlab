@@ -57,11 +57,19 @@
     },
     {
       "agent": "pi",
-      "kind": "unavailable",
-      "name": "Inflection Pi",
-      "sync": false,
-      "reason": "Inflection Pi app source is not published as an official open-source repository. Use official docs and product behavior notes instead.",
-      "notes": "Do not substitute unrelated projects that happen to use the name Pi."
+      "kind": "git",
+      "name": "earendil-works/pi",
+      "url": "https://github.com/earendil-works/pi.git",
+      "default_branch": "main",
+      "depth": 1,
+      "sparse_paths": [
+        ".pi",
+        "packages",
+        "scripts"
+      ],
+      "license": "MIT",
+      "sync": true,
+      "notes": "Current official Pi coding agent/toolkit repository. Earlier public locations included badlogic/pi-mono and @mariozechner/pi-coding-agent."
     }
   ]
 }

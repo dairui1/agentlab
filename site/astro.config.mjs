@@ -85,10 +85,10 @@ export default defineConfig({
               label: 'Pi',
               items: [
                 { label: '总览', link: '/agents/pi/' },
-                { label: '关系型上下文', link: '/agents/pi/relational-context/' },
-                { label: '人格与安全边界', link: '/agents/pi/persona-safety/' },
-                { label: '数据与隐私', link: '/agents/pi/data-privacy/' },
-                { label: '工具调用设计', link: '/agents/pi/tool-calling-design/' },
+                { label: '项目上下文', link: '/agents/pi/relational-context/' },
+                { label: '可观察性与安全', link: '/agents/pi/persona-safety/' },
+                { label: '数据与本地边界', link: '/agents/pi/data-privacy/' },
+                { label: '工具与扩展设计', link: '/agents/pi/tool-calling-design/' },
               ],
             },
             {

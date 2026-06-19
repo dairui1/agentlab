@@ -61,25 +61,25 @@
   {
     "slug": "pi",
     "display_name": "Pi",
-    "aliases": ["pi-ai", "inflection-pi"],
-    "owner": "Inflection",
-    "category": "conversational-agent",
+    "aliases": ["pi-ai", "pi-coding-agent", "mario-pi", "earendil-pi"],
+    "owner": "Earendil Works / Mario Zechner",
+    "category": "coding-agent",
     "status": "researching",
-    "priority": "medium",
+    "priority": "high",
     "architecture_path": "research/agents/pi/architecture.md",
     "prompt_index_path": "research/prompts/pi/CHANGELOG.md",
     "official_sources": [
-      "https://hey.pi.ai/",
-      "https://inflection.ai/",
-      "https://developers.inflection.ai/docs/inflection-3-pi",
-      "https://inflection.ai/about",
-      "https://inflection.ai/notice-on-model-training",
-      "https://inflection.ai/training-data-transparency-statement"
+      "https://pi.dev/",
+      "https://github.com/earendil-works/pi",
+      "https://www.npmjs.com/package/@earendil-works/pi-coding-agent",
+      "https://github.com/badlogic/pi-mono",
+      "https://www.npmjs.com/package/@mariozechner/pi-coding-agent",
+      "https://mariozechner.at/posts/2025-11-30-pi-coding-agent/"
     ],
     "research_questions": [
-      "How does Pi optimize for conversational continuity and personal assistant behavior?",
-      "Which visible product constraints reveal underlying policy and memory design?",
-      "How does its agent behavior differ from coding agents?"
+      "How does Pi keep the coding-agent harness minimal while exposing extensions, skills, prompt templates, and themes?",
+      "How do Pi's project instructions, SYSTEM.md customization, sessions, and tool loop compare with Claude Code, Codex, and OpenCode?",
+      "Which parts changed when the project moved from Mario's earlier package/repository to Earendil Works?"
     ]
   },
   {

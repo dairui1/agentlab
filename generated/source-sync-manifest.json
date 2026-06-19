@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-19T10:38:23+00:00",
+  "generated_at": "2026-06-19T11:08:51+00:00",
   "cache_dir": "research/sources/cache",
   "metadata_only": false,
   "targets": [
@@ -69,12 +69,23 @@
       "extracted_files": 7
     },
     {
-      "status": "unavailable",
-      "kind": "unavailable",
+      "status": "synced",
+      "kind": "git",
       "agent": "pi",
-      "name": "Inflection Pi",
-      "reason": "Inflection Pi app source is not published as an official open-source repository. Use official docs and product behavior notes instead.",
-      "notes": "Do not substitute unrelated projects that happen to use the name Pi."
+      "name": "earendil-works/pi",
+      "url": "https://github.com/earendil-works/pi.git",
+      "branch": "main",
+      "depth": 1,
+      "fetch_tags": false,
+      "sparse_paths": [
+        ".pi",
+        "packages",
+        "scripts"
+      ],
+      "commit": "226a316824dc1835ffc34acad274488f5fe298f6",
+      "remote_head": "226a316824dc1835ffc34acad274488f5fe298f6",
+      "license": "MIT",
+      "local_path": "research/sources/cache/git/pi"
     }
   ]
 }

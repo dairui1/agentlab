@@ -11,7 +11,7 @@ AgentLab 的内容会以中文为主。代码、配置字段、命令、协议�
 
 第一条主线是“机制”。我们把 Agent 拆成可讨论的层：用户意图、系统提示词、长期项目规则、上下文构造、模型推理、工具调用、权限决策、执行环境、观察结果、状态压缩、最终交付。每一层都可能出问题，也都可以被工程化。提示词不是魔法文案，而是一个有版本、有测试、有 diff、有回滚策略的接口。工具不是随手暴露的函数，而是影响安全、成本、速度和可预测性的协议。上下文不是越多越好，而是需要根据任务、风险和缓存策略做选择。
 
-第二条主线是“案例”。Claude Code、Codex、Pi、OpenCode 代表了四种不同的 Agent 产品方向。Claude Code 和 Codex 都是强工程化的编码 Agent，但它们在权限、沙箱、定制层、产品表面和生态扩展上有不同设计。Pi 不是编码 Agent，它更像关系型、情绪智能、个人助理方向的样本，能帮助我们理解长期对话、人格一致性和安全边界如何影响 Agent。OpenCode 则提供了开源编码 Agent 的可检查样本，适合从仓库结构、配置、权限、模型 provider 和插件体系中学习。
+第二条主线是“案例”。Claude Code、Codex、Pi、OpenCode 代表了四种不同的 Agent 产品方向。Claude Code 和 Codex 都是强工程化的编码 Agent，但它们在权限、沙箱、定制层、产品表面和生态扩展上有不同设计。Pi 是 Mario Zechner 发起、现迁移到 Earendil Works 的开源终端 coding harness，适合研究 minimal agent loop、可观察性、扩展、skills 和 prompt templates。OpenCode 则提供了另一个开源编码 Agent 的可检查样本，适合从仓库结构、配置、权限、模型 provider 和插件体系中学习。
 
 第三条主线是“生产”。这本书本身也应该被 AgentLab 项目生产出来：公开来源定时检查，结构化数据生成，prompt snapshot 生成 diff，站点 build 通过 CI，低风险内容自动更新，高风险内容走 PR 审核。文档不是静态物，而是 Agent 研究和开发流水线的输出。
 
@@ -52,7 +52,7 @@ AgentLab 的内容会以中文为主。代码、配置字段、命令、协议�
 - 设计工具权限、沙箱、审批、审计、回滚和日志。
 - 想知道系统提示词、项目规则、用户消息、记忆和工具结果怎么组织。
 - 想比较 Claude Code、Codex、OpenCode 这些编码 Agent 的产品机制。
-- 想理解 Pi 这类关系型助手为什么不应该用编码 Agent 的标准去评价。
+- 想理解 Pi 这类 minimal coding harness 如何用更薄的架构暴露 agent loop 和扩展点。
 - 想把自己的研究资料、prompt 版本和实验组件长期维护起来。
 
 ## 写作原则

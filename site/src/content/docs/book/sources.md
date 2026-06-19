@@ -32,14 +32,13 @@ description: AgentLab 当前引用的公开来源，按 Agent 和主题分类。
 - [Best practices](https://developers.openai.com/codex/learn/best-practices)：Codex 上下文、提示、验证、MCP、skills 和 automations 的官方实践。
 - [Subagents](https://developers.openai.com/codex/subagents)：Codex subagent 配置和能力。
 
-## Pi / Inflection
+## Pi
 
-- [Pi](https://hey.pi.ai/)：Pi 的消费者产品入口。
-- [Inflection AI](https://inflection.ai/)：公司定位、人本和情绪智能表述。
-- [Inflection AI About](https://inflection.ai/about)：公共利益使命、情绪智能和可信 Agent 方向。
-- [Inflection-3 Pi developer docs](https://developers.inflection.ai/docs/inflection-3-pi)：Pi 3.0、Productivity 3.0、Pi 3.1 Preview 的开发者说明。
-- [Notice on model training](https://inflection.ai/notice-on-model-training)：训练数据来源和隐私保护说明。
-- [Training Data Transparency Statement](https://inflection.ai/training-data-transparency-statement)：训练数据类型、规模、处理和合成数据说明。
+- [Pi 官网](https://pi.dev/)：Pi coding agent 的产品和安装入口。
+- [earendil-works/pi](https://github.com/earendil-works/pi)：当前官方开源仓库，包含 agent toolkit、coding agent CLI、TUI 和相关 packages。
+- [@earendil-works/pi-coding-agent](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)：当前 npm 包入口。
+- [badlogic/pi-mono](https://github.com/badlogic/pi-mono)：Mario Zechner 早期公开仓库位置，用于追踪迁移历史。
+- [@mariozechner/pi-coding-agent](https://www.npmjs.com/package/@mariozechner/pi-coding-agent)：旧 npm 包入口，研究时只作为迁移线索。
 
 ## OpenCode
 

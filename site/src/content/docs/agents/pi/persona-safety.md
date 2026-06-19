@@ -1,73 +1,60 @@
 ---
-title: Pi 人格与安全边界
-description: 从 persona、emotional intelligence、tool calling preview 和高风险主题看关系型 Agent 的工程约束。
+title: Pi 可观察性与安全边界
+description: 从最小 harness、可见上下文、扩展审计和工具确认看 Pi 的安全设计重点。
 ---
 
-Pi 方向的 Agent 让我们看到另一类难题：当助手被设计成温暖、理解、持续陪伴时，它更容易获得用户信任，也更需要安全边界。人格和安全不是两个独立模块，而是同一个体验的两面。
+Pi 的安全重点不是“情绪型 persona”，而是 coding agent 的可观察性和边界控制。一个终端 agent 能读文件、改代码、运行命令、调用模型供应商、加载项目规则和扩展工具。只要这些能力存在，安全问题就不只是模型拒绝策略，而是 harness 是否让用户看见和控制副作用。
 
-## 人格不能替代能力说明
+## 可观察性是安全能力
 
-关系型 Agent 常常会使用自然、亲切、有同理心的语气。这个语气有价值，但也有风险：用户可能把流畅回应理解成专业能力，把陪伴感理解成真实关系，把建议理解成现实承诺。
+Pi 的一个核心卖点是用户能更清楚地看到 agent 在做什么。对 coding agent 来说，可观察性至少包括：
 
-因此 persona 设计要包含能力边界：
+- 当前 prompt 和项目指令从哪里来。
+- 工具调用准备执行什么。
+- 文件改动具体是什么 diff。
+- 命令输出如何影响下一步计划。
+- 扩展和技能向 agent 注入了什么能力。
 
-- 助手可以陪用户梳理想法，但不能替代医生、律师或金融顾问。
-- 助手可以给建议，但应说明不确定性。
-- 助手可以表达关心，但不能操控情绪。
-- 助手可以记住偏好，但必须尊重隐私和删除权。
-- 助手可以调用工具，但高风险行动需要明确确认。
+如果这些内容不可见，用户只能盲目信任 agent。可观察性不是调试便利，而是授权的前提。
 
-如果一个 persona 只定义“温柔、聪明、有趣”，还不够工程化。
+## 最小 harness 的安全价值
 
-## Emotional intelligence 的测试
+Pi 倾向于把 harness 做薄。薄 harness 的好处是更容易审查：工具、状态、上下文、TUI 和扩展边界更清楚。复杂系统当然可以提供更多能力，但能力越多，越需要权限模型和审计机制。
 
-情绪智能不能只靠主观感觉。可以设计测试样例：
+对 AgentLab 来说，Pi 是一个很好的安全基线：先研究最小可用 coding agent 需要哪些权限，再看 Claude Code、Codex、OpenCode 如何把这些权限产品化、配置化或沙箱化。
 
-- 用户表达焦虑时，助手是否先承接再建议。
-- 用户要求绝对保证时，助手是否避免过度承诺。
-- 用户表达自责时，助手是否避免加重负担。
-- 用户提出危险计划时，助手是否安全介入。
-- 用户分享隐私时，助手是否避免不必要扩展记忆。
+## 扩展风险
 
-这些测试不一定能完全自动评分，但可以形成 rubric。关系型 Agent 的评测需要人工审查和安全专家参与，不能只看“用户是否点击喜欢”。
+扩展是 Pi 的强项，也是风险点。一个扩展可以带来新命令、新工具、新上下文和新自动化流程。风险主要来自：
 
-## Tool calling preview 的风险
+- 读取敏感文件。
+- 执行 shell 命令。
+- 把上下文发给外部服务。
+- 修改 prompt 或工具说明。
+- 在会话中隐藏真实副作用。
 
-Inflection-3 Pi 文档提到 Pi 3.1 Preview 包含 tool calling，处于 agentic workflows 和 advanced features 的 beta testing。这说明关系型助手也会走向可行动 Agent。但一旦接工具，风险会变大。
+因此扩展应有可审计元数据：来源、版本、声明工具、权限需求、是否会联网、是否会写文件。即使 Pi 本身保持简单，扩展生态也需要安全约束。
 
-想象一个用户在情绪激动时要求助手“帮我发一封很冲的邮件”。如果助手只是生成草稿，风险可控；如果助手可以直接发送邮件，就必须增加确认、冷静期、预览和撤销策略。关系型 Agent 的工具调用不只是技术问题，也是情绪状态问题。
+## 工具确认
 
-## 安全协议应融入语气
+Coding agent 的工具确认不应只问“允许吗”。更好的确认要显示：
 
-安全拒绝不应像系统错误。关系型 Agent 的安全回应需要三层：
+- 将执行的命令或文件改动。
+- 当前工作目录。
+- 可能影响的文件范围。
+- 是否联网或调用外部服务。
+- 是否可撤销。
 
-1. 承认用户感受。
-2. 说明不能做什么以及为什么。
-3. 提供安全替代路径。
+Pi 的研究重点之一，是看它在 minimal harness 中如何处理这些确认。如果某些能力交给扩展实现，就要评估扩展是否能绕过用户预期。
 
-例如面对危险请求，助手不能只说“我不能帮助这个”。它需要解释边界，提供支持，必要时引导用户联系现实世界帮助。Pi 方向的产品尤其需要这种体验设计。
+## 与 Codex 和 OpenCode 的比较
 
-## 隐私和训练透明度
+Codex 的安全研究重点是 sandbox、approval policy、云端/本地任务和 `AGENTS.md`。OpenCode 的重点是 provider、permission、server/LSP/SDK 和配置化 agent。Pi 的重点是薄 harness 下的可见性和扩展边界。
 
-Inflection 的训练数据透明度和模型训练说明强调数据来源、隐私保护和训练处理。这类公开信息对关系型 Agent 很重要，因为用户会分享高度个人化内容。产品需要让用户理解数据如何被使用、是否用于训练、如何保护个人信息。
-
-对自己的 Agent 来说，最低要求是：
-
-- 明确记录是否保存对话。
-- 明确记录是否用于训练或改进。
-- 提供删除和导出机制。
-- 高敏感信息默认不长期保存。
-- 内部日志和评测数据要脱敏。
-
-## 对 AgentLab 的研究方式
-
-Pi 的很多产品细节不像开源编码 Agent 那样可直接查看。因此 AgentLab 研究 Pi 时应更谨慎：官方文档可以支撑模型定位、情绪智能、tool calling preview、训练透明度等事实；具体消费者产品的记忆、内部 prompt、危机协议如果没有来源，就只能写成待验证。
-
-不要为了“覆盖 Pi”而编造架构图。Pi 的价值在于提供一个不同方向的 Agent 样本：关系、人格、安全和长期信任。
+这三个方向不是互斥的。自己的 agent 可以借鉴 Pi 的可观察性、Codex 的沙箱审批和 OpenCode 的配置化权限。
 
 ## 来源
 
-- [Inflection-3 Pi developer docs](https://developers.inflection.ai/docs/inflection-3-pi)
-- [Inflection AI About](https://inflection.ai/about)
-- [Notice on model training](https://inflection.ai/notice-on-model-training)
-- [Training Data Transparency Statement](https://inflection.ai/training-data-transparency-statement)
+- [Pi 官网](https://pi.dev/)
+- [earendil-works/pi](https://github.com/earendil-works/pi)
+- [Mario Zechner: What I learned building an opinionated and minimal coding agent](https://mariozechner.at/posts/2025-11-30-pi-coding-agent/)

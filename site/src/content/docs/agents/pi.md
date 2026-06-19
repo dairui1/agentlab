@@ -1,80 +1,80 @@
 ---
 title: Pi
-description: Pi 作为情绪智能和关系型 Agent 样本的产品定位、上下文策略和工程启发。
+description: Pi 作为 Mario Zechner 发起、现迁移到 Earendil Works 的开源终端 coding agent/toolkit 的架构入口。
 ---
 
-Pi 和 Claude Code、Codex、OpenCode 不属于同一类 Agent。后三者主要面向代码仓库和开发工作流，Pi 更接近关系型、情绪智能、个人助理方向。把 Pi 放进 AgentLab，不是为了比较谁更会写代码，而是为了提醒我们：Agent 不只有“执行工具完成任务”一种形态。长期对话、语气一致性、用户安全、人格设定、情绪承接和信任关系同样是 Agent 工程问题。
+Pi 不是 Inflection 的聊天产品。AgentLab 这里研究的 Pi，是 Mario Zechner 发起的开源终端 coding agent 和 agent toolkit。它曾以 `badlogic/pi-mono`、`@mariozechner/pi-coding-agent` 等入口出现，近期迁移到 `earendil-works/pi` 和 `@earendil-works/pi-coding-agent`。这个更名/迁移很重要，因为研究资料、安装入口和源码同步目标都应该指向当前官方位置。
+
+Pi 的定位和 Claude Code、Codex、OpenCode 更接近：它面向本地开发工作流，强调终端交互、项目上下文、工具调用、会话、扩展、技能和提示词模板。它和这些 agent 的差异在于哲学更“薄”：不要把 harness 做成难以理解的黑盒，而是让用户能看见 prompt、工具、session、扩展和运行状态。
+
+为了避免后续资料混淆，AgentLab 中单独写作 “Pi” 时默认指这个开源 coding agent；如果需要讨论 Inflection 的 Pi 聊天产品，必须显式写成 “Inflection Pi”，并放到另一个研究对象中。这个命名边界会影响源码同步、来源索引、能力矩阵和 prompt 版本记录。
+
+后续新增资料也必须先检查命名来源。
 
 ## 已确认事实
 
-Pi 的官方入口说明它由 Inflection AI 创建，Inflection AI 将自己定位为 empowering people and brands with emotionally intelligent, human-centered AI。Inflection 的 About 页面进一步强调公共利益使命、提升人类福祉和生产力，以及把 EQ 和 IQ 结合的 human-centered AI。
+当前官方源码仓库是 `https://github.com/earendil-works/pi`，仓库描述为 AI agent toolkit，包含 unified LLM API、agent loop、TUI 和 coding agent CLI。仓库许可证为 MIT。当前 npm 包是 `@earendil-works/pi-coding-agent`，旧的 `@mariozechner/pi-coding-agent` 已不再是首选入口。
 
-Inflection 开发者文档显示，Inflection-3 包含不同用途的模型。Pi (3.0) 被描述为 powering pi.ai and Pi iOS app experiences，包含 backstory、emotional intelligence、productivity 和 safety，并适合 customer support chatbots 等场景。Productivity (3.0) 更强调按指令输出和 JSON 等精确任务。Pi (3.1-Preview) 是包含 backstory、emotional intelligence、tool calling 等能力的 preview 模型，处于 agentic workflows 和 advanced features 的 beta testing。
+Pi 的公开文档和 README 把它描述为 minimal terminal coding harness。它支持项目指令、默认系统提示词的替换或追加、扩展、技能、提示词模板、主题和会话。也就是说，Pi 不只是一个 CLI 命令，而是一个可改造的 agent harness。
 
-Inflection 的训练数据说明和透明度声明还提供了产品背后的模型训练信息：训练数据来源包括公开数据、授权数据和合成蒸馏数据；Inflection 强调 privacy-by-design、避免披露训练数据中的个人信息，并说明其数据处理包括去重、质量过滤、数据混合、内容过滤和格式标准化。
+## 为什么 Pi 值得研究
 
-## 为什么 Pi 对 Agent 工程有价值
+Pi 对 AgentLab 的价值在于三个方向。
 
-编码 Agent 的默认目标是完成任务：修 bug、加功能、跑测试、开 PR。Pi 的默认目标更接近关系维持：让用户愿意表达、继续对话、被理解、获得支持。这两类 Agent 的优化目标不同，导致架构关注点不同。
+第一，它把“可观察性”放在核心位置。很多 coding agent 会把规划、子任务、工具选择和上下文构造隐藏在内部，用户只看到结果。Pi 的设计倾向是把这些中间状态暴露出来，让用户能检查、修改和扩展。
 
-如果一个 Agent 面向心理支持、客户沟通、个人反思、学习陪伴或企业内部助理，它不能只追求“快速给答案”。它要处理用户状态、语气、上下文连续性、安全边界和长期信任。Pi 是这个方向的样本。即使我们无法看到它的完整内部提示词，也可以从产品定位和开发者模型说明中学习：backstory、emotional intelligence、safety、tone mirroring、agentic preview 是其重要概念。
+第二，它把扩展点做成一等公民。用户不一定要 fork agent 源码，而是通过扩展、技能、prompt template、主题和配置适配自己的工作流。这和 Claude Code 的 Skills / hooks、Codex 的 `AGENTS.md` / MCP、OpenCode 的 agents / provider / permission 配置都可以直接比较。
 
-## 关系型上下文
+第三，它提供了一个“少即是多”的反例。Agent 越复杂，越容易把 prompt、工具、权限、上下文和 UI 混成一团。Pi 倾向于保持 harness 简洁，这适合研究一个问题：一个 coding agent 最小需要哪些层，哪些能力可以留给扩展。
 
-Pi 的上下文不是代码文件，而是关系状态。关系型上下文至少包括：
+## 架构层次
 
-- 用户当前问题或情绪。
-- 用户先前表达过的偏好、目标、压力和边界。
-- 助手自己的稳定人格和语气。
-- 当前对话的情感节奏。
-- 安全风险和危机信号。
-- 是否应该建议用户寻求现实世界帮助。
+Pi 可以粗分成这些层：
 
-这种上下文不能简单按“相关文档检索”来处理。过多引用历史可能显得冒犯；完全不记得用户又会破坏关系感。一个关系型 Agent 需要更细的记忆策略：哪些内容可以记，哪些内容应短期使用，哪些内容必须明确征得同意，哪些内容不能用于未来个性化。
+- Provider 层：统一不同模型供应商和模型调用接口。
+- Agent core：负责 agent loop、工具调用、状态管理和消息流。
+- Coding agent：把 core 绑定到代码编辑、项目上下文、会话和终端工作流。
+- TUI：提供终端交互界面和可见运行状态。
+- Extension surface：让用户扩展工具、命令、提示词、技能和主题。
 
-## Prompt 和人格
+研究 Pi 时，不应该只看 CLI 行为。更重要的是看这些层之间的边界：什么属于 core，什么属于 coding agent，什么属于用户扩展，什么只是 TUI 表现。
 
-Pi 这类产品的 prompt 研究更适合关注 persona 和 response policy，而不是工具调用。核心问题包括：
+## Prompt 和项目上下文
 
-- 助手如何表达温暖、好奇和尊重。
-- 助手如何避免过度迎合或给出不负责任建议。
-- 助手如何在用户情绪低落时承接，而不是机械解决问题。
-- 助手如何保持人格一致性。
-- 助手如何处理隐私、危机、安全和专业边界。
+Pi 的 prompt 表面值得重点研究。公开文档提到 `AGENTS.md` 会作为项目指令加载，`SYSTEM.md` 可以替换或追加默认系统提示词。这和 Codex 的 `AGENTS.md`、Claude Code 的 memory / project rules、OpenCode 的 config rules 是同一类问题：项目如何把自己的约束注入 agent。
 
-开发者文档提到 Pi 模型包含 backstory 和 emotional intelligence，这说明人格不是 UI 文案，而是模型/配置层面的设计资产。对自己的 Agent 来说，如果要做长期陪伴或客服角色，persona 应该被版本化、测试和审查，而不是散落在 prompt 里。
+这里的核心问题不是“提示词写得多长”，而是：
 
-## 工具调用和 agentic preview
+- 默认系统提示词如何保持最小。
+- 项目指令按什么路径和优先级加载。
+- 用户如何覆盖默认行为。
+- 技能和扩展如何向上下文注入说明。
+- agent 如何避免把所有可用信息都塞进上下文。
 
-Pi 3.1 Preview 文档提到 tool calling 和 agentic workflows。这说明关系型助手也会走向可行动 Agent。但关系型助手接工具的风险比编码 Agent 更复杂：用户可能在情绪脆弱时授权行动，助手可能把支持性语气和行动建议混在一起，工具结果可能影响用户现实决策。
+## 与其他三个 Agent 的对比
 
-因此，Pi 方向的工具设计需要更保守：
+Claude Code 强在产品化的工具协议、权限、记忆、hooks、skills 和云端/本地边界。Codex 强在 sandbox、审批、`AGENTS.md`、云任务、review/CI 工作流。OpenCode 强在开源实现、provider 抽象、server/LSP/SDK 和配置化 agent。Pi 的研究重点则是 minimal harness、可观察性和扩展点。
 
-- 高风险行动必须有明确确认。
-- 医疗、法律、金融、危机类建议必须有边界。
-- 记忆和个性化要清晰告知。
-- 工具结果要区分事实、建议和情绪支持。
-- 不要用“我理解你”掩盖不确定性。
-
-## 与编码 Agent 的差异
-
-Pi 的价值不在于文件系统操作，而在于对话体验和人本定位。编码 Agent 的评价指标可以是测试通过率、PR 质量、编辑正确性和上下文命中率。Pi 的评价指标应该包括用户是否感到被理解、是否避免伤害、是否保持边界、是否适度个性化、是否在长期对话中保持一致。
-
-这也提醒我们：AgentLab 的比较矩阵不能只有“是否能执行命令”。一个 Agent 的核心能力要和目标场景匹配。对 Pi 来说，`shell`、`git`、`MCP` 不是主轴；backstory、emotional intelligence、safety、tone mirroring、voice 和长期关系才是主轴。
+如果要开发自己的 coding agent，Pi 是一个很好的下限样本：先把 agent loop、工具调用、会话、项目指令和扩展表面做清楚，再考虑更复杂的云端任务、协作、多 agent 和企业权限。
 
 ## 待验证问题
 
-- Pi 消费者产品当前是否公开说明长期记忆机制。
-- Pi 3.1 Preview 的 tool calling 具体工具协议和权限模型。
-- Pi 在企业场景中如何区分 customer support、employee assistant 和 personal AI。
-- Pi 的 safety protocol 如何在产品中体现。
-- 开发者 API 与 pi.ai / Pi iOS app 的行为差异。
+- `packages/coding-agent` 中默认 system prompt 的版本化方式。
+- `AGENTS.md` 和 `SYSTEM.md` 的加载优先级。
+- 扩展工具是否有权限边界和审计点。
+- 旧 `badlogic/pi-mono` 到 `earendil-works/pi` 的迁移中，包名、目录和 prompt 表面有哪些变化。
+- Pi 与 OpenCode 在 TypeScript agent harness 设计上的相似点和分歧。
+
+## 迁移研究方法
+
+Pi 最近的迁移不只是改仓库名。对 AgentLab 来说，迁移本身就是研究材料：旧包名、旧仓库目录、当前包名、当前仓库目录、README、CHANGELOG、文档路径和 npm deprecation 信息都要一起记录。只有这样，后续看到网上引用 `badlogic/pi-mono` 或 `@mariozechner/pi-coding-agent` 时，才不会误以为是另一个项目。
+
+建议把 Pi 的迁移拆成三条线看。第一条是源码线：哪些 packages 保留，哪些目录移动，默认提示词和扩展 API 是否变化。第二条是分发线：npm 包从哪里迁到哪里，安装命令和可执行文件是否变化。第三条是文档线：`pi.dev`、GitHub README、包 README 和第三方教程是否同步更新。迁移期间最容易产生事实漂移，源码同步 manifest 可以记录当前 commit，但研究笔记还需要解释“为什么这个 commit 代表当前官方入口”。
 
 ## 主要来源
 
-- [Pi](https://hey.pi.ai/)
-- [Inflection AI](https://inflection.ai/)
-- [Inflection AI About](https://inflection.ai/about)
-- [Inflection-3 Pi developer docs](https://developers.inflection.ai/docs/inflection-3-pi)
-- [Notice on model training](https://inflection.ai/notice-on-model-training)
-- [Training Data Transparency Statement](https://inflection.ai/training-data-transparency-statement)
+- [Pi 官网](https://pi.dev/)
+- [earendil-works/pi](https://github.com/earendil-works/pi)
+- [@earendil-works/pi-coding-agent](https://www.npmjs.com/package/@earendil-works/pi-coding-agent)
+- [badlogic/pi-mono](https://github.com/badlogic/pi-mono)
+- [Mario Zechner: What I learned building an opinionated and minimal coding agent](https://mariozechner.at/posts/2025-11-30-pi-coding-agent/)

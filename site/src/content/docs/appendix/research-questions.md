@@ -25,12 +25,11 @@ description: AgentLab 后续围绕 Claude Code、Codex、Pi、OpenCode 和通用
 
 ## Pi
 
-- Pi 消费者产品当前如何处理长期记忆和用户控制？
-- Pi 3.1 Preview 的 tool calling 在真实 agentic workflow 中如何表达权限？
-- 情绪智能如何被评测，而不是只靠用户主观满意度？
-- Persona 和安全边界如何同时保持一致？
-- 关系型 Agent 的日志、训练和评测如何保护隐私？
-- Pi 的开发者 API 与 pi.ai / iOS app 的体验差异是什么？
+- Pi 的 `AGENTS.md`、`SYSTEM.md`、skills、prompt templates 和 extensions 分别如何进入上下文？
+- Pi 从 `badlogic/pi-mono` / `@mariozechner/pi-coding-agent` 迁移到 `earendil-works/pi` / `@earendil-works/pi-coding-agent` 时，目录、包名和提示词表面发生了什么变化？
+- Pi 的 extension API 如何声明工具、权限和上下文注入？
+- Pi 的 minimal harness 与 OpenCode 的配置化 agent 架构如何互相借鉴？
+- Pi 的 session 格式如何支持恢复、审计和隐私控制？
 
 ## OpenCode
 
