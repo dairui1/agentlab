@@ -3,6 +3,8 @@ title: Codex /goal 原理
 description: 研究 Codex /goal 如何创建、跟踪、恢复和完成长期目标。
 ---
 
+import CodexGoalExplorer from '../../../components/research/CodexGoalExplorer.jsx';
+
 ## 研究问题
 
 Codex 的 `/goal` 看起来像一个 slash command，但源码显示它更接近“thread 级长期任务状态机”。这篇记录回答三个问题：
@@ -18,6 +20,8 @@ Codex 的 `/goal` 看起来像一个 slash command，但源码显示它更接近
 用户设置 goal 后，Codex 会把目标写入 thread 级状态。只要状态仍是 `active`，runtime 会在 thread resume 或 idle 时读取该目标，向模型注入内部上下文，并尝试自动启动下一轮工作。模型可以通过 `get_goal` 查看当前目标，通过 `create_goal` 在明确请求下创建目标，通过 `update_goal` 把目标标记为 `complete` 或 `blocked`。暂停、恢复、清除、预算限制和用量限制不是模型随意控制的状态，而是由用户、宿主或系统机制控制。
 
 最值得借鉴的是：Codex 把“目标文本”“完成标准”“进度记账”“续跑条件”“停止条件”拆成了不同层，而不是让模型在自然语言上下文里自己维持所有状态。
+
+<CodexGoalExplorer client:load />
 
 ## 背景和来源
 
