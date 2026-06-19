@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-19T11:08:51+00:00",
+  "generated_at": "2026-06-19T11:29:15+00:00",
   "cache_dir": "research/sources/cache",
   "metadata_only": false,
   "targets": [
@@ -19,10 +19,12 @@
         "codex-rs/cli",
         "codex-rs/config",
         "codex-rs/exec",
+        "codex-rs/ext/goal",
         "codex-rs/mcp-server",
         "codex-rs/prompts",
         "codex-rs/protocol",
         "codex-rs/sandboxing",
+        "codex-rs/state",
         "docs"
       ],
       "commit": "dac588f41398e8b628d71838d5745dad430477f1",
@@ -82,8 +84,8 @@
         "packages",
         "scripts"
       ],
-      "commit": "226a316824dc1835ffc34acad274488f5fe298f6",
-      "remote_head": "226a316824dc1835ffc34acad274488f5fe298f6",
+      "commit": "6e6ce70caf3328683517b0e308fdbbc6d1c1abc9",
+      "remote_head": "6e6ce70caf3328683517b0e308fdbbc6d1c1abc9",
       "license": "MIT",
       "local_path": "research/sources/cache/git/pi"
     }

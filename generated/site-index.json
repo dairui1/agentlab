@@ -6,9 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 65,
-    "body_chars": 113162,
-    "cjk_chars": 51005
+    "pages": 66,
+    "body_chars": 118599,
+    "cjk_chars": 52680
   },
   "agents": [
     {
@@ -532,6 +532,14 @@
       "source": "site/src/content/docs/prompts/index.md",
       "body_chars": 436,
       "cjk_chars": 225
+    },
+    {
+      "slug": "/research/codex-goal-command/",
+      "title": "Codex /goal 原理",
+      "description": "研究 Codex /goal 如何创建、跟踪、恢复和完成长期目标。",
+      "source": "site/src/content/docs/research/codex-goal-command.md",
+      "body_chars": 5437,
+      "cjk_chars": 1675
     },
     {
       "slug": "/research/",

@@ -16,10 +16,12 @@
         "codex-rs/cli",
         "codex-rs/config",
         "codex-rs/exec",
+        "codex-rs/ext/goal",
         "codex-rs/mcp-server",
         "codex-rs/prompts",
         "codex-rs/protocol",
         "codex-rs/sandboxing",
+        "codex-rs/state",
         "docs"
       ],
       "license": "Apache-2.0",
