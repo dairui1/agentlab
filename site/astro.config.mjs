@@ -148,7 +148,12 @@ export default defineConfig({
           items: [
             { label: '内容生产流水线', link: '/operations/content-pipeline/' },
             { label: '源码同步机制', link: '/operations/source-sync/' },
+            { label: '研究写作流程', link: '/operations/research-workflow/' },
           ],
+        },
+        {
+          label: '研究专题',
+          items: [{ autogenerate: { directory: 'research' } }],
         },
         {
           label: '实验室',

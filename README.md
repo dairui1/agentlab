@@ -23,6 +23,7 @@ agentlab/
     sources/cache/      # 本地源码/包缓存，不提交到 Git
   generated/            # 脚本生成的站点索引、diff 和报告
   scripts/              # 内容刷新和生成脚本
+  .codex/skills/        # 项目内 Codex skills，例如中文研究写作流程
   site/                 # Starlight 文档站和交互组件
   src/agentlab/         # 本地研究工具 CLI
   tests/                # 工具的基础校验
@@ -37,6 +38,7 @@ PYTHONPATH=src python3 -m agentlab list
 PYTHONPATH=src python3 -m agentlab show claude-code
 PYTHONPATH=src python3 -m agentlab validate
 PYTHONPATH=src python3 -m agentlab new-snapshot claude-code 2026-06-17 --source-url https://example.com/source
+python3 scripts/new_research_topic.py "Pi extension API" --slug pi-extension-api --summary "研究 Pi 扩展如何声明工具、权限和上下文注入。"
 make generated
 make docs-stats
 make sync-sources

@@ -6,9 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 63,
-    "body_chars": 111063,
-    "cjk_chars": 50001
+    "pages": 65,
+    "body_chars": 113162,
+    "cjk_chars": 51005
   },
   "agents": [
     {
@@ -414,6 +414,14 @@
       "cjk_chars": 1088
     },
     {
+      "slug": "/operations/research-workflow/",
+      "title": "研究写作流程",
+      "description": "AgentLab 如何从用户提出的研究话题，产出研究笔记、中文站点文章和可验证提交。",
+      "source": "site/src/content/docs/operations/research-workflow.md",
+      "body_chars": 1280,
+      "cjk_chars": 674
+    },
+    {
       "slug": "/operations/source-sync/",
       "title": "源码同步机制",
       "description": "用本地缓存、同步清单和定时任务持续跟踪 Agent 源码与包产物。",
@@ -524,6 +532,14 @@
       "source": "site/src/content/docs/prompts/index.md",
       "body_chars": 436,
       "cjk_chars": 225
+    },
+    {
+      "slug": "/research/",
+      "title": "研究专题",
+      "description": "从一个感兴趣的话题出发，经过来源采集、源码阅读、研究笔记和质量门槛后沉淀成站点文章。",
+      "source": "site/src/content/docs/research/index.md",
+      "body_chars": 819,
+      "cjk_chars": 330
     },
     {
       "slug": "/start/",
