@@ -145,7 +145,10 @@ export default defineConfig({
         },
         {
           label: '运营',
-          items: [{ label: '内容生产流水线', link: '/operations/content-pipeline/' }],
+          items: [
+            { label: '内容生产流水线', link: '/operations/content-pipeline/' },
+            { label: '源码同步机制', link: '/operations/source-sync/' },
+          ],
         },
         {
           label: '实验室',

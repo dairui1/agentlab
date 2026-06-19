@@ -21,6 +21,7 @@ build/
 !.env.example
 
 research/private/
+research/sources/cache/
 tmp/
 
 node_modules/

@@ -1,0 +1,67 @@
+{
+  "cache_dir": "research/sources/cache",
+  "manifest_path": "generated/source-sync-manifest.json",
+  "targets": [
+    {
+      "agent": "codex",
+      "kind": "git",
+      "name": "openai/codex",
+      "url": "https://github.com/openai/codex.git",
+      "default_branch": "main",
+      "depth": 1,
+      "sparse_paths": [
+        ".codex",
+        "codex-cli",
+        "codex-rs/core",
+        "codex-rs/cli",
+        "codex-rs/config",
+        "codex-rs/exec",
+        "codex-rs/mcp-server",
+        "codex-rs/prompts",
+        "codex-rs/protocol",
+        "codex-rs/sandboxing",
+        "docs"
+      ],
+      "license": "Apache-2.0",
+      "sync": true,
+      "notes": "Official open-source Codex CLI repository."
+    },
+    {
+      "agent": "opencode",
+      "kind": "git",
+      "name": "anomalyco/opencode",
+      "url": "https://github.com/anomalyco/opencode.git",
+      "default_branch": "dev",
+      "depth": 1,
+      "sparse_paths": [
+        ".opencode",
+        "github",
+        "packages",
+        "script",
+        "sdks",
+        "specs"
+      ],
+      "license": "MIT",
+      "sync": true,
+      "notes": "Official OpenCode source repository."
+    },
+    {
+      "agent": "claude-code",
+      "kind": "npm",
+      "name": "@anthropic-ai/claude-code",
+      "package": "@anthropic-ai/claude-code",
+      "license": "SEE LICENSE IN README.md",
+      "sync": true,
+      "exclude_patterns": ["*.map"],
+      "notes": "Public npm package artifact. Source maps are excluded by default to avoid treating accidentally exposed proprietary source as normal research material."
+    },
+    {
+      "agent": "pi",
+      "kind": "unavailable",
+      "name": "Inflection Pi",
+      "sync": false,
+      "reason": "Inflection Pi app source is not published as an official open-source repository. Use official docs and product behavior notes instead.",
+      "notes": "Do not substitute unrelated projects that happen to use the name Pi."
+    }
+  ]
+}

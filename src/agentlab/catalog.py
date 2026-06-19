@@ -64,6 +64,14 @@ def load_prompt_sources(root: Path | None = None) -> dict[str, Any]:
     return data
 
 
+def load_source_targets(root: Path | None = None) -> dict[str, Any]:
+    repo_root = root or find_repo_root()
+    data = load_json(repo_root / "data" / "source_targets.json")
+    if not isinstance(data, dict):
+        raise CatalogError("data/source_targets.json must contain an object.")
+    return data
+
+
 def get_agent(slug_or_alias: str, root: Path | None = None) -> dict[str, Any]:
     needle = slug_or_alias.lower()
     for agent in load_agents(root):
@@ -139,5 +147,61 @@ def validate_catalog(root: Path | None = None) -> list[str]:
                 continue
             if not (repo_root / value).exists():
                 errors.append(f"prompt_sources.agents.{slug}.{path_field} does not exist: {value}")
+
+    try:
+        source_targets = load_source_targets(repo_root)
+    except CatalogError as exc:
+        errors.append(str(exc))
+        return errors
+
+    for path_field in ("cache_dir", "manifest_path"):
+        value = source_targets.get(path_field)
+        if not isinstance(value, str) or not value:
+            errors.append(f"source_targets.{path_field} must be a path string.")
+        elif Path(value).is_absolute() or ".." in Path(value).parts:
+            errors.append(f"source_targets.{path_field} must be a relative repository path.")
+
+    targets = source_targets.get("targets")
+    if not isinstance(targets, list):
+        errors.append("source_targets.targets must be a list.")
+        return errors
+
+    seen_target_agents: set[str] = set()
+    allowed_kinds = {"git", "npm", "unavailable"}
+    for index, target in enumerate(targets):
+        if not isinstance(target, dict):
+            errors.append(f"source_targets.targets[{index}] must be an object.")
+            continue
+        agent = target.get("agent")
+        if not isinstance(agent, str) or not agent:
+            errors.append(f"source_targets.targets[{index}].agent must be a slug string.")
+            continue
+        if agent not in seen_slugs:
+            errors.append(f"source_targets.targets[{index}] references unknown agent: {agent}")
+        if agent in seen_target_agents:
+            errors.append(f"Duplicate source target for agent: {agent}")
+        seen_target_agents.add(agent)
+
+        kind = target.get("kind")
+        if kind not in allowed_kinds:
+            errors.append(f"{agent}.kind must be one of: {', '.join(sorted(allowed_kinds))}")
+            continue
+        if kind == "git":
+            for field in ("url", "default_branch"):
+                if not isinstance(target.get(field), str) or not target.get(field):
+                    errors.append(f"{agent}.{field} must be a non-empty string.")
+            depth = target.get("depth")
+            if depth is not None and (not isinstance(depth, int) or depth <= 0):
+                errors.append(f"{agent}.depth must be a positive integer when present.")
+            sparse_paths = target.get("sparse_paths")
+            if sparse_paths is not None:
+                if not isinstance(sparse_paths, list) or not all(isinstance(item, str) and item for item in sparse_paths):
+                    errors.append(f"{agent}.sparse_paths must be a list of path strings when present.")
+        elif kind == "npm":
+            if not isinstance(target.get("package"), str) or not target.get("package"):
+                errors.append(f"{agent}.package must be a non-empty string.")
+        elif kind == "unavailable":
+            if not isinstance(target.get("reason"), str) or not target.get("reason"):
+                errors.append(f"{agent}.reason must be a non-empty string.")
 
     return errors

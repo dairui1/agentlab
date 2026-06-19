@@ -6,9 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 62,
-    "body_chars": 108253,
-    "cjk_chars": 50006
+    "pages": 63,
+    "body_chars": 110618,
+    "cjk_chars": 50920
   },
   "agents": [
     {
@@ -410,8 +410,16 @@
       "title": "内容生产流水线",
       "description": "让 AgentLab 的文档、数据、交互组件和自动化任务从同一个仓库持续产出。",
       "source": "site/src/content/docs/operations/content-pipeline.md",
-      "body_chars": 2951,
-      "cjk_chars": 1041
+      "body_chars": 3169,
+      "cjk_chars": 1088
+    },
+    {
+      "slug": "/operations/source-sync/",
+      "title": "源码同步机制",
+      "description": "用本地缓存、同步清单和定时任务持续跟踪 Agent 源码与包产物。",
+      "source": "site/src/content/docs/operations/source-sync.md",
+      "body_chars": 2147,
+      "cjk_chars": 867
     },
     {
       "slug": "/playbooks/cache-strategy/",

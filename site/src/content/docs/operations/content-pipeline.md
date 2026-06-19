@@ -15,11 +15,13 @@ AgentLab 不应该只靠手工写文章。它的目标是让内容从仓库中�
 - `site/src/content/docs/*`: 对外中文文档。
 - `site/src/components/labs/*`: 交互实验组件。
 - `scripts/build_site_index.py`: 从站点内容生成 `generated/site-index.json`。
+- `scripts/sync_sources.py`: 同步公开源码和包产物到本地缓存，生成 `generated/source-sync-manifest.json`。
 - `.github/workflows/test.yml`: 校验 Python catalog。
 - `.github/workflows/site.yml`: 生成索引、安装依赖、构建站点。
 - `.github/workflows/refresh-content.yml`: 定时生成内容并在有变化时提交。
+- `.github/workflows/sync-sources.yml`: 定时刷新源码同步 manifest。
 
-这已经形成最小闭环：写内容、生成索引、构建站点、CI 验证。但它还没有真正自动抓取来源，也没有真实 prompt diff 数据。
+这已经形成最小闭环：写内容、同步来源、生成索引、构建站点、CI 验证。但它还没有真实 prompt diff 数据，也还没有把源码变化自动转成研究问题。
 
 ## 目标流水线
 
@@ -109,6 +111,7 @@ AgentLab 的最低 CI 门槛应包括：
 
 1. `scripts/build_prompt_diffs.py`: 从 prompt snapshot 生成结构化 diff。
 2. `scripts/check_sources.py`: 检查官方来源是否变化，生成 freshness report。
-3. `scripts/docs_stats.py`: 统计站点页数、中文字符数、每个 Agent 覆盖度，衡量是否达到“电子书体量”。
+3. `scripts/sync_sources.py`: 同步公开源码和包产物，生成 source manifest。
+4. `scripts/docs_stats.py`: 统计站点页数、中文字符数、每个 Agent 覆盖度，衡量是否达到“电子书体量”。
 
 这三个脚本会让 AgentLab 从“文档站”进化成“内容生产系统”。当站点正文、研究数据、prompt diff 和来源检查都能自动联动时，这个项目才真正符合“开发 Agent 过程中学到的东西”的定位。

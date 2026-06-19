@@ -1,7 +1,7 @@
 PYTHON ?= python3
 NPM ?= npm
 
-.PHONY: validate test list generated docs-stats site-install site-dev site-build site-preview
+.PHONY: validate test list generated docs-stats sync-sources source-sync-job site-install site-dev site-build site-preview
 
 validate:
 	PYTHONPATH=src $(PYTHON) -m agentlab validate
@@ -17,6 +17,12 @@ generated:
 
 docs-stats: generated
 	$(PYTHON) scripts/docs_stats.py
+
+sync-sources:
+	$(PYTHON) scripts/sync_sources.py
+
+source-sync-job:
+	bash scripts/run_source_sync_job.sh
 
 site-install:
 	cd site && $(NPM) install

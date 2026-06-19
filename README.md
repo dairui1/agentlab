@@ -20,6 +20,7 @@ agentlab/
   research/
     agents/             # 每个 Agent 的架构研究页
     prompts/            # 每个 Agent 的提示词版本和 changelog
+    sources/cache/      # 本地源码/包缓存，不提交到 Git
   generated/            # 脚本生成的站点索引、diff 和报告
   scripts/              # 内容刷新和生成脚本
   site/                 # Starlight 文档站和交互组件
@@ -38,10 +39,16 @@ PYTHONPATH=src python3 -m agentlab validate
 PYTHONPATH=src python3 -m agentlab new-snapshot claude-code 2026-06-17 --source-url https://example.com/source
 make generated
 make docs-stats
+make sync-sources
+make source-sync-job
 make site-build
 ```
 
 当前仓库是私有仓库；如果 GitHub 计划不支持私有仓库 Pages，`site` workflow 会默认只构建不部署。后续设置仓库变量 `DEPLOY_PAGES=true` 后，workflow 才会尝试走 GitHub Pages 部署。
+
+`make sync-sources` 会读取 `data/source_targets.json`，把可公开同步的源码或包产物拉到 `research/sources/cache/`，并更新 `generated/source-sync-manifest.json`。缓存目录已加入 `.gitignore`，仓库只提交同步清单和快照元数据。
+
+`make source-sync-job` 适合放进本地 crontab 或 launchd：它会运行同步、只提交 `generated/source-sync-manifest.json`，然后 push 到当前远端。
 
 如果需要安装为本地命令：
 

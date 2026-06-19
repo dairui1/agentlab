@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-06-19T10:38:23+00:00",
+  "cache_dir": "research/sources/cache",
+  "metadata_only": false,
+  "targets": [
+    {
+      "status": "synced",
+      "kind": "git",
+      "agent": "codex",
+      "name": "openai/codex",
+      "url": "https://github.com/openai/codex.git",
+      "branch": "main",
+      "depth": 1,
+      "fetch_tags": false,
+      "sparse_paths": [
+        ".codex",
+        "codex-cli",
+        "codex-rs/core",
+        "codex-rs/cli",
+        "codex-rs/config",
+        "codex-rs/exec",
+        "codex-rs/mcp-server",
+        "codex-rs/prompts",
+        "codex-rs/protocol",
+        "codex-rs/sandboxing",
+        "docs"
+      ],
+      "commit": "dac588f41398e8b628d71838d5745dad430477f1",
+      "remote_head": "dac588f41398e8b628d71838d5745dad430477f1",
+      "license": "Apache-2.0",
+      "local_path": "research/sources/cache/git/codex"
+    },
+    {
+      "status": "synced",
+      "kind": "git",
+      "agent": "opencode",
+      "name": "anomalyco/opencode",
+      "url": "https://github.com/anomalyco/opencode.git",
+      "branch": "dev",
+      "depth": 1,
+      "fetch_tags": false,
+      "sparse_paths": [
+        ".opencode",
+        "github",
+        "packages",
+        "script",
+        "sdks",
+        "specs"
+      ],
+      "commit": "355a0bcf5bb5e6c7baa271a4b2439a40f286e55d",
+      "remote_head": "355a0bcf5bb5e6c7baa271a4b2439a40f286e55d",
+      "license": "MIT",
+      "local_path": "research/sources/cache/git/opencode"
+    },
+    {
+      "status": "synced",
+      "kind": "npm",
+      "agent": "claude-code",
+      "name": "@anthropic-ai/claude-code",
+      "package": "@anthropic-ai/claude-code",
+      "version": "2.1.183",
+      "tarball": "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-2.1.183.tgz",
+      "license": "SEE LICENSE IN README.md",
+      "excluded_patterns": [
+        "*.map"
+      ],
+      "local_path": "research/sources/cache/npm/claude-code/package",
+      "cached_tarball": "research/sources/cache/npm/claude-code/tarballs/anthropic-ai-claude-code-2.1.183.tgz",
+      "extracted_files": 7
+    },
+    {
+      "status": "unavailable",
+      "kind": "unavailable",
+      "agent": "pi",
+      "name": "Inflection Pi",
+      "reason": "Inflection Pi app source is not published as an official open-source repository. Use official docs and product behavior notes instead.",
+      "notes": "Do not substitute unrelated projects that happen to use the name Pi."
+    }
+  ]
+}

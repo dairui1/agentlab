@@ -6,10 +6,10 @@ Current generator:
 
 ```bash
 python3 scripts/build_site_index.py
+python3 scripts/sync_sources.py
 ```
 
 Planned generators:
 
 - prompt snapshot diff JSON
-- source freshness reports
 - tool and environment comparison matrices
