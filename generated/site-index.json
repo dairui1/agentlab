@@ -6,9 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 66,
-    "body_chars": 118686,
-    "cjk_chars": 52680
+    "pages": 67,
+    "body_chars": 124902,
+    "cjk_chars": 54489
   },
   "agents": [
     {
@@ -532,6 +532,14 @@
       "source": "site/src/content/docs/prompts/index.md",
       "body_chars": 436,
       "cjk_chars": 225
+    },
+    {
+      "slug": "/research/claude-code-public-architecture/",
+      "title": "Claude Code 公开架构与源码泄露分析综述",
+      "description": "整合官方文档、公开逆向研究和源码泄露事件分析，梳理 Claude Code 的架构、工具、上下文、权限与安全边界。",
+      "source": "site/src/content/docs/research/claude-code-public-architecture.md",
+      "body_chars": 6216,
+      "cjk_chars": 1809
     },
     {
       "slug": "/research/codex-goal-command/",
