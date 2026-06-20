@@ -1,0 +1,39 @@
+id: create-research-topic
+name: Create research topic
+kind: research
+status: active
+owner: AgentLab
+summary: Create the persistent files needed before an agent researches a new topic.
+entrypoints:
+  cli:
+    command: python3 scripts/new_research_topic.py "{title}" --slug "{slug}" --summary "{summary}"
+  agent:
+    instruction: Use this before collecting sources for any new research topic.
+inputs:
+  title:
+    type: string
+    required: true
+    description: Chinese topic title.
+  slug:
+    type: string
+    required: true
+    description: Stable URL and file slug in kebab-case.
+  summary:
+    type: string
+    required: true
+    description: One-sentence scope statement.
+outputs:
+  - research/runs/{slug}/state.md
+  - research/runs/{slug}/sources.md
+  - research/topics/{slug}.md
+  - site/src/content/docs/research/{slug}.md
+guards:
+  - Do not begin synthesis until sources.md exists.
+  - Prefer Chinese for public-facing content.
+  - Use a stable slug; do not rename after publication unless redirect handling exists.
+verification:
+  - test -f research/runs/{slug}/state.md
+  - test -f research/runs/{slug}/sources.md
+  - test -f research/topics/{slug}.md
+  - test -f site/src/content/docs/research/{slug}.md
+

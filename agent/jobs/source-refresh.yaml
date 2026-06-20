@@ -1,0 +1,23 @@
+id: source-refresh
+name: Source refresh
+status: active
+summary: Scheduled source/package sync for fast-moving agent projects.
+triggers:
+  - cron
+  - manual_cli
+actions:
+  - sync-agent-sources
+outputs:
+  - generated/source-sync-manifest.json
+review_policy:
+  auto_commit:
+    allowed: true
+    paths:
+      - generated/source-sync-manifest.json
+  content_changes:
+    allowed: false
+    note: Source refresh jobs should generate manifests or reports, not rewrite prose pages.
+freshness_rules:
+  - Treat docs, package versions, model names, prices, permissions, and product availability as volatile.
+  - Prefer reports and pull requests when a volatile source changes.
+

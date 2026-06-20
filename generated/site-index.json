@@ -6,9 +6,9 @@
   },
   "counts": {
     "agents": 4,
-    "pages": 67,
-    "body_chars": 124902,
-    "cjk_chars": 54489
+    "pages": 68,
+    "body_chars": 126735,
+    "cjk_chars": 55209
   },
   "agents": [
     {
@@ -404,6 +404,14 @@
       "source": "site/src/content/docs/mechanisms/tool-protocol.md",
       "body_chars": 2073,
       "cjk_chars": 1379
+    },
+    {
+      "slug": "/operations/agent-native/",
+      "title": "Agent-native 项目协议",
+      "description": "让 AgentLab 的研究、同步、发布和交互组件都能被 agent 以同一套 action 模型驱动。",
+      "source": "site/src/content/docs/operations/agent-native.md",
+      "body_chars": 1833,
+      "cjk_chars": 720
     },
     {
       "slug": "/operations/content-pipeline/",

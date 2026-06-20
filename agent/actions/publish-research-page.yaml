@@ -1,0 +1,35 @@
+id: publish-research-page
+name: Publish research page
+kind: publishing
+status: active
+owner: AgentLab
+summary: Promote a research topic into the public documentation site and verify the build.
+entrypoints:
+  cli:
+    commands:
+      - make generated
+      - make validate
+      - make test
+      - cd site && npm run check
+      - cd site && npm run build
+  agent:
+    instruction: Run this after updating a research topic or public documentation page.
+inputs:
+  slug:
+    type: string
+    required: true
+    description: Research topic slug.
+outputs:
+  - generated/site-index.json
+  - site/dist/
+guards:
+  - Do not publish pages that omit sources for factual claims.
+  - Do not publish leaked, private, credential-like, or account-bound content.
+  - Keep generated/site-index.json committed when it changes.
+verification:
+  - make generated
+  - make validate
+  - make test
+  - cd site && npm run check
+  - cd site && npm run build
+

@@ -149,6 +149,7 @@ export default defineConfig({
             { label: '内容生产流水线', link: '/operations/content-pipeline/' },
             { label: '源码同步机制', link: '/operations/source-sync/' },
             { label: '研究写作流程', link: '/operations/research-workflow/' },
+            { label: 'Agent-native 项目协议', link: '/operations/agent-native/' },
           ],
         },
         {
