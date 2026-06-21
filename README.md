@@ -10,12 +10,13 @@ AgentLab 是一个用于沉淀 Agent 研究成果的资料库和工具箱。首�
 - 提示词研究：收集公开、可引用、可追溯来源中的 prompt snapshot，并记录版本差异。
 - 研究工具：提供 CLI 校验 catalog、查看研究对象、创建 prompt snapshot 模板。
 - 网站预留：后续可以让网站直接读取 `data/` 和 `research/` 中的内容生成页面。
-- Agent-native 协议：把创建研究话题、采集来源、同步源码、发布页面定义成可复用 action，未来可暴露给 CLI、MCP、定时任务和网站按钮。
+- Agent-native 控制面：直接使用 Builder.io 的 `@agent-native/core`，把创建研究话题、同步源码、校验发布等流程暴露成可复用 action。
 
 ## 目录结构
 
 ```text
 agentlab/
+  apps/agent-native/    # Builder.io Agent-Native headless app，承载真实 actions
   agent/                # Agent-native action、job、policy 和 trace 协议
   data/                 # 结构化索引，未来网站可直接消费
   docs/                 # 研究方法、路线图和模板
@@ -45,6 +46,9 @@ make generated
 make docs-stats
 make sync-sources
 make source-sync-job
+make agent-native-install
+make agent-native-typecheck
+make agent-native-list-pages
 make site-build
 ```
 
@@ -59,6 +63,16 @@ make site-build
 ```bash
 python3 -m pip install -e .
 agentlab validate
+```
+
+Agent-native 控制面在 `apps/agent-native/` 中，直接依赖 `@agent-native/core`。首次使用：
+
+```bash
+cd apps/agent-native
+npm install
+npm run action -- list-site-pages
+npm run action -- create-research-topic --title "示例研究" --slug example-research --summary "示例"
+npm run action -- validate-research
 ```
 
 ## 研究原则

@@ -1,0 +1,26 @@
+{
+  "name": "agentlab-agent-native",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "action": "agent-native action",
+    "agent": "agent-native agent",
+    "script": "agent-native script",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agent-native/core": "0.66.0",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "@anthropic-ai/sdk": "0.105.0",
+    "esbuild": "0.28.1"
+  }
+}

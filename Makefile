@@ -1,7 +1,7 @@
 PYTHON ?= python3
 NPM ?= npm
 
-.PHONY: validate test list generated docs-stats sync-sources source-sync-job site-install site-dev site-build site-preview
+.PHONY: validate test list generated docs-stats sync-sources source-sync-job agent-native-install agent-native-typecheck agent-native-list-pages site-install site-dev site-build site-preview
 
 validate:
 	PYTHONPATH=src $(PYTHON) -m agentlab validate
@@ -23,6 +23,15 @@ sync-sources:
 
 source-sync-job:
 	bash scripts/run_source_sync_job.sh
+
+agent-native-install:
+	cd apps/agent-native && $(NPM) install
+
+agent-native-typecheck:
+	cd apps/agent-native && $(NPM) run typecheck
+
+agent-native-list-pages:
+	cd apps/agent-native && $(NPM) run action -- list-site-pages
 
 site-install:
 	cd site && $(NPM) install

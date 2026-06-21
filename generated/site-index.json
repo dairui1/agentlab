@@ -7,8 +7,8 @@
   "counts": {
     "agents": 4,
     "pages": 68,
-    "body_chars": 126735,
-    "cjk_chars": 55209
+    "body_chars": 126841,
+    "cjk_chars": 55194
   },
   "agents": [
     {
@@ -410,8 +410,8 @@
       "title": "Agent-native 项目协议",
       "description": "让 AgentLab 的研究、同步、发布和交互组件都能被 agent 以同一套 action 模型驱动。",
       "source": "site/src/content/docs/operations/agent-native.md",
-      "body_chars": 1833,
-      "cjk_chars": 720
+      "body_chars": 1939,
+      "cjk_chars": 705
     },
     {
       "slug": "/operations/content-pipeline/",
