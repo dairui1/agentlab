@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T05:53:59+00:00",
+  "generated_at": "2026-07-20T05:54:38+00:00",
   "cache_dir": "research/sources/cache",
   "metadata_only": false,
   "targets": [
@@ -27,8 +27,8 @@
         "codex-rs/state",
         "docs"
       ],
-      "commit": "2f7d89b1419bf7064346855b0acde23514b1ebc5",
-      "remote_head": "2f7d89b1419bf7064346855b0acde23514b1ebc5",
+      "commit": "678157acaa819d5510adfe359abb5d0392cfe461",
+      "remote_head": "678157acaa819d5510adfe359abb5d0392cfe461",
       "license": "Apache-2.0",
       "local_path": "research/sources/cache/git/codex"
     },
@@ -49,8 +49,8 @@
         "sdks",
         "specs"
       ],
-      "commit": "f47684787ad07e5311bd9422c1a9eb70c9966274",
-      "remote_head": "f47684787ad07e5311bd9422c1a9eb70c9966274",
+      "commit": "5586f9675e3e947e0bf690979d590d9224f968f4",
+      "remote_head": "5586f9675e3e947e0bf690979d590d9224f968f4",
       "license": "MIT",
       "local_path": "research/sources/cache/git/opencode"
     },
@@ -60,14 +60,14 @@
       "agent": "claude-code",
       "name": "@anthropic-ai/claude-code",
       "package": "@anthropic-ai/claude-code",
-      "version": "2.1.207",
-      "tarball": "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-2.1.207.tgz",
+      "version": "2.1.215",
+      "tarball": "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-2.1.215.tgz",
       "license": "SEE LICENSE IN README.md",
       "excluded_patterns": [
         "*.map"
       ],
       "local_path": "research/sources/cache/npm/claude-code/package",
-      "cached_tarball": "research/sources/cache/npm/claude-code/tarballs/anthropic-ai-claude-code-2.1.207.tgz",
+      "cached_tarball": "research/sources/cache/npm/claude-code/tarballs/anthropic-ai-claude-code-2.1.215.tgz",
       "extracted_files": 7
     },
     {
@@ -84,8 +84,8 @@
         "packages",
         "scripts"
       ],
-      "commit": "8479bd84743e8889f728acb21a62794102db0529",
-      "remote_head": "8479bd84743e8889f728acb21a62794102db0529",
+      "commit": "94373d815d2b4a3a48864d5341afc824b8db45e3",
+      "remote_head": "94373d815d2b4a3a48864d5341afc824b8db45e3",
       "license": "MIT",
       "local_path": "research/sources/cache/git/pi"
     }
