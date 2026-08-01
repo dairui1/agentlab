@@ -163,10 +163,17 @@ ul {
   flex: 0 0 34px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--border-strong);
+  border: 1px solid #c3ceca;
   border-radius: 7px;
-  background: var(--surface);
+  background: #f7faf9;
   box-shadow: var(--shadow);
+}
+
+.brand-mark img {
+  display: block;
+  width: 29px;
+  height: 29px;
+  object-fit: contain;
 }
 
 .brand-mark svg,

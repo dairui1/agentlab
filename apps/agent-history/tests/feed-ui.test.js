@@ -8,6 +8,14 @@ const html = fs.readFileSync(path.join(publicRoot, "index.html"), "utf8");
 const app = fs.readFileSync(path.join(publicRoot, "app.js"), "utf8");
 const manifest = JSON.parse(fs.readFileSync(path.join(publicRoot, "data/manifest.json"), "utf8"));
 
+test("header and favicon use the AgentLab brand mark", () => {
+  const logoPath = path.join(publicRoot, "assets/agentlab-mark.png");
+  assert.match(html, /rel="icon"[^>]+\/assets\/agentlab-mark\.png/);
+  assert.match(html, /class="brand-mark"[^>]*>\s*<img src="\/assets\/agentlab-mark\.png"/);
+  assert.ok(fs.existsSync(logoPath), "missing AgentLab brand mark");
+  assert.ok(fs.statSync(logoPath).size > 0, "empty AgentLab brand mark");
+});
+
 test("feed filters use custom multi-select popovers instead of native selects", () => {
   assert.doesNotMatch(html, /<select[^>]+id="feed(?:Agent|Signal)Filter"/);
   assert.match(html, /id="feedAgentFilter"[^>]+aria-haspopup="dialog"/);
