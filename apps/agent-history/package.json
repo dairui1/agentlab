@@ -1,0 +1,25 @@
+{
+  "name": "agentlab-agent-history",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "sync": "npm run sync:phistory && npm run sync:official",
+    "sync:phistory": "python3 scripts/sync_phistory.py --cache-root .cache/phistory",
+    "sync:official": "python3 scripts/sync_official_sources.py --cache-root .cache/official-sources --allow-stale-on-error",
+    "build:data": "python3 scripts/build_from_phistory.py --phistory-root .cache/phistory/upstream --public-root public --analysis-root analysis",
+    "analyze": "python3 scripts/analyze_changelogs.py --analysis-root analysis",
+    "stage:monaco": "node scripts/stage_monaco.mjs",
+    "build": "npm run stage:monaco && npm run build:data && node scripts/build_dist.mjs",
+    "test": "python3 -m unittest discover -s tests -v && node --test tests/*.test.js",
+    "dev": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "daily": "python3 scripts/daily_update.py"
+  },
+  "devDependencies": {
+    "monaco-editor": "0.52.2",
+    "wrangler": "4.114.0"
+  }
+}

@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="追踪主流 coding agent 的 Prompt、Tools、官方发布与代码变化，为开发者提供可追溯的更新情报。">
+  <title>AgentLab · Agent 更新情报</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><i data-lucide="square-terminal"></i></span>
+        <span class="brand-copy">
+          <strong>AgentLab</strong>
+          <span>Agent 更新情报</span>
+        </span>
+      </a>
+
+      <div id="modeSwitch" class="segmented mode-switch" role="group" aria-label="页面视图">
+        <button id="intelligenceModeButton" type="button" aria-pressed="true">
+          <i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span>
+        </button>
+        <button id="compareModeButton" type="button" aria-pressed="false">
+          <i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span>
+        </button>
+      </div>
+
+      <a id="sourceLink" class="icon-button source-link" href="https://phistory.cc/" target="_blank" rel="noreferrer" aria-label="打开上游来源" title="打开上游来源">
+        <i data-lucide="arrow-up-right"></i>
+      </a>
+    </header>
+
+    <div id="pageStatus" class="page-status" role="status" aria-live="polite" hidden></div>
+
+    <main id="intelligenceView" class="intelligence-view">
+      <section class="intelligence-header" aria-labelledby="intelligenceTitle">
+        <div class="intelligence-heading">
+          <div>
+            <span class="section-kicker"><i data-lucide="radar" aria-hidden="true"></i>跨 Agent 变化监测</span>
+            <h1 id="intelligenceTitle">近期开发情报</h1>
+          </div>
+          <div id="dataHealth" class="data-health" aria-label="数据健康" data-state="loading">
+            <span class="health-indicator" aria-hidden="true"></span>
+            <div>
+              <strong>数据载入中</strong>
+              <span>正在汇总 Agent 快照</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="feedFilterControls" class="feed-controls" aria-label="情报筛选">
+          <div class="feed-multiselect agent-filter" data-feed-filter-picker="agent">
+            <button id="feedAgentFilter" class="feed-multiselect-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="feedAgentFilterPanel">
+              <i data-lucide="bot" aria-hidden="true"></i>
+              <span class="feed-filter-trigger-copy">
+                <span class="feed-filter-trigger-title">Agent</span>
+                <span id="feedAgentFilterSummary" class="feed-filter-trigger-summary">全部 Agent</span>
+              </span>
+              <span id="feedAgentFilterCount" class="feed-filter-trigger-count" hidden></span>
+              <i class="feed-filter-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+            <div id="feedAgentFilterPanel" class="feed-multiselect-panel" role="dialog" aria-labelledby="feedAgentFilterTitle" hidden>
+              <div class="feed-filter-panel-header">
+                <strong id="feedAgentFilterTitle">选择 Agent</strong>
+                <button class="feed-filter-panel-clear" type="button" data-feed-filter-clear="agent" aria-label="清除 Agent 筛选" title="清除 Agent 筛选">
+                  <i data-lucide="x" aria-hidden="true"></i>
+                </button>
+              </div>
+              <label class="feed-filter-search">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input id="feedAgentFilterSearch" type="search" autocomplete="off" placeholder="搜索 Agent" aria-label="搜索 Agent">
+              </label>
+              <div id="feedAgentFilterOptions" class="feed-filter-options" role="group" aria-labelledby="feedAgentFilterTitle"></div>
+              <p id="feedAgentFilterEmpty" class="feed-filter-empty" hidden>没有匹配的 Agent</p>
+            </div>
+          </div>
+
+          <div class="feed-multiselect signal-filter" data-feed-filter-picker="signal">
+            <button id="feedSignalFilter" class="feed-multiselect-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="feedSignalFilterPanel">
+              <i data-lucide="radio-tower" aria-hidden="true"></i>
+              <span class="feed-filter-trigger-copy">
+                <span class="feed-filter-trigger-title">信号</span>
+                <span id="feedSignalFilterSummary" class="feed-filter-trigger-summary">全部信号</span>
+              </span>
+              <span id="feedSignalFilterCount" class="feed-filter-trigger-count" hidden></span>
+              <i class="feed-filter-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+            </button>
+            <div id="feedSignalFilterPanel" class="feed-multiselect-panel" role="dialog" aria-labelledby="feedSignalFilterTitle" hidden>
+              <div class="feed-filter-panel-header">
+                <strong id="feedSignalFilterTitle">选择信号</strong>
+                <button class="feed-filter-panel-clear" type="button" data-feed-filter-clear="signal" aria-label="清除信号筛选" title="清除信号筛选">
+                  <i data-lucide="x" aria-hidden="true"></i>
+                </button>
+              </div>
+              <div id="feedSignalFilterOptions" class="feed-filter-options" role="group" aria-labelledby="feedSignalFilterTitle"></div>
+            </div>
+          </div>
+          <button id="feedImportanceToggle" class="feed-filter-toggle" type="button" aria-pressed="false" title="只显示高价值情报">
+            <i data-lucide="list-filter" aria-hidden="true"></i><span>只看高价值</span>
+          </button>
+          <button id="resetFeedFilters" class="icon-button feed-filter-reset" type="button" aria-label="重置情报筛选" title="重置情报筛选" disabled>
+            <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+          </button>
+          <span id="feedResultCount" class="feed-result-count" aria-live="polite">—</span>
+        </div>
+      </section>
+
+      <section id="intelligenceFeed" class="intelligence-feed" aria-label="Agent 更新情报">
+        <div class="feed-placeholder">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <p>正在读取近期变化</p>
+        </div>
+      </section>
+    </main>
+
+    <section id="compareView" class="compare-view" aria-label="版本比较详情" hidden>
+      <header class="detail-navigation">
+        <button id="backToFeed" class="back-button" type="button">
+          <i data-lucide="arrow-left" aria-hidden="true"></i><span>更新情报</span>
+        </button>
+        <label class="agent-switch-field">
+          <span class="sr-only">选择 Agent</span>
+          <select id="agentSwitch" class="agent-switch" aria-label="选择 Agent"></select>
+        </label>
+      </header>
+
+      <section class="compare-toolbar" aria-label="版本比较">
+      <div class="agent-context">
+        <span id="agentName" class="agent-name">正在加载</span>
+        <span id="sourceMeta" class="source-meta">读取版本清单...</span>
+      </div>
+
+      <label class="version-field version-left">
+        <span class="field-label"><span class="side-dot left-dot"></span>基准版本</span>
+        <select id="leftVersion" aria-label="基准版本" disabled></select>
+      </label>
+
+      <button id="swapVersions" class="icon-button swap-button" type="button" aria-label="交换版本" title="交换版本" disabled>
+        <i data-lucide="arrow-left-right"></i>
+      </button>
+
+      <label class="version-field version-right">
+        <span class="field-label"><span class="side-dot right-dot"></span>目标版本</span>
+        <select id="rightVersion" aria-label="目标版本" disabled></select>
+      </label>
+
+      <div class="diff-stats" aria-label="差异统计" aria-live="polite">
+        <span><strong id="hunkCount">—</strong> 处变化</span>
+        <span class="addition"><strong id="additionCount">—</strong> 新增</span>
+        <span class="deletion"><strong id="deletionCount">—</strong> 删除</span>
+      </div>
+      </section>
+
+      <section class="changelog-band" aria-labelledby="changelogTitle">
+      <div class="changelog-heading">
+        <div class="changelog-title-block">
+          <div class="eyebrow-row">
+            <span id="analysisEyebrow" class="eyebrow"><i data-lucide="sparkles" aria-hidden="true"></i><span>本地 Codex 推断</span></span>
+            <span id="analysisStatus" class="analysis-status" data-status="loading">分析中</span>
+          </div>
+          <h1 id="changelogTitle">正在读取版本变化</h1>
+        </div>
+        <span id="changelogRange" class="changelog-range">—</span>
+      </div>
+
+      <div class="changelog-body">
+        <div class="interpretation-pane">
+          <span id="interpretationLabel" class="provenance-label" data-kind="inference">本地 Codex 推断，不等同于上游声明</span>
+          <p id="changelogSummary" class="changelog-summary">正在载入基于实际请求差异生成的中文摘要。</p>
+          <ul id="changelogHighlights" class="changelog-highlights" aria-label="重点变化"></ul>
+        </div>
+        <aside class="implications-pane" aria-labelledby="implicationsTitle">
+          <div class="implications-heading">
+            <span><i data-lucide="lightbulb" aria-hidden="true"></i></span>
+            <div>
+              <h2 id="implicationsTitle">对自研 Agent 的启示</h2>
+              <p>工程建议，不是上游事实</p>
+            </div>
+          </div>
+          <ul id="implicationsList" class="implications-list"></ul>
+        </aside>
+      </div>
+
+      <section class="source-evidence" aria-labelledby="sourceEvidenceTitle">
+        <div class="source-evidence-heading">
+          <h2 id="sourceEvidenceTitle">事实证据</h2>
+          <span>来源状态与可追溯链接</span>
+        </div>
+        <div id="sourceLayerList" class="source-layer-list"></div>
+      </section>
+
+      <div class="changelog-footer">
+        <div id="categoryList" class="category-list" aria-label="变化分类"></div>
+        <div id="changeMetrics" class="change-metrics" aria-label="变更指标"></div>
+        <button id="releaseDetailsToggle" class="text-button" type="button" aria-expanded="false" aria-controls="releaseDetails" hidden>
+          <span>逐版本</span><i data-lucide="chevron-down" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div id="releaseDetails" class="release-details" hidden></div>
+      </section>
+
+      <section class="workspace-toolbar" aria-label="请求差异视图">
+      <div class="segmented view-tabs" role="tablist" aria-label="请求视图">
+        <button id="requestTab" type="button" role="tab" aria-selected="true" aria-controls="workspace">
+          <i data-lucide="file-diff" aria-hidden="true"></i><span>完整请求</span>
+        </button>
+        <button id="structureTab" type="button" role="tab" aria-selected="false" aria-controls="outlinePane">
+          <i data-lucide="list-tree" aria-hidden="true"></i><span>结构导航</span>
+        </button>
+      </div>
+
+      <div class="workspace-actions">
+        <span id="promptMeta" class="prompt-meta">—</span>
+        <button id="wrapToggle" class="icon-text-button" type="button" aria-pressed="true" title="切换长行换行">
+          <i data-lucide="wrap-text" aria-hidden="true"></i><span>换行</span>
+        </button>
+      </div>
+      </section>
+
+      <div id="workspace" class="workspace" data-view="request">
+      <aside id="outlinePane" class="outline-pane" aria-labelledby="outlineTitle" hidden>
+        <div class="outline-header">
+          <div>
+            <h2 id="outlineTitle">结构与工具</h2>
+            <p id="outlineVersion">—</p>
+          </div>
+          <span id="sectionCount" class="section-count">0</span>
+        </div>
+        <label class="search-field">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <input id="sectionSearch" type="search" autocomplete="off" placeholder="筛选结构或工具" aria-label="筛选结构或工具">
+        </label>
+        <nav id="sectionList" class="section-list" aria-label="请求结构"></nav>
+      </aside>
+
+      <section class="editor-pane" aria-labelledby="editorTitle">
+        <header class="editor-header">
+          <h2 id="editorTitle" class="sr-only">实际请求统一差异</h2>
+          <div class="version-legend">
+            <span><span class="side-dot left-dot"></span><strong id="leftLegend">—</strong></span>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+            <span><span class="side-dot right-dot"></span><strong id="rightLegend">—</strong></span>
+          </div>
+          <span id="selectedSectionLabel" class="selected-section-label">完整请求</span>
+        </header>
+        <div id="diffEditor" class="diff-editor" data-state="loading" aria-live="polite">
+          <div id="editorPlaceholder" class="editor-placeholder">
+            <span class="loading-spinner" aria-hidden="true"></span>
+            <p>正在准备实际请求差异</p>
+          </div>
+        </div>
+      </section>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/diff-core.js"></script>
+  <script src="/monaco-view.js"></script>
+  <script src="/app-core.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
