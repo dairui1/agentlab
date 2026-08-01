@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{LABEL}}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>{{PYTHON}}</string>
+    <string>{{DAILY_SCRIPT}}</string>
+{{DEPLOY_ARGUMENT}}  </array>
+  <key>WorkingDirectory</key>
+  <string>{{WORKING_DIRECTORY}}</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{{PATH}}</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+    <key>TZ</key>
+    <string>Asia/Shanghai</string>
+{{NETWORK_ENVIRONMENT}}
+  </dict>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>{{HOUR}}</integer>
+    <key>Minute</key>
+    <integer>{{MINUTE}}</integer>
+  </dict>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>{{STDOUT_LOG}}</string>
+  <key>StandardErrorPath</key>
+  <string>{{STDERR_LOG}}</string>
+</dict>
+</plist>

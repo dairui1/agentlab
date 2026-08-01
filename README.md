@@ -1,15 +1,27 @@
 # AgentLab
 
-AgentLab 是一个用于沉淀 Agent 研究成果的资料库和工具箱。首期重点不是做网站，而是先把研究对象、资料来源、架构拆解、提示词版本和变更记录整理成可维护的结构。
+AgentLab 是一个面向 Agent 开发者的变更情报站。线上应用会持续跟踪 Phistory 收录的全部 coding agent，包括 Claude Code、Codex、Antigravity、Grok Build、Kimi、MiMo、OpenClaw、Hermes、opencode、Pi 与 Oh My Pi。它把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化转成可检索、可追溯的中文更新情报，帮助我们从其他 Agent 的演进中提炼自己的工程决策。首页默认只展示有开发价值的变化；无变化版本不会进入信息流，版本比较保留为证据详情。
 
 更新后的定位是：**开发 Agent 过程中学到的工程知识库 + 可交互实验室 + agent-native 研究系统**。网站层会以文档为主干，在工具、环境、提示词、上下文、缓存等主题中嵌入交互组件；项目层会把研究、来源同步、发布和校验定义成 agent 可调用的 action。
 
-## 当前范围
+生产应用位于 `apps/agent-history`，发布到 [agentlab.dairui1.com](https://agentlab.dairui1.com)。原有研究目录继续保留，作为架构笔记和人工验证材料。
+
+## 数据链路
+
+1. `sync_phistory.py` 增量拉取 [Phistory](https://github.com/WEIFENG2333/phistory) 中全部 Agent 快照，并自动纳入上游未来新增的 Agent 目录。
+2. `sync_official_sources.py` 同步已接入的官方 changelog / GitHub Releases，并为近期 Codex 版本生成有界代码比较概览；未单独接入官方源的 Agent 仍使用 Phistory 的 Prompt、Tools 与包产物证据。
+3. `build_from_phistory.py` 规范化版本、请求正文、Tools、静态 Prompt 与多源 evidence；这一步不依赖模型，任何时候都可重现。
+4. `analyze_changelogs.py` 用本机 Codex 生成重要性、中文摘要和面向自研 Agent 的可验证建议。模型失败时保留确定性摘要，不阻塞发布。
+5. `daily_update.py` 串联同步、构建、分析、测试与 Cloudflare 部署，并由本机 `launchd` 每天调度。
+
+Phistory 只作为上游事实来源；AgentLab 的数据模型、界面、分析提示与部署链路独立实现。
+
+## 研究系统
 
 - 主流 Agent 架构研究：Claude Code, Codex, Pi, OpenCode。
 - 提示词研究：收集公开、可引用、可追溯来源中的 prompt snapshot，并记录版本差异。
 - 研究工具：提供 CLI 校验 catalog、查看研究对象、创建 prompt snapshot 模板。
-- 网站预留：后续可以让网站直接读取 `data/` 和 `research/` 中的内容生成页面。
+- 网站内容：让网站直接读取 `data/` 和 `research/` 中的内容生成页面。
 - Agent-native 控制面：直接使用 Builder.io 的 `@agent-native/core`，把创建研究话题、同步源码、校验发布等流程暴露成可复用 action。
 
 ## 目录结构
@@ -28,11 +40,29 @@ agentlab/
   scripts/              # 内容刷新和生成脚本
   .codex/skills/        # 项目内 Codex skills，例如中文研究写作流程
   site/                 # Starlight 文档站和交互组件
+  apps/agent-history/   # Phistory 全 Agent 生产应用
   src/agentlab/         # 本地研究工具 CLI
   tests/                # 工具的基础校验
 ```
 
-## 常用命令
+## 生产应用
+
+```bash
+cd apps/agent-history
+npm ci
+npm run sync
+npm run build
+npm run analyze
+npm run build
+npm test
+npm run dev
+```
+
+`npm run analyze` 只处理 evidence 已变化且没有有效结果的版本，因此日常运行是增量的。发布使用 `npm run deploy`；完整的日更流程使用 `npm run daily`。本机调度的安装与排查见 `apps/agent-history/ops/README.md`。
+
+生成的上游缓存、prompt 对象、evidence、AI 结果与构建目录都不提交到 Git；站点可由相同的上游 commit 和分析结果重新生成。
+
+## 研究工具
 
 未安装时可以直接用 `PYTHONPATH` 运行：
 
@@ -83,9 +113,4 @@ npm run action -- validate-research
 4. 不提交敏感内容：不要提交私有账号 token、内部系统提示词、未授权泄露内容。
 5. 结构化沉淀：重复出现的字段放入 `data/`，长文分析放入 `research/`。
 
-## 下一步
-
-- 补全每个 Agent 的公开资料来源清单。
-- 建立 prompt snapshot 的命名规范和 diff 规则。
-- 为 Claude Code 的历史 prompt 变更建立第一批记录。
-- 继续扩展 `site/` 中的文档栏目和交互实验。
+旧的 `site/` 仍可作为研究文档站构建；它不再负责 `agentlab.dairui1.com` 的生产发布。

@@ -1,0 +1,15 @@
+diff --git a/codex-rs/core/src/tools/mod.rs b/codex-rs/core/src/tools/mod.rs
+index 1111111..2222222 100644
+--- a/codex-rs/core/src/tools/mod.rs
++++ b/codex-rs/core/src/tools/mod.rs
+@@ -1,2 +1,3 @@
+ pub mod read;
++pub mod bounded_exec;
+ pub mod write;
+diff --git a/codex-rs/protocol/src/models.rs b/codex-rs/protocol/src/models.rs
+index 3333333..4444444 100644
+--- a/codex-rs/protocol/src/models.rs
++++ b/codex-rs/protocol/src/models.rs
+@@ -10,2 +10,2 @@
+-pub const DEFAULT_MODEL: &str = "old";
++pub const DEFAULT_MODEL: &str = "new";

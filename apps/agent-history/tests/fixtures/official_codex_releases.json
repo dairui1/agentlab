@@ -1,0 +1,29 @@
+[
+  {
+    "tag_name": "rust-v0.10.0",
+    "name": "Codex CLI 0.10.0",
+    "body": "## Features\n\n- Add a bounded agent workflow.\n- Improve tool approval output.",
+    "html_url": "https://github.com/openai/codex/releases/tag/rust-v0.10.0",
+    "published_at": "2026-02-01T12:00:00Z",
+    "draft": false,
+    "prerelease": false
+  },
+  {
+    "tag_name": "rust-v0.11.0-alpha.1",
+    "name": "Codex CLI alpha",
+    "body": "Not a stable release.",
+    "html_url": "https://github.com/openai/codex/releases/tag/rust-v0.11.0-alpha.1",
+    "published_at": "2026-02-02T12:00:00Z",
+    "draft": false,
+    "prerelease": true
+  },
+  {
+    "tag_name": "rust-v0.9.0",
+    "name": "Codex CLI 0.9.0",
+    "body": "## Fixes\n\n- Keep command output deterministic.",
+    "html_url": "https://github.com/openai/codex/releases/tag/rust-v0.9.0",
+    "published_at": "2026-01-01T12:00:00Z",
+    "draft": false,
+    "prerelease": false
+  }
+]

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["results"],
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schemaVersion",
+          "agent",
+          "version",
+          "evidenceDigest",
+          "title",
+          "summary",
+          "highlights",
+          "categories",
+          "importance",
+          "implications",
+          "analysisStatus"
+        ],
+        "properties": {
+          "schemaVersion": { "type": "integer", "const": 1 },
+          "agent": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "version": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "evidenceDigest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "highlights": {
+            "type": "array",
+            "maxItems": 6,
+            "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+          },
+          "categories": {
+            "type": "array",
+            "maxItems": 8,
+            "items": { "type": "string", "minLength": 1, "maxLength": 32 }
+          },
+          "importance": {
+            "type": "string",
+            "enum": ["high", "medium", "low", "none"]
+          },
+          "implications": {
+            "type": "array",
+            "maxItems": 4,
+            "items": { "type": "string", "minLength": 1, "maxLength": 240 }
+          },
+          "analysisStatus": { "type": "string", "const": "complete" }
+        }
+      }
+    }
+  }
+}
