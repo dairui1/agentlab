@@ -13,12 +13,12 @@
     "@astrojs/react": "6.0.2",
     "@astrojs/starlight": "0.41.6",
     "astro": "7.1.6",
-    "lucide-react": "0.562.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "lucide-react": "1.27.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   }
 }
