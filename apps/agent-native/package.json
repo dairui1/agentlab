@@ -17,7 +17,7 @@
     "@types/node": "^24.2.1",
     "prettier": "^3.6.2",
     "tsx": "^4.20.3",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "overrides": {
     "@anthropic-ai/sdk": "0.105.0",
