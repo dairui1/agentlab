@@ -80,7 +80,7 @@ make source-sync-job
 crontab 示例：
 
 ```text
-35 10 * * 1 cd /Users/dairui/dairui1/agentlab && /usr/bin/make source-sync-job >> tmp/source-sync.log 2>&1
+35 10 * * 1 cd /path/to/agentlab && /usr/bin/make source-sync-job >> tmp/source-sync.log 2>&1
 ```
 
 如果使用 launchd，也应该调用同一个 Make target，而不是把同步命令复制多份。这样以后脚本参数变更，只需要维护仓库里的入口。

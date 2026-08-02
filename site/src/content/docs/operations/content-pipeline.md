@@ -97,17 +97,13 @@ AgentLab 的最低 CI 门槛应包括：
 
 ## 发布策略
 
-当前仓库是私有仓库，并且当前 GitHub 计划不支持私有仓库 Pages，因此 `site` workflow 默认只构建不部署。后续有三种选择：
-
-- 把仓库或站点发布仓库设为公开，用 GitHub Pages。
-- 升级支持私有 Pages 的计划，并设置 `DEPLOY_PAGES=true`。
-- 使用 Vercel、Cloudflare Pages 或自托管静态站点，把 `site/dist` 作为发布产物。
+当前生产应用使用 Cloudflare 发布，`site` workflow 默认只构建文档站。需要发布文档站时，可以设置 `DEPLOY_PAGES=true` 使用 GitHub Pages，或将 `site/dist` 交给 Cloudflare Pages 等静态托管平台。
 
 无论用哪种发布方式，内容源都应该仍在这个仓库。部署平台只是站点输出，不应该成为研究数据的唯一来源。
 
 ## 下一步自动化
 
-最值得优先做的是三个脚本：
+最值得优先做的是四个脚本：
 
 1. `scripts/build_prompt_diffs.py`: 从 prompt snapshot 生成结构化 diff。
 2. `scripts/check_sources.py`: 检查官方来源是否变化，生成 freshness report。

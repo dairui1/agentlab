@@ -275,8 +275,11 @@ ul {
   color: var(--text);
 }
 
-.source-link {
+.header-links {
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .intelligence-view {
@@ -1974,7 +1977,7 @@ a.source-layer:hover {
     flex: 1;
   }
 
-  .source-link {
+  .header-links {
     grid-column: 2;
     grid-row: 1;
   }

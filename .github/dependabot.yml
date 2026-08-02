@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: npm
+    directory: /site
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /apps/agent-history
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: npm
+    directory: /apps/agent-native
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

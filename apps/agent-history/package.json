@@ -13,6 +13,7 @@
     "analyze": "python3 scripts/analyze_changelogs.py --analysis-root analysis",
     "stage:monaco": "node scripts/stage_monaco.mjs",
     "build": "npm run stage:monaco && npm run build:data && node scripts/build_dist.mjs",
+    "pretest": "npm run stage:monaco",
     "test": "python3 -m unittest discover -s tests -v && node --test tests/*.test.js",
     "dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",

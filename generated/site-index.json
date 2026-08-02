@@ -7,8 +7,8 @@
   "counts": {
     "agents": 4,
     "pages": 68,
-    "body_chars": 126841,
-    "cjk_chars": 55194
+    "body_chars": 126750,
+    "cjk_chars": 55131
   },
   "agents": [
     {
@@ -418,8 +418,8 @@
       "title": "内容生产流水线",
       "description": "让 AgentLab 的文档、数据、交互组件和自动化任务从同一个仓库持续产出。",
       "source": "site/src/content/docs/operations/content-pipeline.md",
-      "body_chars": 3169,
-      "cjk_chars": 1088
+      "body_chars": 3098,
+      "cjk_chars": 1048
     },
     {
       "slug": "/operations/research-workflow/",
@@ -458,8 +458,8 @@
       "title": "文档发布",
       "description": "AgentLab 文档站如何从仓库内容、生成数据、CI 和部署平台形成发布闭环。",
       "source": "site/src/content/docs/playbooks/docs-publishing.md",
-      "body_chars": 1340,
-      "cjk_chars": 556
+      "body_chars": 1329,
+      "cjk_chars": 535
     },
     {
       "slug": "/playbooks/evaluation-dataset/",
@@ -498,8 +498,8 @@
       "title": "威胁建模",
       "description": "为 Agent 工具、上下文、记忆、网络和自动化建立可执行威胁模型。",
       "source": "site/src/content/docs/playbooks/threat-model.md",
-      "body_chars": 1514,
-      "cjk_chars": 714
+      "body_chars": 1505,
+      "cjk_chars": 712
     },
     {
       "slug": "/practices/build-coding-agent/",

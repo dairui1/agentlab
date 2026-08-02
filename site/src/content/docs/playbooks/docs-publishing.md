@@ -19,14 +19,9 @@ AgentLab 的网站不应该手工上传。它应该从仓库内容生成：Markd
 
 这个流程让正文、导航、索引和构建保持一致。
 
-## 私有仓库的部署选择
+## 部署选择
 
-当前仓库是私有仓库，GitHub Pages 可能受计划限制。因此 site workflow 默认只构建，不部署。可选方案：
-
-- 升级或启用支持私有 Pages 的计划。
-- 建一个公开发布仓库，只同步 `site/dist`。
-- 用 Vercel 或 Cloudflare Pages 接私有仓库。
-- 自托管静态文件。
+当前生产应用发布到 Cloudflare，`site` workflow 默认只验证文档站构建。文档站可以按需要选择 GitHub Pages、Cloudflare Pages 或其他静态托管平台；启用 GitHub Pages 时设置仓库变量 `DEPLOY_PAGES=true`。
 
 无论部署到哪里，源码和研究资料仍应留在 AgentLab 仓库。
 
@@ -40,7 +35,7 @@ AgentLab 的网站不应该手工上传。它应该从仓库内容生成：Markd
 - 是否包含未授权 prompt 或 secret。
 - 交互组件是否能 build。
 - 移动端是否无明显横向溢出。
-- Pages 部署是否被正确 gating。
+- 部署是否被 `DEPLOY_PAGES` 和分支条件正确 gating。
 
 这些检查可以逐步自动化。
 

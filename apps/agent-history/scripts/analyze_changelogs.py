@@ -466,6 +466,13 @@ def stop_process_group(
         return process.communicate(timeout=grace)
     except subprocess.TimeoutExpired:
         pass
+    except ValueError:
+        # A signal handler can interrupt communicate() after it closes stdin.
+        # Re-entering communicate() then raises before descendants are reaped.
+        try:
+            process.wait(timeout=grace)
+        except subprocess.TimeoutExpired:
+            pass
     # The direct child can exit while a descendant keeps the session alive.
     signal_process_group(process, signal.SIGKILL)
     try:
