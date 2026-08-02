@@ -13,7 +13,7 @@ authors = [{ name = "Rui Dai" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=9.1.1"]
 
 [project.scripts]
 agentlab = "agentlab.cli:main"
