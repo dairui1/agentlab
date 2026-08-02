@@ -1,116 +1,141 @@
 # AgentLab
 
-AgentLab 是一个面向 Agent 开发者的变更情报站。线上应用会持续跟踪 Phistory 收录的全部 coding agent，包括 Claude Code、Codex、Antigravity、Grok Build、Kimi、MiMo、OpenClaw、Hermes、opencode、Pi 与 Oh My Pi。它把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化转成可检索、可追溯的中文更新情报，帮助我们从其他 Agent 的演进中提炼自己的工程决策。首页默认只展示有开发价值的变化；无变化版本不会进入信息流，版本比较保留为证据详情。
+> 面向 Coding Agent 开发者的中文工程知识库与变更情报站。
 
-更新后的定位是：**开发 Agent 过程中学到的工程知识库 + 可交互实验室 + agent-native 研究系统**。网站层会以文档为主干，在工具、环境、提示词、上下文、缓存等主题中嵌入交互组件；项目层会把研究、来源同步、发布和校验定义成 agent 可调用的 action。
+[在线体验](https://agentlab.dairui1.com) · [GitHub 仓库](https://github.com/dairui1/agentlab)
 
-生产应用位于 `apps/agent-history`，发布到 [agentlab.dairui1.com](https://agentlab.dairui1.com)。原有研究目录继续保留，作为架构笔记和人工验证材料。
+AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi 等 Coding Agent 的公开变化，把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化整理成可检索、可追溯的中文情报。项目也沉淀开发 Agent 时反复遇到的工程问题，包括工具协议、权限与沙箱、上下文、缓存、评测、发布和研究方法。
+
+这个仓库不是 Agent 排行榜，也不把模型生成内容当成事实。我们的目标是让每条重要结论都能回到公开来源、版本和实际差异，并明确区分事实证据、工程观察与模型推断。
+
+## 能做什么
+
+- **跨 Agent 变更追踪**：查看不同 Agent 最近发生了什么，以及哪些变化值得开发者关注。
+- **版本比较**：比较实际请求、Prompt 结构和 Tools，保留可复查的逐行证据。
+- **多源证据融合**：组合 Phistory 快照、官方 changelog、GitHub Releases 与公开代码比较结果。
+- **中文工程解读**：生成重要性、变化摘要和对自研 Agent 的启示；模型失败时使用确定性回退结果。
+- **Agent 工程手册**：整理工具、环境、提示词、上下文、缓存、评测与安全边界。
+- **可复现流水线**：同步、规范化、分析、测试和部署均由仓库中的脚本完成。
+
+## 在线应用
+
+[agentlab.dairui1.com](https://agentlab.dairui1.com) 是当前生产应用，提供两种主要视图：
+
+- **更新情报**：按 Agent、信号类型和重要性筛选近期变化。
+- **版本比较**：查看实际请求、结构、Tools、官方证据和逐版本摘要。
+
+生产应用位于 [`apps/agent-history`](apps/agent-history)。仓库中的 [`site`](site) 是面向 Agent 工程知识的文档站源码，目前不是生产域名的发布入口。
 
 ## 数据链路
 
-1. `sync_phistory.py` 增量拉取 [Phistory](https://github.com/WEIFENG2333/phistory) 中全部 Agent 快照，并自动纳入上游未来新增的 Agent 目录。
-2. `sync_official_sources.py` 同步已接入的官方 changelog / GitHub Releases，并为近期 Codex 版本生成有界代码比较概览；未单独接入官方源的 Agent 仍使用 Phistory 的 Prompt、Tools 与包产物证据。
-3. `build_from_phistory.py` 规范化版本、请求正文、Tools、静态 Prompt 与多源 evidence；这一步不依赖模型，任何时候都可重现。
-4. `analyze_changelogs.py` 用本机 Codex 生成重要性、中文摘要和面向自研 Agent 的可验证建议。模型失败时保留确定性摘要，不阻塞发布。
-5. `daily_update.py` 串联同步、构建、分析、测试与 Cloudflare 部署，并由本机 `launchd` 每天调度。
-
-Phistory 只作为上游事实来源；AgentLab 的数据模型、界面、分析提示与部署链路独立实现。
-
-## 研究系统
-
-- 主流 Agent 架构研究：Claude Code, Codex, Pi, OpenCode。
-- 提示词研究：收集公开、可引用、可追溯来源中的 prompt snapshot，并记录版本差异。
-- 研究工具：提供 CLI 校验 catalog、查看研究对象、创建 prompt snapshot 模板。
-- 网站内容：让网站直接读取 `data/` 和 `research/` 中的内容生成页面。
-- Agent-native 控制面：直接使用 Builder.io 的 `@agent-native/core`，把创建研究话题、同步源码、校验发布等流程暴露成可复用 action。
-
-## 目录结构
-
-```text
-agentlab/
-  apps/agent-native/    # Builder.io Agent-Native headless app，承载真实 actions
-  agent/                # Agent-native action、job、policy 和 trace 协议
-  data/                 # 结构化索引，未来网站可直接消费
-  docs/                 # 研究方法、路线图和模板
-  research/
-    agents/             # 每个 Agent 的架构研究页
-    prompts/            # 每个 Agent 的提示词版本和 changelog
-    sources/cache/      # 本地源码/包缓存，不提交到 Git
-  generated/            # 脚本生成的站点索引、diff 和报告
-  scripts/              # 内容刷新和生成脚本
-  .codex/skills/        # 项目内 Codex skills，例如中文研究写作流程
-  site/                 # Starlight 文档站和交互组件
-  apps/agent-history/   # Phistory 全 Agent 生产应用
-  src/agentlab/         # 本地研究工具 CLI
-  tests/                # 工具的基础校验
+```mermaid
+flowchart LR
+    A["Phistory 快照"] --> C["确定性规范化"]
+    B["官方发布与公开代码"] --> C
+    C --> D["Evidence 与版本差异"]
+    D --> E["Codex 中文分析"]
+    E --> F["校验与确定性回退"]
+    F --> G["AgentLab Web 应用"]
 ```
 
-## 生产应用
+1. `sync_phistory.py` 增量同步 [Phistory](https://github.com/WEIFENG2333/phistory) 收录的 Agent 快照。
+2. `sync_official_sources.py` 同步已接入的官方 changelog、GitHub Releases 和有界代码比较结果。
+3. `build_from_phistory.py` 规范化版本、请求正文、Tools、静态 Prompt 与多源 evidence；这一阶段不依赖模型。
+4. `analyze_changelogs.py` 为发生变化的版本生成中文摘要、重要性和工程启示。
+5. `daily_update.py` 串联同步、构建、分析、测试与 Cloudflare 部署。
+
+Phistory 是上游事实来源之一；AgentLab 的数据模型、分析规则、界面和发布链路独立实现。
+
+## 快速开始
+
+### 校验研究目录
+
+需要 Python 3.11 或更高版本：
+
+```bash
+python3 -m pip install -e .
+agentlab validate
+agentlab list
+agentlab show codex
+```
+
+也可以不安装，直接从源码运行：
+
+```bash
+PYTHONPATH=src python3 -m agentlab validate
+```
+
+### 运行变更情报应用
+
+需要 Node.js 22 或更高版本、Python 3.11 或更高版本。首次构建会同步公开上游数据：
 
 ```bash
 cd apps/agent-history
 npm ci
 npm run sync
 npm run build
-npm run analyze
-npm run build
 npm test
 npm run dev
 ```
 
-`npm run analyze` 只处理 evidence 已变化且没有有效结果的版本，因此日常运行是增量的。发布使用 `npm run deploy`；完整的日更流程使用 `npm run daily`。本机调度的安装与排查见 `apps/agent-history/ops/README.md`。
+`npm run analyze` 会调用本机 Codex，只处理 evidence 已变化且缺少有效分析的版本。它是可选步骤；没有模型结果时，构建仍会生成确定性摘要。
 
-生成的上游缓存、prompt 对象、evidence、AI 结果与构建目录都不提交到 Git；站点可由相同的上游 commit 和分析结果重新生成。
+完整日更流程使用 `npm run daily`。本机 `launchd` 安装和运维说明见 [`apps/agent-history/ops/README.md`](apps/agent-history/ops/README.md)。
 
-## 研究工具
-
-未安装时可以直接用 `PYTHONPATH` 运行：
+### 构建文档站
 
 ```bash
-PYTHONPATH=src python3 -m agentlab list
-PYTHONPATH=src python3 -m agentlab show claude-code
-PYTHONPATH=src python3 -m agentlab validate
-PYTHONPATH=src python3 -m agentlab new-snapshot claude-code 2026-06-17 --source-url https://example.com/source
-python3 scripts/new_research_topic.py "Pi extension API" --slug pi-extension-api --summary "研究 Pi 扩展如何声明工具、权限和上下文注入。"
-make generated
-make docs-stats
-make sync-sources
-make source-sync-job
-make agent-native-install
-make agent-native-typecheck
-make agent-native-list-pages
-make site-build
+cd site
+npm ci
+npm run build
 ```
 
-当前仓库是私有仓库；如果 GitHub 计划不支持私有仓库 Pages，`site` workflow 会默认只构建不部署。后续设置仓库变量 `DEPLOY_PAGES=true` 后，workflow 才会尝试走 GitHub Pages 部署。
+## 仓库结构
 
-`make sync-sources` 会读取 `data/source_targets.json`，把可公开同步的源码或包产物拉到 `research/sources/cache/`，并更新 `generated/source-sync-manifest.json`。缓存目录已加入 `.gitignore`，仓库只提交同步清单和快照元数据。
-
-`make source-sync-job` 适合放进本地 crontab 或 launchd：它会运行同步、只提交 `generated/source-sync-manifest.json`，然后 push 到当前远端。
-
-如果需要安装为本地命令：
-
-```bash
-python3 -m pip install -e .
-agentlab validate
+```text
+agentlab/
+  apps/agent-history/   # 生产变更情报应用
+  apps/agent-native/    # Agent-native actions 控制面
+  agent/                # action、job、policy 和 trace 协议
+  data/                 # Agent、Prompt 来源和同步目标索引
+  docs/                 # 研究方法、路线图和模板
+  research/             # 架构研究、Prompt 记录和专题研究
+  generated/            # 可审查的生成索引和同步清单
+  scripts/              # 内容生成与公开来源同步脚本
+  site/                 # Agent 工程文档站
+  src/agentlab/         # Python CLI
+  tests/                # Catalog 与工具测试
 ```
 
-Agent-native 控制面在 `apps/agent-native/` 中，直接依赖 `@agent-native/core`。首次使用：
+## 证据与安全边界
 
-```bash
-cd apps/agent-native
-npm install
-npm run action -- list-site-pages
-npm run action -- create-research-topic --title "示例研究" --slug example-research --summary "示例"
-npm run action -- validate-research
-```
+- 只使用公开、可引用、用户自有或明确允许保存的材料。
+- 不提交账号 Token、内部日志、私有工作区内容、非公开系统提示词或未授权泄露源码。
+- 来源事实、产品观察、工程推断和待验证问题必须分层表达。
+- Prompt 研究优先保存结构、类别、版本变化和影响，而不是无差别复制全文。
+- 上游快照被视为不可信输入；构建过程限制文件类型、大小、路径和产物范围。
+- 模型分析不等同于上游声明，站点会单独标记推断和确定性证据。
 
-## 研究原则
+更多规则见 [`docs/methodology.md`](docs/methodology.md) 和 [`agent/policies/source-boundaries.md`](agent/policies/source-boundaries.md)。
 
-1. 来源优先：每条结论尽量保留来源 URL、访问日期和采集方式。
-2. 区分事实和推断：未验证内容必须标注为 hypothesis 或 todo。
-3. 版本化：prompt 只要发生变更，就新增 snapshot 并更新 changelog。
-4. 不提交敏感内容：不要提交私有账号 token、内部系统提示词、未授权泄露内容。
-5. 结构化沉淀：重复出现的字段放入 `data/`，长文分析放入 `research/`。
+## 参与项目
 
-旧的 `site/` 仍可作为研究文档站构建；它不再负责 `agentlab.dairui1.com` 的生产发布。
+当前项目处于早期公开阶段，接口、数据格式和目录仍可能调整。欢迎通过 Issue 提交以下内容：
+
+- 错误事实、失效来源或版本归属问题。
+- 新的官方来源和可复现证据。
+- Agent 工程案例、实验组件和数据管线改进。
+- 安全、隐私、版权和供应链风险报告。
+
+提交代码前请先运行与改动相关的测试。涉及研究正文时，需要同时提供来源并标明证据等级。
+
+## 许可证
+
+AgentLab 使用 [MIT License](LICENSE) 开源。
+
+## 致谢
+
+- [Phistory](https://github.com/WEIFENG2333/phistory) 提供跨 Agent 的公开版本快照。
+- 各 Agent 的官方文档、公开仓库和发布记录构成 AgentLab 的主要事实来源。
+
+AgentLab 与被研究的 Agent 项目及其厂商没有隶属或背书关系。项目中出现的名称和商标归各自权利人所有。

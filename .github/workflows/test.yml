@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   catalog:
     runs-on: ubuntu-latest
@@ -31,3 +34,17 @@ jobs:
         working-directory: apps/agent-history
       - run: npm test
         working-directory: apps/agent-history
+
+  agent-native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/agent-native/package-lock.json
+      - run: npm ci
+        working-directory: apps/agent-native
+      - run: npm run typecheck
+        working-directory: apps/agent-native
