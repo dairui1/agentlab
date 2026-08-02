@@ -20,19 +20,11 @@ build/
 .env.*
 !.env.example
 
-research/private/
-research/sources/cache/
 tmp/
 
 node_modules/
-site/node_modules/
-site/dist/
-site/.astro/
-site/.vercel/
-apps/agent-native/data/
 
-# Production prompt-history app: source is tracked, generated data stays local.
-.codex-research/
+# Agent intelligence app: source is tracked, generated data stays local.
 apps/agent-history/.cache/
 apps/agent-history/node_modules/
 apps/agent-history/dist/
