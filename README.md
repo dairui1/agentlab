@@ -50,6 +50,32 @@ npm run dev
 
 完整日更流程使用 `npm run daily`。本机自动化安装和运维说明见 [`apps/agent-history/ops/README.md`](apps/agent-history/ops/README.md)。
 
+## Agent 数据访问
+
+项目内置 [`agentlab-update-feed`](.codex/skills/agentlab-update-feed/SKILL.md) skill，指导 Agent 组合 `feedAgent`、`signal`、`priority` 等 filter，将公开更新情报输出为 Markdown，并沿 manifest 获取指定版本的原始 Prompt Markdown。skill 安装后只访问 `agentlab.dairui1.com` 的公开数据，不依赖本仓库 checkout。
+
+安装到当前项目，并在交互提示中选择要使用的 Agent：
+
+```bash
+npx skills add https://github.com/dairui1/agentlab/tree/main/.codex/skills/agentlab-update-feed
+```
+
+全局安装给 Codex，可在任意项目中使用：
+
+```bash
+npx skills add https://github.com/dairui1/agentlab/tree/main/.codex/skills/agentlab-update-feed \
+  --global --agent codex --yes
+```
+
+安装后直接告诉 Agent，例如：“使用 `agentlab-update-feed` 查询 Codex 最近 10 条高价值 Tools 更新，并返回 Markdown。”Agent 会从线上 manifest 和 feed 组合 filter，不需要克隆本仓库。
+
+在本仓库开发或调试 skill 时，也可以直接运行内置脚本：
+
+```bash
+node .codex/skills/agentlab-update-feed/scripts/query-feed.mjs \
+  --filter 'feedAgent=codex&signal=tools&priority=high&limit=10&format=markdown'
+```
+
 ## 仓库结构
 
 ```text
