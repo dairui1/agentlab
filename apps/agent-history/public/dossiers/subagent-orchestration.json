@@ -1,0 +1,177 @@
+{
+  "id": "subagent-orchestration",
+  "number": "001",
+  "title": "Sub-agent 编排",
+  "verifiedAt": "2026-08-10",
+  "snapshots": [
+    { "agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "captures": 382 },
+    { "agent": "codex", "label": "Codex", "version": "0.147.0", "captures": 74 },
+    { "agent": "opencode", "label": "opencode", "version": "1.18.15", "captures": 101 }
+  ],
+  "thesis": "本次核验版本并没有共享同一种 Sub-agent 抽象：Claude Code 同时暴露模型、脚本与团队三层编排；Codex 暴露可寻址的 mailbox Agent 树；opencode 则把委派收敛为可续跑的 Task-backed child session。",
+  "scope": "以下结论描述公开快照中可见的控制契约与固定版本源码，不把工具名称推断成隐藏运行时实现。",
+  "models": [
+    {
+      "agent": "claude-code",
+      "label": "Claude Code",
+      "version": "2.1.226",
+      "archetype": "三平面编排",
+      "summary": "模型逐轮控制 Agent；JavaScript Workflow 持有循环与恢复缓存；实验性 Teams 用 mailbox 与共享依赖图维持长驻协作。",
+      "lanes": ["Agent → ID → SendMessage / TaskStop", "Workflow → pipeline / parallel → journal", "Teams → mailbox + Task* dependency graph"],
+      "claims": ["CC-01", "CC-04", "CC-07"]
+    },
+    {
+      "agent": "codex",
+      "label": "Codex",
+      "version": "0.147.0",
+      "archetype": "可寻址 mailbox 树",
+      "summary": "子节点选择性继承对话，却即时共享工作区；创建、消息、唤醒、等待与中断被拆成六个独立控制原语。",
+      "lanes": ["spawn_agent → /root/.../child", "send_message ≠ followup_task", "wait_agent / interrupt_agent → still addressable"],
+      "claims": ["CX-01", "CX-02", "CX-05"]
+    },
+    {
+      "agent": "opencode",
+      "label": "opencode",
+      "version": "1.18.15",
+      "archetype": "可续跑 Task call",
+      "summary": "一个 typed task 新建或续跑共享工作区的 child session；前台只回最后文本，实验性后台再向 parent 注入 synthetic result。",
+      "lanes": ["task(type, prompt, task_id?)", "create / resume child Session", "last text part / synthetic injection"],
+      "claims": ["OC-01", "OC-02", "OC-04"]
+    }
+  ],
+  "matrix": [
+    {
+      "group": "Identity", "label": "创建什么",
+      "cells": {
+        "claude-code": { "text": "Agent job、Workflow run 与 Team peer 是三种不同对象。", "claims": ["CC-01"] },
+        "codex": { "text": "创建带 canonical path 的递归 Agent 节点。", "claims": ["CX-01", "CX-02"] },
+        "opencode": { "text": "task 创建带 parentID 的 child Session。", "claims": ["OC-01"] }
+      }
+    },
+    {
+      "group": "Context", "label": "子上下文从哪来",
+      "cells": {
+        "claude-code": { "text": "普通 Agent 是 fresh transcript；fork 才继承完整父历史。", "claims": ["CC-02"] },
+        "codex": { "text": "fork_turns 可选 none、all 或最近 N 轮。", "claims": ["CX-03"] },
+        "opencode": { "text": "fresh task 不复制父 transcript，只发送委派 prompt。", "claims": ["OC-01"] }
+      }
+    },
+    {
+      "group": "Files", "label": "文件状态是否隔离",
+      "cells": {
+        "claude-code": { "text": "可选 worktree 隔离 checkout；它与 fresh/fork 正交。", "claims": ["CC-06"] },
+        "codex": { "text": "当前捕获明确共享容器、文件系统与 CWD。", "claims": ["CX-04"] },
+        "opencode": { "text": "child 沿用 directory、workspaceID 与 worktree path。", "claims": ["OC-01"] }
+      }
+    },
+    {
+      "group": "Topology", "label": "拓扑与嵌套",
+      "cells": {
+        "claude-code": { "text": "普通 Agent 默认三层；Teams 另有 owner 与依赖图。", "claims": ["CC-05", "CC-07"] },
+        "codex": { "text": "canonical task path 编码递归祖先关系。", "claims": ["CX-02"] },
+        "opencode": { "text": "Session 保存 parentID；默认 subagent_depth=1。", "claims": ["OC-06"] }
+      }
+    },
+    {
+      "group": "Scheduling", "label": "并发与后台",
+      "cells": {
+        "claude-code": { "text": "Agent 默认后台；Agent 与 Workflow 使用不同限额。", "claims": ["CC-03", "CC-05"] },
+        "codex": { "text": "本次捕获注入四个总 active slots，包含 coordinator。", "claims": ["CX-07"] },
+        "opencode": { "text": "foreground 默认；background 仅在实验开关下暴露。", "claims": ["OC-04"] }
+      }
+    },
+    {
+      "group": "Steering", "label": "运行中如何转向",
+      "cells": {
+        "claude-code": { "text": "SendMessage 可续接或转向已有 Agent。", "claims": ["CC-04"] },
+        "codex": { "text": "send_message 只投递；followup_task 可唤醒 idle child。", "claims": ["CX-05"] },
+        "opencode": { "text": "当前 task surface 未暴露独立 mailbox、steer 或 wake 原语。", "unknown": "KU-07" }
+      }
+    },
+    {
+      "group": "Resume", "label": "恢复句柄保存什么",
+      "cells": {
+        "claude-code": { "text": "Agent ID 恢复 transcript；Workflow run 复用未改调用前缀。", "claims": ["CC-04"] },
+        "codex": { "text": "idle child 可由 followup_task 再次触发；无独立 resume tool。", "claims": ["CX-05", "CX-06"] },
+        "opencode": { "text": "task_id 指向 child Session；无效 ID 静默新建。", "claims": ["OC-02"] }
+      }
+    },
+    {
+      "group": "Return", "label": "什么回到 parent",
+      "cells": {
+        "claude-code": { "text": "foreground tool result 或稍后的 completion notification。", "claims": ["CC-03"] },
+        "codex": { "text": "final answer 异步送达；wait 只回更新摘要，不回 payload。", "claims": ["CX-05"] },
+        "opencode": { "text": "foreground 只取最后 text part；后台以 synthetic text 回注。", "claims": ["OC-03", "OC-04"] }
+      }
+    },
+    {
+      "group": "Failure", "label": "停止与失败",
+      "cells": {
+        "claude-code": { "text": "TaskStop 停 Agent；Workflow 失败项以 null 进入数据流。", "claims": ["CC-03", "CC-04"] },
+        "codex": { "text": "interrupt 只停当前 turn，节点仍可寻址。", "claims": ["CX-06"] },
+        "opencode": { "text": "parent abort 传播 cancel；TaskTool deadline 未暴露。", "claims": ["OC-06"] }
+      }
+    },
+    {
+      "group": "Capability", "label": "权限与工具如何继承",
+      "cells": {
+        "claude-code": { "text": "background 工具池更小；fork 保留父精确 tool pool。", "claims": ["CC-03"] },
+        "codex": { "text": "0.147.0 当前传播规则未知；0.115.0 仅可作历史辅证。", "unknown": "KU-08" },
+        "opencode": { "text": "child ruleset 为主，继续承受 parent deny 与外部目录限制。", "claims": ["OC-05"] }
+      }
+    },
+    {
+      "group": "Coordination", "label": "依赖与汇合",
+      "cells": {
+        "claude-code": { "text": "Teams 暴露依赖图；Workflow 区分 pipeline 与 barrier。", "claims": ["CC-01", "CC-07"] },
+        "codex": { "text": "当前六工具未暴露 dependency graph 或 barrier。", "unknown": "KU-09" },
+        "opencode": { "text": "并行依靠同轮多个 task calls；TaskTool 无 join primitive。", "claims": ["OC-04"] }
+      }
+    },
+    {
+      "group": "Replay", "label": "是否可重放编排",
+      "cells": {
+        "claude-code": { "text": "Workflow 用 JavaScript 控制流与有序前缀缓存恢复。", "claims": ["CC-01", "CC-04"] },
+        "codex": { "text": "当前 surface 未暴露 orchestration checkpoint/replay。", "unknown": "KU-10" },
+        "opencode": { "text": "task_id 续跑 Session，但无 orchestration replay contract。", "claims": ["OC-02"], "unknown": "KU-10" }
+      }
+    }
+  ],
+  "anatomies": [
+    { "agent": "claude-code", "label": "Claude Code", "title": "三个控制平面，而不是更大的 Agent 工具", "claims": ["CC-01", "CC-02", "CC-03", "CC-04", "CC-05", "CC-06", "CC-07"] },
+    { "agent": "codex", "label": "Codex", "title": "共享工作区上的可寻址 mailbox 树", "claims": ["CX-01", "CX-02", "CX-03", "CX-04", "CX-05", "CX-06", "CX-07"] },
+    { "agent": "opencode", "label": "opencode", "title": "一个 Task contract 背后的 child Session", "claims": ["OC-01", "OC-02", "OC-03", "OC-04", "OC-05", "OC-06"] }
+  ],
+  "observations": [
+    { "id": "OBS-01", "title": "三种控制状态的落点不同", "text": "Claude Code 把状态分散在模型、脚本和任务图；Codex 放在可寻址树与 mailbox；opencode 则压进 Task/Session lifecycle。", "claims": ["CC-01", "CX-01", "CX-02", "OC-01"] },
+    { "id": "OBS-02", "title": "上下文隔离不等于工作区隔离", "text": "三家都能让 child 少看或不看父对话，但只有 Claude Code 在当前契约中暴露可选 worktree；Codex 与 opencode 的核验路径仍共享文件状态。", "claims": ["CC-02", "CC-06", "CX-03", "CX-04", "OC-01"] },
+    { "id": "OBS-03", "title": "“后台”至少有三种合同", "text": "Claude Agent 默认后台且改变工具与错误面；Codex 以异步 mailbox 回收；opencode 默认前台，实验性后台以 synthetic prompt 回注。", "claims": ["CC-03", "CX-05", "OC-04"] },
+    { "id": "OBS-04", "title": "恢复句柄保存的不是同一种状态", "text": "Claude 同时存在 transcript continuation 与 workflow prefix cache；Codex 保留可唤醒地址；opencode 的 task_id 直接续跑 child Session。", "claims": ["CC-04", "CX-05", "CX-06", "OC-02"] },
+    { "id": "OBS-05", "title": "文件冲突保护明显不对称", "text": "Claude Code 至少暴露可选 worktree；Codex 明示共享 filesystem 而未声明仲裁；opencode 固定版本源码显示共享 worktree path。", "claims": ["CC-06", "CX-04", "OC-01"] },
+    { "id": "OBS-06", "title": "只追 Prompt diff 会漏掉机制变化", "text": "opencode 1.18.2 的嵌套限制只在 release/source 可见；机制档案必须同时保留 Runtime Prompt、固定版本源码与 release 三层。", "claims": ["OC-06"] }
+  ],
+  "timeline": [
+    { "date": "2025-10-27", "agent": "claude-code", "version": "1.0.0 → 2.0.28", "title": "一次性 Task 变成可续接 transcript", "text": "schema 新增 Agent ID resume 与 per-call model。", "url": "/?mode=compare&agent=claude-code&left=1.0.0&right=2.0.28&view=structure&section=tool%3Atask" },
+    { "date": "2026-02-20", "agent": "claude-code", "version": "2.1.48 → 2.1.50", "title": "Agent contract 加入 worktree isolation", "text": "文件工作面可以独立于 parent checkout。", "url": "/?mode=compare&agent=claude-code&left=2.1.48&right=2.1.50&view=structure&section=tool%3Atask" },
+    { "date": "2026-05-15", "agent": "opencode", "version": "1.14.50 → 1.14.51", "title": "实验性 background subagent 出现", "text": "当时 contract 还暴露 task_status polling/wait。", "url": "/?mode=compare&agent=opencode&left=1.14.50&right=1.14.51&view=structure&section=tool%3Atask" },
+    { "date": "2026-05-28", "agent": "claude-code", "version": "2.1.153 → 2.1.154", "title": "新增 Workflow 编排运行时", "text": "JavaScript 开始持有 fan-out、barrier、预算与 resume cache。", "url": "/?mode=compare&agent=claude-code&left=2.1.153&right=2.1.154&view=structure&section=tool%3Aworkflow" },
+    { "date": "2026-06-05", "agent": "opencode", "version": "1.15.13 → 1.16.0", "title": "协调提示与 reasoning variant 继承变化", "text": "新增“不重复 delegated work / 自动通知”，并修复 variant 丢失。", "url": "/?mode=compare&agent=opencode&left=1.15.13&right=1.16.0&view=structure&section=tool%3Atask" },
+    { "date": "2026-06-22", "agent": "claude-code", "version": "2.1.185 → 2.1.186", "title": "SendMessage 成为独立通信通道", "text": "续接与转向从 spawn 参数迁到消息原语。", "url": "/?mode=compare&agent=claude-code&left=2.1.185&right=2.1.186&view=structure&section=tool%3Asendmessage" },
+    { "date": "2026-07-15", "agent": "opencode", "version": "1.18.1 → 1.18.2", "title": "默认禁止 nested subagent", "text": "source/release 新增深度 1 guard；Prompt diff 没有看见这次变化。", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.2" },
+    { "date": "2026-07-24", "agent": "claude-code", "version": "2.1.218 → 2.1.219", "title": "默认嵌套深度从 1 调回 3", "text": "树深与 20-running gate 成为两个独立限制器。", "url": "https://code.claude.com/docs/en/sub-agents" },
+    { "date": "2026-08-05", "agent": "codex", "version": "0.146.1 capture", "title": "六个 collaboration contract 同时可见", "text": "这是连续审计窗口中的首次可见，不是产品 launch-date 证明。", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.146.1/prompt.md" },
+    { "date": "2026-08-07", "agent": "codex", "version": "0.146.1 → 0.147.0", "title": "增加长等待、避免 busy polling 的指导", "text": "这是 coordinator prompt policy 变化，不证明 scheduler 已改变。", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=developer-prompt" }
+  ],
+  "unknowns": [
+    { "id": "KU-01", "title": "通用并发上限", "text": "Claude 有公开 cap，Codex 只有本次四-slot 注入，opencode 无真实 fan-out 上限。", "needed": "跨环境 runtime contract 或 trace" },
+    { "id": "KU-02", "title": "调度公平性", "text": "queue priority、fairness、aging、provider backpressure 与抢占算法均未完整公开。", "needed": "scheduler contract 与压力 trace" },
+    { "id": "KU-03", "title": "底层隔离单元", "text": "Session、Agent、child 等名称不能证明 OS process、thread 或 container 边界。", "needed": "runtime architecture 或 process trace" },
+    { "id": "KU-04", "title": "并行写入仲裁", "text": "共享写入未公开锁或 merge 规则；Claude worktree 也不承诺自动整合。", "needed": "冲突 trace 与 merge contract" },
+    { "id": "KU-05", "title": "自动重试策略", "text": "retry 次数、backoff、幂等条件与 replacement policy 不完整。", "needed": "错误分类与 retry contract" },
+    { "id": "KU-06", "title": "消息持久性", "text": "mailbox 与 synthetic notification 的顺序、去重、确认及 crash replay 未公开。", "needed": "delivery guarantee 与故障 trace" },
+    { "id": "KU-07", "title": "opencode 运行中 steering", "text": "当前 Task surface 没有独立 steer 原语；缺少 contract 不等于内部绝对不存在。", "needed": "固定版本 UI/API contract" },
+    { "id": "KU-08", "title": "Codex 当前权限传播", "text": "0.147.0 的 approval、sandbox 与 escalation 传播未知；0.115.0 只能作历史辅证。", "needed": "0.147.0 固定版本源码或 trace" },
+    { "id": "KU-09", "title": "依赖图与 barrier", "text": "Codex/opencode 当前 model-facing surface 未暴露 dependency graph 或 join primitive。", "needed": "调度 API 或固定版本 runtime source" },
+    { "id": "KU-10", "title": "编排 replay", "text": "Codex/opencode 当前 surface 未暴露 orchestration checkpoint；缺少 contract 不等于实现不存在。", "needed": "checkpoint/replay contract" }
+  ]
+}
