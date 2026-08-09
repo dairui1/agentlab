@@ -16,6 +16,7 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
@@ -30,6 +31,9 @@ USER_AGENT = "agentlab-agent-history/1.0 (+https://agentlab.dairui1.com)"
 
 CODEX_REPOSITORY = "openai/codex"
 CLAUDE_REPOSITORY = "anthropics/claude-code"
+CLINE_REPOSITORY = "cline/cline"
+QWEN_CODE_REPOSITORY = "QwenLM/qwen-code"
+REASONIX_REPOSITORY = "esengine/DeepSeek-Reasonix"
 CODEX_RELEASES_URL = f"https://api.github.com/repos/{CODEX_REPOSITORY}/releases"
 CODEX_CHANGELOG_RAW_URL = (
     f"https://raw.githubusercontent.com/{CODEX_REPOSITORY}/main/CHANGELOG.md"
@@ -49,6 +53,8 @@ MAX_NORMALIZED_RELEASE_BYTES = 64 * 1024
 
 VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 CODEX_TAG_RE = re.compile(r"^(?:rust-)?v?(\d+\.\d+\.\d+)$")
+CLINE_TAG_RE = re.compile(r"^cli-v(\d+\.\d+\.\d+)$")
+STANDARD_TAG_RE = re.compile(r"^v(\d+\.\d+\.\d+)$")
 CHANGELOG_HEADING_RE = re.compile(
     r"^##[ \t]+v?(\d+\.\d+\.\d+)(?:[ \t].*)?$", re.MULTILINE
 )
@@ -434,16 +440,20 @@ def minimize_github_releases(body: bytes) -> bytes:
     return canonical_json(minimized)
 
 
-def codex_releases(
+def github_releases(
     cache: HttpCache,
     *,
+    repository: str,
+    tag_pattern: re.Pattern[str],
+    product_name: str,
     max_pages: int,
     timeout: float,
     allow_stale_on_error: bool,
+    published_since: datetime | None = None,
 ) -> list[dict[str, object]]:
     releases: dict[str, dict[str, object]] = {}
     for page in range(1, max_pages + 1):
-        url = f"{CODEX_RELEASES_URL}?per_page=100&page={page}"
+        url = f"https://api.github.com/repos/{repository}/releases?per_page=100&page={page}"
         response = cache.fetch(
             url,
             accept="application/vnd.github+json",
@@ -462,21 +472,33 @@ def codex_releases(
             if not isinstance(raw, dict) or raw.get("draft") is True:
                 continue
             tag = raw.get("tag_name")
-            match = CODEX_TAG_RE.fullmatch(tag) if isinstance(tag, str) else None
+            match = tag_pattern.fullmatch(tag) if isinstance(tag, str) else None
             if match is None:
                 continue
             version = match.group(1)
             if raw.get("prerelease") is True:
                 continue
+            published = raw.get("published_at")
+            if published_since is not None:
+                if not isinstance(published, str) or not published:
+                    continue
+                try:
+                    published_at = datetime.fromisoformat(
+                        published.replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    continue
+                if published_at < published_since:
+                    continue
             body = raw.get("body") if isinstance(raw.get("body"), str) else ""
             title = raw.get("name") if isinstance(raw.get("name"), str) else ""
             url_value = raw.get("html_url")
             if not isinstance(url_value, str) or not url_value.startswith("https://github.com/"):
-                url_value = f"https://github.com/{CODEX_REPOSITORY}/releases/tag/{quote(tag, safe='')}"
+                url_value = f"https://github.com/{repository}/releases/tag/{quote(tag, safe='')}"
             record: dict[str, object] = {
                 "version": version,
                 "tag": tag,
-                "title": title.strip() or f"Codex {version}",
+                "title": title.strip() or f"{product_name} {version}",
                 "sourceUrl": url_value,
                 "notes": notes_value(
                     body,
@@ -484,13 +506,54 @@ def codex_releases(
                     source_url=url_value,
                 ),
             }
-            published = raw.get("published_at")
             if isinstance(published, str) and published:
                 record["publishedAt"] = published
             releases.setdefault(version, record)
         if len(value) < 100:
             break
     return sorted(releases.values(), key=lambda item: version_key(str(item["version"])))
+
+
+def codex_releases(
+    cache: HttpCache,
+    *,
+    max_pages: int,
+    timeout: float,
+    allow_stale_on_error: bool,
+) -> list[dict[str, object]]:
+    return github_releases(
+        cache,
+        repository=CODEX_REPOSITORY,
+        tag_pattern=CODEX_TAG_RE,
+        product_name="Codex",
+        max_pages=max_pages,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+    )
+
+
+def retained_release_history(
+    normalized_root: Path,
+    agent: str,
+    releases: Sequence[Mapping[str, object]],
+) -> list[Mapping[str, object]]:
+    retained: dict[str, Mapping[str, object]] = {}
+    path = normalized_root / f"{agent}.json"
+    if path.is_file() and not path.is_symlink():
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            previous = None
+        previous_releases = previous.get("releases") if isinstance(previous, dict) else None
+        if isinstance(previous_releases, dict):
+            retained.update(
+                (version, value)
+                for version, value in previous_releases.items()
+                if isinstance(version, str) and isinstance(value, dict)
+            )
+    for release in releases:
+        retained[str(release["version"])] = release
+    return [retained[version] for version in sorted(retained, key=version_key)]
 
 
 def attach_codex_compares(
@@ -616,6 +679,7 @@ def sync(
 ) -> dict[str, object]:
     root = cache_root.expanduser().resolve()
     cache = HttpCache(root / "http", token=token)
+    normalized_root = root / "normalized"
 
     codex_changelog = cache.fetch(
         CODEX_CHANGELOG_RAW_URL,
@@ -681,22 +745,46 @@ def sync(
         ],
     )
 
-    normalized_root = root / "normalized"
-    atomic_write(normalized_root / "codex.json", pretty_json(codex_value))
-    atomic_write(normalized_root / "claude-code.json", pretty_json(claude_value))
+    recent_cutoff = datetime.now(timezone.utc) - timedelta(days=62)
+    recent_configs = {
+        "cline": (CLINE_REPOSITORY, CLINE_TAG_RE, "Cline CLI"),
+        "qwen-code": (QWEN_CODE_REPOSITORY, STANDARD_TAG_RE, "Qwen Code"),
+        "reasonix": (REASONIX_REPOSITORY, STANDARD_TAG_RE, "Reasonix"),
+    }
+    normalized_values: dict[str, dict[str, object]] = {
+        "claude-code": claude_value,
+        "codex": codex_value,
+    }
+    for agent, (repository, tag_pattern, product_name) in recent_configs.items():
+        recent = github_releases(
+            cache,
+            repository=repository,
+            tag_pattern=tag_pattern,
+            product_name=product_name,
+            max_pages=min(max_release_pages, 3),
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+            published_since=recent_cutoff,
+        )
+        retained = retained_release_history(normalized_root, agent, recent)
+        normalized_values[agent] = normalized_agent(
+            agent=agent,
+            repository=repository,
+            releases=retained,
+            documents=[],
+        )
+
+    for agent, value in normalized_values.items():
+        atomic_write(normalized_root / f"{agent}.json", pretty_json(value))
     manifest: dict[str, object] = {
         "schemaVersion": SCHEMA_VERSION,
         "agents": {
-            "claude-code": {
-                "url": "claude-code.json",
-                "releaseCount": len(claude_releases),
-                "sourceDigest": claude_value["sourceDigest"],
-            },
-            "codex": {
-                "url": "codex.json",
-                "releaseCount": len(codex),
-                "sourceDigest": codex_value["sourceDigest"],
-            },
+            agent: {
+                "url": f"{agent}.json",
+                "releaseCount": len(value["releases"]),
+                "sourceDigest": value["sourceDigest"],
+            }
+            for agent, value in sorted(normalized_values.items())
         },
     }
     manifest["sourceDigest"] = sha256_bytes(canonical_json(manifest))

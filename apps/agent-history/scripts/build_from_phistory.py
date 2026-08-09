@@ -56,7 +56,10 @@ UPSTREAM_REPO = "WEIFENG2333/phistory"
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}"
 OFFICIAL_REPOSITORIES = {
     "claude-code": "anthropics/claude-code",
+    "cline": "cline/cline",
     "codex": "openai/codex",
+    "qwen-code": "QwenLM/qwen-code",
+    "reasonix": "esengine/DeepSeek-Reasonix",
 }
 
 AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
@@ -135,6 +138,11 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Qwen Code Runtime Prompt 与工具的版本历史。",
         "projectUrl": "https://github.com/QwenLM/qwen-code",
     },
+    "reasonix": {
+        "label": "Reasonix",
+        "description": "Reasonix Coding Agent 的官方发布与 Agent 设计变更历史。",
+        "projectUrl": "https://github.com/esengine/DeepSeek-Reasonix",
+    },
 }
 
 PREFERRED_AGENT_ORDER = (
@@ -153,6 +161,7 @@ PREFERRED_AGENT_ORDER = (
     "goose",
     "cline",
     "qwen-code",
+    "reasonix",
 )
 AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 VERSION_SCHEME_RE = re.compile(
@@ -703,6 +712,7 @@ def capture_digest(
 def capture_provenance(
     root: CaptureRoot,
     *,
+    meta: Mapping[str, Any],
     links: Mapping[str, str | None],
     capture_sha256: str,
     prompt_sha256: str,
@@ -711,6 +721,24 @@ def capture_provenance(
     static_prompts_sha256: str | None,
 ) -> dict[str, Any]:
     value = root.public()
+    if meta.get("capture_kind") == "official-source-history":
+        repository = meta.get("source_repository")
+        ref = meta.get("source_ref")
+        source_url = meta.get("source_url")
+        if not all(isinstance(item, str) and item for item in (repository, ref, source_url)):
+            raise ValueError("official source capture metadata is incomplete")
+        if not str(source_url).startswith("https://github.com/"):
+            raise ValueError("official source capture URL must use https://github.com/")
+        value.update(
+            {
+                "kind": "official-source",
+                "repository": repository,
+                "commit": ref,
+                "url": f"https://github.com/{repository}",
+                "snapshotUrl": source_url,
+                "metaUrl": source_url,
+            }
+        )
     value.update(
         {
             "captureSha256": capture_sha256,
@@ -962,6 +990,7 @@ def load_capture(
     )
     provenance = capture_provenance(
         root,
+        meta=meta,
         links=links,
         capture_sha256=capture_sha256,
         prompt_sha256=prompt_sha256,
@@ -1857,7 +1886,13 @@ def capture_sources(
 ) -> list[dict[str, Any]]:
     sources: list[dict[str, Any]] = []
     for origin in capture.provenance:
-        prefix = "phistory" if origin.get("kind") == "phistory" else "local-overlay"
+        prefix = (
+            "phistory"
+            if origin.get("kind") == "phistory"
+            else "official-source"
+            if origin.get("kind") == "official-source"
+            else "local-overlay"
+        )
 
         def source(source_type: str, *, url_key: str, sha_key: str) -> dict[str, Any]:
             value: dict[str, Any] = {
@@ -2293,6 +2328,20 @@ def history_version(capture: Capture) -> dict[str, Any]:
     return value
 
 
+def runtime_layer(
+    capture: Capture,
+    *,
+    metadata_field: str,
+    available: Mapping[str, Any],
+) -> dict[str, Any]:
+    if capture.meta.get(metadata_field) == "unavailable":
+        return {
+            "status": "unavailable",
+            "reason": "official-source-history-has-no-runtime-capture",
+        }
+    return dict(available)
+
+
 def compact_feed_release(capture: Capture) -> dict[str, Any]:
     value: dict[str, Any] = {
         "version": capture.version,
@@ -2580,18 +2629,26 @@ def build(
                 "promptUrl": f"/data/objects/{capture.sha256}.md",
                 "sources": packet["sources"],
                 "layers": {
-                    "prompt": {
-                        "status": "available",
-                        "additions": packet_stats["additions"],
-                        "deletions": packet_stats["deletions"],
-                        "changedSections": packet_stats["changedSections"],
-                    },
-                    "tools": {
-                        "status": "available",
-                        "added": packet_stats["toolsAdded"],
-                        "removed": packet_stats["toolsRemoved"],
-                        "modified": packet_stats["toolsModified"],
-                    },
+                    "prompt": runtime_layer(
+                        capture,
+                        metadata_field="runtime_prompt_status",
+                        available={
+                            "status": "available",
+                            "additions": packet_stats["additions"],
+                            "deletions": packet_stats["deletions"],
+                            "changedSections": packet_stats["changedSections"],
+                        },
+                    ),
+                    "tools": runtime_layer(
+                        capture,
+                        metadata_field="tool_schema_status",
+                        available={
+                            "status": "available",
+                            "added": packet_stats["toolsAdded"],
+                            "removed": packet_stats["toolsRemoved"],
+                            "modified": packet_stats["toolsModified"],
+                        },
+                    ),
                     "staticPrompt": packet["staticPrompt"],
                     "official": packet["official"],
                 },

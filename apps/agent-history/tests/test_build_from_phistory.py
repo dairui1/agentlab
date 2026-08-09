@@ -73,6 +73,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         root: Path | None = None,
         published_at: str | None = None,
         trace_text: str | None = None,
+        extra_meta: dict[str, object] | None = None,
     ) -> None:
         directory = (root or self.phistory) / "captures" / agent / version
         directory.mkdir(parents=True)
@@ -86,6 +87,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
                     "version": version,
                     "published_at": published_at or captured_at,
                     "captured_at": captured_at,
+                    **(extra_meta or {}),
                 }
             ),
             encoding="utf-8",
@@ -293,7 +295,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(future["label"], "fixture")
 
     def test_new_agent_definitions_override_capture_metadata(self) -> None:
-        for agent in ("goose", "cline", "qwen-code"):
+        for agent in ("goose", "cline", "qwen-code", "reasonix"):
             self._capture(agent, "1.0.0", CLAUDE_OLD, "2026-08-06T12:00:00Z")
 
         manifest = self._build()
@@ -301,7 +303,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         agents = {item["id"]: item for item in manifest["agents"]}
         self.assertEqual(
             [item["id"] for item in manifest["agents"]],
-            ["claude-code", "codex", "goose", "cline", "qwen-code"],
+            ["claude-code", "codex", "goose", "cline", "qwen-code", "reasonix"],
         )
         self.assertEqual(agents["goose"]["label"], "Goose")
         self.assertEqual(
@@ -313,8 +315,45 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(
             agents["qwen-code"]["projectUrl"], "https://github.com/QwenLM/qwen-code"
         )
+        self.assertEqual(agents["reasonix"]["label"], "Reasonix")
+        self.assertEqual(
+            agents["reasonix"]["projectUrl"],
+            "https://github.com/esengine/DeepSeek-Reasonix",
+        )
         for agent in ("goose", "cline", "qwen-code"):
             self.assertIn("Runtime Prompt", agents[agent]["description"])
+
+    def test_source_only_capture_exposes_official_provenance_and_unavailable_layers(self) -> None:
+        overlay = self.root / "overlay"
+        self._capture(
+            "reasonix",
+            "1.20.0",
+            "# Runtime Evidence\n\nOfficial release only.\n",
+            "2026-08-05T14:01:12Z",
+            root=overlay,
+            extra_meta={
+                "capture_kind": "official-source-history",
+                "runtime_prompt_status": "unavailable",
+                "tool_schema_status": "unavailable",
+                "source_repository": "esengine/DeepSeek-Reasonix",
+                "source_ref": "v1.20.0",
+                "source_url": "https://github.com/esengine/DeepSeek-Reasonix/releases/tag/v1.20.0",
+            },
+        )
+
+        self._build(capture_overlay_root=overlay)
+
+        changelog = self._json(self.public / "data/agents/reasonix/changelog.json")
+        entry = changelog["entries"][0]
+        self.assertEqual(entry["layers"]["prompt"]["status"], "unavailable")
+        self.assertEqual(entry["layers"]["tools"]["status"], "unavailable")
+        source = next(
+            source
+            for source in entry["sources"]
+            if source["sourceType"] == "official-source-prompt-capture"
+        )
+        self.assertEqual(source["repository"], "esengine/DeepSeek-Reasonix")
+        self.assertEqual(source["ref"], "v1.20.0")
 
     def test_overlay_merges_agents_and_deduplicates_semantic_captures(self) -> None:
         overlay = self.root / "overlay"

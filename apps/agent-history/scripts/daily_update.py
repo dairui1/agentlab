@@ -173,6 +173,16 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         str(official_cache_root),
         "--allow-stale-on-error",
     ]
+    sync_source_captures = [
+        python,
+        str(SCRIPTS / "sync_source_captures.py"),
+        "--official-root",
+        str(official_cache_root / "normalized"),
+        "--phistory-root",
+        str(upstream),
+        "--overlay-root",
+        str(capture_overlay_root),
+    ]
     build = [
         python,
         str(SCRIPTS / "build_from_phistory.py"),
@@ -218,6 +228,7 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
     steps = [
         Step("sync upstream", tuple(sync), APP_ROOT),
         Step("sync official sources", tuple(sync_official), APP_ROOT),
+        Step("sync source-only captures", tuple(sync_source_captures), APP_ROOT),
         Step("build deterministic evidence", tuple(build), APP_ROOT),
         Step(
             "analyze stale changelogs",

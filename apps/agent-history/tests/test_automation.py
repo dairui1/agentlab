@@ -29,6 +29,9 @@ def load_script(name: str, relative: str):
 
 analyze = load_script("agent_history_analyze", "scripts/analyze_changelogs.py")
 sync = load_script("agent_history_sync", "scripts/sync_phistory.py")
+source_sync = load_script(
+    "agent_history_source_sync", "scripts/sync_source_captures.py"
+)
 daily = load_script("agent_history_daily", "scripts/daily_update.py")
 install = load_script("agent_history_install", "ops/install_launchd.py")
 
@@ -805,6 +808,58 @@ class SyncPhistoryTests(unittest.TestCase):
             self.assertTrue(updated.changed)
 
 
+class SourceCaptureSyncTests(unittest.TestCase):
+    def test_materializes_only_missing_official_releases(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            (phistory / "captures/cline/1.0.0").mkdir(parents=True)
+            official.mkdir()
+            releases = {
+                version: {
+                    "version": version,
+                    "tag": f"cli-v{version}",
+                    "sourceUrl": f"https://github.com/cline/cline/releases/tag/cli-v{version}",
+                    "publishedAt": f"2026-08-0{index}T00:00:00Z",
+                }
+                for index, version in enumerate(("1.0.0", "1.0.1"), start=1)
+            }
+            (official / "cline.json").write_text(
+                json.dumps(
+                    {
+                        "repository": "cline/cline",
+                        "releases": releases,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("cline",),
+            )
+
+            self.assertEqual(result, {"cline": 1})
+            capture = overlay / "captures/cline/1.0.1"
+            self.assertIn("runtime prompt", (capture / "prompt.md").read_text())
+            metadata = json.loads((capture / "meta.json").read_text())
+            self.assertEqual(metadata["capture_kind"], "official-source-history")
+            self.assertEqual(metadata["source_ref"], "cli-v1.0.1")
+            self.assertEqual(
+                source_sync.sync(
+                    official_root=official,
+                    phistory_root=phistory,
+                    overlay_root=overlay,
+                    agents=("cline",),
+                ),
+                {"cline": 0},
+            )
+
+
 class DailyUpdateTests(unittest.TestCase):
     def test_step_order_backfill_limit_and_optional_deploy(self):
         overlay = Path("/tmp/agentlab-test-overlay")
@@ -824,6 +879,7 @@ class DailyUpdateTests(unittest.TestCase):
             [
                 "sync upstream",
                 "sync official sources",
+                "sync source-only captures",
                 "build deterministic evidence",
                 "analyze stale changelogs",
                 "merge validated changelogs",
@@ -835,18 +891,22 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertIn("--allow-stale-on-error", steps[1].command)
         self.assertIn(str(daily.DEFAULT_OFFICIAL_CACHE_ROOT), steps[1].command)
         resolved_overlay = str(overlay.resolve())
-        for index in (2, 4):
+        source_command = steps[2].command
+        self.assertEqual(
+            source_command[source_command.index("--overlay-root") + 1], resolved_overlay
+        )
+        for index in (3, 5):
             command = steps[index].command
             self.assertEqual(
                 command[command.index("--capture-overlay-root") + 1], resolved_overlay
             )
         self.assertEqual(
-            steps[6].environment,
+            steps[7].environment,
             {"AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": resolved_overlay},
         )
-        self.assertFalse(steps[3].required)
-        self.assertTrue(all(step.required for index, step in enumerate(steps) if index != 3))
-        analyze_command = steps[3].command
+        self.assertFalse(steps[4].required)
+        self.assertTrue(all(step.required for index, step in enumerate(steps) if index != 4))
+        analyze_command = steps[4].command
         self.assertIn("--batch-size", analyze_command)
         self.assertEqual(analyze_command[analyze_command.index("--batch-size") + 1], "1")
         self.assertEqual(analyze_command[analyze_command.index("--timeout") + 1], "180.0")

@@ -167,6 +167,7 @@
     goose: "/agent-icons/goose.svg",
     cline: "/agent-icons/cline.svg",
     "qwen-code": "/agent-icons/qwen-code.svg",
+    reasonix: "/agent-icons/reasonix.svg",
   };
 
   const sourceLayerIcons = {
