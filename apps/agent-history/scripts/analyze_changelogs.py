@@ -538,7 +538,17 @@ def communicate_with_timeout(
             process,
             grace=min(1.0, max(0.05, timeout)),
         )
-        diagnostic = partial_stderr.strip() or partial_stdout.strip()
+        def timeout_text(value: str | bytes | None) -> str:
+            if isinstance(value, bytes):
+                return value.decode("utf-8", errors="replace")
+            return value or ""
+
+        diagnostic = (
+            partial_stderr.strip()
+            or timeout_text(error.stderr).strip()
+            or partial_stdout.strip()
+            or timeout_text(error.stdout).strip()
+        )
         tail = "\n".join(diagnostic.splitlines()[-16:])
         raise AnalysisTimeout(
             f"Codex timed out after {timeout:g}s" + (f":\n{tail}" if tail else "")

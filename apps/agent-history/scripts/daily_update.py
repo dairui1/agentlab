@@ -17,13 +17,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator, Sequence
+from typing import Iterator, Mapping, Sequence
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = APP_ROOT / "scripts"
 DEFAULT_CACHE_ROOT = APP_ROOT / ".cache" / "phistory"
 DEFAULT_OFFICIAL_CACHE_ROOT = APP_ROOT / ".cache" / "official-sources"
+DEFAULT_CAPTURE_OVERLAY_ROOT = APP_ROOT / ".cache" / "agentlab-captures"
 DEFAULT_ANALYSIS_ROOT = APP_ROOT / "analysis"
 DEFAULT_PUBLIC_ROOT = APP_ROOT / "public"
 DEFAULT_LOCK = APP_ROOT / ".cache" / "daily-update.lock"
@@ -50,6 +51,7 @@ class Step:
     command: tuple[str, ...]
     cwd: Path
     required: bool = True
+    environment: Mapping[str, str] | None = None
 
 
 def signal_step_group(process: subprocess.Popen[bytes], signum: int) -> None:
@@ -149,6 +151,7 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
     official_cache_root = args.official_cache_root.expanduser().resolve()
     analysis_root = args.analysis_root.expanduser().resolve()
     public_root = args.public_root.expanduser().resolve()
+    capture_overlay_root = args.capture_overlay_root.expanduser().resolve()
     agents = args.agents
 
     sync = [
@@ -175,6 +178,8 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         str(SCRIPTS / "build_from_phistory.py"),
         "--phistory-root",
         str(upstream),
+        "--capture-overlay-root",
+        str(capture_overlay_root),
         "--public-root",
         str(public_root),
         "--analysis-root",
@@ -222,7 +227,14 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         ),
         Step("merge validated changelogs", tuple(build), APP_ROOT),
         Step("run tests", (args.npm_bin, "test"), APP_ROOT),
-        Step("build site", (args.npm_bin, "run", "build"), APP_ROOT),
+        Step(
+            "build site",
+            (args.npm_bin, "run", "build"),
+            APP_ROOT,
+            environment={
+                "AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": str(capture_overlay_root)
+            },
+        ),
     ]
     if args.deploy:
         steps.append(
@@ -255,6 +267,11 @@ def run_step(step: Step, *, timeout: float, dry_run: bool) -> bool:
         process = subprocess.Popen(
             step.command,
             cwd=step.cwd,
+            env=(
+                {**os.environ, **step.environment}
+                if step.environment is not None
+                else None
+            ),
             start_new_session=True,
         )
     except OSError as error:
@@ -283,6 +300,17 @@ def run_step(step: Step, *, timeout: float, dry_run: bool) -> bool:
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lock-file", type=Path, default=DEFAULT_LOCK)
+    parser.add_argument(
+        "--capture-overlay-root",
+        type=Path,
+        default=Path(
+            os.environ.get(
+                "AGENT_HISTORY_CAPTURE_OVERLAY_ROOT",
+                str(DEFAULT_CAPTURE_OVERLAY_ROOT),
+            )
+        ),
+        help="optional local Phistory-format capture overlay",
+    )
     parser.add_argument(
         "--remote",
         default=os.environ.get(

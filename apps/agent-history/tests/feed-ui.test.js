@@ -6,6 +6,7 @@ const test = require("node:test");
 const publicRoot = path.resolve(__dirname, "../public");
 const html = fs.readFileSync(path.join(publicRoot, "index.html"), "utf8");
 const app = fs.readFileSync(path.join(publicRoot, "app.js"), "utf8");
+const manifest = JSON.parse(fs.readFileSync(path.join(publicRoot, "data/manifest.json"), "utf8"));
 
 test("header and favicon use the AgentLab brand mark", () => {
   const logoPath = path.join(publicRoot, "assets/agentlab-mark.png");
@@ -36,10 +37,16 @@ test("feed paging observes a window-rooted sentinel and retains a click fallback
 
 test("every configured agent filter option has its copied Phistory icon", () => {
   assert.match(app, /className = "feed-filter-agent-icon"/);
-  const iconUrls = [...app.matchAll(/["'](\/agent-icons\/[^"']+)["']/g)]
-    .map((match) => match[1]);
-  assert.ok(iconUrls.length > 0, "no configured agent icons");
-  for (const iconUrl of iconUrls) {
+  const iconEntries = [...app.matchAll(/^\s*(?:"([a-z0-9-]+)"|([a-z0-9-]+)):\s*"(\/agent-icons\/[^"]+)"/gm)]
+    .map((match) => [match[1] || match[2], match[3]]);
+  const iconUrls = new Map(iconEntries);
+  for (const agent of ["goose", "cline", "qwen-code"]) {
+    assert.ok(iconUrls.has(agent), `missing icon mapping for ${agent}`);
+  }
+  for (const agent of manifest.agents) {
+    assert.ok(iconUrls.has(agent.id), `missing icon mapping for ${agent.id}`);
+  }
+  for (const iconUrl of iconUrls.values()) {
     const iconPath = path.join(publicRoot, iconUrl);
     assert.ok(fs.existsSync(iconPath), `missing icon ${iconUrl}`);
     assert.ok(fs.statSync(iconPath).size > 0, `empty icon ${iconUrl}`);

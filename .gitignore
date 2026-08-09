@@ -21,6 +21,7 @@ build/
 !.env.example
 
 tmp/
+.codex-research/
 
 node_modules/
 

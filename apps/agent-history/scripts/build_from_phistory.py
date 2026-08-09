@@ -18,7 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -33,6 +33,7 @@ from terminology import normalize_changelog_record
 
 
 DEFAULT_OFFICIAL_ROOT = APP_ROOT / ".cache" / "official-sources" / "normalized"
+DEFAULT_CAPTURE_OVERLAY_ROOT = APP_ROOT / ".cache" / "agentlab-captures"
 SCHEMA_VERSION = 1
 MAX_DIFF_LINES = 500
 MAX_CAPTURES_PER_AGENT = 5_000
@@ -119,6 +120,21 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Oh My Pi Runtime Prompt 与工具的版本历史。",
         "projectUrl": "https://github.com/can1357/oh-my-pi",
     },
+    "goose": {
+        "label": "Goose",
+        "description": "Goose CLI Runtime Prompt 与工具的版本历史。",
+        "projectUrl": "https://github.com/aaif-goose/goose",
+    },
+    "cline": {
+        "label": "Cline",
+        "description": "Cline CLI Runtime Prompt 与工具的版本历史。",
+        "projectUrl": "https://github.com/cline/cline",
+    },
+    "qwen-code": {
+        "label": "Qwen Code",
+        "description": "Qwen Code Runtime Prompt 与工具的版本历史。",
+        "projectUrl": "https://github.com/QwenLM/qwen-code",
+    },
 }
 
 PREFERRED_AGENT_ORDER = (
@@ -134,6 +150,9 @@ PREFERRED_AGENT_ORDER = (
     "opencode",
     "pi",
     "omp",
+    "goose",
+    "cline",
+    "qwen-code",
 )
 AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 VERSION_SCHEME_RE = re.compile(
@@ -173,12 +192,14 @@ class Capture:
     prompt: bytes
     prompt_text: str
     sha256: str
+    capture_sha256: str
     captured_at: str
     published_at: str | None
-    source_url: str
-    prompt_source_url: str
-    meta_source_url: str
+    source_url: str | None
+    prompt_source_url: str | None
+    meta_source_url: str | None
     trace_source_url: str | None
+    provenance: tuple[Mapping[str, Any], ...]
     sections: tuple[Span, ...]
     tools: tuple[Span, ...]
     meta: Mapping[str, Any]
@@ -205,6 +226,32 @@ class CaptureIngestion:
             "warningsTruncated": self.warnings_truncated,
             "warnings": [dict(warning) for warning in self.warnings],
         }
+
+
+@dataclass(frozen=True)
+class CaptureRoot:
+    path: Path
+    kind: str
+    label: str
+    commit: str
+    repository: str | None = None
+    url: str | None = None
+
+    @property
+    def ref(self) -> str:
+        return self.commit if self.commit != "unknown" else "main"
+
+    def public(self) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "kind": self.kind,
+            "label": self.label,
+            "commit": self.commit,
+        }
+        if self.repository is not None:
+            value["repository"] = self.repository
+        if self.url is not None:
+            value["url"] = self.url
+        return value
 
 
 @dataclass(frozen=True)
@@ -301,17 +348,20 @@ def agent_sort_key(agent: str) -> tuple[int, str]:
         return len(PREFERRED_AGENT_ORDER), agent
 
 
-def discover_agents(phistory_root: Path) -> tuple[str, ...]:
-    capture_root = phistory_root / "captures"
-    discovered: list[str] = []
-    for path in capture_root.iterdir():
-        if not path.is_dir() or path.is_symlink():
-            continue
-        if not AGENT_ID_RE.fullmatch(path.name):
-            raise ValueError(f"invalid Phistory agent directory: {path.name!r}")
-        discovered.append(path.name)
+def discover_agents(capture_roots: Sequence[CaptureRoot]) -> tuple[str, ...]:
+    discovered: set[str] = set()
+    for root in capture_roots:
+        capture_root = root.path / "captures"
+        for path in capture_root.iterdir():
+            if not path.is_dir() or path.is_symlink():
+                continue
+            if not AGENT_ID_RE.fullmatch(path.name):
+                raise ValueError(
+                    f"invalid {root.label} agent directory: {path.name!r}"
+                )
+            discovered.add(path.name)
     if not discovered:
-        raise ValueError(f"no agent capture directories found under {capture_root}")
+        raise ValueError("no agent capture directories found in configured capture roots")
     return tuple(sorted(discovered, key=agent_sort_key))
 
 
@@ -594,6 +644,97 @@ def source_links(
     }
 
 
+def capture_digest(
+    *,
+    agent: str,
+    version: str,
+    prompt_sha256: str,
+    published_at: str | None,
+    meta: Mapping[str, Any],
+    static_prompts: StaticPromptSet | None,
+) -> str:
+    stable_meta: dict[str, Any] = {
+        "agent_id": meta.get("agent_id", agent),
+        "version": meta.get("version", version),
+    }
+    stable_meta.update({
+        key: meta[key]
+        for key in (
+            "package",
+            "tap_client",
+        )
+        if key in meta
+    })
+    if published_at is not None:
+        stable_meta["published_at"] = published_at
+    static_prompt_semantics = (
+        {
+            "total": static_prompts.total,
+            "known": static_prompts.known,
+            "unknown": static_prompts.unknown,
+            "items": [
+                {
+                    "id": item.id,
+                    "name": item.name,
+                    "category": item.category,
+                    "description": item.description,
+                    "contentHash": item.content_hash,
+                    "content": item.content,
+                }
+                for item in static_prompts.items
+            ],
+        }
+        if static_prompts is not None
+        else None
+    )
+    return sha256_bytes(
+        canonical_json(
+            {
+                "agent": agent,
+                "version": version,
+                "promptSha256": prompt_sha256,
+                "stableMeta": stable_meta,
+                "staticPrompts": static_prompt_semantics,
+            }
+        )
+    )
+
+
+def capture_provenance(
+    root: CaptureRoot,
+    *,
+    links: Mapping[str, str | None],
+    capture_sha256: str,
+    prompt_sha256: str,
+    meta_sha256: str,
+    trace_sha256: str | None,
+    static_prompts_sha256: str | None,
+) -> dict[str, Any]:
+    value = root.public()
+    value.update(
+        {
+            "captureSha256": capture_sha256,
+            "promptSha256": prompt_sha256,
+            "metaSha256": meta_sha256,
+        }
+    )
+    if trace_sha256 is not None:
+        value["traceSha256"] = trace_sha256
+    if static_prompts_sha256 is not None:
+        value["staticPromptsSha256"] = static_prompts_sha256
+    for key, link_key in (
+        ("snapshotUrl", "snapshot"),
+        ("promptUrl", "prompt"),
+        ("metaUrl", "meta"),
+        ("traceUrl", "trace"),
+        ("staticPromptsUrl", "staticPrompts"),
+    ):
+        link = links.get(link_key)
+        if link is not None:
+            value[key] = link
+    return value
+
+
 def read_trace(path: Path) -> dict[str, Any]:
     raw = read_bounded_bytes(path, kind="capture trace", maximum=MAX_TRACE_BYTES)
     for line_number, line in enumerate(raw.splitlines(), start=1):
@@ -720,14 +861,14 @@ def load_static_prompts(
 
 
 def load_capture(
-    phistory_root: Path,
+    root: CaptureRoot,
     capture_dir: Path,
     agent: str,
-    ref: str,
 ) -> Capture:
+    capture_root = root.path
     version = safe_component(capture_dir.name, kind="version directory")
     semver_key(version)
-    resolved_dir = ensure_within(capture_dir, phistory_root, kind="capture directory")
+    resolved_dir = ensure_within(capture_dir, capture_root, kind="capture directory")
     if capture_dir.is_symlink() or not resolved_dir.is_dir():
         raise ValueError(f"capture directory must be a real directory: {capture_dir}")
 
@@ -735,8 +876,8 @@ def load_capture(
     source_meta_path = capture_dir / "meta.json"
     if source_prompt_path.is_symlink() or source_meta_path.is_symlink():
         raise ValueError(f"capture prompt and metadata must not be symlinks: {capture_dir}")
-    prompt_path = ensure_within(source_prompt_path, phistory_root, kind="prompt")
-    meta_path = ensure_within(source_meta_path, phistory_root, kind="metadata")
+    prompt_path = ensure_within(source_prompt_path, capture_root, kind="prompt")
+    meta_path = ensure_within(source_meta_path, capture_root, kind="metadata")
     if not prompt_path.is_file():
         raise ValueError(f"prompt must be a regular file: {prompt_path}")
     if not meta_path.is_file():
@@ -775,44 +916,75 @@ def load_capture(
     trace_path = capture_dir / "trace.jsonl"
     trace: Mapping[str, Any] | None = None
     if trace_path.exists() or trace_path.is_symlink():
-        resolved_trace = ensure_within(trace_path, phistory_root, kind="trace")
+        resolved_trace = ensure_within(trace_path, capture_root, kind="trace")
         if trace_path.is_symlink() or not resolved_trace.is_file():
             raise ValueError(f"trace must be a regular file: {trace_path}")
         trace = read_trace(resolved_trace)
     static_path = capture_dir / "static-prompts.json"
     has_static_prompts = static_path.exists() or static_path.is_symlink()
-    links = source_links(
-        agent,
-        version,
-        ref,
-        has_trace=trace is not None,
-        has_static_prompts=has_static_prompts,
+    links = (
+        source_links(
+            agent,
+            version,
+            root.ref,
+            has_trace=trace is not None,
+            has_static_prompts=has_static_prompts,
+        )
+        if root.kind == "phistory"
+        else {
+            "snapshot": None,
+            "prompt": None,
+            "meta": None,
+            "trace": None,
+            "staticPrompts": None,
+        }
     )
     static_prompts: StaticPromptSet | None = None
     if has_static_prompts:
-        resolved_static = ensure_within(static_path, phistory_root, kind="static prompts")
+        resolved_static = ensure_within(static_path, capture_root, kind="static prompts")
         if static_path.is_symlink() or not resolved_static.is_file():
             raise ValueError(f"static prompts must be a regular file: {static_path}")
-        static_url = links["staticPrompts"]
-        assert isinstance(static_url, str)
+        static_url = links["staticPrompts"] or ""
         static_prompts = load_static_prompts(
             resolved_static,
             agent=agent,
             version=version,
             source_url=static_url,
         )
+    prompt_sha256 = sha256_bytes(prompt)
+    capture_sha256 = capture_digest(
+        agent=agent,
+        version=version,
+        prompt_sha256=prompt_sha256,
+        published_at=published_at,
+        meta=meta,
+        static_prompts=static_prompts,
+    )
+    provenance = capture_provenance(
+        root,
+        links=links,
+        capture_sha256=capture_sha256,
+        prompt_sha256=prompt_sha256,
+        meta_sha256=sha256_bytes(canonical_json(meta)),
+        trace_sha256=str(trace["sha256"]) if trace is not None else None,
+        static_prompts_sha256=(
+            static_prompts.sha256 if static_prompts is not None else None
+        ),
+    )
     return Capture(
         agent=agent,
         version=version,
         prompt=prompt,
         prompt_text=prompt_text,
-        sha256=sha256_bytes(prompt),
+        sha256=prompt_sha256,
+        capture_sha256=capture_sha256,
         captured_at=captured_at,
         published_at=published_at,
-        source_url=str(links["snapshot"]),
-        prompt_source_url=str(links["prompt"]),
-        meta_source_url=str(links["meta"]),
-        trace_source_url=str(links["trace"]) if links["trace"] else None,
+        source_url=links["snapshot"],
+        prompt_source_url=links["prompt"],
+        meta_source_url=links["meta"],
+        trace_source_url=links["trace"],
+        provenance=(provenance,),
         sections=sections,
         tools=tools,
         meta=meta,
@@ -822,13 +994,15 @@ def load_capture(
 
 
 def load_agent_captures(
-    phistory_root: Path,
+    root: CaptureRoot,
     agent: str,
-    ref: str,
 ) -> CaptureIngestion:
+    capture_root = root.path
     safe_component(agent, kind="agent")
-    agent_dir = phistory_root / "captures" / agent
-    resolved_agent_dir = ensure_within(agent_dir, phistory_root, kind="agent capture directory")
+    agent_dir = capture_root / "captures" / agent
+    resolved_agent_dir = ensure_within(
+        agent_dir, capture_root, kind="agent capture directory"
+    )
     if agent_dir.is_symlink() or not resolved_agent_dir.is_dir():
         raise ValueError(f"agent capture directory must be a real directory: {agent_dir}")
 
@@ -848,7 +1022,7 @@ def load_agent_captures(
         return compact if len(compact) <= 120 else compact[:117] + "..."
 
     def error_detail(error: BaseException) -> str:
-        detail = str(error).replace(str(phistory_root), "<phistory>")
+        detail = str(error).replace(str(capture_root), f"<{root.label}>")
         detail = re.sub(r"\s+", " ", detail).strip()
         return detail if len(detail) <= 320 else detail[:317] + "..."
 
@@ -890,7 +1064,7 @@ def load_agent_captures(
     captures: list[Capture] = []
     for _key, path in candidates:
         try:
-            captures.append(load_capture(phistory_root, path, agent, ref))
+            captures.append(load_capture(root, path, agent))
         except (OSError, RecursionError, RuntimeError, ValueError) as error:
             rejected_count += 1
             add_warning(
@@ -920,6 +1094,101 @@ def load_agent_captures(
         warnings=tuple(warnings),
         warnings_truncated=warnings_truncated,
     )
+
+
+def merge_agent_captures(
+    capture_roots: Sequence[CaptureRoot],
+    agent: str,
+) -> CaptureIngestion:
+    by_version: dict[str, Capture] = {}
+    warnings: list[dict[str, Any]] = []
+    rejected_count = 0
+    warnings_truncated = False
+
+    def add_warning(value: Mapping[str, Any]) -> None:
+        nonlocal warnings_truncated
+        if len(warnings) < MAX_CAPTURE_WARNINGS:
+            warnings.append(dict(value))
+        else:
+            warnings_truncated = True
+
+    for root in capture_roots:
+        agent_dir = root.path / "captures" / agent
+        if not (agent_dir.exists() or agent_dir.is_symlink()):
+            continue
+        ingestion = load_agent_captures(root, agent)
+        rejected_count += ingestion.rejected_count
+        warnings_truncated = warnings_truncated or ingestion.warnings_truncated
+        for warning in ingestion.warnings:
+            add_warning({**warning, "captureRoot": root.label})
+        for capture in ingestion.captures:
+            existing = by_version.get(capture.version)
+            if existing is None:
+                by_version[capture.version] = capture
+                continue
+            if existing.capture_sha256 != capture.capture_sha256:
+                existing_label = str(existing.provenance[0]["label"])
+                raise ValueError(
+                    f"conflicting capture for {agent} {capture.version}: "
+                    f"{existing_label} sha256 {existing.capture_sha256} differs from "
+                    f"{root.label} sha256 {capture.capture_sha256}"
+                )
+            seen = {canonical_json(item) for item in existing.provenance}
+            merged_provenance = existing.provenance + tuple(
+                item
+                for item in capture.provenance
+                if canonical_json(item) not in seen
+            )
+            by_version[capture.version] = replace(
+                existing, provenance=merged_provenance
+            )
+
+    if not by_version:
+        raise ValueError(f"no captures found for agent {agent!r}")
+    captures = sorted(
+        by_version.values(),
+        key=lambda capture: (
+            capture.published_at or capture.captured_at,
+            semver_key(capture.version),
+        ),
+    )
+    if len(captures) > MAX_CAPTURES_PER_AGENT:
+        excess = len(captures) - MAX_CAPTURES_PER_AGENT
+        rejected_count += excess
+        add_warning(
+            {
+                "code": "capture-count-limit",
+                "rejectedCount": excess,
+                "message": (
+                    f"kept the newest {MAX_CAPTURES_PER_AGENT} merged captures and "
+                    f"quarantined {excess} older captures"
+                ),
+            }
+        )
+        captures = captures[-MAX_CAPTURES_PER_AGENT:]
+    return CaptureIngestion(
+        captures=tuple(captures),
+        rejected_count=rejected_count,
+        warnings=tuple(warnings),
+        warnings_truncated=warnings_truncated,
+    )
+
+
+def capture_root_manifest(
+    root: CaptureRoot,
+    captures_by_agent: Mapping[str, Sequence[Capture]],
+) -> dict[str, Any]:
+    accepted = sorted(
+        (capture.agent, capture.version, capture.capture_sha256)
+        for captures in captures_by_agent.values()
+        for capture in captures
+        if any(origin.get("label") == root.label for origin in capture.provenance)
+    )
+    return {
+        **root.public(),
+        "acceptedCaptures": len(accepted),
+        "contentDigest": sha256_bytes(canonical_json(accepted)),
+    }
 
 
 def prune_evidence_files(directory: Path, *, keep_versions: set[str]) -> None:
@@ -1585,44 +1854,54 @@ def official_evidence(
 
 def capture_sources(
     capture: Capture,
-    *,
-    commit: str,
 ) -> list[dict[str, Any]]:
-    sources: list[dict[str, Any]] = [
-        {
-            "sourceType": "phistory-prompt-capture",
-            "repository": UPSTREAM_REPO,
-            "url": capture.prompt_source_url,
-            "ref": commit,
-            "contentSha256": capture.sha256,
-        },
-        {
-            "sourceType": "phistory-capture-metadata",
-            "repository": UPSTREAM_REPO,
-            "url": capture.meta_source_url,
-            "ref": commit,
-        },
-    ]
-    if capture.trace is not None and capture.trace_source_url:
-        sources.append(
-            {
-                "sourceType": "phistory-trace",
-                "repository": UPSTREAM_REPO,
-                "url": capture.trace_source_url,
-                "ref": commit,
-                "contentSha256": capture.trace["sha256"],
+    sources: list[dict[str, Any]] = []
+    for origin in capture.provenance:
+        prefix = "phistory" if origin.get("kind") == "phistory" else "local-overlay"
+
+        def source(source_type: str, *, url_key: str, sha_key: str) -> dict[str, Any]:
+            value: dict[str, Any] = {
+                "sourceType": source_type,
+                "captureRoot": origin["label"],
+                "ref": origin["commit"],
+                "contentSha256": origin[sha_key],
             }
-        )
-    if capture.static_prompts is not None:
+            if origin.get("repository") is not None:
+                value["repository"] = origin["repository"]
+            if origin.get(url_key) is not None:
+                value["url"] = origin[url_key]
+            return value
+
         sources.append(
-            {
-                "sourceType": "phistory-static-prompt",
-                "repository": UPSTREAM_REPO,
-                "url": capture.static_prompts.source_url,
-                "ref": commit,
-                "contentSha256": capture.static_prompts.sha256,
-            }
+            source(
+                f"{prefix}-prompt-capture",
+                url_key="promptUrl",
+                sha_key="promptSha256",
+            )
         )
+        sources.append(
+            source(
+                f"{prefix}-capture-metadata",
+                url_key="metaUrl",
+                sha_key="metaSha256",
+            )
+        )
+        if origin.get("traceSha256") is not None:
+            sources.append(
+                source(
+                    f"{prefix}-trace",
+                    url_key="traceUrl",
+                    sha_key="traceSha256",
+                )
+            )
+        if origin.get("staticPromptsSha256") is not None:
+            sources.append(
+                source(
+                    f"{prefix}-static-prompt",
+                    url_key="staticPromptsUrl",
+                    sha_key="staticPromptsSha256",
+                )
+            )
     return sources
 
 
@@ -1675,6 +1954,8 @@ def evidence_packet(
             "metaUrl": capture.meta_source_url,
             "traceUrl": capture.trace_source_url,
             "upstreamCommit": commit,
+            "captureSha256": capture.capture_sha256,
+            "provenance": [dict(origin) for origin in capture.provenance],
         },
         "current": capture_facts(capture),
         "previous": capture_facts(previous) if previous else None,
@@ -1694,7 +1975,7 @@ def evidence_packet(
         "diff": line_diff["diff"],
         "staticPrompt": static_prompt,
         "official": official,
-        "sources": capture_sources(capture, commit=commit) + official_sources,
+        "sources": capture_sources(capture) + official_sources,
     }
     packet["evidenceDigest"] = evidence_digest(packet)
     return packet
@@ -1979,15 +2260,21 @@ def history_version(capture: Capture) -> dict[str, Any]:
         "capturedAt": capture.captured_at,
         "promptUrl": f"/data/objects/{capture.sha256}.md",
         "sha256": capture.sha256,
+        "captureSha256": capture.capture_sha256,
+        "provenance": [dict(origin) for origin in capture.provenance],
         "bytes": len(capture.prompt),
         "lineCount": capture.line_count,
         "sections": [section.public() for section in capture.sections],
         "tools": [tool.public() for tool in capture.tools],
-        "sourceUrl": capture.source_url,
-        "promptSourceUrl": capture.prompt_source_url,
-        "metaSourceUrl": capture.meta_source_url,
-        "traceSourceUrl": capture.trace_source_url,
     }
+    for key, source_url in (
+        ("sourceUrl", capture.source_url),
+        ("promptSourceUrl", capture.prompt_source_url),
+        ("metaSourceUrl", capture.meta_source_url),
+        ("traceSourceUrl", capture.trace_source_url),
+    ):
+        if source_url is not None:
+            value[key] = source_url
     if capture.published_at is not None:
         value["publishedAt"] = capture.published_at
     for key in ("package", "binary_version", "tarball_url"):
@@ -2000,10 +2287,9 @@ def history_version(capture: Capture) -> dict[str, Any]:
     if capture.trace is not None:
         value["trace"] = dict(capture.trace)
     if capture.static_prompts is not None:
-        value["staticPrompt"] = {
-            **(static_prompt_facts(capture.static_prompts) or {}),
-            "sourceUrl": capture.static_prompts.source_url,
-        }
+        value["staticPrompt"] = static_prompt_facts(capture.static_prompts) or {}
+        if capture.static_prompts.source_url:
+            value["staticPrompt"]["sourceUrl"] = capture.static_prompts.source_url
     return value
 
 
@@ -2103,34 +2389,89 @@ def latest_generated_at(captures_by_agent: Mapping[str, Sequence[Capture]]) -> s
     return max(parsed).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def validate_roots(phistory_root: Path, public_root: Path, analysis_root: Path) -> tuple[Path, Path, Path]:
-    source = phistory_root.expanduser().resolve(strict=True)
-    if not source.is_dir():
-        raise ValueError(f"Phistory root is not a directory: {source}")
-    captures = source / "captures"
+def validate_capture_root(
+    path: Path,
+    *,
+    label: str,
+    required: bool,
+) -> Path | None:
+    expanded = path.expanduser()
+    if expanded.is_symlink():
+        raise ValueError(f"{label} root must not be a symlink: {expanded}")
+    if not expanded.exists():
+        if required:
+            raise ValueError(f"{label} root does not exist: {expanded}")
+        return None
+    root = expanded.resolve(strict=True)
+    if not root.is_dir():
+        raise ValueError(f"{label} root is not a directory: {root}")
+    captures = root / "captures"
     if not captures.is_dir() or captures.is_symlink():
-        raise ValueError(f"Phistory root has no regular captures directory: {source}")
+        raise ValueError(f"{label} root has no regular captures directory: {root}")
+    return root
+
+
+def validate_roots(
+    phistory_root: Path,
+    capture_overlay_root: Path | None,
+    public_root: Path,
+    analysis_root: Path,
+) -> tuple[tuple[CaptureRoot, ...], Path, Path]:
+    source = validate_capture_root(phistory_root, label="Phistory", required=True)
+    assert source is not None
+    capture_roots = [
+        CaptureRoot(
+            path=source,
+            kind="phistory",
+            label="phistory",
+            commit=upstream_commit(source),
+            repository=UPSTREAM_REPO,
+            url=UPSTREAM_URL,
+        )
+    ]
+    if capture_overlay_root is not None:
+        overlay = validate_capture_root(
+            capture_overlay_root,
+            label="local overlay",
+            required=False,
+        )
+        if overlay is not None:
+            capture_roots.append(
+                CaptureRoot(
+                    path=overlay,
+                    kind="local-overlay",
+                    label="local-overlay",
+                    commit=upstream_commit(overlay),
+                )
+            )
     public_root.expanduser().mkdir(parents=True, exist_ok=True)
     analysis_root.expanduser().mkdir(parents=True, exist_ok=True)
     public = public_root.expanduser().resolve(strict=True)
     analysis = analysis_root.expanduser().resolve(strict=True)
     if not public.is_dir() or not analysis.is_dir():
         raise ValueError("public and analysis roots must be directories")
-    if len({source, public, analysis}) != 3:
-        raise ValueError("phistory, public, and analysis roots must be distinct")
-    return source, public, analysis
+    all_roots = [root.path for root in capture_roots]
+    if len(set((*all_roots, public, analysis))) != len(all_roots) + 2:
+        raise ValueError("capture, public, and analysis roots must be distinct")
+    return tuple(capture_roots), public, analysis
 
 
 def build(
     *,
     phistory_root: Path,
+    capture_overlay_root: Path | None = None,
     public_root: Path,
     analysis_root: Path,
     agents: Sequence[str] | None = None,
     official_root: Path | None = None,
 ) -> dict[str, Any]:
-    source, public, analysis = validate_roots(phistory_root, public_root, analysis_root)
-    agents = tuple(agents) if agents is not None else discover_agents(source)
+    capture_roots, public, analysis = validate_roots(
+        phistory_root,
+        capture_overlay_root,
+        public_root,
+        analysis_root,
+    )
+    agents = tuple(agents) if agents is not None else discover_agents(capture_roots)
     if not agents:
         raise ValueError("at least one agent is required")
     if len(agents) != len(set(agents)):
@@ -2139,10 +2480,9 @@ def build(
     if invalid:
         raise ValueError(f"invalid agent ids: {', '.join(invalid)}")
 
-    commit = upstream_commit(source)
-    ref = commit if commit != "unknown" else "main"
+    commit = capture_roots[0].commit
     ingestion_by_agent = {
-        agent: load_agent_captures(source, agent, ref) for agent in agents
+        agent: merge_agent_captures(capture_roots, agent) for agent in agents
     }
     captures_by_agent = {
         agent: ingestion_by_agent[agent].captures for agent in agents
@@ -2284,6 +2624,11 @@ def build(
         definition = agent_definition(agent, captures)
         official_index = official_by_agent.get(agent)
         official_repository = OFFICIAL_REPOSITORIES.get(agent)
+        agent_source_url = (
+            captures[-1].source_url
+            or definition.get("projectUrl")
+            or UPSTREAM_URL
+        )
         source_coverage = {
             "promptCaptures": len(captures),
             "officialReleases": official_available,
@@ -2299,7 +2644,7 @@ def build(
                 "id": agent,
                 "label": definition["label"],
                 "description": definition["description"],
-                "sourceUrl": f"{UPSTREAM_URL}/tree/{quote(ref, safe='')}/captures/{quote(agent, safe='')}",
+                "sourceUrl": agent_source_url,
                 "officialSourceStatus": (
                     official_sources.status
                     if agent in official_by_agent
@@ -2367,6 +2712,9 @@ def build(
             "commit": commit,
             "url": UPSTREAM_URL,
         },
+        "captureRoots": [
+            capture_root_manifest(root, captures_by_agent) for root in capture_roots
+        ],
         "ingestion": {
             "acceptedCaptures": sum(
                 len(ingestion.captures) for ingestion in ingestion_by_agent.values()
@@ -2416,6 +2764,15 @@ def parse_agents(value: str) -> tuple[str, ...] | None:
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser(description=__doc__)
     value.add_argument("--phistory-root", type=Path, required=True)
+    value.add_argument(
+        "--capture-overlay-root",
+        type=Path,
+        default=DEFAULT_CAPTURE_OVERLAY_ROOT,
+        help=(
+            "optional local Phistory-format capture overlay; a missing directory is ignored "
+            f"(default: {DEFAULT_CAPTURE_OVERLAY_ROOT})"
+        ),
+    )
     value.add_argument("--public-root", type=Path, required=True)
     value.add_argument("--analysis-root", type=Path, required=True)
     value.add_argument(
@@ -2438,6 +2795,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         manifest = build(
             phistory_root=arguments.phistory_root,
+            capture_overlay_root=arguments.capture_overlay_root,
             public_root=arguments.public_root,
             analysis_root=arguments.analysis_root,
             agents=arguments.agents,

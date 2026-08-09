@@ -70,8 +70,11 @@ class BuildFromPhistoryTests(unittest.TestCase):
         captured_at: str,
         *,
         trace: bool = False,
+        root: Path | None = None,
+        published_at: str | None = None,
+        trace_text: str | None = None,
     ) -> None:
-        directory = self.phistory / "captures" / agent / version
+        directory = (root or self.phistory) / "captures" / agent / version
         directory.mkdir(parents=True)
         (directory / "prompt.md").write_text(prompt, encoding="utf-8")
         (directory / "meta.json").write_text(
@@ -81,20 +84,27 @@ class BuildFromPhistoryTests(unittest.TestCase):
                     "agent": "fixture",
                     "package": f"fixture/{agent}",
                     "version": version,
-                    "published_at": captured_at,
+                    "published_at": published_at or captured_at,
                     "captured_at": captured_at,
                 }
             ),
             encoding="utf-8",
         )
-        if trace:
+        if trace or trace_text is not None:
             (directory / "trace.jsonl").write_text(
-                '{"event":"request"}\n{"event":"response"}\n', encoding="utf-8"
+                trace_text or '{"event":"request"}\n{"event":"response"}\n',
+                encoding="utf-8",
             )
 
-    def _build(self, *, official_root: Path | None = None) -> dict[str, object]:
+    def _build(
+        self,
+        *,
+        official_root: Path | None = None,
+        capture_overlay_root: Path | None = None,
+    ) -> dict[str, object]:
         return builder.build(
             phistory_root=self.phistory,
+            capture_overlay_root=capture_overlay_root,
             public_root=self.public,
             analysis_root=self.analysis,
             official_root=official_root,
@@ -281,6 +291,117 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertNotIn("officialSourceUrl", kimi_manifest)
         future = next(item for item in manifest["agents"] if item["id"] == "future-agent")
         self.assertEqual(future["label"], "fixture")
+
+    def test_new_agent_definitions_override_capture_metadata(self) -> None:
+        for agent in ("goose", "cline", "qwen-code"):
+            self._capture(agent, "1.0.0", CLAUDE_OLD, "2026-08-06T12:00:00Z")
+
+        manifest = self._build()
+
+        agents = {item["id"]: item for item in manifest["agents"]}
+        self.assertEqual(
+            [item["id"] for item in manifest["agents"]],
+            ["claude-code", "codex", "goose", "cline", "qwen-code"],
+        )
+        self.assertEqual(agents["goose"]["label"], "Goose")
+        self.assertEqual(
+            agents["goose"]["projectUrl"], "https://github.com/aaif-goose/goose"
+        )
+        self.assertEqual(agents["cline"]["label"], "Cline")
+        self.assertEqual(agents["cline"]["projectUrl"], "https://github.com/cline/cline")
+        self.assertEqual(agents["qwen-code"]["label"], "Qwen Code")
+        self.assertEqual(
+            agents["qwen-code"]["projectUrl"], "https://github.com/QwenLM/qwen-code"
+        )
+        for agent in ("goose", "cline", "qwen-code"):
+            self.assertIn("Runtime Prompt", agents[agent]["description"])
+
+    def test_overlay_merges_agents_and_deduplicates_semantic_captures(self) -> None:
+        overlay = self.root / "overlay"
+        published_at = "2026-08-06T12:00:00Z"
+        self._capture(
+            "goose",
+            "1.0.0",
+            CLAUDE_OLD,
+            "2026-08-06T12:01:00Z",
+            root=self.phistory,
+            published_at=published_at,
+            trace_text='{"timestamp":"first","event":"request"}\n',
+        )
+        self._capture(
+            "goose",
+            "1.0.0",
+            CLAUDE_OLD,
+            "2026-08-06T12:02:00Z",
+            root=overlay,
+            published_at=published_at,
+            trace_text='{"timestamp":"second","event":"request"}\n',
+        )
+        self._capture(
+            "qwen-code",
+            "1.0.0",
+            CLAUDE_NEW,
+            "2026-08-06T12:03:00Z",
+            root=overlay,
+        )
+
+        manifest = self._build(capture_overlay_root=overlay)
+
+        agents = {item["id"]: item for item in manifest["agents"]}
+        self.assertEqual(agents["goose"]["releaseCount"], 1)
+        self.assertEqual(agents["qwen-code"]["releaseCount"], 1)
+        self.assertEqual(manifest["ingestion"]["acceptedCaptures"], 6)
+        self.assertEqual(
+            [root["kind"] for root in manifest["captureRoots"]],
+            ["phistory", "local-overlay"],
+        )
+        history = self._json(self.public / "data/agents/goose/history.json")
+        release = history["versions"][0]
+        self.assertEqual(
+            [origin["kind"] for origin in release["provenance"]],
+            ["phistory", "local-overlay"],
+        )
+        self.assertNotEqual(
+            release["provenance"][0]["traceSha256"],
+            release["provenance"][1]["traceSha256"],
+        )
+        evidence = self._json(self.analysis / "evidence/goose/1.0.0.json")
+        source_types = {source["sourceType"] for source in evidence["sources"]}
+        self.assertIn("phistory-prompt-capture", source_types)
+        self.assertIn("local-overlay-prompt-capture", source_types)
+        self.assertNotIn(str(overlay), json.dumps(manifest))
+        self.assertNotIn(str(overlay), json.dumps(release))
+
+    def test_overlay_rejects_same_version_with_different_prompt(self) -> None:
+        overlay = self.root / "overlay"
+        self._capture(
+            "codex",
+            "0.10.0",
+            CLAUDE_NEW,
+            "2026-02-01T12:00:00Z",
+            root=overlay,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, "conflicting capture for codex 0.10.0"
+        ):
+            self._build(capture_overlay_root=overlay)
+
+    def test_overlay_rejects_same_prompt_with_different_stable_metadata(self) -> None:
+        overlay = self.root / "overlay"
+        self._capture(
+            "codex",
+            "0.10.0",
+            CODEX_SHARED,
+            "2026-02-01T12:01:00Z",
+            published_at="2026-02-02T12:00:00Z",
+            root=overlay,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError, "conflicting capture for codex 0.10.0"
+        ):
+            self._build(capture_overlay_root=overlay)
 
     def test_removed_upstream_agent_is_pruned_from_public_and_evidence_outputs(self) -> None:
         self._capture("future-agent", "1.0.0", CLAUDE_OLD, "2026-08-01T12:00:00Z")

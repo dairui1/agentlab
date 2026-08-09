@@ -807,7 +807,17 @@ class SyncPhistoryTests(unittest.TestCase):
 
 class DailyUpdateTests(unittest.TestCase):
     def test_step_order_backfill_limit_and_optional_deploy(self):
-        args = daily.parse_args(["--dry-run", "--max-releases", "12", "--deploy"])
+        overlay = Path("/tmp/agentlab-test-overlay")
+        args = daily.parse_args(
+            [
+                "--dry-run",
+                "--max-releases",
+                "12",
+                "--deploy",
+                "--capture-overlay-root",
+                str(overlay),
+            ]
+        )
         steps = daily.build_steps(args)
         self.assertEqual(
             [step.name for step in steps],
@@ -824,6 +834,16 @@ class DailyUpdateTests(unittest.TestCase):
         )
         self.assertIn("--allow-stale-on-error", steps[1].command)
         self.assertIn(str(daily.DEFAULT_OFFICIAL_CACHE_ROOT), steps[1].command)
+        resolved_overlay = str(overlay.resolve())
+        for index in (2, 4):
+            command = steps[index].command
+            self.assertEqual(
+                command[command.index("--capture-overlay-root") + 1], resolved_overlay
+            )
+        self.assertEqual(
+            steps[6].environment,
+            {"AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": resolved_overlay},
+        )
         self.assertFalse(steps[3].required)
         self.assertTrue(all(step.required for index, step in enumerate(steps) if index != 3))
         analyze_command = steps[3].command
@@ -840,6 +860,12 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertIn("--fair-agents", analyze_command)
         self.assertEqual(args.agents, "all")
         self.assertEqual(steps[-1].command[:3], ("npx", "--no-install", "wrangler"))
+
+    def test_package_build_data_uses_the_default_overlay_root(self):
+        package = json.loads((APP_ROOT / "package.json").read_text(encoding="utf-8"))
+        command = package["scripts"]["build:data"]
+        self.assertIn("--capture-overlay-root", command)
+        self.assertIn(".cache/agentlab-captures", command)
 
     def test_optional_analyzer_failure_continues_pipeline(self):
         with tempfile.TemporaryDirectory() as raw:
