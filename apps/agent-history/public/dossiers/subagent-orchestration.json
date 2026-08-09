@@ -18,7 +18,7 @@
       "archetype": "三平面编排",
       "summary": "模型逐轮控制 Agent；JavaScript Workflow 持有循环与恢复缓存；实验性 Teams 用 mailbox 与共享依赖图维持长驻协作。",
       "lanes": ["Agent → ID → SendMessage / TaskStop", "Workflow → pipeline / parallel → journal", "Teams → mailbox + Task* dependency graph"],
-      "claims": ["CC-01", "CC-04", "CC-07"]
+      "claims": ["CC-01", "CC-03", "CC-04", "CC-07"]
     },
     {
       "agent": "codex",
@@ -61,7 +61,7 @@
       "cells": {
         "claude-code": { "text": "可选 worktree 隔离 checkout；它与 fresh/fork 正交。", "claims": ["CC-06"] },
         "codex": { "text": "当前捕获明确共享容器、文件系统与 CWD。", "claims": ["CX-04"] },
-        "opencode": { "text": "child 沿用 directory、workspaceID 与 worktree path。", "claims": ["OC-01"] }
+        "opencode": { "text": "Task 路径沿用 active directory/workspace metadata，不分配 per-task worktree。", "claims": ["OC-01"] }
       }
     },
     {
@@ -93,7 +93,7 @@
       "cells": {
         "claude-code": { "text": "Agent ID 恢复 transcript；Workflow run 复用未改调用前缀。", "claims": ["CC-04"] },
         "codex": { "text": "idle child 可由 followup_task 再次触发；无独立 resume tool。", "claims": ["CX-05", "CX-06"] },
-        "opencode": { "text": "task_id 指向 child Session；无效 ID 静默新建。", "claims": ["OC-02"] }
+        "opencode": { "text": "task_id 指向 child Session；lookup 失败会静默新建。", "claims": ["OC-02"] }
       }
     },
     {
@@ -107,7 +107,7 @@
     {
       "group": "Failure", "label": "停止与失败",
       "cells": {
-        "claude-code": { "text": "TaskStop 停 Agent；Workflow 失败项以 null 进入数据流。", "claims": ["CC-03", "CC-04"] },
+        "claude-code": { "text": "TaskStop 可停止 Agent；前后台暴露不同的 failure/result shape。", "claims": ["CC-03"] },
         "codex": { "text": "interrupt 只停当前 turn，节点仍可寻址。", "claims": ["CX-06"] },
         "opencode": { "text": "parent abort 传播 cancel；TaskTool deadline 未暴露。", "claims": ["OC-06"] }
       }
@@ -125,7 +125,7 @@
       "cells": {
         "claude-code": { "text": "Teams 暴露依赖图；Workflow 区分 pipeline 与 barrier。", "claims": ["CC-01", "CC-07"] },
         "codex": { "text": "当前六工具未暴露 dependency graph 或 barrier。", "unknown": "KU-09" },
-        "opencode": { "text": "并行依靠同轮多个 task calls；TaskTool 无 join primitive。", "claims": ["OC-04"] }
+        "opencode": { "text": "当前 TaskTool 未暴露 dependency graph 或 join primitive。", "unknown": "KU-09" }
       }
     },
     {

@@ -1,0 +1,204 @@
+{
+  "claims": [
+    {
+      "id": "CC-01", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "Claude Code 同时暴露三种编排平面",
+      "statement": "Agent 由主模型逐轮控制；Workflow 把循环、分支和汇合放进 JavaScript；实验性 Teams 另以 mailbox 和共享 Task 图协作。",
+      "layer": "Runtime Prompt + official docs", "confidence": "High",
+      "signals": ["Agent", "Workflow", "SendMessage", "TaskCreate"],
+      "boundary": "三者的可用性受产品计划与 feature gate 影响；公开契约不证明底层进程结构。",
+      "source": { "label": "2.1.226 capture", "url": "https://github.com/WEIFENG2333/phistory/tree/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226" },
+      "compare": { "label": "Workflow 首次可见", "url": "/?mode=compare&agent=claude-code&left=2.1.153&right=2.1.154&view=structure&section=tool%3Aworkflow" }
+    },
+    {
+      "id": "CC-02", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "普通 Agent 与 fork 的上下文模型相反",
+      "statement": "普通 Agent 从 fresh transcript 开始；fork 继承父会话的 system prompt、tools、model 与完整消息历史。",
+      "layer": "Runtime Prompt + official docs", "confidence": "High",
+      "signals": ["subagent_type", "fork_turns", "fork"],
+      "boundary": "内建 Explore/Plan 有加载特例；fork 后产生的工具输出不会自动回灌父上下文。",
+      "source": { "label": "Claude subagents docs", "url": "https://code.claude.com/docs/en/sub-agents" },
+      "compare": { "label": "当前 Agent contract", "url": "/?mode=compare&agent=claude-code&left=2.1.225&right=2.1.226&view=structure&section=tool%3Aagent" }
+    },
+    {
+      "id": "CC-03", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "后台是执行语义，不只是显示模式",
+      "statement": "Agent 默认后台；foreground 需显式覆盖。后台与前台的结果通道、API failure 形状和可用工具池并不相同。",
+      "layer": "Runtime Prompt + official docs", "confidence": "High",
+      "signals": ["run_in_background", "completion notification", "TaskStop"],
+      "boundary": "fork 是工具池过滤的明确例外；宿主也可关闭 background tasks。",
+      "source": { "label": "Claude subagents docs", "url": "https://code.claude.com/docs/en/sub-agents" },
+      "compare": { "label": "当前 Agent contract", "url": "/?mode=compare&agent=claude-code&left=2.1.225&right=2.1.226&view=structure&section=tool%3Aagent" }
+    },
+    {
+      "id": "CC-04", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "Claude Code 有两种不同的恢复",
+      "statement": "SendMessage 恢复同一 Agent transcript；Workflow 的 resumeFromRunId 只复用最长未改、已完成的调用前缀。",
+      "layer": "Runtime Prompt + official docs", "confidence": "High",
+      "signals": ["SendMessage", "resumeFromRunId", "longest unchanged prefix"],
+      "boundary": "Workflow 恢复不是任意 DAG checkpoint，且只在同一 Claude Code session 内成立。",
+      "source": { "label": "Dynamic workflows docs", "url": "https://code.claude.com/docs/en/workflows" },
+      "compare": { "label": "SendMessage 首次可见", "url": "/?mode=compare&agent=claude-code&left=2.1.185&right=2.1.186&view=structure&section=tool%3Asendmessage" }
+    },
+    {
+      "id": "CC-05", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "树深、Agent 并发与 Workflow 并发是三套限制",
+      "statement": "官方文档给出普通 Agent 默认三层、20-running gate，以及 Workflow 最多 16 并发、1,000 agents/run；2.1.226 Tool contract 另广告 min(16, CPU-2) 与 4,096 items/call。",
+      "layer": "Official docs + Runtime Prompt", "confidence": "High",
+      "signals": ["20 running", "three layers", "min(16, CPU-2)", "4096"],
+      "boundary": "默认值可被环境或配置改写，不能合并成一个“Claude 并发数”。",
+      "source": { "label": "Dynamic workflows docs", "url": "https://code.claude.com/docs/en/workflows" },
+      "compare": { "label": "Workflow contract", "url": "/?mode=compare&agent=claude-code&left=2.1.219&right=2.1.226&view=structure&section=tool%3Aworkflow" }
+    },
+    {
+      "id": "CC-06", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "worktree 只隔离文件工作面",
+      "statement": "Agent 可选择独立 git worktree；它与 fresh/fork 上下文正交，无改动时自动清理。",
+      "layer": "Runtime Prompt + official docs", "confidence": "High",
+      "signals": ["isolation: worktree", "temporary worktree"],
+      "boundary": "契约没有承诺自动 merge、cherry-pick 或冲突解决。",
+      "source": { "label": "Claude worktrees docs", "url": "https://code.claude.com/docs/en/worktrees" },
+      "compare": { "label": "worktree contract 出现", "url": "/?mode=compare&agent=claude-code&left=2.1.48&right=2.1.50&view=structure&section=tool%3Atask" }
+    },
+    {
+      "id": "CC-07", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "Teams 的 Task* 是共享协调存储",
+      "statement": "实验性 Agent Teams 以 mailbox 和共享 Task 列表协作；任务记录包含 owner、状态和 blocks/blockedBy。",
+      "layer": "Runtime Prompt + official docs", "confidence": "High",
+      "signals": ["owner", "blocks", "blockedBy", "mailbox"],
+      "boundary": "Task* 也可用于单会话任务跟踪；看见这些工具不等于当前已启用 Team。",
+      "source": { "label": "Claude Agent Teams docs", "url": "https://code.claude.com/docs/en/agent-teams" },
+      "compare": { "label": "当前 TaskCreate contract", "url": "/?mode=compare&agent=claude-code&left=2.1.225&right=2.1.226&view=structure&section=tool%3Ataskcreate" }
+    },
+    {
+      "id": "CX-01", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "当前捕获暴露六个独立 collaboration controls",
+      "statement": "创建、枚举、纯投递、投递并唤醒、中断和等待各自拥有独立 tool contract。",
+      "layer": "Captured Tool schema", "confidence": "High",
+      "signals": ["spawn_agent", "list_agents", "send_message", "followup_task", "interrupt_agent", "wait_agent"],
+      "boundary": "这证明模型可见控制面，不证明全部内部 API 或功能首发日期。",
+      "source": { "label": "Codex 0.147.0 capture", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L236-L394" },
+      "compare": { "label": "spawn_agent contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-spawn-agent" }
+    },
+    {
+      "id": "CX-02", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "Agent identity 是递归 path，而非不透明 job ID",
+      "statement": "canonical task path 编码 ancestry；child 可以继续 spawn 自己的 children，list_agents 可按当前 root tree 查询。",
+      "layer": "Captured developer contract", "confidence": "High",
+      "signals": ["/root/task/child", "path_prefix", "child agents"],
+      "boundary": "逻辑树与寻址关系不证明 OS process 或持久化存储边界。",
+      "source": { "label": "Codex 0.147.0 capture", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L187-L218" },
+      "compare": { "label": "list_agents contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-list-agents" }
+    },
+    {
+      "id": "CX-03", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "fork_turns 选择性复制父对话",
+      "statement": "spawn_agent 可接收 none、all 或正整数 N；full-history fork 继承 parent model/reasoning，不能同时覆盖两者。",
+      "layer": "Captured Tool schema", "confidence": "High",
+      "signals": ["fork_turns", "none", "all", "positive integer"],
+      "boundary": "公开 contract 未说明 compaction、附件与 tool outputs 如何物化。",
+      "source": { "label": "spawn_agent lines 342-363", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L342-L363" },
+      "compare": { "label": "spawn_agent contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-spawn-agent" }
+    },
+    {
+      "id": "CX-04", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "独立对话仍共享 mutable workspace",
+      "statement": "当前捕获明确所有 Agents 共享 container、filesystem 与 current working directory，修改即时互相可见。",
+      "layer": "Captured developer contract", "confidence": "High",
+      "signals": ["same container", "same filesystem", "same CWD"],
+      "boundary": "未声明文件锁、事务、worktree 或 merge arbitration。",
+      "source": { "label": "Codex 0.147.0 lines 209-212", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L209-L212" },
+      "compare": { "label": "Developer contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=developer-prompt" }
+    },
+    {
+      "id": "CX-05", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "投递、唤醒与等待是三种不同操作",
+      "statement": "send_message 不启动 turn；followup_task 可唤醒 idle child；wait_agent 只返回谁有更新的摘要，不返回消息 payload。",
+      "layer": "Captured Tool schema", "confidence": "High",
+      "signals": ["does not trigger", "trigger a turn", "summary only"],
+      "boundary": "ordering、buffering、acknowledgement 与 exactly-once delivery 均未公开。",
+      "source": { "label": "Codex collaboration tools", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L236-L324" },
+      "compare": { "label": "wait_agent contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-wait-agent" }
+    },
+    {
+      "id": "CX-06", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "interrupt 停止 turn，但不销毁 Agent",
+      "statement": "interrupt_agent 中断当前 turn 后，目标仍可接收 messages 与 follow-up tasks。",
+      "layer": "Captured Tool schema", "confidence": "High",
+      "signals": ["interrupt current turn", "remains available"],
+      "boundary": "当前六工具未暴露 close、shutdown 或明确 slot-release contract。",
+      "source": { "label": "interrupt_agent lines 262-279", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L262-L279" },
+      "compare": { "label": "interrupt_agent contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-interrupt-agent" }
+    },
+    {
+      "id": "CX-07", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "四个 active slots 只属于本次捕获",
+      "statement": "runtime-injected contract 声明四个 active slots，包含 coordinator，因此本次观察最多还有三个 concurrent children。",
+      "layer": "Captured runtime contract", "confidence": "High for capture",
+      "signals": ["4 available concurrency slots", "including you"],
+      "boundary": "不可外推为所有 Codex 客户端、账号或计划的全局默认。",
+      "source": { "label": "Codex 0.147.0 line 216", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L216" },
+      "compare": { "label": "Developer contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=developer-prompt" }
+    },
+    {
+      "id": "OC-01", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "fresh task 是独立 Session，但共享 workspace",
+      "statement": "TaskTool 新建带 parentID 的 child Session，不走复制父 messages 的 Session.fork；该路径沿用 active directory/workspace metadata，而不是分配 per-task worktree。",
+      "layer": "Exact-tag source + captured contract", "confidence": "High",
+      "signals": ["parentID", "directory", "workspaceID", "Session.create"],
+      "boundary": "这是固定 tag 代码路径，不是线上 trace；委派 prompt 的显式引用仍可能展开内容。",
+      "source": { "label": "v1.18.15 task.ts", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L125-L198" },
+      "compare": { "label": "当前 task contract", "url": "/?mode=compare&agent=opencode&left=1.18.14&right=1.18.15&view=structure&section=tool%3Atask" }
+    },
+    {
+      "id": "OC-02", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "task_id 是 Session continuation handle",
+      "statement": "传 task_id 时继续向既有 Session 发送 prompt；lookup 失败被转成 undefined，随后静默走 fresh child 路径。",
+      "layer": "Exact-tag source + captured contract", "confidence": "High",
+      "signals": ["task_id", "catchCause", "nextSession.id"],
+      "boundary": "TaskTool 未做 parent/agent 归属检查，但不能据此推断跨用户访问能力。",
+      "source": { "label": "v1.18.15 task.ts", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L125-L198" },
+      "compare": { "label": "当前 task_id contract", "url": "/?mode=compare&agent=opencode&left=1.18.14&right=1.18.15&view=structure&section=tool%3Atask" }
+    },
+    {
+      "id": "OC-03", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "直接 handoff 只取最后一个 text part",
+      "statement": "child 完成后，TaskTool 使用 findLast 选择最后一个文本 part；完整 transcript、非文本 parts 和中间 tool outputs 不进入直接结果。",
+      "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["findLast", "type === text", "task_result"],
+      "boundary": "共享 workspace 中的文件副作用仍然保留，不能把消息裁剪理解为副作用回滚。",
+      "source": { "label": "v1.18.15 task.ts result path", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L185-L198" },
+      "compare": { "label": "当前 task contract", "url": "/?mode=compare&agent=opencode&left=1.18.14&right=1.18.15&view=structure&section=tool%3Atask" }
+    },
+    {
+      "id": "OC-04", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "background 是 feature-gated synthetic reinjection",
+      "statement": "foreground 为默认；实验开关开启后 schema 才暴露 background。完成或失败后以 synthetic text 注入 parent，并触发 parent 下一轮。",
+      "layer": "Exact-tag source + release", "confidence": "High",
+      "signals": ["OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS", "synthetic", "background"],
+      "boundary": "当前 captured schema 没有 background，不能声称任一线上部署已启用。",
+      "source": { "label": "v1.18.15 task.ts background path", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L200-L334" },
+      "compare": { "label": "background 首次可见", "url": "/?mode=compare&agent=opencode&left=1.14.50&right=1.14.51&view=structure&section=tool%3Atask" }
+    },
+    {
+      "id": "OC-05", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "child 权限不是 parent 的完整克隆",
+      "statement": "selected subagent 的 ruleset 决定主要能力；parent deny 与 external-directory 规则继续下传。未指定 model 时继承 parent model 与 reasoning variant。",
+      "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["deriveSubagentSessionPermission", "parent deny", "variant"],
+      "boundary": "这里是 permission ruleset 组合，不代表 OS/container sandbox。",
+      "source": { "label": "subagent-permissions.ts", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/agent/subagent-permissions.ts#L3-L25" },
+      "compare": { "label": "variant contract 演进", "url": "/?mode=compare&agent=opencode&left=1.15.13&right=1.16.0&view=structure&section=tool%3Atask" }
+    },
+    {
+      "id": "OC-06", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "默认嵌套深度为 1，并传播取消",
+      "statement": "TaskTool 沿 parentID 链计算 depth，默认 subagent_depth=1；parent abort 会 cancel foreground child，background interrupt 也传播 cancel。",
+      "layer": "Exact-tag source + release", "confidence": "High",
+      "signals": ["subagent_depth=1", "onInterrupt", "cancel"],
+      "boundary": "Task schema 没有 timeout，不等于 provider 或外层 scheduler 永不超时。",
+      "source": { "label": "opencode v1.18.2 release", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.2" },
+      "compare": { "label": "Prompt diff 的负证据", "url": "/?mode=compare&agent=opencode&left=1.18.1&right=1.18.2&view=structure&section=tool%3Atask" }
+    }
+  ]
+}
