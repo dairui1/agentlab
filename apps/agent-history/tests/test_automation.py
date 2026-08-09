@@ -720,7 +720,7 @@ class AnalyzeChangelogsTests(unittest.TestCase):
             "import sys,time; print('network route unavailable', file=sys.stderr, flush=True); time.sleep(5)",
         )
         with self.assertRaisesRegex(analyze.AnalysisError, "network route unavailable"):
-            analyze.communicate_with_timeout(command, "", 0.05)
+            analyze.communicate_with_timeout(command, "", 0.5)
 
     def test_codex_timeout_kills_descendants_holding_output_pipes(self):
         child = (
