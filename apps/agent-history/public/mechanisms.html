@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="拆解 Coding Agent 的关键运行机制，并以 Runtime Prompt 与 Tool schema 提供可追溯证据。">
+  <title>机制档案 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell mechanism-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy">
+          <strong>AgentLab</strong>
+          <span>Agent 机制档案</span>
+        </span>
+      </a>
+
+      <nav class="segmented mode-switch" aria-label="页面视图">
+        <a href="/">
+          <i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span>
+        </a>
+        <a href="/?mode=compare">
+          <i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span>
+        </a>
+        <a href="/mechanisms.html" aria-current="page">
+          <i data-lucide="network" aria-hidden="true"></i><span>机制档案</span>
+        </a>
+      </nav>
+
+      <div class="header-links">
+        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库">
+          <i data-lucide="github" aria-hidden="true"></i>
+        </a>
+      </div>
+    </header>
+
+    <main class="mechanism-page">
+      <header class="mechanism-page-header">
+        <div>
+          <span class="section-kicker"><i data-lucide="scan-search" aria-hidden="true"></i>CODING AGENT 内部机制</span>
+          <h1>机制档案</h1>
+          <p>从 Runtime Prompt 和 Tool schema 出发，拆解 Agent 如何组织一次工作。</p>
+        </div>
+        <div class="mechanism-count" aria-label="档案统计">
+          <strong>01</strong>
+          <span>份已发布档案</span>
+        </div>
+      </header>
+
+      <div class="mechanism-layout">
+        <aside class="mechanism-index" aria-labelledby="mechanismIndexTitle">
+          <div class="mechanism-index-heading">
+            <span id="mechanismIndexTitle">档案目录</span>
+            <span>1</span>
+          </div>
+          <a class="mechanism-index-item" href="#subagent-orchestration" aria-current="true">
+            <span class="mechanism-index-number">001</span>
+            <span>
+              <strong>Sub-agent 编排</strong>
+              <small>编排 · 3 个 Agent</small>
+            </span>
+            <i data-lucide="arrow-right" aria-hidden="true"></i>
+          </a>
+        </aside>
+
+        <article id="subagent-orchestration" class="mechanism-dossier">
+          <header class="dossier-header">
+            <div class="dossier-title-row">
+              <div>
+                <span class="dossier-id">MECHANISM 001 · 编排</span>
+                <h2>Sub-agent 编排</h2>
+              </div>
+              <span class="dossier-status"><span aria-hidden="true"></span>已核验</span>
+            </div>
+            <p class="dossier-lead">主 Agent 将边界清晰的工作交给独立执行上下文，并负责等待、协调与汇总结果的机制。</p>
+            <dl class="dossier-meta">
+              <div><dt>观察对象</dt><dd>Claude Code · Codex · opencode</dd></div>
+              <div><dt>证据层</dt><dd>Runtime Prompt · Tools</dd></div>
+              <div><dt>核验日期</dt><dd>2026-08-08</dd></div>
+            </dl>
+          </header>
+
+          <section class="dossier-section" aria-labelledby="boundaryTitle">
+            <div class="dossier-section-heading">
+              <span>01</span>
+              <div>
+                <h3 id="boundaryTitle">机制边界</h3>
+                <p>这里观察的是任务如何被拆出、执行和收回，不评价底层模型能力。</p>
+              </div>
+            </div>
+            <div class="mechanism-flow" aria-label="Sub-agent 编排共同流程">
+              <div><span>1</span><strong>识别边界</strong><small>找到可独立推进的任务</small></div>
+              <i data-lucide="arrow-right" aria-hidden="true"></i>
+              <div><span>2</span><strong>创建执行者</strong><small>注入目标与必要上下文</small></div>
+              <i data-lucide="arrow-right" aria-hidden="true"></i>
+              <div><span>3</span><strong>独立执行</strong><small>运行并保留自己的状态</small></div>
+              <i data-lucide="arrow-right" aria-hidden="true"></i>
+              <div><span>4</span><strong>回收结果</strong><small>等待、追问或中断后汇总</small></div>
+            </div>
+          </section>
+
+          <section class="dossier-section" aria-labelledby="comparisonTitle">
+            <div class="dossier-section-heading">
+              <span>02</span>
+              <div>
+                <h3 id="comparisonTitle">实现对照</h3>
+                <p>三者都支持委派，但暴露给主 Agent 的控制面明显不同。</p>
+              </div>
+            </div>
+            <div class="mechanism-comparison" role="table" aria-label="Sub-agent 实现对照">
+              <div class="comparison-row comparison-head" role="row">
+                <span role="columnheader">Agent</span>
+                <span role="columnheader">派发入口</span>
+                <span role="columnheader">协调方式</span>
+                <span role="columnheader">状态模型</span>
+              </div>
+              <div class="comparison-row" role="row">
+                <span class="comparison-agent" role="cell"><img src="/agent-icons/claude-code.png" alt=""><strong>Claude Code</strong></span>
+                <span role="cell" data-label="派发入口"><code>Agent</code> 工具与 agent type</span>
+                <span role="cell" data-label="协调方式"><code>SendMessage</code>、后台通知、任务控制</span>
+                <span role="cell" data-label="状态模型">独立上下文，可选择 worktree 隔离</span>
+              </div>
+              <div class="comparison-row" role="row">
+                <span class="comparison-agent" role="cell"><img src="/agent-icons/codex.png" alt=""><strong>Codex</strong></span>
+                <span role="cell" data-label="派发入口"><code>spawn_agent</code> 创建 Agent 树</span>
+                <span role="cell" data-label="协调方式">消息、追问、等待、中断均为独立工具</span>
+                <span role="cell" data-label="状态模型">共享工作区，按 Agent ID 保留会话</span>
+              </div>
+              <div class="comparison-row" role="row">
+                <span class="comparison-agent" role="cell"><img src="/agent-icons/opencode.png" alt=""><strong>opencode</strong></span>
+                <span role="cell" data-label="派发入口"><code>task</code> 工具与 subagent type</span>
+                <span role="cell" data-label="协调方式">后台完成通知，结果由主 Agent 转述</span>
+                <span role="cell" data-label="状态模型">默认新上下文，以 task ID 恢复会话</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="dossier-section" aria-labelledby="observationsTitle">
+            <div class="dossier-section-heading">
+              <span>03</span>
+              <div>
+                <h3 id="observationsTitle">观察结论</h3>
+                <p>以下是基于可见接口的工程观察，不等同于厂商声明。</p>
+              </div>
+            </div>
+            <div class="observation-list">
+              <div><span>01</span><p><strong>控制面的颗粒度不同。</strong> Codex 将 Agent 生命周期拆成多项协作工具；Claude Code 和 opencode 更强调单一派发入口。</p></div>
+              <div><span>02</span><p><strong>隔离不只等于独立对话。</strong> Claude Code 明确暴露 worktree 选项，Codex 的可见约束则强调共享文件系统。</p></div>
+              <div><span>03</span><p><strong>恢复语义正在成为标准能力。</strong> 三者都提供某种形式的持续沟通或上下文复用，而不只返回一次性结果。</p></div>
+            </div>
+          </section>
+
+          <section class="dossier-section evidence-section" aria-labelledby="evidenceTitle">
+            <div class="dossier-section-heading">
+              <span>04</span>
+              <div>
+                <h3 id="evidenceTitle">版本证据</h3>
+                <p>直接打开对应版本的 Tool Definition，不把档案文字当作最终事实。</p>
+              </div>
+            </div>
+            <div class="mechanism-evidence-list">
+              <a href="/?mode=compare&amp;agent=claude-code&amp;left=2.1.225&amp;right=2.1.226&amp;view=structure&amp;section=tool%3Aagent">
+                <span class="evidence-agent"><img src="/agent-icons/claude-code.png" alt="">Claude Code</span>
+                <span><strong>Agent Tool Definition</strong><small>v2.1.226 · Runtime Prompt</small></span>
+                <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+              </a>
+              <a href="/?mode=compare&amp;agent=codex&amp;left=0.146.1&amp;right=0.147.0&amp;view=structure&amp;section=tool%3Acollaboration-spawn-agent">
+                <span class="evidence-agent"><img src="/agent-icons/codex.png" alt="">Codex</span>
+                <span><strong>collaboration.spawn_agent</strong><small>v0.147.0 · Tool schema</small></span>
+                <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+              </a>
+              <a href="/?mode=compare&amp;agent=opencode&amp;left=1.18.14&amp;right=1.18.15&amp;view=structure&amp;section=tool%3Atask">
+                <span class="evidence-agent"><img src="/agent-icons/opencode.png" alt="">opencode</span>
+                <span><strong>task Tool Definition</strong><small>v1.18.15 · Runtime Prompt</small></span>
+                <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+              </a>
+            </div>
+          </section>
+
+          <footer class="dossier-note">
+            <i data-lucide="info" aria-hidden="true"></i>
+            <p>本档案只描述公开快照中可见的 Prompt 与工具接口；实际产品行为还可能受到客户端、服务端和模型配置影响。</p>
+          </footer>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>
+    if (window.lucide?.createIcons) window.lucide.createIcons({ attrs: { "stroke-width": 1.8 } });
+  </script>
+</body>
+</html>
