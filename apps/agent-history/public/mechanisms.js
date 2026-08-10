@@ -10,13 +10,28 @@
     codex: { label: "Codex", icon: "/agent-icons/codex.png" },
     opencode: { label: "opencode", icon: "/agent-icons/opencode.png" },
   };
-  const viewCopy = {
+  const defaultViewCopy = {
     compare: ["CONTROL REFERENCE", "操作速查", "primitive、默认行为、返回通道与危险边界放在同一个比较行。"],
     flows: ["OBSERVABLE LIFECYCLE", "生命周期", "图中只画公开合同可观测的状态与控制，不冒充内部 scheduler 实现。"],
     failures: ["FAILURE / SIDE EFFECT", "失败面", "按重复执行、payload 丢失、文件冲突与资源生命周期排序。"],
     resources: ["ISOLATION / LIMITS", "隔离与资源", "Conversation、workspace、permission 与 limits 分开陈述，数字保留分母和作用域。"],
     changes: ["CONTRACT COMPATIBILITY", "版本变化", "只保留会改变调用、默认值、返回值、限额或 failure shape 的节点。"],
   };
+  const dossierRegistry = {
+    "subagent-orchestration": {
+      evidence: "/dossiers/subagent-evidence.json",
+      summary: "/dossiers/subagent-orchestration.json",
+      workbench: "/dossiers/subagent-workbench.json",
+    },
+    "context-compaction": {
+      evidence: "/dossiers/context-compaction-evidence.json",
+      summary: "/dossiers/context-compaction-summary.json",
+      workbench: "/dossiers/context-compaction-workbench.json",
+    },
+  };
+  const requestedDossier = new URL(location.href).searchParams.get("mechanism");
+  const dossierId = dossierRegistry[requestedDossier] ? requestedDossier : "subagent-orchestration";
+  const dossierConfig = dossierRegistry[dossierId];
   const state = { view: "compare", operation: "all", claim: null, contextClaims: [], inspectorContext: "" };
   let workbench;
   let claimById;
@@ -71,9 +86,10 @@
 
   function safeLink(link, kind) {
     const anchor = el("a", "inspector-link");
+    const external = /^https?:\/\//.test(link.url);
     anchor.href = link.url;
-    anchor.append(icon(kind === "compare" ? "git-compare-arrows" : "external-link"), el("span", "", link.label));
-    if (kind === "source") {
+    anchor.append(icon(kind === "compare" && !external ? "git-compare-arrows" : "external-link"), el("span", "", link.label));
+    if (kind === "source" || external) {
       anchor.target = "_blank";
       anchor.rel = "noopener noreferrer";
     } else {
@@ -90,7 +106,7 @@
       Object.entries(value).forEach(([field, item]) => {
         if (field === key) {
           const values = Array.isArray(item) ? item : [item];
-          target.push(...values.filter((entry) => typeof entry === "string" && /^(CC|CX|OC|KU)-\d+$/.test(entry)));
+          target.push(...values.filter((entry) => typeof entry === "string" && /^[A-Z][A-Z0-9-]*-\d+$/.test(entry)));
         } else {
           collectRefs(item, key, target);
         }
@@ -106,13 +122,28 @@
     const missingUnknowns = collectRefs(dossier, "unknown").filter((id) => !unknowns.has(id));
     if (!claims.has(dossier.defaultClaim)) missingClaims.push(dossier.defaultClaim);
     if (missingClaims.length || missingUnknowns.length) throw new Error("控制合同存在无法定位的证据引用");
-    if (dossier.operations.length < 8 || dossier.flows.length < 4 || dossier.hazards.length < 8) throw new Error("控制合同数据不完整");
+    const minimums = dossier.minimums || { operations: 8, flows: 4, hazards: 8 };
+    if (dossier.operations.length < minimums.operations || dossier.flows.length < minimums.flows || dossier.hazards.length < minimums.hazards) {
+      throw new Error("控制合同数据不完整");
+    }
   }
 
   function renderHeader() {
+    document.getElementById("contractEyebrow").textContent = workbench.eyebrow || "MECHANISM / CONTROL CONTRACT";
     document.getElementById("contractTitle").textContent = workbench.title;
     document.getElementById("contractSubtitle").textContent = workbench.subtitle;
     document.getElementById("contractDate").textContent = `AUDIT ${workbench.verifiedAt}`;
+    document.title = `${workbench.title} · AgentLab`;
+    const description = document.querySelector('meta[name="description"]');
+    if (description) description.content = workbench.description || workbench.subtitle;
+    const picker = document.getElementById("mechanismPicker");
+    picker.value = dossierId;
+    if (workbench.views) {
+      document.querySelectorAll("[data-view]").forEach((button) => {
+        const label = workbench.views[button.dataset.view]?.label;
+        if (label) button.querySelector("span").textContent = label;
+      });
+    }
     const snapshots = document.getElementById("snapshotLine");
     workbench.snapshots.forEach((item) => {
       const record = el("div", "contract-snapshot");
@@ -124,7 +155,7 @@
 
   function renderSharpEdges() {
     const strip = document.getElementById("sharpEdgeStrip");
-    strip.append(el("strong", "sharp-edge-title", "最容易写错的 5 个合同"));
+    strip.append(el("strong", "sharp-edge-title", workbench.sharpEdgeTitle || `最容易写错的 ${workbench.sharpEdges.length} 个合同`));
     workbench.sharpEdges.forEach((item) => {
       const button = el("button", "sharp-edge");
       button.type = "button";
@@ -143,6 +174,7 @@
   }
 
   function renderOperationRail() {
+    document.getElementById("operationRailTitle").textContent = workbench.operationRailLabel || "开发者要做什么";
     const list = document.getElementById("operationList");
     workbench.operations.forEach((operation) => {
       const button = el("button", "operation-button");
@@ -288,11 +320,18 @@
   }
 
   function renderResources() {
+    const copy = workbench.resourceCopy || {};
     const isolation = el("section", "resource-section");
-    isolation.append(el("h3", "", "状态与隔离"), el("p", "resource-intro", "对话历史与 mutable workspace 是两条独立轨道。"));
+    isolation.append(
+      el("h3", "", copy.primaryTitle || "状态与隔离"),
+      el("p", "resource-intro", copy.primaryIntro || "对话历史与 mutable workspace 是两条独立轨道。"),
+    );
     isolation.append(comparisonTable(workbench.isolation, "resource-table"));
     const limits = el("section", "resource-section");
-    limits.append(el("h3", "", "限额与作用域"), el("p", "resource-intro", "这里不做容量排名；每个数字的对象和分母不同。"));
+    limits.append(
+      el("h3", "", copy.secondaryTitle || "限额与作用域"),
+      el("p", "resource-intro", copy.secondaryIntro || "这里不做容量排名；每个数字的对象和分母不同。"),
+    );
     limits.append(comparisonTable(workbench.limits, "resource-table"));
     canvas.append(isolation, limits);
   }
@@ -343,7 +382,8 @@
       const signals = el("div", "inspector-signals");
       claim.signals.forEach((signal) => signals.append(el("code", "", signal)));
       const links = el("div", "inspector-links");
-      links.append(safeLink(claim.source, "source"), safeLink(claim.compare, "compare"));
+      links.append(safeLink(claim.source, "source"));
+      if (claim.compare) links.append(safeLink(claim.compare, "compare"));
       container.append(badge, el("code", "inspector-id", claim.id), meta, statement, boundary, signals, links);
     }
     if (state.contextClaims.length > 1) {
@@ -366,14 +406,15 @@
     const compareDefault = selectedOperation
       ? [selectedOperation.cells["claude-code"].claims?.[0] || selectedOperation.cells["claude-code"].unknown, `${selectedOperation.label} / Claude Code`]
       : [workbench.defaultClaim, "创建 child / Claude Code"];
-    const defaults = {
+    const fallbackDefaults = {
       compare: compareDefault,
       flows: ["CC-02", "生命周期 / Claude Agent"],
       failures: ["OC-02", "失败面 / task_id silent fresh"],
       resources: ["CC-06", "隔离与资源 / mutable workspace"],
       changes: ["OC-04", "版本变化 / capability gate"],
     };
-    const [claim, label] = defaults[state.view];
+    const configured = workbench.viewDefaults?.[state.view];
+    const [claim, label] = configured ? [configured.claim, configured.label] : fallbackDefaults[state.view];
     document.getElementById("inspectorContext").textContent = `DEFAULT EVIDENCE · ${label}`;
     renderInspectorRecord(claim);
   }
@@ -417,7 +458,10 @@
 
   function renderWorkspace(update = true) {
     clear(canvas);
-    const copy = viewCopy[state.view];
+    const configuredCopy = workbench.views?.[state.view];
+    const copy = configuredCopy
+      ? [configuredCopy.kicker, configuredCopy.title, configuredCopy.description]
+      : defaultViewCopy[state.view];
     const operation = workbench.operations.find((item) => item.id === state.operation);
     document.getElementById("contractWorkspace").dataset.view = state.view;
     document.getElementById("contractPanel").dataset.view = state.view;
@@ -471,6 +515,14 @@
       clear(document.getElementById("inspectorContent")).append(el("p", "inspector-empty", "点击任意“证据”按钮，在不离开当前比较位置的情况下检查版本、来源和边界。"));
       updateUrl();
     });
+    document.getElementById("mechanismPicker").addEventListener("change", (event) => {
+      const url = new URL(location.href);
+      if (event.target.value === "subagent-orchestration") url.searchParams.delete("mechanism");
+      else url.searchParams.set("mechanism", event.target.value);
+      ["view", "operation", "claim"].forEach((key) => url.searchParams.delete(key));
+      url.hash = "";
+      location.href = url;
+    });
   }
 
   function restoreState() {
@@ -479,15 +531,15 @@
     const view = url.searchParams.get("view");
     const operation = url.searchParams.get("operation");
     const claim = url.searchParams.get("claim") || hashClaim;
-    if (viewCopy[view]) state.view = view;
+    if (defaultViewCopy[view]) state.view = view;
     if (operation === "all" || workbench.operations.some((item) => item.id === operation)) state.operation = operation;
     if (claimById.has(claim) || unknownById.has(claim)) openInspector(claim, [claim], false, `DEEP LINK / ${claim}`);
   }
 
   Promise.all([
-    fetch("/dossiers/subagent-workbench.json", { cache: "no-store" }).then((response) => response.ok ? response.json() : Promise.reject(new Error("工作台数据读取失败"))),
-    fetch("/dossiers/subagent-evidence.json", { cache: "no-store" }).then((response) => response.ok ? response.json() : Promise.reject(new Error("证据数据读取失败"))),
-    fetch("/dossiers/subagent-orchestration.json", { cache: "no-store" }).then((response) => response.ok ? response.json() : Promise.reject(new Error("未知项数据读取失败"))),
+    fetch(dossierConfig.workbench, { cache: "no-store" }).then((response) => response.ok ? response.json() : Promise.reject(new Error("工作台数据读取失败"))),
+    fetch(dossierConfig.evidence, { cache: "no-store" }).then((response) => response.ok ? response.json() : Promise.reject(new Error("证据数据读取失败"))),
+    fetch(dossierConfig.summary, { cache: "no-store" }).then((response) => response.ok ? response.json() : Promise.reject(new Error("未知项数据读取失败"))),
   ]).then(([dossier, evidence, summary]) => {
     validate(summary, evidence, dossier);
     workbench = dossier;

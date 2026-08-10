@@ -1,0 +1,484 @@
+{
+  "claims": [
+    {
+      "id": "CMP-CC-01",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "自动窗口与 statusline 使用不同分母",
+      "statement": "自动压缩围绕 effective auto-compact window 触发，该窗口受模型最大窗口封顶；statusline 百分比仍按完整模型 context window 计算。",
+      "layer": "Official contract + exact-build setting names",
+      "confidence": "High",
+      "signals": ["CLAUDE_CODE_AUTO_COMPACT_WINDOW", "autoCompactWindow", "used_percentage"],
+      "boundary": "配置较小自动窗口后不能用 statusline 百分比精确预测边界，也不能硬编码一个全局 token 阈值。",
+      "source": {
+        "label": "Claude Code context window",
+        "url": "https://code.claude.com/docs/en/context-window"
+      },
+      "compare": {
+        "label": "2.1.226 window strings",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json"
+      }
+    },
+    {
+      "id": "CMP-CC-02",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "compact 与 clear 是不同的状态转换",
+      "statement": "`/compact [instructions]` 在当前 session 内用摘要替换旧上下文；`/clear [name]` 创建空上下文的新 session，旧 session 仍可恢复。",
+      "layer": "Official command and session contract",
+      "confidence": "High",
+      "signals": ["/compact", "/clear", "session"],
+      "boundary": "两者都不回滚工作区文件；不能把 compact boundary 当成 session reset。",
+      "source": {
+        "label": "Claude Code sessions",
+        "url": "https://code.claude.com/docs/en/sessions"
+      }
+    },
+    {
+      "id": "CMP-CC-03",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "PreCompact 可按触发类型拦截",
+      "statement": "`PreCompact` 在总结前运行，matcher 区分 `manual` 与 `auto`；exit 2 或 `decision:block` 可阻止压缩。",
+      "layer": "Exact-build hook help + official hook contract",
+      "confidence": "High",
+      "signals": ["PreCompact", "manual", "auto", "decision:block"],
+      "boundary": "阻止主动压缩会跳过本次压缩；阻止 context-limit 后的恢复压缩会让原请求失败。",
+      "source": {
+        "label": "Claude Code hook contract",
+        "url": "https://code.claude.com/docs/en/hooks"
+      }
+    },
+    {
+      "id": "CMP-CC-04",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "boundary 才是压缩成功信号",
+      "statement": "SDK 用 `system/status:compacting` 表示处理中；成功后发 `system/compact_boundary`，其 envelope 含 `uuid`、`session_id`，`compact_metadata` 含 `trigger` 与 `pre_tokens`；内容不足时命令可成功但没有 boundary。",
+      "layer": "Official Agent SDK contract",
+      "confidence": "High",
+      "signals": ["system/status: compacting", "compact_boundary", "uuid + session_id", "pre_tokens", "no-op success"],
+      "boundary": "boundary 不含 summary、post tokens 或耗时；不能只看 slash-command result status。",
+      "source": {
+        "label": "Agent SDK slash commands",
+        "url": "https://code.claude.com/docs/en/agent-sdk/slash-commands"
+      },
+      "compare": {
+        "label": "SDK boundary and status types",
+        "url": "https://code.claude.com/docs/en/agent-sdk/typescript"
+      }
+    },
+    {
+      "id": "CMP-CC-05",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "成功后有审计与重新注入两个 hook 面",
+      "statement": "`PostCompact` 在成功后接收 summary，适合审计；`SessionStart` 的 `source:compact` 可把关键状态作为 additional context 重新注入同一 session。",
+      "layer": "Official hook contract + exact-build event presence",
+      "confidence": "High",
+      "signals": ["PostCompact", "SessionStart", "source: compact", "additionalContext"],
+      "boundary": "两者都在成功压缩后，但严格先后顺序未公开；PostCompact 的事件存在与接收 summary 已在 2.1.226 构建核验，精确 payload 字段名与 SessionStart payload 来自当前 docs、未对该 tag 实跑。",
+      "source": {
+        "label": "Claude Code hooks",
+        "url": "https://code.claude.com/docs/en/hooks"
+      },
+      "compare": {
+        "label": "2.1.226 hook event capture",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-prompts.md#L1144-L1154"
+      }
+    },
+    {
+      "id": "CMP-CC-06",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "结构化重注入强于 summary 记忆",
+      "statement": "system prompt、根级 CLAUDE.md、无 path scope 的 rules 与 auto memory 会重新注入；path-scoped rules 和 nested CLAUDE.md 要等再次读到匹配文件才加载。",
+      "layer": "Official context survival contract",
+      "confidence": "High",
+      "signals": ["CLAUDE.md", "auto memory", "path-scoped rules", "re-injected"],
+      "boundary": "早期请求、代码细节和决策仍依赖有损 summary；summary 中出现某条规则不等于规则层持久化。",
+      "source": {
+        "label": "Claude Code context survival",
+        "url": "https://code.claude.com/docs/en/context-window"
+      }
+    },
+    {
+      "id": "CMP-CC-07",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "summary 是独立请求并可保留未总结尾段",
+      "statement": "压缩用同一 system prompt、tools 与 history 发起独立总结请求；完成后以生成的 summary 与未总结保留段组成下一上下文窗口。",
+      "layer": "Official caching contract + exact-build prompt",
+      "confidence": "High",
+      "signals": ["separate request", "summary", "remaining context", "cache prefix"],
+      "boundary": "这会产生独立延迟与 token 成本；保留段算法和 summary 语义保真均未形成公开保证。",
+      "source": {
+        "label": "Claude Code prompt caching",
+        "url": "https://code.claude.com/docs/en/prompt-caching"
+      },
+      "compare": {
+        "label": "2.1.226 summary + retained context",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L63-L64"
+      }
+    },
+    {
+      "id": "CMP-CC-08",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "压缩太晚与快速回填都有失败边界",
+      "statement": "剩余空间过小时手动 `/compact` 自身也可能 prompt-too-long；压缩后连续快速灌满会触发 `rapid_refill_breaker` 而停止循环。",
+      "layer": "Official error contract",
+      "confidence": "High",
+      "signals": ["prompt too long", "rapid_refill_breaker", "rewind", "/clear"],
+      "boundary": "恢复通常要 rewind 后提前 compact、减少大输入，或最后 clear；反复重试不是可靠策略。",
+      "source": {
+        "label": "Claude Code errors",
+        "url": "https://code.claude.com/docs/en/errors"
+      }
+    },
+    {
+      "id": "CMP-CX-01",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "90% 自动阈值不等于 95% 硬上限",
+      "statement": "`auto_compact_token_limit` 缺省取 resolved context window 的 90%，可用硬上限另按默认 95% 计算；触发量基于活跃窗口的 last usage 与本地估算，不是公开累计 `total`。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["auto_compact_token_limit", "90%", "effective_context_window_percent", "last_token_usage"],
+      "boundary": "`last.totalTokens` 最接近触发量但仍非精确预测；模型目录可动态下发，不能硬编码具体 token 数。",
+      "source": {
+        "label": "rust-v0.147.0 model metadata",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/openai_models.rs#L418-L477"
+      },
+      "compare": {
+        "label": "Active-window usage calculation",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/context_manager/history.rs#L251-L316"
+      }
+    },
+    {
+      "id": "CMP-CX-02",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "自动压缩有 turn 内与下一 turn 两个时机",
+      "statement": "需要 follow-up 或存在 pending input 时可在当前 turn 内压缩；终态回答越线则推迟到下一 turn，并在新 user input 写入 history 前执行。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["needs_follow_up", "pre-turn", "mid-turn"],
+      "boundary": "下一条大输入不进入 pre-turn summary request，仍可能在检查后把正常请求推过上限。",
+      "source": {
+        "label": "rust-v0.147.0 turn lifecycle",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/turn.rs#L150-L239"
+      }
+    },
+    {
+      "id": "CMP-CX-03",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "手动 compact 是 id-only 的异步 lifecycle",
+      "statement": "`thread/compact/start` 立即返回 `{}`，随后出现同 id 的 `contextCompaction` item started/completed；该独立 turn 不接受 `turn/steer`。",
+      "layer": "Exact-tag public App Server contract",
+      "confidence": "High",
+      "signals": ["thread/compact/start", "contextCompaction", "item/started", "item/completed"],
+      "boundary": "item 只有 id，没有 trigger、implementation、summary 或 token；started 后失败要用 turn terminal state 收口。",
+      "source": {
+        "label": "rust-v0.147.0 App Server README",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L786-L800"
+      },
+      "compare": {
+        "label": "id-only item schema",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/item.rs#L392-L396"
+      }
+    },
+    {
+      "id": "CMP-CX-04",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "同一 lifecycle 包装四种压缩实现",
+      "statement": "0.147.0 在 TokenBudget、local summarization、Remote V1 `/responses/compact`、Remote V2 `compaction_trigger` 之间选择，四者对外都投影为同一种 compaction item；TokenBudget 默认关闭且不生成 conversation summary。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["TokenBudget", "Unsupported", "Remote V1", "Remote V2", "provider capability"],
+      "boundary": "四条实现的保留内容、重试与 usage 行为不同；公开 item 无法反推实际实现，也不能把 TokenBudget 的无 summary 成功当成异常。",
+      "source": {
+        "label": "rust-v0.147.0 implementation selector",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tasks/compact.rs#L28-L84"
+      }
+    },
+    {
+      "id": "CMP-CX-05",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "local replacement 保留 user 尾段再追加摘要",
+      "statement": "local 路径最多按约 20,000 token 预算保留近期真实 user 文本，并追加带固定前缀的 `role:user` summary；下一次实际请求还会按 phase 注入 canonical initial context：manual/pre-turn 在下一普通 turn 注入，mid-turn 在 replacement 安装时立即插入。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["20,000 tokens", "real user messages", "SUMMARY_PREFIX", "role:user", "canonical initial context"],
+      "boundary": "该保留逻辑不保留原 assistant/tool/reasoning 历史，用户图片与音频也不在文本提取路径内。",
+      "source": {
+        "label": "rust-v0.147.0 local replacement",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/compact.rs#L514-L690"
+      }
+    },
+    {
+      "id": "CMP-CX-06",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "Remote V2 用 opaque item 与近期 hybrid history",
+      "statement": "Remote V2 从原 prompt 向前保留最多约 64,000 tokens 的合格近期消息，再追加服务端返回的 opaque compaction item；超长 AgentMessage 还会被过滤。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["64,000 tokens", "ResponseItem::Compaction", "hybrid history"],
+      "boundary": "Remote V1 返回整段 replacement，local 生成可读 summary；不能把 V2 retention 当作三条实现的共同合同。",
+      "source": {
+        "label": "rust-v0.147.0 Remote V2 retention",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/compact_remote_v2.rs#L444-L600"
+      }
+    },
+    {
+      "id": "CMP-CX-07",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "三条 summarization 路径的 token events 不对称",
+      "statement": "local 会先记录 summary request usage 再发布 replacement estimate；Remote V1 只有 estimate；Remote V2 的精确 usage 留在 raw event，公开 thread token 最终仍主要看到 estimate。TokenBudget 不发 summary request，不属于这组三路成本口径。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["thread/tokenUsage/updated", "replacement estimate", "rawResponse/completed"],
+      "boundary": "UI 可围绕 item lifecycle 比较前后 `last.totalTokens`，但不能用公开 `total` 差值统一计算压缩成本。",
+      "source": {
+        "label": "rust-v0.147.0 replacement usage",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/mod.rs#L3764-L3850"
+      }
+    },
+    {
+      "id": "CMP-CX-08",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "压缩安装为 replacement checkpoint",
+      "statement": "成功压缩把完整 replacement history 与 window metadata 持久化为 `RolloutItem::Compacted`；resume 从最新有效 checkpoint 重建 active history，而原 rollout 前缀仍留在存储中。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["RolloutItem::Compacted", "replacement_history", "resume"],
+      "boundary": "审计 transcript 仍能看到旧 turn，不表示模型在新窗口中仍能看到它们。",
+      "source": {
+        "label": "rust-v0.147.0 rollout reconstruction",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/rollout_reconstruction.rs#L309-L439"
+      }
+    },
+    {
+      "id": "CMP-CX-09",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "PostCompact 停止不会回滚 replacement",
+      "statement": "PostCompact hook 在 replacement 安装、token 重算与 item completed 之后运行；hook Stop 可令最终 turn interrupted，但不会撤销新 history。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["PostCompact", "item/completed", "turn interrupted"],
+      "boundary": "harness 必须允许“compaction item completed + turn interrupted”同时成立，不能把 turn 状态当事务结果。",
+      "source": {
+        "label": "rust-v0.147.0 compact lifecycle",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/compact.rs#L57-L232"
+      }
+    },
+    {
+      "id": "CMP-CX-10",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "模型切换本身可以触发压缩",
+      "statement": "前后模型的 `comp_hash` 不同，或切换到更小窗口且当前活跃 usage 超过新限制时，Codex 会在新 turn 采样前尝试用旧模型压缩。",
+      "layer": "Exact-tag source",
+      "confidence": "High",
+      "signals": ["comp_hash", "model downshift", "previous model"],
+      "boundary": "任一 hash 缺失时不因 hash 触发；旧模型失败后的 fallback 只覆盖特定 backend/provider/error 组合。",
+      "source": {
+        "label": "rust-v0.147.0 model-switch compaction",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/turn.rs#L1011-L1138"
+      }
+    },
+    {
+      "id": "CMP-OC-01",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "自动触发读取上一条真实 usage",
+      "statement": "V1 在 assistant message 完成后以其 provider-reported token usage 判断 overflow；没有做下一请求发送前的完整 preflight 估算。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["tokens.total", "cache.read", "isOverflow"],
+      "boundary": "缓存 token 的 provider 口径可能不同；V2 preflight 合同不能反推到 1.18.15。",
+      "source": {
+        "label": "v1.18.15 overflow detector",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/overflow.ts#L8-L34"
+      }
+    },
+    {
+      "id": "CMP-OC-02",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "usable context 有两套不对称公式",
+      "statement": "先计算包含运行时 output cap 的 `effectiveMaxOutput` 与默认 `reserved=min(20_000,effectiveMaxOutput)`；有独立 input limit 时 usable 为 `input-reserved`，否则为 `context-effectiveMaxOutput`。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["input limit", "reserved", "effectiveMaxOutput"],
+      "boundary": "不能用模型元数据 raw max output 替代 effective cap，也不能在无 input limit 的模型上再次扣 reserved。",
+      "source": {
+        "label": "v1.18.15 overflow budget",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/overflow.ts#L8-L34"
+      }
+    },
+    {
+      "id": "CMP-OC-03",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "手动 summarize 不会自动续跑",
+      "statement": "手动 `/compact` 或 summarize endpoint 创建 `auto:false` marker 并运行同一 compaction process；成功后返回 idle，不 replay 请求也不注入 synthetic continuation。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["/compact", "summarize", "auto:false", "idle"],
+      "boundary": "自动路径则可续跑；不能把手动压缩建模成“压缩后替用户继续”。",
+      "source": {
+        "label": "v1.18.15 summarize endpoint",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/server/routes/instance/httpapi/groups/session.ts#L303-L315"
+      },
+      "compare": {
+        "label": "auto-only continuation path",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/compaction.ts#L461-L541"
+      }
+    },
+    {
+      "id": "CMP-OC-04",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "marker 与 summary 留在持久 transcript",
+      "statement": "每次压缩写入带 `auto` / `overflow` 的 compaction marker 和 `summary:true` assistant message；模型投影从最新成功 boundary 重建并隐藏被覆盖旧 history。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["compaction marker", "summary:true", "durable messages", "active projection"],
+      "boundary": "存储中仍可查到旧内容，不表示后续模型能看到它，也不等于删除或隐私清除。",
+      "source": {
+        "label": "v1.18.15 message projection",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/message-v2.ts#L521-L572"
+      },
+      "compare": {
+        "label": "marker and summary creation",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/compaction.ts#L389-L415"
+      }
+    },
+    {
+      "id": "CMP-OC-05",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "recent tail 是预算内目标，不是两轮保证",
+      "statement": "默认尝试保留最多两个近期 user turns，并用 `clamp(usable*25%, 2k, 8k)` 控制尾段预算；算法可按消息边界缩短或不保留。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["tail_turns=2", "preserve_recent_tokens", "2k", "8k"],
+      "boundary": "这两个字段只在 schema 中暴露，未进入固定版本的公开 config 文档，兼容性应降级标注。",
+      "source": {
+        "label": "v1.18.15 tail selection",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/compaction.ts#L116-L164"
+      }
+    },
+    {
+      "id": "CMP-OC-06",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "summary 输入先做有损扁平化",
+      "statement": "V1 把待总结 head 序列化为扁平文本；completed tool output 最多保留 2,000 字符，媒体与附件只留下描述，不携带原始 bytes。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["serializeMessage", "2,000 chars", "attachment description"],
+      "boundary": "durable transcript 仍保留原 parts；这里描述的是 summary 请求输入，不是存储删除。",
+      "source": {
+        "label": "v1.18.15 summary serialization",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/compaction.ts#L52-L86"
+      }
+    },
+    {
+      "id": "CMP-OC-07",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "prune 默认关闭且不在 summary 前执行",
+      "statement": "`compaction.prune` 默认 false；启用后只给旧 completed tool parts 写 compacted 标记，并在 session loop 退出后异步执行。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["prune=false", "time.compacted", "fork"],
+      "boundary": "原 output 仍在存储，active projection 才替换为 placeholder；prune 不能为同一次 summary request 预先降载。",
+      "source": {
+        "label": "v1.18.15 tool-output pruning",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/compaction.ts#L277-L323"
+      }
+    },
+    {
+      "id": "CMP-OC-08",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "auto:false 同时关闭 overflow 救场",
+      "statement": "1.18.15 中 `compaction.auto:false` 不仅关闭 token-threshold 触发，也会让普通请求的 provider overflow 直接 error + idle，不创建恢复压缩。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["auto:false", "ContextOverflowError", "idle"],
+      "boundary": "这是 V1 固定版本合同；当前 V2 文档的不同恢复语义不能混入。",
+      "source": {
+        "label": "v1.18.15 overflow recovery gate",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/processor.ts#L599-L681"
+      }
+    },
+    {
+      "id": "CMP-OC-09",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "成功事件无法独立重建压缩过程",
+      "statement": "V1 唯一专属成功事件 `session.compacted` 只含 `sessionID`；summary 流与失败分别复用 generic message/status/error 事件。",
+      "layer": "Exact-tag V1 public schema",
+      "confidence": "High",
+      "signals": ["session.compacted", "sessionID", "message.part.delta", "session.error"],
+      "boundary": "事件只在成功后发出；trigger、summary model、retained tail 与失败原因需要关联 marker、messages 和配置。",
+      "source": {
+        "label": "v1.18.15 compaction event",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/session-compaction-event.ts#L6-L11"
+      }
+    },
+    {
+      "id": "CMP-OC-10",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "插件可改 summary 与自动续跑语义",
+      "statement": "`experimental.session.compacting` 可附加 context 或替换 summary prompt；自动成功后可 replay overflow 请求或注入 synthetic user part，autocontinue hook 又可关闭续跑。",
+      "layer": "Exact-tag V1 source",
+      "confidence": "High",
+      "signals": ["experimental.session.compacting", "replay", "synthetic", "autocontinue"],
+      "boundary": "相同版本不等于相同压缩语义；synthetic user part 不能计作真人输入，插件配置必须纳入观测。",
+      "source": {
+        "label": "v1.18.15 plugin and continuation paths",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/compaction.ts#L378-L541"
+      }
+    }
+  ]
+}

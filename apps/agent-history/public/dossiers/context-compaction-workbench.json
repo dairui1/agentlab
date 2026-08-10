@@ -1,0 +1,437 @@
+{
+  "title": "Context compaction contracts",
+  "subtitle": "预算触发、历史替换、持久状态与失败恢复",
+  "description": "Claude Code、Codex 与 opencode 固定版本下的上下文压缩 Harness 合同。",
+  "eyebrow": "MECHANISM / CONTEXT COMPACTION",
+  "verifiedAt": "2026-08-10",
+  "defaultView": "compare",
+  "defaultOperation": "auto-trigger",
+  "defaultClaim": "CMP-CX-01",
+  "minimums": { "operations": 10, "flows": 5, "hazards": 12 },
+  "sharpEdgeTitle": "先排除 5 个危险等号",
+  "operationRailLabel": "Harness 要控制什么",
+  "views": {
+    "compare": { "label": "操作速查", "kicker": "HARNESS CONTROL REFERENCE", "title": "同一个动作，三套不同合同", "description": "入口、触发时点、完成信号、保留内容与危险边界放在同一行。" },
+    "flows": { "label": "压缩链路", "kicker": "OBSERVABLE COMPACTION LIFECYCLE", "title": "从触发到下一次模型请求", "description": "只画 Harness 可观测或固定版本源码可证的阶段，不把 summary 成功当语义正确。" },
+    "failures": { "label": "失败面", "kicker": "FAILURE / LOSS / RECOVERY", "title": "技术成功、语义成功与恢复不是一回事", "description": "按触发误判、异步收口、信息损失、部分提交和恢复失效排序。" },
+    "resources": { "label": "预算与持久化", "kicker": "ACTIVE CONTEXT / DURABLE STATE", "title": "模型现在能看见什么，磁盘上还留着什么", "description": "ACTIVE 与 DURABLE 分开陈述；百分比保留分母，历史保留具体投影规则。" },
+    "changes": { "label": "版本变化", "kicker": "CONTRACT COMPATIBILITY", "title": "只把固定版本行为写成当前合同", "description": "只保留会改变触发、保留、事件、hook、重试或恢复语义的节点。" }
+  },
+  "viewDefaults": {
+    "compare": { "claim": "CMP-CX-01", "label": "自动触发 / Codex 阈值与 token 口径" },
+    "flows": { "claim": "CMP-OC-01", "label": "压缩链路 / opencode post-response trigger" },
+    "failures": { "claim": "CMP-OC-08", "label": "失败面 / auto=false 关闭 overflow recovery" },
+    "resources": { "claim": "CMP-OC-04", "label": "预算与持久化 / active context 与 durable transcript" },
+    "changes": { "claim": "CMP-CC-03", "label": "版本变化 / PreCompact blocking" }
+  },
+  "resourceCopy": {
+    "primaryTitle": "Active context vs durable transcript",
+    "primaryIntro": "同一条旧记录可以仍在磁盘上，却已经不在下一次模型请求里。",
+    "secondaryTitle": "预算、事件与恢复口径",
+    "secondaryIntro": "没有统一的百分比、统一的 completion envelope，也没有统一的 retention 算法。"
+  },
+  "snapshots": [
+    { "agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "grade": "Exact build + public SDK/docs" },
+    { "agent": "codex", "label": "Codex", "version": "0.147.0", "grade": "Exact-tag source + app-server contract" },
+    { "agent": "opencode", "label": "opencode", "version": "1.18.15", "grade": "Exact-tag V1 source" }
+  ],
+  "sharpEdges": [
+    { "id": "threshold-denominator", "label": "90% / 95% 不能横向抄", "text": "窗口、usage、reserve 与触发时点不是同一个分母。", "claims": ["CMP-CC-01", "CMP-CX-01", "CMP-OC-02"], "view": "compare", "operation": "auto-trigger" },
+    { "id": "ack-not-finish", "label": "ACK ≠ 完成", "text": "Codex compact/start 返回 {} 时工作才刚开始。", "claims": ["CMP-CX-03"], "view": "flows" },
+    { "id": "active-not-durable", "label": "ACTIVE ≠ DURABLE", "text": "压缩替换模型输入，不等于删除完整运行记录。", "claims": ["CMP-CC-02", "CMP-CX-08", "CMP-OC-04"], "view": "resources" },
+    { "id": "prune-not-compact", "label": "prune ≠ compact", "text": "opencode prune 默认关闭，只遮蔽旧 tool output，不删除存储。", "claims": ["CMP-OC-07"], "view": "failures" },
+    { "id": "completed-not-correct", "label": "completed ≠ preserved", "text": "生命周期结束不证明约束、证据和附件被正确保留。", "claims": ["CMP-CC-07", "CMP-CX-05", "CMP-OC-06"], "view": "failures" }
+  ],
+  "operations": [
+    {
+      "id": "observe-budget", "label": "读取预算", "question": "当前按哪个 token 数、窗口和阈值判断？", "icon": "gauge",
+      "cells": {
+        "claude-code": {
+          "status": "partial", "surface": "Statusline + Agent SDK", "primitive": "context_window.* · compact_boundary.pre_tokens",
+          "contract": "statusline 报完整模型窗口的当前占用；真实 boundary 只公开压缩前 token。",
+          "edge": "autoCompactWindow 更小时，used_percentage 不能预测触发点；内部 JSONL 的 postTokens 不是稳定 API。",
+          "details": [{ "label": "LIVE", "value": "used_percentage · remaining_percentage" }, { "label": "BOUNDARY", "value": "trigger · pre_tokens" }, { "label": "ABSENT", "value": "public post_tokens · exact trigger denominator" }],
+          "claims": ["CMP-CC-01", "CMP-CC-04"]
+        },
+        "codex": {
+          "status": "partial", "surface": "App Server", "primitive": "thread/tokenUsage/updated",
+          "contract": "last.totalTokens 最接近 active window；total 是累计型账本，不是自动触发量。",
+          "edge": "内部判定还会补本地追加项和 reasoning；只靠公开 notification 不能精确预判。",
+          "details": [{ "label": "ACTIVE APPROX", "value": "last.totalTokens" }, { "label": "ACCOUNTING", "value": "total" }, { "label": "WINDOW", "value": "modelContextWindow" }],
+          "claims": ["CMP-CX-01", "CMP-CX-07"]
+        },
+        "opencode": {
+          "status": "partial", "surface": "Session messages + model metadata", "primitive": "last finished assistant.tokens · model.limit",
+          "contract": "runtime 用上一条非 summary assistant 的 provider usage 与 usable context 比较。",
+          "edge": "没有单个事件同时给 reported、usable 和 reason；必须关联 message、model 与 config。",
+          "details": [{ "label": "COUNT", "value": "tokens.total 或 input+output+cache" }, { "label": "WINDOW", "value": "input limit 或 context limit" }, { "label": "JOIN", "value": "message + model + config" }],
+          "claims": ["CMP-OC-01", "CMP-OC-02", "CMP-OC-09"]
+        }
+      }
+    },
+    {
+      "id": "auto-trigger", "label": "判断自动触发", "question": "是在请求前、响应后、溢出后，还是模型切换时压缩？", "icon": "timer-reset",
+      "cells": {
+        "claude-code": {
+          "status": "partial", "surface": "Runtime + hooks", "primitive": "effective auto-compact window · trigger=auto",
+          "contract": "自动压缩围绕有效窗口运行；2.1.226 可识别 env/setting 窗口来源。",
+          "edge": "不要硬编码 200K 或完整模型窗口的 95%；精确触发算法没有 fixed-tag 公共公式。",
+          "details": [{ "label": "WINDOW", "value": "min(configured, model max)" }, { "label": "TRIGGER", "value": "auto" }, { "label": "PERCENT OVERRIDE", "value": "docs-forward, tag 未核验" }],
+          "claims": ["CMP-CC-01"]
+        },
+        "codex": {
+          "status": "exposed", "surface": "Core turn lifecycle", "primitive": "pre-turn · mid-turn · model compatibility",
+          "contract": "默认阈值是 resolved window 的 90%，硬可用上限默认 95%；终态越线会推迟到下一 turn。",
+          "edge": "新 user input 在 pre-turn compact 之后才写入 history；大输入仍可能把随后请求推过上限。",
+          "details": [{ "label": "LIMIT", "value": "auto=90% cap · hard=95% default" }, { "label": "PHASE", "value": "pre-turn | mid-turn" }, { "label": "OTHER REASON", "value": "comp_hash change · downshift" }],
+          "claims": ["CMP-CX-01", "CMP-CX-02", "CMP-CX-10"]
+        },
+        "opencode": {
+          "status": "exposed", "surface": "Session prompt loop", "primitive": "Overflow.isOverflow(lastAssistant)",
+          "contract": "正常路径在 assistant 完成并写入 usage 后判断；provider 先溢出时另走 recovery marker。",
+          "edge": "这不是 next-request preflight；打开 auto 也不能保证当前请求不被 provider 拒绝。",
+          "details": [{ "label": "NORMAL", "value": "post-response threshold" }, { "label": "OVERFLOW", "value": "separate recovery path" }, { "label": "AUTO FALSE", "value": "both paths disabled" }],
+          "claims": ["CMP-OC-01", "CMP-OC-08"]
+        }
+      }
+    },
+    {
+      "id": "manual-compact", "label": "手动压缩", "question": "哪个入口真正开始压缩，调用会等到完成吗？", "icon": "minimize-2",
+      "cells": {
+        "claude-code": {
+          "status": "exposed", "surface": "Slash command / Agent SDK", "primitive": "/compact [instructions]",
+          "contract": "在同一 session 内请求一次有损历史替换，可附本次 summary focus。",
+          "edge": "command result success 不等于真的发生 compact；内容不足时没有 compact_boundary。",
+          "details": [{ "label": "INPUT", "value": "optional focus instructions" }, { "label": "SUCCESS", "value": "compact_boundary or PostCompact" }, { "label": "NOT", "value": "new session" }],
+          "claims": ["CMP-CC-02", "CMP-CC-04"]
+        },
+        "codex": {
+          "status": "exposed", "surface": "App Server", "primitive": "thread/compact/start({threadId})",
+          "contract": "RPC 立即返回 {}；压缩作为一个特殊 turn，通过标准 turn/item 流完成。",
+          "edge": "manual compaction turn 不可 steer；不能收到 ACK 后立刻开放下一次普通输入。",
+          "details": [{ "label": "ACK", "value": "{}" }, { "label": "PROGRESS", "value": "turn/* + item/*" }, { "label": "STEER", "value": "rejected" }],
+          "claims": ["CMP-CX-03"]
+        },
+        "opencode": {
+          "status": "exposed", "surface": "TUI + V1 HTTP", "primitive": "/compact (/summarize) · POST /session/:id/summarize",
+          "contract": "创建 auto:false compaction marker，复用同一 summary process。",
+          "edge": "V1 endpoint 不是 V2 /api/session/:id/compact；手动成功不会 synthetic continue。",
+          "details": [{ "label": "BODY", "value": "providerID · modelID · auto?" }, { "label": "DEFAULT", "value": "auto=false" }, { "label": "AFTER", "value": "no autocontinue" }],
+          "claims": ["CMP-OC-03"]
+        }
+      }
+    },
+    {
+      "id": "configure-policy", "label": "配置窗口与开关", "question": "能改窗口、预留空间或关闭自动路径吗？", "icon": "sliders-horizontal",
+      "cells": {
+        "claude-code": {
+          "status": "partial", "surface": "Environment + settings", "primitive": "CLAUDE_CODE_AUTO_COMPACT_WINDOW · autoCompactWindow",
+          "contract": "2.1.226 构建可确认 env 与 setting 指定有效窗口，并受模型最大窗口封顶。",
+          "edge": "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE 只在更新文档出现，不能下发给 2.1.226。",
+          "details": [{ "label": "ENV", "value": "plain integer window" }, { "label": "SETTING", "value": "autoCompactWindow" }, { "label": "TAG-UNVERIFIED", "value": "PCT_OVERRIDE" }],
+          "claims": ["CMP-CC-01"]
+        },
+        "codex": {
+          "status": "partial", "surface": "Config + model catalog", "primitive": "model_context_window · model_auto_compact_token_limit · scope",
+          "contract": "limit 与 total/body_after_prefix scope 可配置；显式 limit 仍钳制到 resolved window 的 90%。",
+          "edge": "0.147.0 没有等价的 public disable-auto switch；不要把 limit=0 当成关闭。",
+          "details": [{ "label": "LIMIT", "value": "configurable, max 90%" }, { "label": "SCOPE", "value": "total | body_after_prefix" }, { "label": "DISABLE", "value": "not exposed" }],
+          "claims": ["CMP-CX-01"]
+        },
+        "opencode": {
+          "status": "exposed", "surface": "V1 config + env", "primitive": "compaction.auto · reserved · prune",
+          "contract": "auto 默认 true；false 或 DISABLE_AUTOCOMPACT 同时关闭阈值触发与 provider-overflow recovery。",
+          "edge": "reserved 只进入有独立 input limit 的公式分支；prune 默认 false。",
+          "details": [{ "label": "AUTO", "value": "default true" }, { "label": "RESERVED", "value": "default min(20k,effectiveMaxOutput)" }, { "label": "PRUNE", "value": "default false" }],
+          "claims": ["CMP-OC-02", "CMP-OC-07", "CMP-OC-08"]
+        }
+      }
+    },
+    {
+      "id": "customize-summary", "label": "定制总结器", "question": "能改 prompt、聚焦点或 summary model 吗？", "icon": "file-cog",
+      "cells": {
+        "claude-code": {
+          "status": "partial", "surface": "Command + project instructions", "primitive": "/compact focus · Compact Instructions · PreCompact stdout",
+          "contract": "one-shot focus 与项目指令可追加到总结目标；summary 继承 session 的上下文构造。",
+          "edge": "没有 fixed-tag 公共合同证明可选独立 summary model；prompt 目标不是无损保证。",
+          "details": [{ "label": "ONE SHOT", "value": "/compact [instructions]" }, { "label": "PROJECT", "value": "Compact Instructions" }, { "label": "MODEL", "value": "dedicated selector not exposed" }],
+          "claims": ["CMP-CC-07"]
+        },
+        "codex": {
+          "status": "partial", "surface": "Thread config", "primitive": "compact_prompt",
+          "contract": "override 只控制 local summarization prompt；V1/V2 remote compaction 不读取它。",
+          "edge": "不能把 local prompt 配置误呈现为四种 implementation 共用；TokenBudget 甚至不生成 conversation summary。",
+          "details": [{ "label": "LOCAL", "value": "prompt configurable" }, { "label": "REMOTE V1/V2", "value": "not controlled" }, { "label": "PER CALL", "value": "no prompt/model args" }],
+          "claims": ["CMP-CX-03", "CMP-CX-04"]
+        },
+        "opencode": {
+          "status": "exposed", "surface": "Agent config + plugins", "primitive": "agent.compaction · experimental.session.compacting",
+          "contract": "可覆盖 summary model、prompt、variant/options；插件可追加 context 或完整替换 prompt。",
+          "edge": "同版本不代表同 summary 语义；可复现记录必须包含 agent override 与插件集合。",
+          "details": [{ "label": "MODEL", "value": "configurable" }, { "label": "PROMPT", "value": "replaceable" }, { "label": "TOOLS", "value": "{}" }],
+          "claims": ["CMP-OC-10"]
+        }
+      }
+    },
+    {
+      "id": "intercept", "label": "压缩前后拦截", "question": "hook 能观察、修改、阻止，还是只在事后通知？", "icon": "workflow",
+      "cells": {
+        "claude-code": {
+          "status": "exposed", "surface": "Hooks", "primitive": "PreCompact · PostCompact · SessionStart(source=compact)",
+          "contract": "Pre 可按 manual/auto 观察并阻止；Post 接收 summary；SessionStart(compact) 可重新注入上下文。",
+          "edge": "阻止 reactive recovery 会让当前请求失败；Post 与 SessionStart 的严格顺序未公开。",
+          "details": [{ "label": "PRE", "value": "inspect · append instructions · block" }, { "label": "POST", "value": "audit summary" }, { "label": "REHYDRATE", "value": "SessionStart compact" }],
+          "claims": ["CMP-CC-03", "CMP-CC-05"]
+        },
+        "codex": {
+          "status": "exposed", "surface": "Hooks", "primitive": "PreCompact · PostCompact",
+          "contract": "Pre stop 在 mutation 前中断；Post 在 replacement、token 重算和 item completed 后运行。",
+          "edge": "Post stop 会得到 item completed + turn interrupted，已经安装的 history 不回滚。",
+          "details": [{ "label": "PRE STOP", "value": "history unchanged" }, { "label": "POST STOP", "value": "replacement remains" }, { "label": "TRIGGER", "value": "manual | auto" }],
+          "claims": ["CMP-CX-09"]
+        },
+        "opencode": {
+          "status": "partial", "surface": "Experimental plugins", "primitive": "session.compacting · compaction.autocontinue",
+          "contract": "compacting hook 改 summary input；autocontinue hook 可禁止 synthetic continuation。",
+          "edge": "固定版本没有 admission-veto 合同；不要描述为插件可以原子阻止 compaction。",
+          "details": [{ "label": "MUTATE", "value": "context or full prompt" }, { "label": "CONTINUE", "value": "can disable" }, { "label": "VETO", "value": "not exposed" }],
+          "claims": ["CMP-OC-10"]
+        }
+      }
+    },
+    {
+      "id": "observe-lifecycle", "label": "确认开始与完成", "question": "哪个信号只是 ACK，哪个信号能关联一次压缩？", "icon": "activity",
+      "cells": {
+        "claude-code": {
+          "status": "exposed", "surface": "Agent SDK + hooks", "primitive": "status:compacting · compact_boundary · PostCompact",
+          "contract": "status 表示处理中；boundary 给 trigger/pre_tokens 并证明真实压缩完成；Post 可取得 summary。",
+          "edge": "slash command result、上下文变短或 JSONL 私有字段都不能替代公共 boundary。",
+          "details": [{ "label": "RUNNING", "value": "system/status compacting" }, { "label": "SUCCESS", "value": "system/compact_boundary" }, { "label": "CORRELATE", "value": "uuid · session_id" }, { "label": "SUMMARY", "value": "PostCompact" }],
+          "claims": ["CMP-CC-04", "CMP-CC-05"]
+        },
+        "codex": {
+          "status": "exposed", "surface": "App Server lifecycle", "primitive": "contextCompaction {id}",
+          "contract": "成功时 item/started 与 item/completed 使用同一 id；turn 另有 terminal state。",
+          "edge": "失败时可能只有 started + error + failed/interrupted turn；不能无限等待 item/completed。",
+          "details": [{ "label": "SUCCESS", "value": "same item id completed" }, { "label": "FAILURE", "value": "turn terminal closes orphaned start" }, { "label": "ITEM PAYLOAD", "value": "id only" }],
+          "claims": ["CMP-CX-03"]
+        },
+        "opencode": {
+          "status": "partial", "surface": "Session/message events", "primitive": "session.compacted + generic message/status/error",
+          "contract": "专属成功事件 payload 只有 sessionID；summary 流与失败沿用通用事件。",
+          "edge": "失败不发 session.compacted；仅监听它无法重建 trigger、tail、summary 或 error。",
+          "details": [{ "label": "SUCCESS", "value": "session.compacted" }, { "label": "DETAIL", "value": "marker + summary child" }, { "label": "FAILURE", "value": "session.error / generic" }],
+          "claims": ["CMP-OC-09"]
+        }
+      }
+    },
+    {
+      "id": "replace-context", "label": "重建 Active Context", "question": "下一次模型请求究竟由哪些记录组成？", "icon": "layers-3",
+      "cells": {
+        "claude-code": {
+          "status": "partial", "surface": "Runtime projection", "primitive": "summary + remaining unsummarized context + reinjection",
+          "contract": "system/output style 不变；根 CLAUDE.md、非 scoped rules 与 auto memory 重注入，近期段可保留。",
+          "edge": "path-scoped rules 与 nested CLAUDE.md 会退出当前上下文，直到再次读取匹配文件。",
+          "details": [{ "label": "REINJECT", "value": "root instructions · memory" }, { "label": "SUMMARY", "value": "older conversation" }, { "label": "RELOAD", "value": "path-scoped/nested rules" }],
+          "claims": ["CMP-CC-06", "CMP-CC-07"]
+        },
+        "codex": {
+          "status": "partial", "surface": "Implementation-selected replacement", "primitive": "TokenBudget ≠ local ≠ remote V1 ≠ remote V2",
+          "contract": "replacement body 由四路实现决定；下一次真实请求还包含 phase-dependent canonical initial context。",
+          "edge": "TokenBudget 不生成 conversation summary；manual/pre-turn 下一普通 turn 重注入，mid-turn 安装时立即插入。",
+          "details": [{ "label": "TOKEN BUDGET", "value": "new canonical window, no summary" }, { "label": "LOCAL", "value": "20k user text + user-role summary" }, { "label": "REMOTE V1", "value": "server replacement output" }, { "label": "REMOTE V2", "value": "64k eligible tail + opaque item" }, { "label": "INITIAL CONTEXT", "value": "phase-dependent injection" }],
+          "claims": ["CMP-CX-04", "CMP-CX-05", "CMP-CX-06"]
+        },
+        "opencode": {
+          "status": "exposed", "surface": "Message projection", "primitive": "compaction user text + summary + optional tail + later messages",
+          "contract": "durable marker 在 active projection 中变为普通 user text；最新成功 summary 隐藏较老 head，tail 可以为空。",
+          "edge": "tail 可从 assistant message 开始，也可能为空；“最后两轮原样保留”是错误合同。",
+          "details": [{ "label": "BOUNDARY", "value": "successful marker/summary" }, { "label": "TAIL", "value": "budgeted, not guaranteed" }, { "label": "HEAD", "value": "summary input then hidden" }],
+          "claims": ["CMP-OC-04", "CMP-OC-05"]
+        }
+      }
+    },
+    {
+      "id": "durable-state", "label": "保存与恢复状态", "question": "resume 用 summary、replacement checkpoint，还是完整 transcript？", "icon": "database-backup",
+      "cells": {
+        "claude-code": {
+          "status": "partial", "surface": "Session transcript + resume", "primitive": "same session ID · transcript_path · compact boundary",
+          "contract": "compact 不创建新 session；旧 transcript 可供 resume/取证，active context 从 boundary 后继续。",
+          "edge": "Anthropic 明确把 JSONL 视为内部格式；postTokens、preservedMessages 等字段不可作为跨版本 API。",
+          "details": [{ "label": "IDENTITY", "value": "same session" }, { "label": "PUBLIC", "value": "boundary + hooks" }, { "label": "FORENSIC", "value": "version-bound JSONL only" }],
+          "claims": ["CMP-CC-02", "CMP-CC-04"]
+        },
+        "codex": {
+          "status": "exposed", "surface": "Rollout checkpoint", "primitive": "Compacted{replacement_history, window ids}",
+          "contract": "raw rollout 追加 checkpoint；resume 从最新 surviving replacement 重建 active history，旧 JSONL 前缀仍在。",
+          "edge": "durable rollout 与 live/paginated UI history 是两层；历史 item 的 replay 形状也有 legacy 差异。",
+          "details": [{ "label": "ACTIVE BASE", "value": "latest replacement checkpoint" }, { "label": "DURABLE", "value": "old prefix retained" }, { "label": "REPLAY", "value": "format-dependent" }],
+          "claims": ["CMP-CX-08"]
+        },
+        "opencode": {
+          "status": "exposed", "surface": "Session message store", "primitive": "CompactionPart + summary assistant + original messages",
+          "contract": "message API 仍返回原消息；marker 保存 auto、可选 overflow/tail_start_id，summary 保存 model/tokens/finish/error。",
+          "edge": "静态 transcript 的 auto:true, overflow:false 只能推断 threshold path；可靠 reason 仍需 trace。",
+          "details": [{ "label": "DURABLE", "value": "original + marker + summary" }, { "label": "ACTIVE", "value": "plain user text + summary + optional tail" }, { "label": "TRIGGER", "value": "trace-qualified" }],
+          "claims": ["CMP-OC-04", "CMP-OC-09"]
+        }
+      }
+    },
+    {
+      "id": "recover", "label": "失败后恢复", "question": "是 retry、丢旧项、重放请求，还是开启新会话？", "icon": "life-buoy",
+      "cells": {
+        "claude-code": {
+          "status": "partial", "surface": "Runtime + commands", "primitive": "auto recovery · rewind + /compact · /clear",
+          "contract": "手动太晚可 rewind 后再 compact；连续快速 refill 有 breaker；最后可 clear 开空上下文 session。",
+          "edge": "/clear 不是 secure delete，也不回滚文件；旧 session 仍可 resume。",
+          "details": [{ "label": "TOO LATE", "value": "rewind then compact" }, { "label": "THRASH", "value": "rapid_refill_breaker" }, { "label": "RESET", "value": "/clear new session" }],
+          "claims": ["CMP-CC-02", "CMP-CC-08"]
+        },
+        "codex": {
+          "status": "exposed", "surface": "Local compact retry", "primitive": "provider retry + oldest-item trim",
+          "contract": "普通 stream error 按 provider max retry；summary 超窗时逐个移除最旧 history item再请求。",
+          "edge": "最终技术成功也可能没看过早期证据；interrupt 与 checkpoint 安装之间没有回滚保证。",
+          "details": [{ "label": "TRANSIENT", "value": "backoff up to provider max" }, { "label": "OVERFLOW", "value": "drop oldest one by one" }, { "label": "INTERRUPT", "value": "reread state" }],
+          "claims": ["CMP-CX-05", "CMP-CX-09"]
+        },
+        "opencode": {
+          "status": "exposed", "surface": "Overflow processor + optional prune", "primitive": "overflow marker/replay · tool prune",
+          "contract": "auto=true 时 overflow 成功后重放失败 user turn 或 synthetic continue；prune 只遮蔽旧 tool output。",
+          "edge": "auto=false 关闭救场；summary 再 overflow 会停；prune 在 loop 后发生，不能为同一次 summary 先腾空间。",
+          "details": [{ "label": "REPLAY", "value": "user turn or synthetic guidance" }, { "label": "MEDIA", "value": "image/PDF may degrade" }, { "label": "PRUNE", "value": "async, non-destructive" }],
+          "claims": ["CMP-OC-07", "CMP-OC-08", "CMP-OC-10"]
+        }
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "claude-auto", "agent": "claude-code", "label": "Claude auto compact", "scope": "threshold / recovery",
+      "steps": [
+        { "label": "effective window near limit", "meta": "not a fixed full-window %" },
+        { "label": "PreCompact(auto)", "meta": "inspect / append / block" },
+        { "label": "summary request", "meta": "older tool output may be cleared first" },
+        { "label": "compact boundary", "meta": "trigger + pre_tokens" },
+        { "label": "PostCompact / SessionStart", "meta": "audit + rehydrate" },
+        { "label": "continue same session", "meta": "semantic fidelity unscored" }
+      ],
+      "controls": [
+        { "primitive": "/compact [instructions]", "effect": "manual path with one-shot focus", "claims": ["CMP-CC-02", "CMP-CC-07"] },
+        { "primitive": "PreCompact block", "effect": "proactive skip; reactive request fails", "claims": ["CMP-CC-03"], "danger": true },
+        { "primitive": "compact_boundary", "effect": "public success boundary, not semantic validation", "claims": ["CMP-CC-04"] }
+      ]
+    },
+    {
+      "id": "codex-manual", "agent": "codex", "label": "Codex manual compact turn", "scope": "app-server",
+      "steps": [
+        { "label": "thread/compact/start", "meta": "threadId" },
+        { "label": "{}", "meta": "ack only" },
+        { "label": "turn + item started", "meta": "contextCompaction id" },
+        { "label": "four-way implementation", "meta": "TokenBudget / local / remote V1 / V2" },
+        { "label": "replacement checkpoint", "meta": "token recompute" },
+        { "label": "item/turn terminal", "meta": "failed turn may have no item completed" }
+      ],
+      "controls": [
+        { "primitive": "turn/steer", "effect": "rejected during manual compaction", "claims": ["CMP-CX-03"], "danger": true },
+        { "primitive": "same item id", "effect": "join started/completed lifecycle", "claims": ["CMP-CX-03"] },
+        { "primitive": "thread/tokenUsage/updated", "effect": "sample active tokens before/after", "claims": ["CMP-CX-07"] }
+      ]
+    },
+    {
+      "id": "codex-auto", "agent": "codex", "label": "Codex auto rollover", "scope": "pre-turn / mid-turn",
+      "steps": [
+        { "label": "budget or model compatibility", "meta": "reason is not public" },
+        { "label": "PreCompact(auto)", "meta": "stop before mutation" },
+        { "label": "TokenBudget / local / remote V1 / V2", "meta": "feature + provider capability" },
+        { "label": "replace + persist checkpoint", "meta": "window advances" },
+        { "label": "item completed", "meta": "PostCompact runs after" },
+        { "label": "regular sampling", "meta": "phase-specific reinjection" }
+      ],
+      "controls": [
+        { "primitive": "pre-turn", "effect": "incoming user is appended after compact", "claims": ["CMP-CX-02"] },
+        { "primitive": "model downshift / comp_hash", "effect": "previous model may compact before switch", "claims": ["CMP-CX-10"] },
+        { "primitive": "PostCompact stop", "effect": "turn interrupted; replacement remains", "claims": ["CMP-CX-09"], "danger": true }
+      ]
+    },
+    {
+      "id": "opencode-threshold", "agent": "opencode", "label": "opencode threshold compact", "scope": "post-response auto",
+      "steps": [
+        { "label": "assistant finished", "meta": "provider usage stored" },
+        { "label": "reported >= usable", "meta": "two formula branches" },
+        { "label": "CompactionPart(auto=true)", "meta": "durable marker" },
+        { "label": "compaction assistant", "meta": "no tools; lossy head serialization" },
+        { "label": "marker update + event", "meta": "tail_start_id only when tail exists" },
+        { "label": "synthetic continue", "meta": "unless plugin disables" }
+      ],
+      "controls": [
+        { "primitive": "compaction.auto=false", "effect": "disable threshold and overflow recovery", "claims": ["CMP-OC-08"], "danger": true },
+        { "primitive": "session.compacting", "effect": "inject context or replace prompt", "claims": ["CMP-OC-10"] },
+        { "primitive": "session.compacted", "effect": "success signal with sessionID only", "claims": ["CMP-OC-09"] }
+      ]
+    },
+    {
+      "id": "opencode-overflow", "agent": "opencode", "label": "opencode provider-overflow recovery", "scope": "error recovery",
+      "steps": [
+        { "label": "ContextOverflowError", "meta": "not normal retry" },
+        { "label": "overflow marker", "meta": "auto=true, overflow=true" },
+        { "label": "summarize earlier history", "meta": "failed user turn excluded when possible" },
+        { "label": "successful boundary", "meta": "session.compacted" },
+        { "label": "replay failed turn", "meta": "media may become description" },
+        { "label": "synthetic fallback", "meta": "when direct replay unavailable" }
+      ],
+      "controls": [
+        { "primitive": "auto=false", "effect": "error + idle, no recovery marker", "claims": ["CMP-OC-08"], "danger": true },
+        { "primitive": "summary overflow", "effect": "finish:error; no successful boundary", "claims": ["CMP-OC-08"] },
+        { "primitive": "synthetic metadata", "effect": "separate human, replay and continuation", "claims": ["CMP-OC-10"] }
+      ]
+    }
+  ],
+  "hazards": [
+    { "severity": "critical", "kind": "状态层混淆", "title": "完整记录还在，不代表模型还看得见", "contract": "三家都可能在 durable store 留旧记录，同时用 summary/replacement 作为下一次模型输入。", "trigger": "resume、审计或 UI 只读取一个 history 集合", "signal": "UI 能搜到旧事实，模型继续时却遗漏", "recovery": "分开记录 durable transcript、active projection、boundary 与 rehydrated context", "doNotAssume": "可检索 == 在当前 prompt 中。", "claims": ["CMP-CC-02", "CMP-CX-08", "CMP-OC-04"] },
+    { "severity": "critical", "kind": "静默语义损失", "title": "completed 只证明生命周期结束", "contract": "boundary/item/event 不会给目标、约束、证据或文件状态做保真评分。", "trigger": "把完成事件当 checkpoint validation", "signal": "状态成功，关键禁止项或下一步却遗漏", "recovery": "关键状态写 deterministic ledger；compact 后跑 invariant/recall probe", "doNotAssume": "成功事件 == 无信息损失。", "claims": ["CMP-CC-04", "CMP-CX-03", "CMP-OC-09"] },
+    { "severity": "critical", "kind": "预算误算", "title": "90% 与 95% 不是同一种阈值", "contract": "三家使用不同 window、usage、reserve、scope 与 observation time。", "trigger": "用统一 percentage 配置三家", "signal": "同样百分比提前、延后或根本不触发", "recovery": "保存 numerator、denominator、reserve、scope 与 formula version", "doNotAssume": "percent 可以横向比较。", "claims": ["CMP-CC-01", "CMP-CX-01", "CMP-OC-02"] },
+    { "severity": "critical", "kind": "异步控制", "title": "Codex compact/start 返回 {} 时才刚开始", "contract": "真正状态走 turn/item notifications；manual compact 期间 thread 是 active turn。", "trigger": "收到 RPC result 后立即发送 steer/下一 turn", "signal": "invalid request、non-steerable turn，或 started 后直接 failed", "recovery": "成功时等待同 id completed 再等 turn terminal；若 turn 先失败/中断且无 completed，立即把 started 标 failed/abandoned", "doNotAssume": "RPC success == compaction success。", "claims": ["CMP-CX-03"] },
+    { "severity": "critical", "kind": "部分提交", "title": "Codex PostCompact stop 不回滚 replacement", "contract": "0.147.0 先安装 history、完成 item，再运行 PostCompact。", "trigger": "PostCompact hook stop 或 compact turn 被标 interrupted", "signal": "item completed + turn interrupted；resume 从新 checkpoint 开始", "recovery": "hook outcome 与 mutation status 分开；重新读取 active checkpoint", "doNotAssume": "interrupted == state unchanged。", "claims": ["CMP-CX-09"] },
+    { "severity": "critical", "kind": "恢复关闭", "title": "opencode auto=false 会关掉 overflow 救场", "contract": "1.18.15 普通请求 overflow 时直接 error + idle，不创建 recovery marker。", "trigger": "为人工控制关闭 compaction.auto", "signal": "没有 replay 或 synthetic continuation", "recovery": "关闭前准备 manual compact/retry runbook，并显式告警", "doNotAssume": "auto=false 只关闭提前压缩。", "claims": ["CMP-OC-08"] },
+    { "severity": "critical", "kind": "救援失败", "title": "summary 自己也需要窗口", "contract": "太晚时压缩请求也可能超窗；Codex 丢最旧项重试，opencode 不形成成功 boundary。", "trigger": "贴近 hard limit 才手动 compact", "signal": "summary error、悬空 started item 或 oldest-item trim", "recovery": "预留更早 buffer；失败后 rewind/drop/new session", "doNotAssume": "compact 永远能救回超长上下文。", "claims": ["CMP-CC-08", "CMP-CX-05", "CMP-OC-08"] },
+    { "severity": "high", "kind": "触发时点", "title": "opencode 正常 auto check 救不了当前请求", "contract": "V1 threshold check 在上一条 assistant 完成后发生；provider overflow 是另一条路径。", "trigger": "新请求本身很大或 provider usage 漂移", "signal": "auto 开启，当前请求仍先 overflow", "recovery": "threshold 与 overflow recovery 分开统计 reason", "doNotAssume": "auto compact == preflight admission。", "claims": ["CMP-OC-01", "CMP-OC-08"] },
+    { "severity": "high", "kind": "尾部截断", "title": "opencode tail 可以残缺或为空", "contract": "最多两轮只是预算候选；可在 message boundary 截 suffix。", "trigger": "recent turn 含大 tool/media payload", "signal": "tail_start_id 落在 turn 中部或不存在", "recovery": "显示 tail start、message ids 与估算 token", "doNotAssume": "最近两轮一定原样存在。", "claims": ["CMP-OC-05"] },
+    { "severity": "critical", "kind": "证据丢失", "title": "tool output 不会自动成为可审计 checkpoint", "contract": "opencode summary input 每项最多 2,000 字符；Codex local 不直接保留 assistant/tool；Claude 可先清旧 tool output。", "trigger": "任务依赖长日志、测试输出、SQL 或 diff", "signal": "summary 只有结论，缺原始参数和错误行", "recovery": "关键证据写外部 artifact ledger，并保存引用/校验值", "doNotAssume": "summary 可以替代 tool trace。", "claims": ["CMP-CC-07", "CMP-CX-05", "CMP-OC-06"] },
+    { "severity": "high", "kind": "媒体降级", "title": "附件还在，replay 可能只剩描述", "contract": "opencode head serialization 与 overflow replay 会降级媒体；Codex local retention 只收 user text。", "trigger": "任务依赖截图、PDF 页或视觉坐标", "signal": "后续模型只见 MIME/文件名描述", "recovery": "保留可重读 asset handle，并在 compact 后重新注入媒体", "doNotAssume": "durable media == active request contains bytes。", "claims": ["CMP-CX-05", "CMP-OC-06", "CMP-OC-10"] },
+    { "severity": "high", "kind": "资源操作误读", "title": "opencode prune 默认关闭且不删除存储", "contract": "prune 只标记 completed tool parts，在 active projection 放 placeholder；loop 后异步执行。", "trigger": "把 prune 当 summary 前清场或 secure erase", "signal": "同次 summary 仍超窗，message API 仍可读 output", "recovery": "分别显示 model-visible 与 persisted bytes", "doNotAssume": "prune == compact == erase。", "claims": ["CMP-OC-07"] },
+    { "severity": "high", "kind": "事件归因", "title": "opencode user turn 可能不是人发的", "contract": "auto 成功可注入 synthetic continue；overflow 可 replay 原 user turn。", "trigger": "analytics 按 role=user 统计或触发审批", "signal": "synthetic=true 或 compaction_continue metadata", "recovery": "区分 human、replay 与 synthetic_continue", "doNotAssume": "role=user == human input。", "claims": ["CMP-OC-10"] },
+    { "severity": "high", "kind": "代际漂移", "title": "第二次 compact 可能总结的是第一次 summary", "contract": "多次压缩会把 previous summary 带入下一代，是累积有损过程。", "trigger": "长 thread 跨多个 window", "signal": "约束逐代缩短或工具因果对断裂", "recovery": "显示 generation/window 链，定期从 durable ledger 重建", "doNotAssume": "每次都重新读取完整原 transcript。", "claims": ["CMP-CX-08", "CMP-OC-04", "CMP-OC-06"] },
+    { "severity": "medium", "kind": "外部副作用", "title": "压缩不会回滚文件与远端状态", "contract": "context replacement 只改变模型输入；workspace/API side effects 仍存在。", "trigger": "summary 遗漏刚执行的写入或服务状态", "signal": "模型以为未做，实际文件/API 已改变", "recovery": "压缩后重读 git diff、任务状态与 source of truth", "doNotAssume": "memory loss == side-effect rollback。", "claims": ["CMP-CC-02", "CMP-CX-08", "CMP-OC-04"] }
+  ],
+  "isolation": [
+    { "label": "原始完整 transcript", "cells": { "claude-code": "ACTIVE: summary + remaining context；DURABLE: 同 session transcript，格式不稳定", "codex": "ACTIVE: 最新 replacement checkpoint；DURABLE: rollout 旧前缀仍在", "opencode": "ACTIVE: 最新成功 boundary 后投影；DURABLE: 原消息、marker、summary 都在" }, "claims": ["CMP-CC-02", "CMP-CX-08", "CMP-OC-04"] },
+    { "label": "Summary 表示", "cells": { "claude-code": "ACTIVE: 模型生成的 compact summary；PUBLIC: boundary 不含 summary，PostCompact 可取", "codex": "LOCAL: role=user 文本 summary；REMOTE V2: opaque/encrypted compaction item", "opencode": "assistant mode=compaction、agent=compaction、summary=true" }, "claims": ["CMP-CC-04", "CMP-CC-05", "CMP-CX-04", "CMP-OC-04"] },
+    { "label": "近期未总结尾部", "cells": { "claude-code": "可保留 remaining segment；固定 N 与选择算法未公开", "codex": "LOCAL: 最近真实 user text 约 20k；V2: 合格项约 64k", "opencode": "默认尝试最多 2 user turns、2k-8k 预算，可截 suffix/为空" }, "claims": ["CMP-CC-07", "CMP-CX-05", "CMP-CX-06", "CMP-OC-05"] },
+    { "label": "结构化上下文重注入", "cells": { "claude-code": "根 CLAUDE.md、非 scoped rules、auto memory 重注入；scoped/nested 按需重读", "codex": "manual/pre-turn 下一普通 turn 注入；mid-turn 立即插入 canonical initial context", "opencode": "下一请求重新派生 agent/system；插件还可注入 compact context" }, "claims": ["CMP-CC-06", "CMP-CX-05", "CMP-OC-10"] },
+    { "label": "Tool output", "cells": { "claude-code": "较旧输出可在 summary 前先清理；关键值依赖 summary/外部 artifact", "codex": "LOCAL replacement 不直接保留 assistant/tool 原项", "opencode": "Summary input 每项最多 2,000 字符；prune 后 active 只见 placeholder" }, "claims": ["CMP-CC-07", "CMP-CX-05", "CMP-OC-06", "CMP-OC-07"] },
+    { "label": "图片 / PDF / 附件", "cells": { "claude-code": "summary request preservation 有历史改进，但无损保留不是合同", "codex": "LOCAL user retention 只收文本；V2 可随合格 user message 保留图片", "opencode": "Head summary 只收描述；overflow replay 的 image/PDF 降级为文本" }, "claims": ["CMP-CC-07", "CMP-CX-05", "CMP-CX-06", "CMP-OC-06", "CMP-OC-10"] },
+    { "label": "Resume 基准", "cells": { "claude-code": "同 session 从 compact boundary 后继续；JSONL 只做版本绑定取证", "codex": "反向找到最新 surviving replacement checkpoint，再重放 suffix", "opencode": "找到最新成功 marker/summary pair，再加 retained tail 与后续消息" }, "claims": ["CMP-CC-02", "CMP-CX-08", "CMP-OC-04"] }
+  ],
+  "limits": [
+    { "metric": "自动触发口径", "claude-code": "Effective auto-compact window；精确百分比算法未公开", "codex": "Active usage；auto limit 默认/最高为 resolved window 90%", "opencode": "上一 finished assistant reported tokens >= usable", "claims": ["CMP-CC-01", "CMP-CX-01", "CMP-OC-01", "CMP-OC-02"] },
+    { "metric": "输出 / 预留 headroom", "claude-code": "MAX_OUTPUT_TOKENS 会挤压输入空间；窗口受模型上限封顶", "codex": "Hard usable window 默认 95%；与 90% auto threshold 独立", "opencode": "有 input limit 时减 reserved；否则减 effective max output", "claims": ["CMP-CC-01", "CMP-CX-01", "CMP-OC-02"] },
+    { "metric": "手动入口返回", "claude-code": "Command result；真实成功需 boundary/PostCompact", "codex": "RPC 立即返回 {}，随后 turn/item 流", "opencode": "TUI/HTTP 进入同一 loop；auto 默认 false", "claims": ["CMP-CC-04", "CMP-CX-03", "CMP-OC-03"] },
+    { "metric": "专属成功信号", "claude-code": "SDK compact_boundary；PostCompact", "codex": "contextCompaction item/completed，同一 item id", "opencode": "session.compacted，仅 sessionID", "claims": ["CMP-CC-04", "CMP-CC-05", "CMP-CX-03", "CMP-OC-09"] },
+    { "metric": "失败收口", "claude-code": "无 boundary；request error / breaker terminal reason", "codex": "started 无 completed + error + failed/interrupted turn", "opencode": "summary finish:error / session.error；无 session.compacted", "claims": ["CMP-CC-08", "CMP-CX-03", "CMP-CX-09", "CMP-OC-08", "CMP-OC-09"] },
+    { "metric": "自动路径关闭", "claude-code": "2.1.226 主合同仅确认窗口入口；disable 以版本核验为准", "codex": "0.147.0 无 public disable-auto switch", "opencode": "auto=false 同时关闭 threshold 与 overflow recovery", "claims": ["CMP-CC-01", "CMP-CX-01", "CMP-OC-08"] },
+    { "metric": "实现差异", "claude-code": "公开层描述 summary + remaining context；内部 selector 不稳定", "codex": "TokenBudget / remote V2 / remote V1 / local 四路选择", "opencode": "V1 marker + summary + tail；不要混入 V2 preflight 合同", "claims": ["CMP-CC-07", "CMP-CX-04", "CMP-OC-04"] }
+  ],
+  "changes": [
+    { "date": "2026-03-14", "agent": "claude-code", "version": "2.1.75 → 2.1.76", "impact": "引入 PostCompact、连续失败 breaker", "path": "完成观测与失败收口", "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md" },
+    { "date": "2026-04-13", "agent": "claude-code", "version": "2.1.104 → 2.1.105", "impact": "PreCompact 可阻止压缩", "path": "policy gate；reactive block 会让请求失败", "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md" },
+    { "date": "2026-08-05", "agent": "claude-code", "version": "2.1.222 → 2.1.223", "impact": "未知模型与 1M-disable 的窗口 enforcement 加强", "path": "自动触发边界", "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md" },
+    { "date": "2026-08-07", "agent": "claude-code", "version": "2.1.223 → 2.1.224", "impact": "attached clients 可见 compact progress/boundary", "path": "远端 Harness 生命周期", "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md" },
+    { "date": "2026-05-07", "agent": "codex", "version": "0.128.0 → 0.129.0", "impact": "Remote V2 与 Pre/PostCompact hooks 进入合同", "path": "实现选择、hook 语义", "url": "https://github.com/openai/codex/releases/tag/rust-v0.129.0" },
+    { "date": "2026-05-21", "agent": "codex", "version": "0.132.0 → 0.133.0", "impact": "新增 body_after_prefix scope", "path": "阈值分母与 baseline", "url": "https://github.com/openai/codex/releases/tag/rust-v0.133.0" },
+    { "date": "2026-06-15", "agent": "codex", "version": "0.139.0 → 0.140.0", "impact": "Remote V2 默认开启，comp_hash 可触发 compact", "path": "provider implementation 与模型切换", "url": "https://github.com/openai/codex/releases/tag/rust-v0.140.0" },
+    { "date": "2026-08-07", "agent": "codex", "version": "0.147.0", "impact": "Bedrock 支持 V1 remote；V2 保留 delegated AgentMessage", "path": "provider capability 与 retained history", "url": "https://github.com/openai/codex/releases/tag/rust-v0.147.0" },
+    { "date": "2026-05-13", "agent": "opencode", "version": "1.14.48 → 1.14.49", "impact": "Recent turns 原样保留并保护 forked tail", "path": "retained-tail projection", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.14.49" },
+    { "date": "2026-06-05", "agent": "opencode", "version": "1.16.0 line", "impact": "auto=false 同时压制 provider-overflow recovery", "path": "关闭自动路径的失败语义", "url": "https://github.com/anomalyco/opencode/commit/7e09660c3" },
+    { "date": "2026-08-07", "agent": "opencode", "version": "1.18.15", "impact": "重复 compaction 保留更早 tool-call history", "path": "summary-of-summary 与工具配对", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.15" }
+  ]
+}

@@ -1,0 +1,178 @@
+{
+  "id": "context-compaction",
+  "number": "002",
+  "title": "上下文压缩",
+  "verifiedAt": "2026-08-10",
+  "snapshots": [
+    { "agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "captures": 382 },
+    { "agent": "codex", "label": "Codex", "version": "0.147.0", "captures": 74 },
+    { "agent": "opencode", "label": "opencode", "version": "1.18.15", "captures": 101 }
+  ],
+  "thesis": "三者都用 replacement context 延长长任务，但可依赖合同完全不同：Claude Code 公开 summary boundary 与重注入 hooks；Codex 用同一种 id-only item 包装四条实现；opencode V1 把 durable marker、summary、retained tail 与自动续跑写进 session lifecycle。",
+  "scope": "结论只描述 Claude Code 2.1.226 构建可核验能力、Codex rust-v0.147.0 与 opencode V1 v1.18.15 固定版本源码；不把当前文档中的前向配置、V2 设计或内部 transcript 字段写成主合同。",
+  "models": [
+    {
+      "agent": "claude-code",
+      "label": "Claude Code",
+      "version": "2.1.226",
+      "archetype": "summary boundary + 结构化重注入",
+      "summary": "自动或手动总结一段历史，在同 session 中以 summary 与保留尾段继续；公开 SDK、Pre/PostCompact 与 SessionStart 分别承担状态、策略和重注入。",
+      "lanes": ["effective window → PreCompact", "summary request → compact_boundary", "PostCompact / SessionStart(compact) → continue"],
+      "claims": ["CMP-CC-01", "CMP-CC-03", "CMP-CC-04", "CMP-CC-05", "CMP-CC-06", "CMP-CC-07"]
+    },
+    {
+      "agent": "codex",
+      "label": "Codex",
+      "version": "0.147.0",
+      "archetype": "统一 item 下的多实现 replacement",
+      "summary": "pre-turn、mid-turn 或模型切换可触发压缩；TokenBudget、local、Remote V1 与 Remote V2 共享 id-only lifecycle，却安装完全不同的 replacement history。",
+      "lanes": ["active usage / model switch → compact turn", "TokenBudget | local | Remote V1 | Remote V2", "canonical context + RolloutItem::Compacted → resume projection"],
+      "claims": ["CMP-CX-01", "CMP-CX-02", "CMP-CX-03", "CMP-CX-04", "CMP-CX-08", "CMP-CX-10"]
+    },
+    {
+      "agent": "opencode",
+      "label": "opencode",
+      "version": "1.18.15",
+      "archetype": "durable marker + active summary projection",
+      "summary": "V1 依据上一响应 usage 或 provider overflow 持久化 marker，把 head 扁平化交给 compaction agent；active context 使用普通 compaction user text、成功 summary 与可为空的预算尾段。",
+      "lanes": ["reported usage / overflow → durable marker", "flattened head → summary assistant", "plain user text + optional tail → replay / synthetic continue"],
+      "claims": ["CMP-OC-01", "CMP-OC-02", "CMP-OC-04", "CMP-OC-05", "CMP-OC-06", "CMP-OC-10"]
+    }
+  ],
+  "matrix": [
+    {
+      "group": "Trigger",
+      "label": "何时进入压缩",
+      "cells": {
+        "claude-code": { "text": "围绕 effective auto window 自动触发，或由 `/compact` 手动触发。", "claims": ["CMP-CC-01", "CMP-CC-02"] },
+        "codex": { "text": "活跃 usage 越线、模型 downshift 或 comp_hash 变化；可在 turn 内或下一 turn。", "claims": ["CMP-CX-01", "CMP-CX-02", "CMP-CX-10"] },
+        "opencode": { "text": "上一响应 reported usage 越线，或 provider overflow 进入恢复路径。", "claims": ["CMP-OC-01", "CMP-OC-08"] }
+      }
+    },
+    {
+      "group": "Budget",
+      "label": "阈值看什么",
+      "cells": {
+        "claude-code": { "text": "自动窗口可小于完整模型窗口，statusline 百分比不一定能预测边界。", "claims": ["CMP-CC-01"] },
+        "codex": { "text": "默认 90% auto limit 与 95% hard cap 分离；last 比 total 更接近活跃量。", "claims": ["CMP-CX-01"] },
+        "opencode": { "text": "input-limit 与 context-only 模型使用两套 usable 公式，reserved 只进前者。", "claims": ["CMP-OC-01", "CMP-OC-02"] }
+      }
+    },
+    {
+      "group": "Manual",
+      "label": "手动入口做什么",
+      "cells": {
+        "claude-code": { "text": "`/compact [instructions]` 同 session 总结；`/clear` 是新 session。", "claims": ["CMP-CC-02"] },
+        "codex": { "text": "`thread/compact/start` 启动不可 steer 的异步 turn，只立即返回空对象。", "claims": ["CMP-CX-03"] },
+        "opencode": { "text": "`/compact` / summarize endpoint 创建 auto:false marker，成功后停在 idle。", "claims": ["CMP-OC-03"] }
+      }
+    },
+    {
+      "group": "Interception",
+      "label": "能否拦截或改写",
+      "cells": {
+        "claude-code": { "text": "PreCompact 可 block；PostCompact 审计结果；SessionStart(compact) 重新注入状态。", "claims": ["CMP-CC-03", "CMP-CC-05"] },
+        "codex": { "text": "Pre hook 可在安装前停止；Post hook 已晚于 item completed 与 replacement 安装。", "claims": ["CMP-CX-09"] },
+        "opencode": { "text": "插件可附加 context、替换 summary prompt 或关闭自动续跑。", "claims": ["CMP-OC-10"] }
+      }
+    },
+    {
+      "group": "Retention",
+      "label": "模型下一窗看到什么",
+      "cells": {
+        "claude-code": { "text": "summary + 未总结尾段 + harness 重新注入的稳定前缀。", "claims": ["CMP-CC-06", "CMP-CC-07"] },
+        "codex": { "text": "TokenBudget 开新 canonical window；local 保留 user 尾段；Remote V2 保留近期 hybrid history 与 opaque item；实际请求按 phase 注入 initial context。", "claims": ["CMP-CX-04", "CMP-CX-05", "CMP-CX-06"] },
+        "opencode": { "text": "有损 summary 加预算内 recent tail；默认两轮只是目标，不是保证。", "claims": ["CMP-OC-05", "CMP-OC-06"] }
+      }
+    },
+    {
+      "group": "Persistence",
+      "label": "旧 transcript 去哪了",
+      "cells": {
+        "claude-code": { "text": "同 session transcript 保留 compact boundary；内部 JSONL 不是稳定 API。", "claims": ["CMP-CC-02", "CMP-CC-04"] },
+        "codex": { "text": "原 rollout 前缀不删除；resume 以最新 replacement checkpoint 为 active base。", "claims": ["CMP-CX-08"] },
+        "opencode": { "text": "marker、summary 与旧 messages 持久化；active projection 把 marker 转为普通 user text，再接 summary、可选 tail 与后续消息。", "claims": ["CMP-OC-04"] }
+      }
+    },
+    {
+      "group": "Loss",
+      "label": "哪里会有损",
+      "cells": {
+        "claude-code": { "text": "早期请求、代码与决策依赖模型 summary；path-scoped 规则要重新触发加载。", "claims": ["CMP-CC-06", "CMP-CC-07"] },
+        "codex": { "text": "local 不保留旧 assistant/tool/reasoning，Remote 路径又采用不同过滤规则。", "claims": ["CMP-CX-04", "CMP-CX-05", "CMP-CX-06"] },
+        "opencode": { "text": "head 先扁平化；tool output 截至 2,000 字符，媒体只留描述。", "claims": ["CMP-OC-06"] }
+      }
+    },
+    {
+      "group": "Observation",
+      "label": "成功信号有多厚",
+      "cells": {
+        "claude-code": { "text": "SDK 有 compacting status 与带 trigger/pre_tokens 的 boundary；命令结果可能假成功。", "claims": ["CMP-CC-04"] },
+        "codex": { "text": "canonical item 只有 id，token events 又随实现不对称。", "claims": ["CMP-CX-03", "CMP-CX-07"] },
+        "opencode": { "text": "session.compacted 只有 sessionID，阶段与失败要关联 generic events。", "claims": ["CMP-OC-09"] }
+      }
+    },
+    {
+      "group": "Continuation",
+      "label": "压缩后谁推动下一步",
+      "cells": {
+        "claude-code": { "text": "同 session 从 summary 侧继续，SessionStart 可补回关键 context。", "claims": ["CMP-CC-05", "CMP-CC-07"] },
+        "codex": { "text": "pre-turn 成功后再写入 incoming user；mid-turn 则在原工具循环内继续。", "claims": ["CMP-CX-02"] },
+        "opencode": { "text": "手动不续跑；自动可 replay 原请求或产生 synthetic user continuation。", "claims": ["CMP-OC-03", "CMP-OC-10"] }
+      }
+    },
+    {
+      "group": "Failure",
+      "label": "失败如何收口",
+      "cells": {
+        "claude-code": { "text": "太晚 compact 会越界；快速回填会触发 breaker；blocked recovery 可让原请求失败。", "claims": ["CMP-CC-03", "CMP-CC-08"] },
+        "codex": { "text": "started 未 completed 要由 failed/interrupted turn 收口；hook 或 interrupt 不等于 rollback。", "claims": ["CMP-CX-03", "CMP-CX-09"] },
+        "opencode": { "text": "auto:false 时 provider overflow 不自动救场；summary 失败没有 compacted 事件。", "claims": ["CMP-OC-08", "CMP-OC-09"] }
+      }
+    },
+    {
+      "group": "Pruning",
+      "label": "tool-output 清理是否等于压缩",
+      "cells": {
+        "claude-code": { "text": "公开文档说明先清理旧 tool outputs，但该步骤的独立 hook boundary 未公开。", "unknown": "CMP-KU-06" },
+        "codex": { "text": "四条 replacement 实现没有一个共享的独立 prune 产品合同。", "unknown": "CMP-KU-06" },
+        "opencode": { "text": "prune 默认关闭、异步标记旧 tool outputs，既不删除存储也不前置于 summary。", "claims": ["CMP-OC-07"] }
+      }
+    }
+  ],
+  "anatomies": [
+    { "agent": "claude-code", "label": "Claude Code", "title": "边界、策略 hook 与结构化重注入三层分工", "claims": ["CMP-CC-01", "CMP-CC-03", "CMP-CC-04", "CMP-CC-05", "CMP-CC-06", "CMP-CC-07", "CMP-CC-08"] },
+    { "agent": "codex", "label": "Codex", "title": "一个空壳 item 下的 TokenBudget、local 与两种 remote", "claims": ["CMP-CX-01", "CMP-CX-02", "CMP-CX-03", "CMP-CX-04", "CMP-CX-05", "CMP-CX-06", "CMP-CX-07", "CMP-CX-08", "CMP-CX-09", "CMP-CX-10"] },
+    { "agent": "opencode", "label": "opencode", "title": "V1 durable marker、active summary projection 与 synthetic continue", "claims": ["CMP-OC-01", "CMP-OC-02", "CMP-OC-03", "CMP-OC-04", "CMP-OC-05", "CMP-OC-06", "CMP-OC-07", "CMP-OC-08", "CMP-OC-09", "CMP-OC-10"] }
+  ],
+  "observations": [
+    { "id": "CMP-OBS-01", "title": "触发百分比不可横向直比", "text": "Claude 的 auto window、Codex 的 90% limit / 95% hard cap、opencode 的 usable 分支使用不同分母；产品必须展示公式来源而非只给一个百分比。", "claims": ["CMP-CC-01", "CMP-CX-01", "CMP-OC-01", "CMP-OC-02"] },
+    { "id": "CMP-OBS-02", "title": "持久化历史不等于模型可见历史", "text": "Codex rollout 与 opencode messages 都保留旧前缀，但下一窗口从 replacement boundary 投影；审计 UI 与 active-context UI 不能混成一层。", "claims": ["CMP-CX-08", "CMP-OC-04"] },
+    { "id": "CMP-OBS-03", "title": "成功事件普遍小于真实状态", "text": "Claude boundary 尚有 trigger/pre_tokens，Codex item 与 opencode event 几乎只有身份字段；完整时间线都需要 harness 自己关联邻近状态。", "claims": ["CMP-CC-04", "CMP-CX-03", "CMP-CX-07", "CMP-OC-09"] },
+    { "id": "CMP-OBS-04", "title": "压缩成功与 turn 成功并不等价", "text": "Codex PostCompact 可形成 completed item + interrupted turn；Claude 命令可无 boundary；opencode summary 成功后还可能进入 replay/synthetic continue。", "claims": ["CMP-CC-04", "CMP-CX-09", "CMP-OC-09", "CMP-OC-10"] },
+    { "id": "CMP-OBS-05", "title": "retention 是实现级合同", "text": "Codex TokenBudget、local 与 Remote V2 已明显不同，opencode V1 又先扁平化 head 并预算化保留 tail；不能用“保留最近 N 轮”概括所有产品。", "claims": ["CMP-CX-04", "CMP-CX-05", "CMP-CX-06", "CMP-OC-05", "CMP-OC-06"] },
+    { "id": "CMP-OBS-06", "title": "prune 不是 compact 的同义词", "text": "opencode 的 prune 是默认关闭的异步 active-projection 标记，旧 output 仍持久化；将它画成 summary 前的删除阶段会直接误导故障分析。", "claims": ["CMP-OC-07"] }
+  ],
+  "timeline": [
+    { "date": "2026-03-14", "agent": "claude-code", "version": "2.1.76", "title": "PostCompact 与失败 breaker 进入合同", "text": "增加成功后通知，并为连续失败设置收口。", "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md" },
+    { "date": "2026-04-13", "agent": "claude-code", "version": "2.1.105", "title": "PreCompact 开始可以 block", "text": "hook 从观察点变成策略 gate。", "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md" },
+    { "date": "2026-05-07", "agent": "codex", "version": "0.129.0", "title": "Remote V2 与 compact hooks 出现", "text": "服务端 opaque compaction 与 Pre/PostCompact 进入客户端路径。", "url": "https://github.com/openai/codex/releases/tag/rust-v0.129.0" },
+    { "date": "2026-05-21", "agent": "codex", "version": "0.133.0", "title": "增加 body_after_prefix scope", "text": "触发预算可排除固定前缀 baseline。", "url": "https://github.com/openai/codex/releases/tag/rust-v0.133.0" },
+    { "date": "2026-06-15", "agent": "codex", "version": "0.140.0", "title": "comp_hash 触发与 Remote V2 默认开启", "text": "模型切换成为独立触发源，window metadata 开始持久化。", "url": "https://github.com/openai/codex/releases/tag/rust-v0.140.0" },
+    { "date": "2026-08-07", "agent": "codex", "version": "0.147.0", "title": "Bedrock 进入 Remote V1", "text": "provider capability 矩阵继续改变实际 replacement 实现。", "url": "https://github.com/openai/codex/releases/tag/rust-v0.147.0" },
+    { "date": "2026-05-13", "agent": "opencode", "version": "1.14.49", "title": "recent turns 改为原样保留", "text": "tail 不再一起折进 summary。", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.14.49" },
+    { "date": "2026-08-07", "agent": "opencode", "version": "1.18.15", "title": "重复压缩修复历史配对", "text": "按真实时间排序，并在扁平 summary 输入中保住更早 tool-call history。", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.15" }
+  ],
+  "unknowns": [
+    { "id": "CMP-KU-01", "title": "多代 summary 的语义漂移", "text": "三者都只保证技术上完成 replacement，没有 objective、约束、引用或未完成工具状态跨多次压缩仍准确的形式化保证。", "needed": "带 gold state 的重复压缩评测与 semantic diff" },
+    { "id": "CMP-KU-02", "title": "自动边界的精确可预测性", "text": "公开 token events、动态模型目录、effective windows 与 provider usage 口径都不足以让外部 harness 逐 token 复刻触发判定。", "needed": "固定配置的 runtime trace + 内部 budget snapshot" },
+    { "id": "CMP-KU-03", "title": "附件与媒体保真", "text": "保留请求中的图片、durable part 仍存在或 tail 仍带引用，都不能证明生成 summary 无损表达了图片、PDF、音频与二进制附件。", "needed": "多模态 compaction trace 与内容级回归测试" },
+    { "id": "CMP-KU-04", "title": "取消与 checkpoint 的事务边界", "text": "Codex 明确存在 completed item + interrupted turn；其他实现也未公开 cancellation 与 replacement persistence 的原子提交保证。", "needed": "阶段化 interrupt trace 与 crash-recovery contract" },
+    { "id": "CMP-KU-05", "title": "跨 provider token 可比性", "text": "cache、reasoning、total 与 output reserve 的上报定义可能不同，无法仅凭显示 token 比较三家压缩效率或成本。", "needed": "同 prompt 的 provider usage 对照与计费合同" },
+    { "id": "CMP-KU-06", "title": "prune 与 compact 的统一边界", "text": "Claude 的旧 tool-output 清理未公开独立 hook boundary，Codex 没有统一 prune item，opencode prune 又是异步标记；三者无法归一成同一阶段。", "needed": "tool-output projection trace 与公开阶段事件" },
+    { "id": "CMP-KU-07", "title": "hook 与插件的变更溯源", "text": "summary prompt、additional context 与自动续跑可被 hook/plugin 改写，但成功事件通常不携带配置指纹。", "needed": "版本化 hook/plugin manifest 与 per-compaction provenance" },
+    { "id": "CMP-KU-08", "title": "事件 replay 与去重", "text": "live item/event 与 resume 后历史投影可能不同；断线、重连与旧 rollout 格式下的至少一次投递、顺序及去重合同未统一。", "needed": "App/API replay schema 与断线恢复 trace" },
+    { "id": "CMP-KU-09", "title": "并发压缩 admission", "text": "忙 session 上同时到来的 manual compact、自动触发、incoming user 与 model switch 如何排队或合并，没有跨产品稳定合同。", "needed": "并发调用矩阵与 scheduler trace" },
+    { "id": "CMP-KU-10", "title": "服务端 opaque compaction 算法", "text": "Codex Remote V1/V2 的摘要质量目标、retention 策略与加密 item 内容不是 OSS 客户端合同，无法从 item lifecycle 反推。", "needed": "服务端版本化 contract 或受控黑盒评测" }
+  ]
+}

@@ -34,7 +34,16 @@
 
       <header id="contractHeader" class="contract-header" hidden>
         <div class="contract-title-block">
-          <span class="contract-eyebrow">MECHANISM / SUB-AGENT ORCHESTRATION</span>
+          <div class="contract-context-row">
+            <span id="contractEyebrow" class="contract-eyebrow">MECHANISM / SUB-AGENT ORCHESTRATION</span>
+            <label class="mechanism-picker" for="mechanismPicker">
+              <span>机制</span>
+              <select id="mechanismPicker" aria-label="选择机制档案">
+                <option value="subagent-orchestration">Sub-agent 编排</option>
+                <option value="context-compaction">上下文压缩</option>
+              </select>
+            </label>
+          </div>
           <div class="contract-title-row">
             <h1 id="contractTitle"></h1>
             <span id="contractDate" class="contract-date"></span>

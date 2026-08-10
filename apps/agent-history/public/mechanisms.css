@@ -66,6 +66,15 @@
   min-width: 0;
 }
 
+.contract-context-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 7px;
+}
+
 .contract-eyebrow,
 .contract-date,
 .canvas-heading > div > span,
@@ -77,11 +86,36 @@
 }
 
 .contract-eyebrow {
-  display: block;
-  margin-bottom: 7px;
+  min-width: 0;
   color: var(--accent);
   font-size: 10px;
   font-weight: 750;
+}
+
+.mechanism-picker {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font: 9px/1 var(--mono);
+  text-transform: uppercase;
+}
+
+.mechanism-picker select {
+  width: 142px;
+  min-height: 30px;
+  padding: 0 28px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font: 11px/1 var(--sans);
+}
+
+.mechanism-picker select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  outline-offset: 1px;
 }
 
 .contract-title-row {
@@ -1360,6 +1394,10 @@
     gap: 5px;
   }
 
+  .contract-context-row {
+    align-items: flex-start;
+  }
+
   .contract-title-row h1 {
     font-size: 21px;
   }
@@ -1636,6 +1674,19 @@
 }
 
 @media (max-width: 520px) {
+  .contract-context-row {
+    display: grid;
+    gap: 8px;
+  }
+
+  .mechanism-picker {
+    justify-content: space-between;
+  }
+
+  .mechanism-picker select {
+    width: min(190px, 62vw);
+  }
+
   .contract-eyebrow {
     font-size: 9px;
   }
