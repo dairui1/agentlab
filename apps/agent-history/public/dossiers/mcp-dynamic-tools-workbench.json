@@ -1,0 +1,3923 @@
+{
+  "title": "MCP 与动态工具",
+  "subtitle": "把 configured、live、catalog、schema、authority 与 callable 拆成可核验的运行时状态。",
+  "description": "Claude Code、Codex 与 opencode 固定版本下的 MCP registration、discovery、invocation、refresh、recovery，以及 Codex dynamicTools 独立 host contract。",
+  "eyebrow": "MECHANISM / MCP & DYNAMIC TOOLS",
+  "verifiedAt": "2026-08-10",
+  "defaultView": "compare",
+  "defaultOperation": "OP10",
+  "defaultClaim": "MCP-CX-21",
+  "minimums": {
+    "operations": 16,
+    "flows": 12,
+    "hazards": 42
+  },
+  "sharpEdgeTitle": "先拆开 6 个危险等号",
+  "operationRailLabel": "Harness 要推进什么状态",
+  "views": {
+    "compare": {
+      "label": "操作速查",
+      "kicker": "MCP CONTROL REFERENCE",
+      "title": "从注册到调用终态的 16 个原子操作",
+      "description": "Immediate response 与 read-after-write verification 分开。"
+    },
+    "flows": {
+      "label": "实现链路",
+      "kicker": "OBSERVABLE MCP LIFECYCLE",
+      "title": "十二条产品原生流程",
+      "description": "MCP、dynamic host、model path 与 direct path 不互相伪装。"
+    },
+    "failures": {
+      "label": "失败面",
+      "kicker": "READINESS / AUTHORITY / RECOVERY",
+      "title": "42 个互不重复的危险边界",
+      "description": "按 readiness、identity、catalog、authority、isolation、recovery 与 result 分类。"
+    },
+    "resources": {
+      "label": "隔离与限额",
+      "kicker": "OWNER / ISOLATION / LIMITS",
+      "title": "Owner、环境、cache、timeout 与 host authority",
+      "description": "Permission allow 不等于 sandbox；cache 可见不等于 callable。"
+    },
+    "changes": {
+      "label": "版本变化",
+      "kicker": "MCP CONTRACT CHANGES",
+      "title": "34 条会改变 harness 的版本节点",
+      "description": "Claude current-doc marker 与 immutable history 分层，Codex/OpenCode 使用 release/commit。"
+    }
+  },
+  "viewDefaults": {
+    "compare": {
+      "claim": "MCP-CX-21",
+      "label": "OP10 / model 与 direct authority"
+    },
+    "flows": {
+      "claim": "MCP-CX-27",
+      "label": "F10 / dynamicTools"
+    },
+    "failures": {
+      "claim": "MCP-CX-10",
+      "label": "cached schema != callable"
+    },
+    "resources": {
+      "claim": "MCP-CX-22",
+      "label": "local process environment"
+    },
+    "changes": {
+      "claim": "MCP-CC-14",
+      "label": "refresh retention"
+    }
+  },
+  "resourceCopy": {
+    "primaryTitle": "Owner、process 与 authority isolation",
+    "primaryIntro": "Session、thread、directory、host client 与 remote server 是不同 authority domain。",
+    "secondaryTitle": "Cache、timeout、reconnect 与 result limits",
+    "secondaryIntro": "数字必须绑定 phase；cached/live/ready/callable 分开。"
+  },
+  "snapshots": [
+    {
+      "agent": "claude-code",
+      "label": "Claude Code",
+      "version": "2.1.226",
+      "grade": "Current docs + pinned history"
+    },
+    {
+      "agent": "codex",
+      "label": "Codex",
+      "version": "0.147.0",
+      "grade": "Exact commit source"
+    },
+    {
+      "agent": "opencode",
+      "label": "opencode",
+      "version": "1.18.15",
+      "grade": "Exact commit source"
+    }
+  ],
+  "sharpEdges": [
+    {
+      "id": "configured-live",
+      "label": "configured ≠ connected",
+      "text": "Add/accepted 只证明 mutation，必须 read-back status 与 catalog。",
+      "claims": [
+        "MCP-CC-01",
+        "MCP-CX-02",
+        "MCP-OC-18"
+      ],
+      "view": "compare",
+      "operation": "OP03"
+    },
+    {
+      "id": "cached-callable",
+      "label": "cached ≠ live ≠ callable",
+      "text": "旧 schema 可见时 client 仍可能 pending 或 server 已变。",
+      "claims": [
+        "MCP-CC-13",
+        "MCP-CX-10",
+        "MCP-CX-11",
+        "MCP-OC-07"
+      ],
+      "view": "compare",
+      "operation": "OP06"
+    },
+    {
+      "id": "mcp-dynamic",
+      "label": "MCP ≠ dynamicTools",
+      "text": "Codex dynamic host 没有 MCP transport、initialize、OAuth 或 catalog。",
+      "claims": [
+        "MCP-CX-27",
+        "MCP-CX-28",
+        "MCP-CX-30"
+      ],
+      "view": "flows",
+      "operation": "OP12"
+    },
+    {
+      "id": "model-direct",
+      "label": "模型调用 ≠ direct 调用",
+      "text": "Codex model path 有 MCP approval；app-server direct path 不进入该 gate。",
+      "claims": [
+        "MCP-CX-20",
+        "MCP-CX-21"
+      ],
+      "view": "compare",
+      "operation": "OP11"
+    },
+    {
+      "id": "permission-sandbox",
+      "label": "permission allow ≠ sandboxed",
+      "text": "Gate 只控制是否发起，不约束 local child、remote server 或 host callback。",
+      "claims": [
+        "MCP-CX-22",
+        "MCP-CX-23",
+        "MCP-OC-04",
+        "MCP-OC-21"
+      ],
+      "view": "resources",
+      "operation": "OP09"
+    },
+    {
+      "id": "tool-transport-error",
+      "label": "tool error ≠ transport failure",
+      "text": "Application error 不应改变 connection health 或触发无关重连。",
+      "claims": [
+        "MCP-CC-18",
+        "MCP-OC-05"
+      ],
+      "view": "failures",
+      "operation": "OP10"
+    }
+  ],
+  "operationGroups": [
+    {
+      "id": "registration",
+      "label": "注册、信任与建连"
+    },
+    {
+      "id": "catalog",
+      "label": "协商、目录与暴露"
+    },
+    {
+      "id": "invocation",
+      "label": "授权、调用与 Host"
+    },
+    {
+      "id": "lifecycle",
+      "label": "刷新、重连与关闭"
+    }
+  ],
+  "operations": [
+    {
+      "id": "OP01",
+      "group": "registration",
+      "label": "解析注册来源",
+      "question": "配置、插件、Agent 与目录来源中哪一条最终生效？",
+      "icon": "layers",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "MCP configuration precedence",
+          "primitive": "local > project > user > plugin > claude.ai",
+          "contract": "整条 winning entry 生效，不做字段 merge，并保留 shadow chain。",
+          "edge": "Add 成功只证明 configured；缺失变量仍可能继续加载。",
+          "details": [
+            {
+              "label": "WINNER",
+              "value": "resolved precedence entry"
+            },
+            {
+              "label": "IDENTITY",
+              "value": "scope + raw server key"
+            },
+            {
+              "label": "VERIFY",
+              "value": "config/status read-back"
+            }
+          ],
+          "claims": [
+            "MCP-CC-01",
+            "MCP-CC-02",
+            "MCP-CC-05"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "CLI + thread McpRuntime",
+          "primitive": "list/get/add/remove/login/logout",
+          "contract": "Global config mutation 与 thread-owned runtime 是两个状态面。",
+          "edge": "mcp add 在 OAuth discovery 前已写配置，不能显示为 ready。",
+          "details": [
+            {
+              "label": "WINNER",
+              "value": "config entry + thread runtime"
+            },
+            {
+              "label": "IDENTITY",
+              "value": "server key + environment"
+            },
+            {
+              "label": "VERIFY",
+              "value": "config list + thread status"
+            }
+          ],
+          "claims": [
+            "MCP-CX-01",
+            "MCP-CX-02",
+            "MCP-CX-03",
+            "MCP-CX-04"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Directory MCP state",
+          "primitive": "config + runtime /mcp add",
+          "contract": "Runtime state按 directory 缓存；experimental add 只证明内存 config 改变。",
+          "edge": "同目录 session 共享 owner；restart durability 未证明。",
+          "details": [
+            {
+              "label": "WINNER",
+              "value": "directory-owned entry"
+            },
+            {
+              "label": "IDENTITY",
+              "value": "directory + server key"
+            },
+            {
+              "label": "VERIFY",
+              "value": "runtime status after connect"
+            }
+          ],
+          "claims": [
+            "MCP-OC-01",
+            "MCP-OC-17"
+          ],
+          "unknown": "MCP-KU-22"
+        }
+      }
+    },
+    {
+      "id": "OP02",
+      "group": "registration",
+      "label": "授权注册与信任",
+      "question": "Registration 是否需要 workspace trust、managed policy 或 host ACL？",
+      "icon": "shield-check",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Project MCP trust",
+          "primitive": "pending_trust → approved/denied",
+          "contract": "交互式 project .mcp.json 首次使用需要 trust；headless 入口不能简单等同拒绝。",
+          "edge": "Repo 不能自批准；headless 必须显式 setting-source policy。",
+          "details": [
+            {
+              "label": "DECISION",
+              "value": "interactive trust | headless source policy"
+            },
+            {
+              "label": "SCOPE",
+              "value": "project config origin"
+            },
+            {
+              "label": "EXECUTION",
+              "value": "MCP process boundary separate"
+            }
+          ],
+          "claims": [
+            "MCP-CC-03",
+            "MCP-CC-04"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "Host/config constraints",
+          "primitive": "registration authority",
+          "contract": "Runtime owner是 thread，selected environment 进入 identity。",
+          "edge": "Source 没有 Claude 式 project prompt 合同；不要伪造统一 trust state。",
+          "details": [
+            {
+              "label": "DECISION",
+              "value": "host/config admission"
+            },
+            {
+              "label": "SCOPE",
+              "value": "thread + selected environment"
+            },
+            {
+              "label": "EXECUTION",
+              "value": "launcher boundary separate"
+            }
+          ],
+          "claims": [
+            "MCP-CX-03",
+            "MCP-CX-04"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Directory config + permission",
+          "primitive": "host policy",
+          "contract": "Directory config 在 instance 加载，调用 permission 与注册 authority 分离。",
+          "edge": "Runtime add 的 caller ACL 与持久化需要 host 另行证明。",
+          "details": [
+            {
+              "label": "DECISION",
+              "value": "registration authority != call permission"
+            },
+            {
+              "label": "SCOPE",
+              "value": "directory runtime"
+            },
+            {
+              "label": "EXECUTION",
+              "value": "MCP process outside Code Mode"
+            }
+          ],
+          "claims": [
+            "MCP-OC-15",
+            "MCP-OC-17"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP03",
+      "group": "registration",
+      "label": "建立传输连接",
+      "question": "使用哪种 transport、environment、cwd 与重试策略建连？",
+      "icon": "plug-zap",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "MCP transport",
+          "primitive": "stdio | HTTP | SSE | WebSocket",
+          "contract": "当前文档公开四类 transport；HTTP/SSE 与 stdio 的 reconnect 合同不同。",
+          "edge": "HTTP/SSE 最多5次不应外推到 WebSocket；stdio exit 不自动重连。",
+          "details": [
+            {
+              "label": "TRANSPORT",
+              "value": "stdio | HTTP | SSE | WebSocket"
+            },
+            {
+              "label": "GENERATION",
+              "value": "connection attempt"
+            },
+            {
+              "label": "READY",
+              "value": "transport + catalog"
+            }
+          ],
+          "claims": [
+            "MCP-CC-06",
+            "MCP-CC-07",
+            "MCP-CC-08",
+            "MCP-CC-09"
+          ],
+          "unknown": "MCP-KU-07"
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "Connection manager + launcher",
+          "primitive": "parallel startup · selected environment",
+          "contract": "Enabled servers 并发启动；stdio 与 HTTP 绑定 owning environment。",
+          "edge": "Local stdio env_clear 后重建 allowlist，不走 shell sandbox。",
+          "details": [
+            {
+              "label": "TRANSPORT",
+              "value": "stdio | Streamable HTTP"
+            },
+            {
+              "label": "GENERATION",
+              "value": "thread runtime generation"
+            },
+            {
+              "label": "READY",
+              "value": "initialize + full catalog"
+            }
+          ],
+          "claims": [
+            "MCP-CX-04",
+            "MCP-CX-05",
+            "MCP-CX-06",
+            "MCP-CX-22"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Directory MCP connect",
+          "primitive": "HTTP then SSE · local stdio",
+          "contract": "Remote 先 Streamable HTTP 后 SSE；local 使用 workspace cwd 并继承 process.env。",
+          "edge": "Connect API accepted 不证明 status ready。",
+          "details": [
+            {
+              "label": "TRANSPORT",
+              "value": "stdio | HTTP -> SSE fallback"
+            },
+            {
+              "label": "GENERATION",
+              "value": "directory client instance"
+            },
+            {
+              "label": "READY",
+              "value": "connected + defs published"
+            }
+          ],
+          "claims": [
+            "MCP-OC-02",
+            "MCP-OC-03",
+            "MCP-OC-04",
+            "MCP-OC-18"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP04",
+      "group": "registration",
+      "label": "认证远程服务",
+      "question": "Credential 从哪里来，refresh 后是否会重放调用？",
+      "icon": "key-round",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Remote OAuth/auth headers",
+          "primitive": "401 → refresh → reconnect → replay once",
+          "contract": "已登录 remote 返回401时可 refresh、reconnect 并重放同一 logical call 一次。",
+          "edge": "写操作需要 logical call id 与 idempotency evidence。",
+          "details": [
+            {
+              "label": "CREDENTIAL",
+              "value": "remote auth context"
+            },
+            {
+              "label": "REPLAY",
+              "value": "one replay after 401 refresh"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "success | auth failure"
+            }
+          ],
+          "claims": [
+            "MCP-CC-20"
+          ],
+          "unknown": "MCP-KU-06"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "CLI login/logout + configured auth",
+          "primitive": "credential handle",
+          "contract": "mcp add 后才探测 HTTP OAuth support；auth 与 runtime readiness 分离。",
+          "edge": "Receipt 记录 credential identity/scope，不记录 secret。",
+          "details": [
+            {
+              "label": "CREDENTIAL",
+              "value": "configured bearer/OAuth context"
+            },
+            {
+              "label": "REPLAY",
+              "value": "no replay contract proven"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "login state != runtime ready"
+            }
+          ],
+          "claims": [
+            "MCP-CX-01",
+            "MCP-CX-02"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Remote transport auth",
+          "primitive": "HTTP auth state",
+          "contract": "Remote transport认证属于 directory MCP runtime。",
+          "edge": "普通 network close 与 auth/session expiry 的 dependency retry 细节未知。",
+          "details": [
+            {
+              "label": "CREDENTIAL",
+              "value": "remote transport auth"
+            },
+            {
+              "label": "REPLAY",
+              "value": "expiry replay contract unknown"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "ready | failed status"
+            }
+          ],
+          "claims": [
+            "MCP-OC-03",
+            "MCP-OC-20"
+          ],
+          "unknown": "MCP-KU-21"
+        }
+      }
+    },
+    {
+      "id": "OP05",
+      "group": "catalog",
+      "label": "初始化与协商",
+      "question": "Transport live 后是否完成 initialize、protocol 与 capability negotiation？",
+      "icon": "handshake",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "MCP initialize",
+          "primitive": "protocol + capabilities + server info",
+          "contract": "Connection 与 discovery 使用独立 retry/SLO；protocol error 与 tool error 分开。",
+          "edge": "Current docs 不公开完整 2.1.226 initialize state machine。",
+          "details": [
+            {
+              "label": "PROTOCOL",
+              "value": "MCP initialize"
+            },
+            {
+              "label": "CAPABILITY",
+              "value": "server capabilities"
+            },
+            {
+              "label": "PUBLISH",
+              "value": "connection/discovery SLOs separate"
+            }
+          ],
+          "claims": [
+            "MCP-CC-09",
+            "MCP-CC-10",
+            "MCP-CC-18"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "RMCP client startup",
+          "primitive": "create → initialize → first tools/list",
+          "contract": "Startup success要求 client creation、initialize 与首次 tools/list 全部完成。",
+          "edge": "Required failure会阻断 initial thread runtime。",
+          "details": [
+            {
+              "label": "PROTOCOL",
+              "value": "RMCP initialize"
+            },
+            {
+              "label": "CAPABILITY",
+              "value": "tools capability"
+            },
+            {
+              "label": "PUBLISH",
+              "value": "after first tools/list"
+            }
+          ],
+          "claims": [
+            "MCP-CX-07",
+            "MCP-CX-08",
+            "MCP-CX-09"
+          ]
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "MCP client connect",
+          "primitive": "connect → tools/list",
+          "contract": "Successful connect 后才拉 tools；list 失败会 close client 并标 failed。",
+          "edge": "Transport connected 不能直接显示 catalog ready。",
+          "details": [
+            {
+              "label": "PROTOCOL",
+              "value": "MCP initialize"
+            },
+            {
+              "label": "CAPABILITY",
+              "value": "tools capability"
+            },
+            {
+              "label": "PUBLISH",
+              "value": "close client on list failure"
+            }
+          ],
+          "claims": [
+            "MCP-OC-05",
+            "MCP-OC-06"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP06",
+      "group": "catalog",
+      "label": "发现完整目录",
+      "question": "Catalog 是否完成分页、验证并原子发布？",
+      "icon": "list-tree",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "ToolSearch discovery",
+          "primitive": "list/index names",
+          "contract": "Discovery transient error 在 2.1.191+ 有独立三次 retry。",
+          "edge": "Pagination、cursor 与原子 publish 细节仍未知。",
+          "details": [
+            {
+              "label": "PAGINATION",
+              "value": "cursor contract unknown"
+            },
+            {
+              "label": "SOURCE",
+              "value": "live discovery / ToolSearch"
+            },
+            {
+              "label": "SUCCESS",
+              "value": "complete catalog not proven"
+            }
+          ],
+          "claims": [
+            "MCP-CC-10",
+            "MCP-CC-11",
+            "MCP-CC-13"
+          ],
+          "unknown": "MCP-KU-02"
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "RMCP paginated catalog",
+          "primitive": "tools/list + next_cursor",
+          "contract": "Opt-in 2026 mode使用 next_cursor；optional server可先暴露 cached schema。",
+          "edge": "Legacy mode忽略 cursor；cached schema 不等于 live client。",
+          "details": [
+            {
+              "label": "PAGINATION",
+              "value": "next_cursor in 2026 mode"
+            },
+            {
+              "label": "SOURCE",
+              "value": "live client or stdio cache"
+            },
+            {
+              "label": "SUCCESS",
+              "value": "all pages or typed startup failure"
+            }
+          ],
+          "claims": [
+            "MCP-CX-07",
+            "MCP-CX-08",
+            "MCP-CX-10",
+            "MCP-CX-11",
+            "MCP-CX-12",
+            "MCP-CX-13"
+          ]
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "Catalog pagination",
+          "primitive": "max 1000 pages + repeated cursor guard",
+          "contract": "List 失败不发布 partial catalog，成功后才得到 defs。",
+          "edge": "Catalog timeout 与 docs 的5秒默认存在 runtime divergence。",
+          "details": [
+            {
+              "label": "PAGINATION",
+              "value": "cursor loop with guard"
+            },
+            {
+              "label": "SOURCE",
+              "value": "live directory client"
+            },
+            {
+              "label": "SUCCESS",
+              "value": "replace only after full list"
+            }
+          ],
+          "claims": [
+            "MCP-OC-05",
+            "MCP-OC-06",
+            "MCP-OC-07",
+            "MCP-OC-22"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP07",
+      "group": "catalog",
+      "label": "发布目录版本",
+      "question": "Raw schema、model schema、cache/live source 与 collision 如何收口？",
+      "icon": "book-copy",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Dynamic update + schema normalization",
+          "primitive": "live/stale revision · original/model hash",
+          "contract": "Refresh 失败保留旧 tools/prompts/resources；root combinator可被兼容改写。",
+          "edge": "Retained old revision必须标 stale；original与model schema hash分开。",
+          "details": [
+            {
+              "label": "REVISION",
+              "value": "refresh generation"
+            },
+            {
+              "label": "IDENTITY",
+              "value": "original + model schema"
+            },
+            {
+              "label": "STALE",
+              "value": "retain old and mark stale"
+            }
+          ],
+          "claims": [
+            "MCP-CC-14",
+            "MCP-CC-24"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "Tool catalog + binding",
+          "primitive": "raw route → model name → revision",
+          "contract": "保留 raw server/tool identity并生成64-byte model name；binding冻结 exact catalog。",
+          "edge": "Visibility、cache annotations 与 budget hidden 不能压成 absent。",
+          "details": [
+            {
+              "label": "REVISION",
+              "value": "McpBinding catalog revision"
+            },
+            {
+              "label": "IDENTITY",
+              "value": "raw server/tool -> model name"
+            },
+            {
+              "label": "STALE",
+              "value": "reject stale prepared call"
+            }
+          ],
+          "claims": [
+            "MCP-CX-11",
+            "MCP-CX-13",
+            "MCP-CX-14",
+            "MCP-CX-15",
+            "MCP-CX-17"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Directory catalog revision",
+          "primitive": "raw name → sanitized id",
+          "contract": "每 provider step重新组装当前工具；normalized id没有 collision error。",
+          "edge": "Prepublish 必须用 raw identity 检测 collision。",
+          "details": [
+            {
+              "label": "REVISION",
+              "value": "provider-step tool table"
+            },
+            {
+              "label": "IDENTITY",
+              "value": "raw key -> normalized id"
+            },
+            {
+              "label": "STALE",
+              "value": "retain old defs on failure"
+            }
+          ],
+          "claims": [
+            "MCP-OC-07",
+            "MCP-OC-08",
+            "MCP-OC-09",
+            "MCP-OC-10"
+          ],
+          "unknown": "MCP-KU-24"
+        }
+      }
+    },
+    {
+      "id": "OP08",
+      "group": "catalog",
+      "label": "搜索与物化 Schema",
+      "question": "Deferred index 如何选中工具并把完整 schema 插入 provider step？",
+      "icon": "scan-search",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "ToolSearch",
+          "primitive": "indexed → materialized → callable",
+          "contract": "默认先暴露搜索面，匹配后加载完整 schema；alwaysLoad 可 upfront。",
+          "edge": "Indexed 与 cached 不证明 server live 或 tool callable。",
+          "details": [
+            {
+              "label": "EXPOSURE",
+              "value": "ToolSearch | alwaysLoad"
+            },
+            {
+              "label": "MATERIALIZE",
+              "value": "search hit loads schema"
+            },
+            {
+              "label": "CALL BINDING",
+              "value": "exact wire name"
+            }
+          ],
+          "claims": [
+            "MCP-CC-11",
+            "MCP-CC-12",
+            "MCP-CC-13",
+            "MCP-CC-23"
+          ],
+          "unknown": "MCP-KU-03"
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "tool_search + McpBinding",
+          "primitive": "deferred → prepared call",
+          "contract": "tool_search 开启时 regular tools deferred；PreparedMcpCall 检查 catalog revision。",
+          "edge": "Prompt schema 与 call schema 不同会 stale_authority。",
+          "details": [
+            {
+              "label": "EXPOSURE",
+              "value": "deferred regular MCP tools"
+            },
+            {
+              "label": "MATERIALIZE",
+              "value": "tool_search -> exact binding"
+            },
+            {
+              "label": "CALL BINDING",
+              "value": "catalog revision"
+            }
+          ],
+          "claims": [
+            "MCP-CX-16",
+            "MCP-CX-17",
+            "MCP-CX-18"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Direct table / Code Mode",
+          "primitive": "direct schemas | execute aggregate",
+          "contract": "默认每个 MCP tool direct；Code Mode 只暴露 execute 并在执行时重读 current tools。",
+          "edge": "Code Mode 不是 ToolSearch，同样需要 description/call catalog hash。",
+          "details": [
+            {
+              "label": "EXPOSURE",
+              "value": "direct tools | execute"
+            },
+            {
+              "label": "MATERIALIZE",
+              "value": "Code Mode rereads current table"
+            },
+            {
+              "label": "CALL BINDING",
+              "value": "normalized tool id"
+            }
+          ],
+          "claims": [
+            "MCP-OC-10",
+            "MCP-OC-11",
+            "MCP-OC-12",
+            "MCP-OC-14"
+          ],
+          "unknown": "MCP-KU-25"
+        }
+      }
+    },
+    {
+      "id": "OP09",
+      "group": "invocation",
+      "label": "授权一次调用",
+      "question": "Exact tool revision 与 arguments 通过哪个 permission、approval 或 human wait？",
+      "icon": "badge-check",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Permission + hooks + interaction",
+          "primitive": "mcp__server__tool",
+          "contract": "Exact wire name用于 permission、hooks 与 subagent lists；requiresUserInteraction不可被普通 allow 绕过。",
+          "edge": "Rename会使 persistent rule失配；headless需 resumable wait或fail closed。",
+          "details": [
+            {
+              "label": "POLICY",
+              "value": "permission + hooks + interaction"
+            },
+            {
+              "label": "DECISION",
+              "value": "allow | deny | wait"
+            },
+            {
+              "label": "BOUNDARY",
+              "value": "gate != process sandbox"
+            }
+          ],
+          "claims": [
+            "MCP-CC-15",
+            "MCP-CC-16",
+            "MCP-CC-17"
+          ],
+          "unknown": "MCP-KU-09"
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "Model-path MCP approval",
+          "primitive": "auto | prompt | writes | approve",
+          "contract": "Model path支持 per-tool override 与 approval snapshot。",
+          "edge": "Direct app-server call不进入该函数，authority必须另记。",
+          "details": [
+            {
+              "label": "POLICY",
+              "value": "per-tool model-path approval"
+            },
+            {
+              "label": "DECISION",
+              "value": "snapshot at call"
+            },
+            {
+              "label": "BOUNDARY",
+              "value": "sandbox meta != enforcement"
+            }
+          ],
+          "claims": [
+            "MCP-CX-20",
+            "MCP-CX-21",
+            "MCP-CX-23"
+          ],
+          "unknown": "MCP-KU-20"
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "Provider exposure + permission",
+          "primitive": "blanket hide · per-call rule",
+          "contract": "Blanket deny在provider request前隐藏；Code Mode child逐个请求 normalized id permission。",
+          "edge": "Permission allow不提供 local/remote sandbox。",
+          "details": [
+            {
+              "label": "POLICY",
+              "value": "provider visibility + call permission"
+            },
+            {
+              "label": "DECISION",
+              "value": "hide | prompt | allow"
+            },
+            {
+              "label": "BOUNDARY",
+              "value": "gate != MCP sandbox"
+            }
+          ],
+          "claims": [
+            "MCP-OC-13",
+            "MCP-OC-15"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP10",
+      "group": "invocation",
+      "label": "模型路径调用 MCP",
+      "question": "模型看到的 schema 是否仍绑定 current callable authority？",
+      "icon": "bot",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Assistant MCP tool path",
+          "primitive": "model → permission/hooks → tools/call",
+          "contract": "Application error与protocol error分开；大结果可能投影成file reference。",
+          "edge": "Tool error不能标 connection failed；artifact不是普通 text。",
+          "details": [
+            {
+              "label": "AUTHORITY",
+              "value": "assistant model"
+            },
+            {
+              "label": "ATTEMPT",
+              "value": "logical call + transport attempt"
+            },
+            {
+              "label": "RESULT",
+              "value": "content | tool error | file ref"
+            }
+          ],
+          "claims": [
+            "MCP-CC-18",
+            "MCP-CC-19"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "McpBinding + model handler",
+          "primitive": "wait current → prepare → approve → call",
+          "contract": "Model path等待current server、重备 exact call并通过 approval。",
+          "edge": "Catalog revision变化时PreparedMcpCall拒绝，不能调用新实现。",
+          "details": [
+            {
+              "label": "AUTHORITY",
+              "value": "McpBinding + approval snapshot"
+            },
+            {
+              "label": "ATTEMPT",
+              "value": "re-prepare exact revision"
+            },
+            {
+              "label": "RESULT",
+              "value": "result | protocol failure"
+            }
+          ],
+          "claims": [
+            "MCP-CX-17",
+            "MCP-CX-18",
+            "MCP-CX-19",
+            "MCP-CX-20"
+          ]
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "Provider tool / Code Mode child",
+          "primitive": "model tool call → permission → MCP",
+          "contract": "默认 direct tool与Code Mode child都经过调用 permission。",
+          "edge": "In-flight provider request使用自己的tool snapshot；next step才重解目录。",
+          "details": [
+            {
+              "label": "AUTHORITY",
+              "value": "provider tool | Code Mode child"
+            },
+            {
+              "label": "ATTEMPT",
+              "value": "request-local tool snapshot"
+            },
+            {
+              "label": "RESULT",
+              "value": "result | permission/error"
+            }
+          ],
+          "claims": [
+            "MCP-OC-08",
+            "MCP-OC-10",
+            "MCP-OC-13"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP11",
+      "group": "invocation",
+      "label": "非模型 MCP 调用入口",
+      "question": "固定证据暴露了哪些非模型入口，它们分别经过什么 authority？",
+      "icon": "terminal-square",
+      "cells": {
+        "claude-code": {
+          "status": "exposed",
+          "surface": "Hook MCP tool",
+          "primitive": "type:mcp_tool",
+          "contract": "2.1.118+ hook 可发起 MCP tool call；现有证据只固定 provenance=hook。",
+          "edge": "现有历史只固定 provenance=hook；permission 与 human approval 语义未固定。",
+          "details": [
+            {
+              "label": "PROVENANCE",
+              "value": "hook"
+            },
+            {
+              "label": "MODEL GATE",
+              "value": "assistant model not involved"
+            },
+            {
+              "label": "HOST GATE",
+              "value": "authority/approval not proven"
+            }
+          ],
+          "claims": [
+            "MCP-CC-22"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "App-server direct call",
+          "primitive": "mcpServer/tool/call",
+          "contract": "App-server direct path 不进入 model-path approval；host authority 必须单独记录和验证。",
+          "edge": "Host API authority、ACL 与可选人审不在该函数内，必须单独记录和验证。",
+          "details": [
+            {
+              "label": "PROVENANCE",
+              "value": "app-server client"
+            },
+            {
+              "label": "MODEL GATE",
+              "value": "model approval not applicable"
+            },
+            {
+              "label": "HOST GATE",
+              "value": "host ACL/approval separate"
+            }
+          ],
+          "claims": [
+            "MCP-CX-21"
+          ],
+          "unknown": "MCP-KU-20"
+        },
+        "opencode": {
+          "status": "unknown",
+          "surface": "No audited host-direct MCP invocation",
+          "primitive": "n/a",
+          "contract": "Atomic claims 只固定 /mcp add 与 connect control；host-direct invocation 未被审计。",
+          "edge": "不能把注册与控制 API 当作 invocation。",
+          "details": [
+            {
+              "label": "PROVENANCE",
+              "value": "not audited"
+            },
+            {
+              "label": "MODEL GATE",
+              "value": "n/a"
+            },
+            {
+              "label": "HOST GATE",
+              "value": "management API != invocation"
+            }
+          ],
+          "claims": [
+            "MCP-OC-17",
+            "MCP-OC-18"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP12",
+      "group": "invocation",
+      "label": "注册 Codex dynamicTools",
+      "question": "Thread start host contract如何验证、持久化与暴露？",
+      "icon": "braces",
+      "cells": {
+        "claude-code": {
+          "status": "unknown",
+          "surface": "Not evidenced in audited Claude surfaces",
+          "primitive": "MCP/plugin/hook only",
+          "contract": "Reviewed MCP/hook evidence 没有固定 Codex-style dynamic host registration；这不是全局不存在证明。",
+          "edge": "不能把 Claude MCP registration 或 hook invocation 映射成 dynamicTools contract。",
+          "details": [
+            {
+              "label": "SCHEMA SET",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "RESTORE",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "HOST LIVENESS",
+              "value": "not evidenced in audited surfaces"
+            }
+          ],
+          "claims": [
+            "MCP-CC-22"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "Experimental thread/start",
+          "primitive": "dynamicTools[]",
+          "contract": "仅 thread/start 接受 dynamicTools；验证 schema set 并持久化，resume 可恢复该集合。",
+          "edge": "恢复 schema 不等于绑定了当前 host subscriber；两者必须分开验活。",
+          "details": [
+            {
+              "label": "SCHEMA SET",
+              "value": "validated at thread/start"
+            },
+            {
+              "label": "RESTORE",
+              "value": "empty input restores persisted set"
+            },
+            {
+              "label": "HOST LIVENESS",
+              "value": "bind current subscriber separately"
+            }
+          ],
+          "claims": [
+            "MCP-CX-27",
+            "MCP-CX-28",
+            "MCP-CX-29",
+            "MCP-CX-30"
+          ],
+          "unknown": "MCP-KU-17"
+        },
+        "opencode": {
+          "status": "unknown",
+          "surface": "Not evidenced in audited OpenCode surfaces",
+          "primitive": "custom/plugin JS/TS",
+          "contract": "Reviewed MCP/runtime and host-native extension evidence 没有固定 Codex-style dynamic host registration。",
+          "edge": "Audited absence 不能外推成产品全局不存在。",
+          "details": [
+            {
+              "label": "SCHEMA SET",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "RESTORE",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "HOST LIVENESS",
+              "value": "not evidenced in audited surfaces"
+            }
+          ],
+          "claims": [
+            "MCP-OC-17",
+            "MCP-OC-21"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP13",
+      "group": "invocation",
+      "label": "路由 Dynamic Host Call",
+      "question": "Host subscriber 是否仍连接并能返回合法 result/media？",
+      "icon": "radio-tower",
+      "cells": {
+        "claude-code": {
+          "status": "unknown",
+          "surface": "Not observed in audited Claude surfaces",
+          "primitive": "n/a",
+          "contract": "Current evidence 只固定 hook direct MCP；没有固定 Codex-style reverse host request。",
+          "edge": "不能把 hook result 套用 thread/turn/call dynamic host fields。",
+          "details": [
+            {
+              "label": "BINDING",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "REQUEST",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "not evidenced in audited surfaces"
+            }
+          ],
+          "claims": [
+            "MCP-CC-22"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "item/tool/call reverse request",
+          "primitive": "thread → host client → response",
+          "contract": "Dynamic call 通过 item/tool/call 反向请求 host；audited handler 没有自己的 wall-clock timeout。",
+          "edge": "Binding lifecycle、ACL、approval、sandbox、executor 与 host watchdog 都需 host contract 另证。",
+          "details": [
+            {
+              "label": "BINDING",
+              "value": "lifecycle / generation not fixed"
+            },
+            {
+              "label": "REQUEST",
+              "value": "item/tool/call"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "response; other terminal classes not fixed"
+            }
+          ],
+          "claims": [
+            "MCP-CX-30"
+          ],
+          "unknown": "MCP-KU-17"
+        },
+        "opencode": {
+          "status": "unknown",
+          "surface": "Not observed in audited OpenCode surfaces",
+          "primitive": "host-native tool registry",
+          "contract": "Current evidence 固定 host-native custom/plugin tools；没有固定 Codex-style reverse request。",
+          "edge": "Host-native JS/TS 不能标成 MCP、dynamicTools 或 Code Mode sandbox。",
+          "details": [
+            {
+              "label": "BINDING",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "REQUEST",
+              "value": "not evidenced in audited surfaces"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "not evidenced in audited surfaces"
+            }
+          ],
+          "claims": [
+            "MCP-OC-21"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP14",
+      "group": "lifecycle",
+      "label": "应用目录变化",
+      "question": "List-changed、refresh 或下一 provider step 如何形成新 revision？",
+      "icon": "git-compare-arrows",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Dynamic tool updates",
+          "primitive": "notification → atomic refresh | retained stale",
+          "contract": "Refresh成功切新revision；失败保留旧列表并标stale。",
+          "edge": "Burst ordering、in-flight removal与pagination atomicity未知。",
+          "details": [
+            {
+              "label": "SIGNAL",
+              "value": "list-changed / dynamic refresh"
+            },
+            {
+              "label": "COMMIT",
+              "value": "publish only on success"
+            },
+            {
+              "label": "EFFECT",
+              "value": "retain old catalog on failure"
+            }
+          ],
+          "claims": [
+            "MCP-CC-14"
+          ],
+          "unknown": "MCP-KU-02"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "Regular handler / Apps refresh",
+          "primitive": "log only | hard refresh",
+          "contract": "Audited regular on_tool_list_changed只log；不是catalog refresh。",
+          "edge": "Apps hard refresh与regular MCP不能共享transition。",
+          "details": [
+            {
+              "label": "SIGNAL",
+              "value": "standard tools/list_changed"
+            },
+            {
+              "label": "COMMIT",
+              "value": "no commit: log only"
+            },
+            {
+              "label": "EFFECT",
+              "value": "catalog unchanged"
+            }
+          ],
+          "claims": [
+            "MCP-CX-24"
+          ],
+          "unknown": "MCP-KU-15"
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "Directory list-changed handler",
+          "primitive": "success replace + changed event",
+          "contract": "Refresh失败保留旧defs，成功才replace并发changed。",
+          "edge": "Current provider request不变；next step重解工具。",
+          "details": [
+            {
+              "label": "SIGNAL",
+              "value": "list-changed"
+            },
+            {
+              "label": "COMMIT",
+              "value": "replace after full success"
+            },
+            {
+              "label": "EFFECT",
+              "value": "next provider step sees revision"
+            }
+          ],
+          "claims": [
+            "MCP-OC-07",
+            "MCP-OC-08"
+          ],
+          "unknown": "MCP-KU-23"
+        }
+      }
+    },
+    {
+      "id": "OP15",
+      "group": "lifecycle",
+      "label": "Reload 或重连",
+      "question": "Config、plugin、auth 与 transport recovery 是否真的换 generation？",
+      "icon": "refresh-ccw",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Connection retry + plugin reload",
+          "primitive": "kept / started / stopped / failed",
+          "contract": "Plugin reload保留未变连接，新增建连、删除断开；HTTP/SSE有界重连，stdio无。",
+          "edge": "Reload与reconnect receipt必须分开；in-flight行为未知。",
+          "details": [
+            {
+              "label": "TRIGGER",
+              "value": "network close | plugin reload"
+            },
+            {
+              "label": "GENERATION",
+              "value": "connection generation"
+            },
+            {
+              "label": "BACKOFF",
+              "value": "HTTP/SSE bounded; stdio none"
+            }
+          ],
+          "claims": [
+            "MCP-CC-07",
+            "MCP-CC-08",
+            "MCP-CC-21"
+          ],
+          "unknown": "MCP-KU-10"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "Config reload / Apps startup",
+          "primitive": "dirty + prewarm | Apps backoff",
+          "contract": "Config reload只mark runtime dirty并best-effort prewarm；background reconnect只为reserved Apps构造。",
+          "edge": "reload=true不能表示connection generation或catalog revision已更新。",
+          "details": [
+            {
+              "label": "TRIGGER",
+              "value": "config reload | Apps startup"
+            },
+            {
+              "label": "GENERATION",
+              "value": "runtime dirty/replacement"
+            },
+            {
+              "label": "BACKOFF",
+              "value": "regular reconnect unproven"
+            }
+          ],
+          "claims": [
+            "MCP-CX-25",
+            "MCP-CX-26"
+          ],
+          "unknown": "MCP-KU-19"
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "onclose / expired session recovery",
+          "primitive": "failed | 404 reinitialize once",
+          "contract": "普通close删除client/defs并标failed；session-bound 404仅特殊重试一次。",
+          "edge": "Special recovery不能宣传成generic auto-reconnect。",
+          "details": [
+            {
+              "label": "TRIGGER",
+              "value": "ordinary close | session 404"
+            },
+            {
+              "label": "GENERATION",
+              "value": "directory client generation"
+            },
+            {
+              "label": "BACKOFF",
+              "value": "failed | one special retry"
+            }
+          ],
+          "claims": [
+            "MCP-OC-19",
+            "MCP-OC-20",
+            "MCP-OC-22"
+          ],
+          "unknown": "MCP-KU-21"
+        }
+      }
+    },
+    {
+      "id": "OP16",
+      "group": "lifecycle",
+      "label": "禁用与关闭",
+      "question": "移除配置后 tools、client、child 与 shadow winner 是否收口？",
+      "icon": "power",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Config/plugin lifecycle",
+          "primitive": "remove / reload / disconnect",
+          "contract": "删除高优先级entry要重算shadow winner；plugin reload断开removed connection。",
+          "edge": "Stdio process group、zombie cleanup与in-flight drain未公开。",
+          "details": [
+            {
+              "label": "AUTHORITY",
+              "value": "resolved config/plugin owner"
+            },
+            {
+              "label": "REMOVAL",
+              "value": "recompute shadow winner"
+            },
+            {
+              "label": "CLEANUP",
+              "value": "process cleanup unknown"
+            }
+          ],
+          "claims": [
+            "MCP-CC-02",
+            "MCP-CC-21"
+          ],
+          "unknown": "MCP-KU-08"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "Thread McpRuntime lifecycle",
+          "primitive": "dirty / replace / shutdown",
+          "contract": "Runtime owner是thread，config reload可触发后续replacement。",
+          "edge": "已经开始的call如何drain仍需故障测试。",
+          "details": [
+            {
+              "label": "AUTHORITY",
+              "value": "thread runtime/config owner"
+            },
+            {
+              "label": "REMOVAL",
+              "value": "dirty then replacement"
+            },
+            {
+              "label": "CLEANUP",
+              "value": "in-flight drain unknown"
+            }
+          ],
+          "claims": [
+            "MCP-CX-03",
+            "MCP-CX-25"
+          ],
+          "unknown": "MCP-KU-19"
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Directory state + onclose",
+          "primitive": "remove client/defs/instructions",
+          "contract": "普通close清理client、defs、instructions并标failed。",
+          "edge": "同directory其他sessions共享影响；runtime add持久化未知。",
+          "details": [
+            {
+              "label": "AUTHORITY",
+              "value": "directory owner"
+            },
+            {
+              "label": "REMOVAL",
+              "value": "delete client/defs/instructions"
+            },
+            {
+              "label": "CLEANUP",
+              "value": "shared sessions see failed"
+            }
+          ],
+          "claims": [
+            "MCP-OC-01",
+            "MCP-OC-19"
+          ],
+          "unknown": "MCP-KU-22"
+        }
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "F01",
+      "agent": "claude-code",
+      "label": "Project registration 与 trust",
+      "scope": "local > project > user > plugin > claude.ai",
+      "steps": [
+        {
+          "label": "Resolve winner",
+          "meta": "config precedence"
+        },
+        {
+          "label": "Pending trust",
+          "meta": "authority wait"
+        },
+        {
+          "label": "Connect after authority",
+          "meta": "live connection"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "configuration precedence",
+          "effect": "整条entry winner与shadow chain。",
+          "claims": [
+            "MCP-CC-02"
+          ],
+          "danger": false
+        },
+        {
+          "primitive": "project trust",
+          "effect": "交互批准后才连接。",
+          "claims": [
+            "MCP-CC-03",
+            "MCP-CC-04"
+          ],
+          "danger": false
+        }
+      ]
+    },
+    {
+      "id": "F02",
+      "agent": "claude-code",
+      "label": "Deferred discovery",
+      "scope": "indexed → materialized → callable",
+      "steps": [
+        {
+          "label": "Connect/init",
+          "meta": "transport ready"
+        },
+        {
+          "label": "Index names",
+          "meta": "cached discovery"
+        },
+        {
+          "label": "ToolSearch",
+          "meta": "model selection"
+        },
+        {
+          "label": "Materialize schema",
+          "meta": "current schema"
+        },
+        {
+          "label": "Authorize/call",
+          "meta": "permission + terminal"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "ToolSearch",
+          "effect": "默认deferred；alwaysLoad upfront。",
+          "claims": [
+            "MCP-CC-11",
+            "MCP-CC-12",
+            "MCP-CC-13"
+          ],
+          "danger": false
+        }
+      ]
+    },
+    {
+      "id": "F03",
+      "agent": "claude-code",
+      "label": "List-changed failure retention",
+      "scope": "atomic catalog revision",
+      "steps": [
+        {
+          "label": "Notification",
+          "meta": "catalog event"
+        },
+        {
+          "label": "Fetch all pages",
+          "meta": "candidate revision"
+        },
+        {
+          "label": "Validate",
+          "meta": "atomic publish gate"
+        },
+        {
+          "label": "Switch or retain stale",
+          "meta": "new | stale revision"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "dynamic refresh",
+          "effect": "失败保留旧revision。",
+          "claims": [
+            "MCP-CC-14",
+            "MCP-CC-24"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "F04",
+      "agent": "claude-code",
+      "label": "OAuth recovery replay",
+      "scope": "same logical call",
+      "steps": [
+        {
+          "label": "Call attempt 1",
+          "meta": "logical call / attempt 1"
+        },
+        {
+          "label": "401",
+          "meta": "auth failure"
+        },
+        {
+          "label": "Refresh/reconnect",
+          "meta": "credential transition"
+        },
+        {
+          "label": "Replay once",
+          "meta": "attempt 2 / same call"
+        },
+        {
+          "label": "Terminal",
+          "meta": "success | auth error"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "auth recovery",
+          "effect": "写操作需要幂等证据。",
+          "claims": [
+            "MCP-CC-20"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "F05",
+      "agent": "claude-code",
+      "label": "Plugin reload；Hook 直调另轨",
+      "scope": "non-model authority",
+      "steps": [
+        {
+          "label": "Diff registrations",
+          "meta": "registration diff"
+        },
+        {
+          "label": "Keep unchanged",
+          "meta": "connection retained"
+        },
+        {
+          "label": "Start added",
+          "meta": "new connection"
+        },
+        {
+          "label": "Stop removed",
+          "meta": "removed connection"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "reload",
+          "effect": "连接集合receipt。",
+          "claims": [
+            "MCP-CC-21"
+          ],
+          "danger": false
+        },
+        {
+          "primitive": "hook",
+          "effect": "独立入口：provenance=hook，不是 reload 的后继步骤。",
+          "claims": [
+            "MCP-CC-22"
+          ],
+          "danger": false
+        }
+      ]
+    },
+    {
+      "id": "F06",
+      "agent": "codex",
+      "label": "MCP startup 与 binding",
+      "scope": "thread-owned runtime",
+      "steps": [
+        {
+          "label": "Resolve runtime",
+          "meta": "thread owner"
+        },
+        {
+          "label": "Concurrent startup",
+          "meta": "startup spans"
+        },
+        {
+          "label": "Initialize/list",
+          "meta": "initialize + first list"
+        },
+        {
+          "label": "Cache/live catalog",
+          "meta": "cache provenance"
+        },
+        {
+          "label": "Frozen binding",
+          "meta": "exact revision"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "required server",
+          "effect": "失败阻断thread init。",
+          "claims": [
+            "MCP-CX-05",
+            "MCP-CX-07",
+            "MCP-CX-09",
+            "MCP-CX-10",
+            "MCP-CX-17"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "F07",
+      "agent": "codex",
+      "label": "Model MCP invocation",
+      "scope": "model authority",
+      "steps": [
+        {
+          "label": "Step snapshot",
+          "meta": "provider-step revision"
+        },
+        {
+          "label": "Wait current",
+          "meta": "current runtime"
+        },
+        {
+          "label": "Prepare exact call",
+          "meta": "raw identity + schema"
+        },
+        {
+          "label": "Approval/hooks",
+          "meta": "approval snapshot"
+        },
+        {
+          "label": "Call or stale",
+          "meta": "result | stale_authority"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "model path",
+          "effect": "schemaHashAtPrompt与AtCall分开。",
+          "claims": [
+            "MCP-CX-18",
+            "MCP-CX-19",
+            "MCP-CX-20"
+          ],
+          "danger": false
+        }
+      ]
+    },
+    {
+      "id": "F08",
+      "agent": "codex",
+      "label": "Direct app-server invocation",
+      "scope": "host authority",
+      "steps": [
+        {
+          "label": "Host request",
+          "meta": "host authority"
+        },
+        {
+          "label": "Refresh runtime if dirty",
+          "meta": "runtime generation"
+        },
+        {
+          "label": "Latest call",
+          "meta": "latest catalog"
+        },
+        {
+          "label": "Direct result",
+          "meta": "host result"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "mcpServer/tool/call",
+          "effect": "model approval 对 direct path 不适用；host authority 另证。",
+          "claims": [
+            "MCP-CX-21"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "F09",
+      "agent": "codex",
+      "label": "Reload、reconnect 与 Apps refresh",
+      "scope": "three event types",
+      "steps": [
+        {
+          "label": "Config reload dirty",
+          "meta": "config generation"
+        },
+        {
+          "label": "Best-effort prewarm",
+          "meta": "best effort only"
+        },
+        {
+          "label": "Explicit refresh",
+          "meta": "explicit operator action"
+        },
+        {
+          "label": "Apps hard refresh",
+          "meta": "Apps-only path"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "reload/reconnect",
+          "effect": "不能合并成reload=true。",
+          "claims": [
+            "MCP-CX-24",
+            "MCP-CX-25",
+            "MCP-CX-26"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "F10",
+      "agent": "codex",
+      "label": "dynamicTools schema；调用另轨",
+      "scope": "separate host callback",
+      "steps": [
+        {
+          "label": "thread/start validate",
+          "meta": "schema validation"
+        },
+        {
+          "label": "Persist schema set",
+          "meta": "thread history"
+        },
+        {
+          "label": "Restore schema set",
+          "meta": "host binding not implied"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "schema lane",
+          "effect": "thread/start validate；persist/restore schema set 不证明当前 host binding。",
+          "claims": [
+            "MCP-CX-27",
+            "MCP-CX-28",
+            "MCP-CX-29"
+          ],
+          "danger": true
+        },
+        {
+          "primitive": "invocation lane",
+          "effect": "先验证 current host binding，再发 item/tool/call；当前 claim 只固定 response path 与无独立 timeout。",
+          "claims": [
+            "MCP-CX-30"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "F11",
+      "agent": "opencode",
+      "label": "Bootstrap 与 list-changed",
+      "scope": "directory runtime",
+      "steps": [
+        {
+          "label": "Connect enabled",
+          "meta": "directory owner"
+        },
+        {
+          "label": "Initialize/list pages",
+          "meta": "complete page set"
+        },
+        {
+          "label": "Cache defs",
+          "meta": "published revision"
+        },
+        {
+          "label": "Provider-step snapshot",
+          "meta": "request snapshot"
+        },
+        {
+          "label": "Replace or retain",
+          "meta": "next-step update"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "directory catalog",
+          "effect": "失败保留旧defs。",
+          "claims": [
+            "MCP-OC-01",
+            "MCP-OC-02",
+            "MCP-OC-05",
+            "MCP-OC-06",
+            "MCP-OC-07",
+            "MCP-OC-08"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "F12",
+      "agent": "opencode",
+      "label": "Code Mode 调用；404 恢复另轨",
+      "scope": "aggregation + special recovery",
+      "steps": [
+        {
+          "label": "Expose execute",
+          "meta": "single execute surface"
+        },
+        {
+          "label": "Re-read current tools",
+          "meta": "current directory table"
+        },
+        {
+          "label": "Child permission",
+          "meta": "per child gate"
+        },
+        {
+          "label": "MCP calls",
+          "meta": "bounded child set"
+        },
+        {
+          "label": "Terminal",
+          "meta": "result | failure"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "Code Mode",
+          "effect": "Integration未传三类budgets。",
+          "claims": [
+            "MCP-OC-11",
+            "MCP-OC-12",
+            "MCP-OC-13",
+            "MCP-OC-14"
+          ],
+          "danger": true
+        },
+        {
+          "primitive": "session recovery",
+          "effect": "独立恢复轨：仅 expired Streamable HTTP 404 重试一次。",
+          "claims": [
+            "MCP-OC-19",
+            "MCP-OC-20"
+          ],
+          "danger": false
+        }
+      ]
+    }
+  ],
+  "hazards": [
+    {
+      "id": "H01",
+      "severity": "P1",
+      "family": "Readiness & ownership",
+      "kind": "integration_trap",
+      "title": "configured 被误报为 connected",
+      "contract": "注册 mutation 的成功终态只能标 configured；connected、catalog-ready 与 callable 必须分别由 runtime receipt 证明。",
+      "trigger": "CLI add、runtime add 或 connect control request 返回 success/true 后，UI 立即显示 server ready。",
+      "signal": "只有 mutation acknowledgement，没有 connection generation、runtime status 或首次 catalog receipt，却已经出现绿色可用状态。",
+      "recovery": "mutation 后强制 status + catalog read-back；保存 configuredAt、connectedAt 与 catalogRevision 三个独立时间点。",
+      "doNotAssume": "不要把配置写入、HTTP 200 或 accepted=true 当成 transport 已连接，更不能据此允许模型调用。",
+      "claims": [
+        "MCP-CC-01",
+        "MCP-CX-02",
+        "MCP-OC-18"
+      ]
+    },
+    {
+      "id": "H02",
+      "severity": "P1",
+      "family": "Registration & identity",
+      "kind": "observed_behavior",
+      "title": "shadowed endpoint/command 突然复活",
+      "contract": "Claude 同名 server 按整条 entry 选 winner 而不是字段合并；删除 winner 后必须把 identity change 当成一次新注册。",
+      "trigger": "删除 local/project 高优先级同名配置，使下层 user、plugin 或 claude.ai entry 重新成为 winner。",
+      "signal": "server 名字未变，但 endpoint、command、environment 或 credential source 改变，旧 registration id 仍被沿用。",
+      "recovery": "展示完整 shadow chain；winner 指纹变化时生成新 registration id，并重新执行 trust、connect 与 catalog verification。",
+      "doNotAssume": "不要因为 display name 相同就认为删除高优先级配置只是一次无语义变化的 reload。",
+      "claims": [
+        "MCP-CC-02"
+      ]
+    },
+    {
+      "id": "H03",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "integration_trap",
+      "title": "headless project MCP 获得未声明的执行 authority",
+      "contract": "交互式 project trust 与 headless setting-source policy 是两条 authority path；无人点击不能被解释成自动拒绝。",
+      "trigger": "在 -p、SDK 或 cloud/headless session 中加载仓库内 .mcp.json，但 harness 没有固定允许的 setting sources。",
+      "signal": "运行记录没有 trust prompt，也没有 setting-source decision，却出现 project MCP 连接或工具目录。",
+      "recovery": "启动时 pin setting sources 并应用 managed allow/deny；receipt 记录 policy source、decision 与 registration fingerprint。",
+      "doNotAssume": "不要把交互环境的首次 trust prompt 复制成 headless guarantee，也不要把缺少 prompt 当成默认 deny。",
+      "claims": [
+        "MCP-CC-03",
+        "MCP-CC-04"
+      ]
+    },
+    {
+      "id": "H04",
+      "severity": "P1",
+      "family": "Registration & identity",
+      "kind": "observed_behavior",
+      "title": "literal placeholder 进入 URL/header/command",
+      "contract": "Claude 当前文档允许缺失变量保留为 literal 并继续加载；生产 harness 必须另设严格变量解析门。",
+      "trigger": "MCP 配置引用缺失的 ${VAR}，加载器只发 warning 而未终止 registration。",
+      "signal": "resolvedConfig 仍含 `${...}`，warning 后继续出现 connect attempt，或 literal 被发送到 URL、header、argument。",
+      "recovery": "在 deploy-time 对 endpoint、headers、command 与 args 运行 strict resolver；任何未解析 placeholder 都升级为 blocker。",
+      "doNotAssume": "不要把产品的 warning-and-continue 行为当成 secret 已注入，也不要等待连接失败来发现配置错误。",
+      "claims": [
+        "MCP-CC-05"
+      ]
+    },
+    {
+      "id": "H05",
+      "severity": "P1",
+      "family": "Readiness & ownership",
+      "kind": "contract_gap",
+      "title": "runtime add 后重启 server 消失",
+      "contract": "OpenCode 已审计的 experimental runtime add 只修改 directory runtime config；持久化到 disk 不能从 accepted mutation 推断。",
+      "trigger": "通过 /mcp add 在运行时注册 server，随后重启进程或重新创建 directory instance。",
+      "signal": "add receipt 成功，但磁盘 config diff 为空；重启后 status 与 tool defs 中均找不到该 server。",
+      "recovery": "将该路径明确标记 persistence=memory，完成 restart + config diff durability probe 后才能提供“永久保存”文案。",
+      "doNotAssume": "不要因为 runtime config 可读或同目录其他 session 可见，就声称该注册跨进程持久化。",
+      "claims": [
+        "MCP-OC-17"
+      ],
+      "unknown": "MCP-KU-22"
+    },
+    {
+      "id": "H06",
+      "severity": "P1",
+      "family": "Readiness & ownership",
+      "kind": "integration_trap",
+      "title": "UI 显示 ready，但底层 status已 failed",
+      "contract": "OpenCode connect handler 的 true 是 control acknowledgement；ready 必须等到 transport connect 和 tools/list 均成功。",
+      "trigger": "POST connect 返回 true 后，异步 catalog discovery 失败或 client 被关闭。",
+      "signal": "control response 为 true，但 directory status=failed、client/defs 已清除，或 tool count 没有形成可核验 revision。",
+      "recovery": "connect 后轮询 status + tool count，并把 accepted、connecting、catalog-ready、failed 作为不同 UI 状态。",
+      "doNotAssume": "不要让 connect endpoint 的布尔返回值覆盖稍后出现的 failed 状态或 discovery error。",
+      "claims": [
+        "MCP-OC-05",
+        "MCP-OC-18"
+      ]
+    },
+    {
+      "id": "H07",
+      "severity": "P1",
+      "family": "Readiness & ownership",
+      "kind": "contract_gap",
+      "title": "directory-scoped runtime add 缺少显式 mutation concurrency contract",
+      "contract": "OpenCode MCP owner 是 directory，runtime add 改的是内存 config；同目录 mutation 的冲突/replace 语义必须由 harness 另行约束。",
+      "trigger": "两个同 directory session 并发调用 runtime add，或对同名 server 提交不同 config。",
+      "signal": "receipt 只有 accepted/memory mutation，没有 owner generation、conflict decision 或 durable write evidence。",
+      "recovery": "序列化 directory mutation；保存 owner/generation 和 read-back status，同名冲突默认要求显式 replace policy。",
+      "doNotAssume": "不要从 directory owner + memory add 推导同名 client 会被关闭或替换；该行为尚未由 atomic claim 固定。",
+      "claims": [
+        "MCP-OC-01",
+        "MCP-OC-17"
+      ]
+    },
+    {
+      "id": "H08",
+      "severity": "P2",
+      "family": "Readiness & ownership",
+      "kind": "observed_behavior",
+      "title": "cache 命中时 schema 可见但 remote 未连接",
+      "contract": "Claude discovery cache 提供的是 indexed catalog，不是 live connection 或 callable authority。",
+      "trigger": "启动时命中 discovery cache，而 remote server 仍在连接、不可达或尚未完成 initialize。",
+      "signal": "工具名可被搜索，但 receipt 只有 cache source/age，没有 current connection generation；首次 invoke 才暴露连接失败。",
+      "recovery": "分别显示 schemaSource=cached、connectionState 与 invocationReadiness；敏感调用在 current live check 前保持禁用。",
+      "doNotAssume": "不要用“模型已经看见工具”反推 remote 已连接，也不要把 cache age 当 server health。",
+      "claims": [
+        "MCP-CC-13"
+      ],
+      "unknown": "MCP-KU-01"
+    },
+    {
+      "id": "H09",
+      "severity": "P2",
+      "family": "Readiness & ownership",
+      "kind": "observed_behavior",
+      "title": "Codex cached schema 可见但 current client pending",
+      "contract": "Codex optional server 可在一秒 startup grace 后暴露 process cache；调用 authority 仍取决于 current thread runtime。",
+      "trigger": "optional stdio server 命中 process-scoped cache，但当前 thread 的 client 尚未完成 startup。",
+      "signal": "model catalog 带 cached schema，cache key/age 存在，却没有 current client handle 或 startup terminal。",
+      "recovery": "保存 schemaSource、cache age 与 owning thread；prepare/invoke 阶段等待 current server，而不是对 cached handle 发调用。",
+      "doNotAssume": "不要把 30 分钟 LRU 中的工具定义当成当前 process child 已启动或 endpoint 仍可调用。",
+      "claims": [
+        "MCP-CX-10",
+        "MCP-CX-11",
+        "MCP-CX-12",
+        "MCP-CX-13",
+        "MCP-CX-19"
+      ],
+      "unknown": "MCP-KU-18"
+    },
+    {
+      "id": "H10",
+      "severity": "P1",
+      "family": "Catalog / exposure consistency",
+      "kind": "integration_trap",
+      "title": "list-change 被实现成跨产品统一 refresh",
+      "contract": "list-change 必须按产品和版本建模：Claude/OpenCode 有 retained-revision 语义，审计版 Codex regular handler 只写日志。",
+      "trigger": "adapter 收到 tools/list_changed 或等价事件后，无条件执行同一个 replace-catalog transition。",
+      "signal": "同一事件在三产品都生成相同 revision receipt，掩盖 Codex 未刷新、Claude stale-retained 与 OpenCode next-step 生效差异。",
+      "recovery": "维护 product/version-specific transition table；每次事件记录 observed handler、old/new revision 与 effective provider step。",
+      "doNotAssume": "不要因为协议事件名字相同就假定三款产品都刷新、都原子替换或都影响当前 in-flight request。",
+      "claims": [
+        "MCP-CC-14",
+        "MCP-CX-24",
+        "MCP-OC-07",
+        "MCP-OC-08"
+      ],
+      "unknown": "MCP-KU-05"
+    },
+    {
+      "id": "H11",
+      "severity": "P1",
+      "family": "Catalog / exposure consistency",
+      "kind": "contract_gap",
+      "title": "模型按旧 schema 规划，却对新实现执行",
+      "contract": "prompt-facing schema 与 call-time catalog 必须由 revision/hash 关联；改变 authority 的写调用不得静默 rebinding。",
+      "trigger": "provider step 暴露工具后，server reload、list-change 或 Code Mode resolve 取得了不同 schema。",
+      "signal": "promptSchemaHash != callSchemaHash，raw route 或 required fields 已改变，但调用仍使用同一 display tool id。",
+      "recovery": "在 prepare 阶段冻结 binding；call 前比对 revision/hash，差异时返回 stale_authority 并要求模型重新规划。",
+      "doNotAssume": "不要把名称相同当成 contract 相同，也不要让 next-step refresh 反向修改已经发给模型的工具语义。",
+      "claims": [
+        "MCP-CC-11",
+        "MCP-CX-17",
+        "MCP-CX-18",
+        "MCP-CX-19",
+        "MCP-OC-08",
+        "MCP-OC-12"
+      ],
+      "unknown": "MCP-KU-04"
+    },
+    {
+      "id": "H12",
+      "severity": "P1",
+      "family": "Registration & identity",
+      "kind": "observed_behavior",
+      "title": "两个 raw tools 归一化为同一 model id",
+      "contract": "OpenCode sanitized model id 不是无碰撞 identity；publish 前必须以 raw server/tool pair 检测冲突。",
+      "trigger": "不同 raw server/tool 名经过字符替换或拼接后产生相同 `<server>_<tool>` provider id。",
+      "signal": "catalog 中 raw identity 数量大于 model-facing id 数量，且 winner 随 insertion order 改变或后注册覆盖前者。",
+      "recovery": "prepublish collision detector 发现冲突即拒绝 publish；routing、permission 与审计均保存 raw identity。",
+      "doNotAssume": "不要依赖 JavaScript object 最后的值作为稳定 winner，也不要让 sanitized id 成为唯一审计主键。",
+      "claims": [
+        "MCP-OC-09"
+      ],
+      "unknown": "MCP-KU-24"
+    },
+    {
+      "id": "H13",
+      "severity": "P2",
+      "family": "Registration & identity",
+      "kind": "integration_trap",
+      "title": "日志只存 model name，丢失 raw MCP route",
+      "contract": "Codex model name 是长度受限、去重后的呈现标识；可执行 identity 仍是 raw server/tool 与 mapping revision。",
+      "trigger": "permission、telemetry 或 invocation receipt 只记录 sanitize/hash 后的最长 64-byte model name。",
+      "signal": "事故回放能找到 display id，却无法唯一还原 server name、raw tool name 或生成该名称的 catalog revision。",
+      "recovery": "同存 rawServer、rawTool、modelName 与 mappingRevision；所有 policy decision 引用不可变 raw identity。",
+      "doNotAssume": "不要把可逆性寄托在名称格式上；hash/去重规则只保证模型目录可用，不保证外部审计可还原。",
+      "claims": [
+        "MCP-CX-14"
+      ]
+    },
+    {
+      "id": "H14",
+      "severity": "P2",
+      "family": "Catalog / exposure consistency",
+      "kind": "observed_behavior",
+      "title": "ToolSearch 与 alwaysLoad 暴露模式被混成单一目录状态",
+      "contract": "Claude ToolSearch 可 deferred materialize，alwaysLoad 可 upfront；cache/exposure mode 必须作为 model-visible catalog provenance。",
+      "trigger": "Harness 只记录工具最终是否出现，不记录 ToolSearch、alwaysLoad 或 cache prefix。",
+      "signal": "同一 server 在不同 exposure mode 下 prompt schema 数量变化，但 receipt 没有 exposure/cache 字段。",
+      "recovery": "记录 exposure mode、indexed/materialized 状态与 cache prefix；用搜索命中前后 schema hash 做回归。",
+      "doNotAssume": "不要从工具缺席推断 provider/base URL policy，也不要把 indexed 当作 materialized 或 callable。",
+      "claims": [
+        "MCP-CC-11",
+        "MCP-CC-12",
+        "MCP-CC-23"
+      ],
+      "unknown": "MCP-KU-03"
+    },
+    {
+      "id": "H15",
+      "severity": "P2",
+      "family": "Catalog / exposure consistency",
+      "kind": "integration_trap",
+      "title": "tool absence 被误用来诊断 server health",
+      "contract": "Model-facing catalog 不是 health channel；工具未出现只能说明 exposure/materialization 结果，连接与刷新失败必须另有 status/error receipt。",
+      "trigger": "Harness 只查看 prompt 中的工具集合，并据此判断 server 是否 failed。",
+      "signal": "工具缺席，但没有 connection phase、last refresh error 或稳定 error parser 的独立证据。",
+      "recovery": "独立采集 server status/error stream；按 connection、discovery、refresh 分相，并用版本化 fixture 校验 mcp_server_errors parser。",
+      "doNotAssume": "不要让模型从“工具没出现”猜测 server 失败，也不要把未经版本验证的 error 文本当稳定枚举。",
+      "claims": [
+        "MCP-CC-11",
+        "MCP-CC-13"
+      ],
+      "unknown": "MCP-KU-14"
+    },
+    {
+      "id": "H16",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "integration_trap",
+      "title": "server instructions 的 placement 与 cache 语义被跨产品合并",
+      "contract": "OpenCode observed：connected instructions 进入 <mcp_instructions>；Codex observed：cross-session cache 会省略 initialize instructions；Claude placement 未由当前 claims 固定。",
+      "trigger": "Harness 把三产品的 server instructions 都注入同一系统位置，或从 cached schema 恢复 live instructions。",
+      "signal": "OpenCode 出现 <mcp_instructions> block，Codex cache path 缺 instructions，而统一 receipt 仍声称 placement/completeness 相同。",
+      "recovery": "按产品记录 instruction source、placement 与 cache completeness；Claude 未固定时显示 unknown。",
+      "doNotAssume": "不要用 OpenCode placement 证明 Claude/Codex live injection，也不要从 Codex cache omission 推导 live placement。",
+      "claims": [
+        "MCP-CX-13",
+        "MCP-OC-16"
+      ]
+    },
+    {
+      "id": "H17",
+      "severity": "P1",
+      "family": "Catalog / exposure consistency",
+      "kind": "integration_trap",
+      "title": "模型侧缺少工具被误判为 server 未发现",
+      "contract": "Codex regular MCP 的 visibility 与 tool_search exposure 可隐藏或 deferred 工具；模型侧 absence 需要显式 exposure reason。",
+      "trigger": "Raw catalog 有工具，但 ui.visibility 或 deferred exposure 使其未进入当前 prompt。",
+      "signal": "Server/catalog healthy，model-visible schema 缺少该工具，receipt 却没有 visibility/deferred reason。",
+      "recovery": "同时保存 raw catalog、model catalog、visibility 与 exposure mode；对 hidden/deferred 使用 typed reason。",
+      "doNotAssume": "不要把模型看不到工具等同 server 未发现，也不要宣称当前 claims 未固定的 8 KB/64 KB budget。",
+      "claims": [
+        "MCP-CX-15",
+        "MCP-CX-16"
+      ]
+    },
+    {
+      "id": "H18",
+      "severity": "P1",
+      "family": "Catalog / exposure consistency",
+      "kind": "contract_gap",
+      "title": "分页中途失败却发布 partial catalog",
+      "contract": "catalog revision 只能在全部分页收集、验证和去重完成后原子发布；失败时保留上一份完整 revision。",
+      "trigger": "tools/list 在第二页以后 timeout、cursor 重复，或 list-change 与分页遍历并发发生。",
+      "signal": "新 revision 的 tool count 短暂下降，缺少 terminal page receipt，或同一 publish 混入不同 generation 的 cursors。",
+      "recovery": "采用 collect-validate-publish；cursor loop/timeout 返回 typed failure，partial set 只保留在诊断区而不进入 live catalog。",
+      "doNotAssume": "不要逐页覆盖 current catalog，也不要因为第一页成功就向模型暴露尚未完成验证的 revision。",
+      "claims": [
+        "MCP-CC-14",
+        "MCP-CX-08",
+        "MCP-OC-06",
+        "MCP-OC-07"
+      ],
+      "unknown": "MCP-KU-02"
+    },
+    {
+      "id": "H19",
+      "severity": "P1",
+      "family": "Catalog / exposure consistency",
+      "kind": "observed_behavior",
+      "title": "Claude schema normalization 改变 model-facing hash",
+      "contract": "Claude 2.1.195+ 可改写 root combinators；original server schema 与 model-facing schema 必须作为两份资产保存。",
+      "trigger": "server schema 在 root 使用兼容性不佳的 JSON Schema combinator，客户端为模型能力做 normalization。",
+      "signal": "originalSchemaHash 与 modelSchemaHash 不同，但目录、permission 或 incident log 只保存其中一份。",
+      "recovery": "同时保留 original/model schema、normalizer version 与 diff；validation failure 指明发生在 wire 侧还是 model 侧。",
+      "doNotAssume": "不要用 model-facing hash 判断 server 是否变更，也不要把兼容性改写误称为 server 原始 contract。",
+      "claims": [
+        "MCP-CC-24"
+      ]
+    },
+    {
+      "id": "H20",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "integration_trap",
+      "title": "permission allow 被展示成 OS sandboxed",
+      "contract": "调用 gate、local process isolation 与 remote server trust 是三个独立维度；allow 只回答是否发起调用。",
+      "trigger": "工具通过 permission/approval 后，UI 直接显示“安全执行”或“已在沙箱中”。",
+      "signal": "receipt 有 allow decision，却没有 launcher、cwd/env、sandbox backend、remote endpoint 或 server-side authority 字段。",
+      "recovery": "分别展示 permission decision、process sandbox 和 remote trust；缺失 enforcement evidence 时明确标 unknown/not provided。",
+      "doNotAssume": "不要从 approval 推导文件系统或网络隔离，也不要把 server 声明的 sandbox meta 当宿主强制执行证明。",
+      "claims": [
+        "MCP-CC-15",
+        "MCP-CC-16",
+        "MCP-CX-20",
+        "MCP-CX-22",
+        "MCP-CX-23",
+        "MCP-OC-04",
+        "MCP-OC-13",
+        "MCP-OC-15"
+      ]
+    },
+    {
+      "id": "H21",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "integration_trap",
+      "title": "direct app-server 调用沿用 model approval 结论",
+      "contract": "model approval 对该 direct path 不适用；host authority 另证，并独立记录 ACL、provenance 与可选 human approval。",
+      "trigger": "host 调用 mcpServer/tool/call 时，复用 model path 的 approval badge 或 permission receipt。",
+      "signal": "invocation provenance=direct，却引用 model approval id；日志中没有 host principal、API ACL decision 或 host policy version。",
+      "recovery": "为 direct API 建立独立 ACL 和 provenance receipt；需要人审时由 host 明确实现并保存 decision source。",
+      "doNotAssume": "不要声称 direct call 已通过 model approval；核心代码只证明该函数不在 direct path 上，产品级人审仍待 host policy 决定。",
+      "claims": [
+        "MCP-CX-21"
+      ],
+      "unknown": "MCP-KU-20"
+    },
+    {
+      "id": "H22",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "contract_gap",
+      "title": "Codex dynamic host 被误当成内建 MCP 安全边界",
+      "contract": "当前固定证据只提供 thread/start validation/persistence 与 item/tool/call reverse request；MCP OAuth/approval/sandbox 未由该 contract 证明，handler 无独立 wall-clock timeout。",
+      "trigger": "Harness 因字段名叫 tool，就复用 MCP transport、OAuth、catalog 或 model approval receipt。",
+      "signal": "Dynamic call 只有 thread/turn/call 与 reverse host request，却被展示成 MCP server/tool、catalog revision 或 OAuth identity。",
+      "recovery": "将 dynamicTools 作为独立 extension plane；记录 schema set、host binding 与 reverse-call terminal，缺失 authority 字段标 unknown。",
+      "doNotAssume": "不要把“未由该 contract 提供/证明”写成全局不存在，也不要把 model approval 套到 host callback。",
+      "claims": [
+        "MCP-CX-27",
+        "MCP-CX-28",
+        "MCP-CX-29",
+        "MCP-CX-30"
+      ],
+      "unknown": "MCP-KU-17"
+    },
+    {
+      "id": "H23",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "contract_gap",
+      "title": "local stdio child 继承宿主能力却被当成受限工具",
+      "contract": "stdio MCP 是独立本地进程；其 cwd/env/credentials 与 OS enforcement 必须由 launcher receipt 证明。",
+      "trigger": "启动 local MCP child 时只记录 tool permission，没有记录 process environment 或 sandbox backend。",
+      "signal": "child 能读取宿主 env、workspace 或凭据，但审计记录只有 server name；进程退出后也缺少 process-tree terminal。",
+      "recovery": "保存 cwd、显式 env names、launcher 与 process identity；使用 least-privilege launcher 并验证 signal/process-group cleanup。",
+      "doNotAssume": "不要把 Claude Bash sandbox、Codex sandbox meta 或 OpenCode Code Mode confinement 外推到 MCP stdio child。",
+      "claims": [
+        "MCP-CC-08",
+        "MCP-CX-22",
+        "MCP-OC-04"
+      ],
+      "unknown": "MCP-KU-13"
+    },
+    {
+      "id": "H24",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "contract_gap",
+      "title": "remote MCP 副作用被误归入本地 sandbox",
+      "contract": "remote tool 在 server 自己的 tenant、network 和 credential 域执行；client permission 不能证明 server-side ACL 或事务语义。",
+      "trigger": "HTTP/SSE/WebSocket MCP 调用获准后，产品把远端写入描述成“本地安全执行”。",
+      "signal": "receipt 缺 endpoint、tenant、credential source、operation class 或 server audit id，却宣称副作用已受宿主 sandbox 限制。",
+      "recovery": "建立 server-specific conformance profile，并对 endpoint、tenant、credential 与 side-effect allowlist 做调用前校验。",
+      "doNotAssume": "不要从 transport 成功推导 schema 真实、幂等、事务或审计完整；这些都是 server authority。",
+      "claims": [
+        "MCP-CC-06",
+        "MCP-CX-04",
+        "MCP-OC-03"
+      ],
+      "unknown": "MCP-KU-26"
+    },
+    {
+      "id": "H25",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "integration_trap",
+      "title": "headless interaction tool 永久等待或被自动允许",
+      "contract": "requiresUserInteraction 与 elicitation 是可中断 authority state；headless 必须 fail closed 或生成 resumable wait receipt。",
+      "trigger": "无人值守 run 调用 requiresUserInteraction=true 的 tool，或 server 发起 elicitation request。",
+      "signal": "run 无 terminal 且没有 wait token/expiry，或普通 allow rule 在没有 human decision 的情况下继续了调用。",
+      "recovery": "dispatch 前按 interaction capability 过滤；支持时保存 resumable wait，不支持时返回 typed interaction_required。",
+      "doNotAssume": "不要把 blanket allow 当成交互同意，也不要让无期限等待占用 worker 而不暴露可恢复状态。",
+      "claims": [
+        "MCP-CC-16",
+        "MCP-CC-17"
+      ]
+    },
+    {
+      "id": "H26",
+      "severity": "P0",
+      "family": "Authority / isolation / context",
+      "kind": "observed_behavior",
+      "title": "只监听 assistant tool_use 导致 hook 调用漏审计",
+      "contract": "MCP invocation provenance 不只来自模型；Claude hook direct MCP 必须进入同一 effect ledger，但保留独立 authority path。",
+      "trigger": "审计采集器只消费 assistant message 的 tool_use，而忽略 type:mcp_tool hook invocation。",
+      "signal": "remote server 出现调用或副作用，assistant transcript 没有对应 tool_use，hook log 却有 invocation event。",
+      "recovery": "统一采集 model、hook、manual 与 direct provenance；每次调用记录 actor、authority decision 和 logical call id。",
+      "doNotAssume": "不要用 assistant transcript 作为 MCP 调用全集，也不要把 hook provenance 伪装成模型自主调用。",
+      "claims": [
+        "MCP-CC-22"
+      ]
+    },
+    {
+      "id": "H27",
+      "severity": "P1",
+      "family": "Registration & identity",
+      "kind": "integration_trap",
+      "title": "tool rename 使 exact-name policy 静默失配",
+      "contract": "Claude permission/hooks 与 OpenCode normalized permission 都依赖名称；registry diff 必须触发 policy impact analysis。",
+      "trigger": "server rename tool、改变 server name，或 normalization 规则使 model-facing id 变化。",
+      "signal": "旧 persistent allow/hook rule 仍存在但不再命中，或新名称在没有对应历史 decision 时被当成同一工具。",
+      "recovery": "对 raw 和 model identity 做 registry diff；rename 默认撤销继承 authority，要求显式迁移或重新批准。",
+      "doNotAssume": "不要把 schema 相似视为安全 rename，也不要让字符串替换后的新 id 自动继承旧 permission。",
+      "claims": [
+        "MCP-CC-15",
+        "MCP-OC-09",
+        "MCP-OC-13"
+      ],
+      "unknown": "MCP-KU-09"
+    },
+    {
+      "id": "H28",
+      "severity": "P1",
+      "family": "Catalog / exposure consistency",
+      "kind": "observed_behavior",
+      "title": "cached metadata omission 被误报成完整 catalog",
+      "contract": "Codex cross-session cache 会移除 initialize instructions 与 tool annotations；cache hit 必须携带 metadata completeness。",
+      "trigger": "Harness 从 process cache 恢复 schema，却不标 annotations/instructions 被省略。",
+      "signal": "Raw live catalog 与 cached catalog 的 metadata hash 不同，UI 仍显示同一 complete revision。",
+      "recovery": "保存 cache source、age 与 metadataCompleteness；需要 annotations/instructions 时强制 live refresh。",
+      "doNotAssume": "不要从 cached schema 推导完整 annotations、approval hints 或 server instructions。",
+      "claims": [
+        "MCP-CX-13"
+      ]
+    },
+    {
+      "id": "H29",
+      "severity": "P1",
+      "family": "Error / recovery / replay",
+      "kind": "integration_trap",
+      "title": "tool isError 被误标为 connection failed",
+      "contract": "application-level tool error 是 invocation terminal，不改变 transport health；protocol/connection state 需要独立证据。",
+      "trigger": "MCP tool 返回 isError/application error，adapter 将所有失败统一映射为 server disconnected。",
+      "signal": "单次 tool result 为 error 后立即触发 reconnect，尽管 ping/list 仍成功且 connection generation 未变化。",
+      "recovery": "使用 typed tool_error terminal；只在 transport/protocol evidence 出现时更新 connection health 或启动 supervisor。",
+      "doNotAssume": "不要通过重连修复业务校验失败，也不要把服务端正常返回的错误结果升级成基础设施故障。",
+      "claims": [
+        "MCP-CC-18"
+      ]
+    },
+    {
+      "id": "H30",
+      "severity": "P1",
+      "family": "Error / recovery / replay",
+      "kind": "integration_trap",
+      "title": "transport/protocol failure 被投影成可重试业务错误",
+      "contract": "这是 harness integration trap：错误必须携带 phase 与 cause；connect、initialize、discover、invoke 和 projection 不能共享无条件业务 retry。",
+      "trigger": "timeout、cursor loop、initialize failure 或 protocol decode error 被压成普通 tool_error 文本。",
+      "signal": "retry policy 看不到 failure phase，连续重放同一调用；connection/circuit 状态与错误次数没有关联。",
+      "recovery": "建立 phase-aware classifier 与 circuit breaker；只有明确可重试 cause 才创建新 attempt，并保留前一 attempt receipt。",
+      "doNotAssume": "不要因为模型能看到错误文本就认为 transport 已恢复，也不要对未知副作用的 invocation 自动重试。",
+      "claims": [
+        "MCP-CC-09",
+        "MCP-CC-10",
+        "MCP-CC-18",
+        "MCP-OC-05",
+        "MCP-OC-06"
+      ]
+    },
+    {
+      "id": "H31",
+      "severity": "P0",
+      "family": "Error / recovery / replay",
+      "kind": "observed_behavior",
+      "title": "OAuth recovery replay 重复非幂等副作用",
+      "contract": "Claude 401 recovery 可 refresh、reconnect 并重放一次；重放必须是同一 logical call 下的新 attempt。",
+      "trigger": "remote 已提交写操作但 response 边界返回 401/断开，客户端进入 auth recovery replay。",
+      "signal": "相同 logical intent 出现两个 server audit records，而客户端只保留最终成功 result，没有 attempt cause。",
+      "recovery": "传递 idempotency key；记录 logicalCallId、attempt、authRecoveryCause 与 side-effect certainty，未知时要求人工 reconcile。",
+      "doNotAssume": "不要把“只重试一次”解释为 exactly-once；response 未收到不证明 server 没有提交。",
+      "claims": [
+        "MCP-CC-20"
+      ],
+      "unknown": "MCP-KU-06"
+    },
+    {
+      "id": "H32",
+      "severity": "P1",
+      "family": "Error / recovery / replay",
+      "kind": "integration_trap",
+      "title": "stdio child 退出后等待不存在的通用重连",
+      "contract": "Claude stdio 明确不自动重连；Codex/OpenCode 已审计路径也不能外推统一 supervisor guarantee。",
+      "trigger": "local child exit 后，harness 保持 connecting 状态并假定产品稍后会恢复同一 server。",
+      "signal": "process 已 terminal，长时间没有新 pid/generation；队列继续等待，且没有产品级 reconnect attempt receipt。",
+      "recovery": "将 child exit 设为 terminal disconnected；由外层 supervisor 按 transport-specific policy 显式 restart 并生成新 generation。",
+      "doNotAssume": "不要把 HTTP/SSE recovery 数字用于 stdio，也不要从某个 reserved server 的 backoff 推导 regular MCP 行为。",
+      "claims": [
+        "MCP-CC-08",
+        "MCP-CX-26",
+        "MCP-OC-19"
+      ],
+      "unknown": "MCP-KU-08"
+    },
+    {
+      "id": "H33",
+      "severity": "P1",
+      "family": "Error / recovery / replay",
+      "kind": "integration_trap",
+      "title": "Codex Apps backoff 被宣传成 regular MCP 自动重连",
+      "contract": "审计到的 background startup reconnect object 只为 reserved Codex Apps server 构造，不能成为 regular MCP guarantee。",
+      "trigger": "文档或 adapter 看到 Apps 的 1-30 秒 backoff 后，为所有 Codex MCP server 标 auto-reconnect。",
+      "signal": "regular server 断线时 UI 显示下一次 retry 时间，但 runtime 没有对应 supervisor object 或 attempt event。",
+      "recovery": "recovery policy 绑定 server kind、transport 和实现版本；regular path 没有证据时显示 manual/unknown。",
+      "doNotAssume": "不要把 named Apps integration 的启动恢复机制外推给 arbitrary stdio/HTTP MCP。",
+      "claims": [
+        "MCP-CX-26"
+      ],
+      "unknown": "MCP-KU-16"
+    },
+    {
+      "id": "H34",
+      "severity": "P1",
+      "family": "Error / recovery / replay",
+      "kind": "observed_behavior",
+      "title": "OpenCode 404 特殊恢复被当成全断线重连",
+      "contract": "OpenCode ordinary onclose 会标 failed；只有 expired Streamable HTTP session-bound POST 404 走 reinitialize + retry once。",
+      "trigger": "集成层把一次成功的 404 recovery 概括成 SSE/HTTP/stdio 任意断线都会自动恢复。",
+      "signal": "recovery receipt 没有 expired_http_session_404 cause；普通 network close 后 client/defs 被清除却仍显示 reconnecting。",
+      "recovery": "记录 recoveryReason=expired_http_session_404 与 attempt=1；其他 close 按 failed terminal 处理，除非依赖层另有证据。",
+      "doNotAssume": "不要把 session expiry 的一次性补偿扩展成 generic auto-reconnect 或无限 retry。",
+      "claims": [
+        "MCP-OC-19",
+        "MCP-OC-20"
+      ],
+      "unknown": "MCP-KU-21"
+    },
+    {
+      "id": "H35",
+      "severity": "P1",
+      "family": "Catalog / exposure consistency",
+      "kind": "observed_behavior",
+      "title": "refresh 保留旧表却继续显示 availability 绿灯",
+      "contract": "Claude/OpenCode refresh 失败可保留旧 catalog；connection available 与 catalog semantically fresh 必须分栏。",
+      "trigger": "list-change refresh 失败，旧 defs 仍可读取，健康检查只看 client 是否连接。",
+      "signal": "availability=green，但 catalogRevision 未变、staleAge 增长且 lastRefreshError 非空；写工具仍可直接执行。",
+      "recovery": "显示 stale age 与 last refresh error；对高风险写操作启用 freshness threshold 或 fail-closed policy。",
+      "doNotAssume": "不要把 retained catalog 当作 refresh 成功，也不要用“还有工具可用”掩盖 schema 已经过期。",
+      "claims": [
+        "MCP-CC-14",
+        "MCP-OC-07"
+      ]
+    },
+    {
+      "id": "H36",
+      "severity": "P2",
+      "family": "Catalog / exposure consistency",
+      "kind": "observed_behavior",
+      "title": "Codex regular list-changed 只记录日志，catalog 不刷新",
+      "contract": "审计版本的 regular on_tool_list_changed handler 只写 info log；UI 必须把它标成 observed notification，而非 applied refresh。",
+      "trigger": "server 发出 tools/list_changed，harness 等待 Codex 自动产生新 catalog revision。",
+      "signal": "日志出现 list-changed，revision/hash 与 model catalog 长时间不变，也没有 refresh attempt terminal。",
+      "recovery": "提供显式 refresh/reload 操作并显示 version-specific warning；每个新 release 重新审计 handler。",
+      "doNotAssume": "不要看到通知日志就声称 server 更新已生效，也不要把 Codex Apps hard refresh 套到 regular MCP。",
+      "claims": [
+        "MCP-CX-24"
+      ],
+      "unknown": "MCP-KU-15"
+    },
+    {
+      "id": "H37",
+      "severity": "P0",
+      "family": "Catalog / exposure consistency",
+      "kind": "contract_gap",
+      "title": "Codex runtime replacement 与 in-flight regular MCP call 缺少 drain contract",
+      "contract": "Codex binding 可 pin catalog revision，config reload 可令 runtime dirty；旧 regular MCP call 的 drain/cancel/continue 时序仍需故障测试。",
+      "trigger": "Config reload 替换 runtime 时，旧 binding 上已有长时间运行的 regular MCP invocation。",
+      "signal": "Runtime generation 已变，但旧 call 仍未 terminal；receipt 没有 bound revision、replacement decision 或 drain cause。",
+      "recovery": "调用绑定 immutable revision；replacement 记录 old/new runtime，并在旧 call drain/abort 后输出最终 terminal receipt。",
+      "doNotAssume": "不要因为新 runtime 已可用就认为旧 external call 已停止，也不要把旧 result 静默归到新 generation。",
+      "claims": [
+        "MCP-CX-17",
+        "MCP-CX-25"
+      ],
+      "unknown": "MCP-KU-19"
+    },
+    {
+      "id": "H38",
+      "severity": "P1",
+      "family": "Result projection",
+      "kind": "observed_behavior",
+      "title": "Claude 大结果投影成 file reference 后被当作普通文本",
+      "contract": "Claude current docs 允许大文本结果落盘并返回 file reference；result 必须用 union type 保留 projection 与 artifact lifecycle。",
+      "trigger": "Adapter 假设 MCP result 永远 inline text，忽略 file reference 分支。",
+      "signal": "模型收到路径/marker，但 receipt 没有 artifact type、retention、permission 或 cleanup 字段。",
+      "recovery": "解析 typed file-reference result；保存 artifact identity，并对 retention/permission/cleanup 运行验证实验。",
+      "doNotAssume": "不要把 file reference 当错误，也不要把 Claude 行为外推到 OpenCode attachment 或其他产品。",
+      "claims": [
+        "MCP-CC-19"
+      ],
+      "unknown": "MCP-KU-12"
+    },
+    {
+      "id": "H39",
+      "severity": "P1",
+      "family": "Result projection",
+      "kind": "integration_trap",
+      "title": "dynamic host result 被归入 regular MCP transport",
+      "contract": "Codex dynamicTools 是 thread/start schema set + item/tool/call reverse request；result provenance 必须与 regular MCP server/tool 分开。",
+      "trigger": "Telemetry 把 host callback 的 response/client failure 统一标成 MCP tool result 或 connection failure。",
+      "signal": "Receipt 有 thread/turn/call reverse-request fields，却被关联到 MCP server identity、OAuth 或 transport generation。",
+      "recovery": "保留 extensionPlane=dynamicTools 与 reverse-call terminal；host authority/lifecycle 未固定的字段显式标 unknown。",
+      "doNotAssume": "不要从 dynamic host result 改写 regular MCP connection health，也不要宣称当前 claims 未固定的 media validation 行为。",
+      "claims": [
+        "MCP-CX-27",
+        "MCP-CX-30"
+      ],
+      "unknown": "MCP-KU-17"
+    },
+    {
+      "id": "H40",
+      "severity": "P1",
+      "family": "Liveness / budgets",
+      "kind": "contract_gap",
+      "title": "dynamic host 无独立 timeout 导致 turn 永久等待",
+      "contract": "audited Codex dynamic handler 没有自己的 wall-clock timeout；liveness 必须由 host/app-server watchdog 提供。",
+      "trigger": "item/tool/call 已发送给 host，但 subscriber 失联、卡住或从不返回 response。",
+      "signal": "turn 长期停在 dynamic call，核心没有 deadline terminal；host connection 或 pending call age 也未被监控。",
+      "recovery": "host 设置 wall-clock watchdog、abort propagation 与 cancellation receipt；超时后明确 side-effect certainty=unknown。",
+      "doNotAssume": "不要把 thread/turn 的其他 timeout 当成该 reverse request 的 deadline，也不要把断开连接视为已取消执行。",
+      "claims": [
+        "MCP-CX-30"
+      ],
+      "unknown": "MCP-KU-17"
+    },
+    {
+      "id": "H41",
+      "severity": "P1",
+      "family": "Liveness / budgets",
+      "kind": "contract_gap",
+      "title": "Code Mode integration 未传 limits 导致 runaway script",
+      "contract": "OpenCode 调用 Code Mode 时未传 wall-clock、call-count 或 output limits；harness 不能假定 library defaults 已形成产品保障。",
+      "trigger": "execute script 包含长 promise、循环/并行 child MCP calls 或持续累积 output。",
+      "signal": "run time、child call count 或 output bytes 持续增长，receipt 中 limitSource 为空且没有 deterministic terminal。",
+      "recovery": "integration 显式传 wall-clock、call-count、concurrency 与 output budgets，并记录触发的 limit 与已发生 effects。",
+      "doNotAssume": "不要因为 API 支持可选 limits 就认为 OpenCode integration 已启用，也不要把 abort acknowledgement 当进程已清理。",
+      "claims": [
+        "MCP-OC-14"
+      ],
+      "unknown": "MCP-KU-25"
+    },
+    {
+      "id": "H42",
+      "severity": "P1",
+      "family": "Liveness / budgets",
+      "kind": "observed_behavior",
+      "title": "文档与 runtime timeout 分歧使 watchdog 配错",
+      "contract": "OpenCode timeout 必须按 phase 和实际调用路径建模；docs/schema 的 5 秒不能覆盖 connect/catalog 30 秒 fallback。",
+      "trigger": "SLO、alert 或外层 watchdog 直接采用文档中的单一 5 秒默认值。",
+      "signal": "正常 connect/discovery 在 5 秒被外层取消，或 UI 倒计时与 runtime 30 秒 terminal 明显不一致。",
+      "recovery": "通过故障注入测量 connect、catalog 与 call phase；展示 docs/runtime divergence 和每个 deadline 的来源。",
+      "doNotAssume": "不要维护一个 global MCP timeout，也不要把 connect/catalog fallback 外推成每次 tool call 的 deadline。",
+      "claims": [
+        "MCP-OC-22"
+      ]
+    }
+  ],
+  "isolation": [
+    {
+      "label": "I01 · Runtime owner",
+      "cells": {
+        "claude-code": "Configured 与 connected 已分离；runtime owner 未由当前 atomic claim 固定",
+        "codex": "MCP runtime 每 thread；stdio catalog cache 可 process-shared",
+        "opencode": "MCP state owner 是 directory，同目录 sessions 共享"
+      },
+      "claims": [
+        "MCP-CC-01",
+        "MCP-CX-03",
+        "MCP-CX-11",
+        "MCP-CX-12",
+        "MCP-OC-01"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-01"
+        ],
+        "codex": [
+          "MCP-CX-03",
+          "MCP-CX-11",
+          "MCP-CX-12"
+        ],
+        "opencode": [
+          "MCP-OC-01"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I02 · Local stdio process",
+      "cells": {
+        "claude-code": "当前 atomic claims 未固定 local stdio OS sandbox",
+        "codex": "env_clear 重建环境；sandbox-state meta 是合作信号，不是 enforcement",
+        "opencode": "stdio child 使用 workspace cwd + process.env；OS sandbox 未固定"
+      },
+      "claims": [
+        "MCP-CX-22",
+        "MCP-CX-23",
+        "MCP-OC-04"
+      ],
+      "claimsByAgent": {
+        "claude-code": [],
+        "codex": [
+          "MCP-CX-22",
+          "MCP-CX-23"
+        ],
+        "opencode": [
+          "MCP-OC-04"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I03 · Local stdio environment",
+      "cells": {
+        "claude-code": "缺失变量可保持 literal；stdio inherited env 清单未固定",
+        "codex": "env_clear 后重建 default allowlist + explicit vars/overrides",
+        "opencode": "process.env 全量继承，再叠 config environment"
+      },
+      "claims": [
+        "MCP-CC-05",
+        "MCP-CX-22",
+        "MCP-OC-04"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-05"
+        ],
+        "codex": [
+          "MCP-CX-22"
+        ],
+        "opencode": [
+          "MCP-OC-04"
+        ]
+      },
+      "unknownByAgent": {
+        "claude-code": "MCP-KU-13"
+      },
+      "unknown": "MCP-KU-13"
+    },
+    {
+      "label": "I04 · Cwd/filesystem",
+      "cells": {
+        "claude-code": "Current docs 固定 stdio transport；cwd/filesystem authority 未固定",
+        "codex": "Selected environment 属于 registration identity；cwd fallback/filesystem enforcement 未固定",
+        "opencode": "Local MCP 默认 cwd 是 workspace directory；其他 cwd override 未由当前 claim 固定"
+      },
+      "claims": [
+        "MCP-CC-06",
+        "MCP-CX-04",
+        "MCP-OC-04"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-06"
+        ],
+        "codex": [
+          "MCP-CX-04"
+        ],
+        "opencode": [
+          "MCP-OC-04"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I05 · Remote transport / server authority",
+      "cells": {
+        "claude-code": "Current docs 固定 remote HTTP/SSE/WebSocket transport；server authority 另证",
+        "codex": "HTTP client 绑定 selected environment；server ACL/side-effect safety 另证",
+        "opencode": "Remote 先 Streamable HTTP 后 SSE fallback；server authority 另证"
+      },
+      "claims": [
+        "MCP-CC-06",
+        "MCP-CX-04",
+        "MCP-OC-03"
+      ],
+      "unknown": "MCP-KU-26",
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-06"
+        ],
+        "codex": [
+          "MCP-CX-04"
+        ],
+        "opencode": [
+          "MCP-OC-03"
+        ]
+      },
+      "unknownByAgent": {
+        "claude-code": "MCP-KU-26",
+        "codex": "MCP-KU-26",
+        "opencode": "MCP-KU-26"
+      }
+    },
+    {
+      "label": "I06 · Credential scope",
+      "cells": {
+        "claude-code": "401 可 refresh、reconnect 并 replay once；token persistence/header fallback 未固定",
+        "codex": "mcp add 先写 global config，再做 OAuth support discovery；credential scope 未固定",
+        "opencode": "Runtime 按 directory 共享；OAuth credential scope 未单独固定"
+      },
+      "claims": [
+        "MCP-CC-20",
+        "MCP-CX-02",
+        "MCP-OC-01"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-20"
+        ],
+        "codex": [
+          "MCP-CX-02"
+        ],
+        "opencode": [
+          "MCP-OC-01"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I07 · Per-call gate",
+      "cells": {
+        "claude-code": "Permission/hooks 按 exact name；requiresUserInteraction 不能 silent allow",
+        "codex": "Model path 有 approval modes；direct path 不进入该函数；sandbox meta 另列",
+        "opencode": "Blanket deny 在 provider 前隐藏；Code Mode child 保留逐调用 permission receipt"
+      },
+      "claims": [
+        "MCP-CC-15",
+        "MCP-CC-16",
+        "MCP-CX-20",
+        "MCP-CX-21",
+        "MCP-CX-23",
+        "MCP-OC-13",
+        "MCP-OC-15"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-15",
+          "MCP-CC-16"
+        ],
+        "codex": [
+          "MCP-CX-20",
+          "MCP-CX-21",
+          "MCP-CX-23"
+        ],
+        "opencode": [
+          "MCP-OC-13",
+          "MCP-OC-15"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I08 · Project/config trust",
+      "cells": {
+        "claude-code": "Project .mcp.json 有 interactive trust；headless 需显式 setting-source policy",
+        "codex": "Thread owner/selected environment 已固定；project/config trust 未固定",
+        "opencode": "Runtime add 只固定 memory config mutation"
+      },
+      "claims": [
+        "MCP-CC-03",
+        "MCP-CC-04",
+        "MCP-CX-03",
+        "MCP-CX-04",
+        "MCP-OC-17"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-03",
+          "MCP-CC-04"
+        ],
+        "codex": [
+          "MCP-CX-03",
+          "MCP-CX-04"
+        ],
+        "opencode": [
+          "MCP-OC-17"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I09 · Catalog cache isolation",
+      "cells": {
+        "claude-code": "Discovery index 可 cached；TTL/key/storage policy 未固定",
+        "codex": "Process LRU 32/30 min，仅 stdio；cache 省略 instructions/annotations",
+        "opencode": "Directory owner 可保留旧 defs；独立 cache policy 未固定"
+      },
+      "claims": [
+        "MCP-CC-13",
+        "MCP-CX-11",
+        "MCP-CX-12",
+        "MCP-CX-13",
+        "MCP-OC-01",
+        "MCP-OC-07"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-13"
+        ],
+        "codex": [
+          "MCP-CX-11",
+          "MCP-CX-12",
+          "MCP-CX-13"
+        ],
+        "opencode": [
+          "MCP-OC-01",
+          "MCP-OC-07"
+        ]
+      },
+      "unknownByAgent": {
+        "claude-code": "MCP-KU-01"
+      },
+      "unknown": "MCP-KU-01"
+    },
+    {
+      "label": "I10 · Server instructions",
+      "cells": {
+        "claude-code": "Cache prefix 随 exposure mode 变化；instruction placement 未固定",
+        "codex": "Cross-session cache 省略 initialize instructions；live placement 未固定",
+        "opencode": "Connected instructions 进入 <mcp_instructions> system block"
+      },
+      "claims": [
+        "MCP-CC-23",
+        "MCP-CX-13",
+        "MCP-OC-16"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-23"
+        ],
+        "codex": [
+          "MCP-CX-13"
+        ],
+        "opencode": [
+          "MCP-OC-16"
+        ]
+      },
+      "unknownByAgent": {}
+    }
+  ],
+  "limits": [
+    {
+      "label": "I11 · Timeouts",
+      "cells": {
+        "claude-code": "Startup/alwaysLoad 边界含 5 秒",
+        "codex": "Startup 默认 30 秒、tool 默认 300 秒；dynamic host handler 无独立 timeout",
+        "opencode": "Docs/schema 称 5 秒，connect/catalog fallback 为 30 秒"
+      },
+      "claims": [
+        "MCP-CC-12",
+        "MCP-CX-06",
+        "MCP-CX-30",
+        "MCP-OC-22"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-12"
+        ],
+        "codex": [
+          "MCP-CX-06",
+          "MCP-CX-30"
+        ],
+        "opencode": [
+          "MCP-OC-22"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I12 · Reconnect limit",
+      "cells": {
+        "claude-code": "HTTP/SSE 最多 5 次指数退避；stdio 无自动重连",
+        "codex": "Reconnect object 仅用于 reserved Apps；regular MCP guarantee 未建立",
+        "opencode": "Ordinary close -> failed；expired HTTP session 404 特殊恢复"
+      },
+      "claims": [
+        "MCP-CC-07",
+        "MCP-CC-08",
+        "MCP-CX-26",
+        "MCP-OC-19",
+        "MCP-OC-20"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-07",
+          "MCP-CC-08"
+        ],
+        "codex": [
+          "MCP-CX-26"
+        ],
+        "opencode": [
+          "MCP-OC-19",
+          "MCP-OC-20"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I13 · Startup / call concurrency",
+      "cells": {
+        "claude-code": "Cross-server fairness、rate limit 与 backpressure 未固定",
+        "codex": "Enabled servers 在 startup 并发；tool-call parallel contract 未固定",
+        "opencode": "Enabled servers 连接并发；Code Mode child 上限未由当前 claim 固定"
+      },
+      "claims": [
+        "MCP-CX-05",
+        "MCP-OC-02"
+      ],
+      "claimsByAgent": {
+        "claude-code": [],
+        "codex": [
+          "MCP-CX-05"
+        ],
+        "opencode": [
+          "MCP-OC-02"
+        ]
+      },
+      "unknownByAgent": {
+        "claude-code": "MCP-KU-11"
+      },
+      "unknown": "MCP-KU-11"
+    },
+    {
+      "label": "I14 · Result size/shape",
+      "cells": {
+        "claude-code": "大文本可变 file reference；image 仍受 token limit",
+        "codex": "当前 atomic claims 未固定 regular MCP result sanitizer 或 dynamic media budget",
+        "opencode": "Code Mode integration 未传 output limit；其他 result caps 未固定"
+      },
+      "claims": [
+        "MCP-CC-19",
+        "MCP-OC-14"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-19"
+        ],
+        "codex": [],
+        "opencode": [
+          "MCP-OC-14"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I15 · Schema/context budget",
+      "cells": {
+        "claude-code": "ToolSearch 可 deferred；alwaysLoad 可 upfront，并有 startup 边界",
+        "codex": "ui.visibility 与 tool_search 决定 hidden/direct/deferred exposure；数值 budget 未固定",
+        "opencode": "默认 direct per-tool；Code Mode 只暴露 single execute surface"
+      },
+      "claims": [
+        "MCP-CC-11",
+        "MCP-CC-12",
+        "MCP-CX-15",
+        "MCP-CX-16",
+        "MCP-OC-10",
+        "MCP-OC-11"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-11",
+          "MCP-CC-12"
+        ],
+        "codex": [
+          "MCP-CX-15",
+          "MCP-CX-16"
+        ],
+        "opencode": [
+          "MCP-OC-10",
+          "MCP-OC-11"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I16 · Human interaction",
+      "cells": {
+        "claude-code": "requiresUserInteraction 不能 silent allow；2.1.76+ 支持 elicitation",
+        "codex": "当前 claims 固定 model-path approval；elicitation/dynamic-host human flow 未固定",
+        "opencode": "Blanket deny 在 provider 前隐藏；其他规则在调用前判定"
+      },
+      "claims": [
+        "MCP-CC-16",
+        "MCP-CC-17",
+        "MCP-CX-20",
+        "MCP-OC-15"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-16",
+          "MCP-CC-17"
+        ],
+        "codex": [
+          "MCP-CX-20"
+        ],
+        "opencode": [
+          "MCP-OC-15"
+        ]
+      },
+      "unknownByAgent": {}
+    },
+    {
+      "label": "I17 · Dynamic host authority",
+      "cells": {
+        "claude-code": "Current claims 未定义 Codex-style dynamic host",
+        "codex": "只固定 thread/start schema set 与 reverse request；OAuth/approval/sandbox 未证明",
+        "opencode": "Runtime add 是 memory MCP config；reverse host callback 未固定"
+      },
+      "claims": [
+        "MCP-CX-27",
+        "MCP-CX-28",
+        "MCP-CX-30",
+        "MCP-OC-17"
+      ],
+      "unknown": "MCP-KU-17",
+      "claimsByAgent": {
+        "claude-code": [],
+        "codex": [
+          "MCP-CX-27",
+          "MCP-CX-28",
+          "MCP-CX-30"
+        ],
+        "opencode": [
+          "MCP-OC-17"
+        ]
+      },
+      "unknownByAgent": {
+        "codex": "MCP-KU-17"
+      }
+    },
+    {
+      "label": "I18 · Host-native extension code",
+      "cells": {
+        "claude-code": "Hook 可 direct MCP；plugin/hook/skill lifecycle 未由该 claim 固定",
+        "codex": "DynamicTools 只固定 experimental thread/start；host executor lifecycle 未固定",
+        "opencode": "Custom/plugin JS/TS 是 host-native extension，不是 MCP/Code Mode sandbox"
+      },
+      "claims": [
+        "MCP-CC-22",
+        "MCP-CX-27",
+        "MCP-OC-21"
+      ],
+      "claimsByAgent": {
+        "claude-code": [
+          "MCP-CC-22"
+        ],
+        "codex": [
+          "MCP-CX-27"
+        ],
+        "opencode": [
+          "MCP-OC-21"
+        ]
+      },
+      "unknownByAgent": {}
+    }
+  ],
+  "changes": [
+    {
+      "agent": "claude-code",
+      "version": "2.1.9",
+      "impact": "auto:N ToolSearch threshold；修 reconnect cached-promise hang",
+      "path": "persistence增加search threshold与connection promise state",
+      "url": "https://github.com/anthropics/claude-code/blob/5a91286a82b5a113e1f32159a6ed55b0c54007e1/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-11"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/5a91286a82b5a113e1f32159a6ed55b0c54007e1/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.70",
+      "impact": "proxy endpoint下禁用不兼容tool_reference；修ToolSearch空响应、late instructions cache bust、reconnect freeze",
+      "path": "provider capability和late-connect event进入receipt",
+      "url": "https://github.com/anthropics/claude-code/blob/da80366c484698e6370ad9e8abf121f33f8f79e0/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-11"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/da80366c484698e6370ad9e8abf121f33f8f79e0/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.72",
+      "impact": "custom base URL可显式启用ToolSearch",
+      "path": "operator override独立于provider inference",
+      "url": "https://github.com/anthropics/claude-code/blob/00553dec20a7b3ad58252a22de7cf1b45ee20330/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-11"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/00553dec20a7b3ad58252a22de7cf1b45ee20330/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.76",
+      "impact": "MCP elicitation；修compaction后deferred schema丢失",
+      "path": "新增human-wait state与compaction schema regression",
+      "url": "https://github.com/anthropics/claude-code/blob/420a1884671fe09addc881f9a62624dae952d21c/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-17"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/420a1884671fe09addc881f9a62624dae952d21c/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.89",
+      "impact": "print mode nonblocking；--mcp-config wait限5秒",
+      "path": "startup readiness变成可配置异步边界",
+      "url": "https://github.com/anthropics/claude-code/blob/b4fa5f85f3d2e02b47f67ab2e348ce6101fb7b5a/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-12"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/b4fa5f85f3d2e02b47f67ab2e348ce6101fb7b5a/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.117",
+      "impact": "--agent主线程加载frontmatter MCP；并发连接默认",
+      "path": "owner增加agent profile，startup并发改变",
+      "url": "https://github.com/anthropics/claude-code/blob/2fa67717b8046c253cfa55fd84002e3501f1eca6/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/2fa67717b8046c253cfa55fd84002e3501f1eca6/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.118",
+      "impact": "hook可直接调用MCP",
+      "path": "provenance enum加入hook",
+      "url": "https://github.com/anthropics/claude-code/blob/925200dffc3d0aea02ffa9aa234b22d5efb63bc3/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-22"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/925200dffc3d0aea02ffa9aa234b22d5efb63bc3/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.121",
+      "impact": "alwaysLoad；startup transient retry最多3次",
+      "path": "exposure和retry budget持久化",
+      "url": "https://github.com/anthropics/claude-code/blob/158620419486e3d2d696351d5a71fbd6b8f58653/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-09",
+        "MCP-CC-12"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/158620419486e3d2d696351d5a71fbd6b8f58653/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.191",
+      "impact": "capability discovery与OAuth discovery/token retry增强",
+      "path": "connect/auth/discover拆span",
+      "url": "https://github.com/anthropics/claude-code/blob/0bd954331e2dbf76024ac53b0fd997314f653e51/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-10",
+        "MCP-CC-20"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/0bd954331e2dbf76024ac53b0fd997314f653e51/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.195",
+      "impact": "root schema compatibility normalization",
+      "path": "original/model schema双hash",
+      "url": "https://code.claude.com/docs/en/mcp#schema-compatibility",
+      "evidenceClass": "current-docs",
+      "claims": [
+        "MCP-CC-24"
+      ],
+      "sources": [
+        {
+          "label": "current docs",
+          "url": "https://code.claude.com/docs/en/mcp#schema-compatibility"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.196",
+      "impact": "repo不能自批准 .mcp.json",
+      "path": "trust evidence绑定workspace fingerprint",
+      "url": "https://github.com/anthropics/claude-code/blob/c80896ca84bd5f45cfe2cd4c1ae91b5d4ba4280b/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-03"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/c80896ca84bd5f45cfe2cd4c1ae91b5d4ba4280b/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.199",
+      "impact": "interaction-required tool不能被普通allow绕过",
+      "path": "headless dispatch fail-closed",
+      "url": "https://code.claude.com/docs/en/mcp#interactive-mcp-tools",
+      "evidenceClass": "current-docs",
+      "claims": [
+        "MCP-CC-16"
+      ],
+      "sources": [
+        {
+          "label": "current docs",
+          "url": "https://code.claude.com/docs/en/mcp#interactive-mcp-tools"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.206",
+      "impact": "修一次failed token refresh后需手工re-auth",
+      "path": "auth recovery可区分transient/terminal",
+      "url": "https://github.com/anthropics/claude-code/blob/15a21e1b4e240e2da6a4953d5f148a806c9c9bb2/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-20"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/15a21e1b4e240e2da6a4953d5f148a806c9c9bb2/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.211",
+      "impact": "修plugin MCP web idle wake后不重连",
+      "path": "sleeping/wake加入connection timeline",
+      "url": "https://github.com/anthropics/claude-code/blob/c39cb0f14bfe8bb519bae5bfc55add6867c5e2ab/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-07"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/c39cb0f14bfe8bb519bae5bfc55add6867c5e2ab/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.214",
+      "impact": "transient refresh 不再清空 prompts/resources",
+      "path": "refresh failure-retained prompts/resources revision",
+      "url": "https://github.com/anthropics/claude-code/blob/07dcb0e13580b21174ff1bf6a7e1d5ead3b61d60/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CC-14"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/07dcb0e13580b21174ff1bf6a7e1d5ead3b61d60/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.219",
+      "impact": "stream-json init增加mcp_server_errors",
+      "path": "headless init error ingestion",
+      "url": "https://github.com/anthropics/claude-code/blob/0c188278cdf9b8b717c2740550bdb0f69c02f6b5/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "unknown": "MCP-KU-14",
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/0c188278cdf9b8b717c2740550bdb0f69c02f6b5/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.221",
+      "impact": "修 --mcp-config server 在 print mode 首轮未连接",
+      "path": "first-turn readiness source",
+      "url": "https://github.com/anthropics/claude-code/blob/dd796139237c9c105ffed1e2a40ea3a1faae9108/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/dd796139237c9c105ffed1e2a40ea3a1faae9108/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "claude-code",
+      "version": "2.1.226",
+      "impact": "fixed audit baseline，release note仅reliability概述",
+      "path": "不把current docs细节宣称为该版新增",
+      "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md",
+      "evidenceClass": "exact-history",
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md"
+        }
+      ]
+    },
+    {
+      "agent": "codex",
+      "version": "0.92.0",
+      "impact": "app-server dynamic tool injection",
+      "path": "extension type加入dynamic_host",
+      "url": "https://github.com/openai/codex/releases/tag/rust-v0.92.0",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CX-27",
+        "MCP-CX-30"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/openai/codex/releases/tag/rust-v0.92.0"
+        },
+        {
+          "label": "exact commit",
+          "url": "https://github.com/openai/codex/commit/d594693d1a5ca23ada9c89366357ff6c7c1d92d1"
+        }
+      ]
+    },
+    {
+      "agent": "codex",
+      "version": "0.93.0",
+      "impact": "MCP tool approval；dynamic specs写session rollout",
+      "path": "approval snapshot + dynamic persistence",
+      "url": "https://github.com/openai/codex/commit/34f89b12d038d330f1e8306dbe9e1727b32f09c0",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CX-20",
+        "MCP-CX-29"
+      ],
+      "sources": [
+        {
+          "label": "approval",
+          "url": "https://github.com/openai/codex/commit/34f89b12d038d330f1e8306dbe9e1727b32f09c0"
+        },
+        {
+          "label": "persistence",
+          "url": "https://github.com/openai/codex/commit/7151387474792e9febcc3cb6e01ceb98280ce5de"
+        }
+      ]
+    },
+    {
+      "agent": "codex",
+      "version": "0.97.0",
+      "impact": "approve-and-remember MCP/Apps usage",
+      "path": "approval scope加入persistent",
+      "url": "https://github.com/openai/codex/commit/282f42c0ce3c067a1a00c7590f76ef7bec47e207",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CX-20"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/openai/codex/commit/282f42c0ce3c067a1a00c7590f76ef7bec47e207"
+        }
+      ]
+    },
+    {
+      "agent": "codex",
+      "version": "0.115.0",
+      "impact": "dynamic tool context-hiding语义；Smart Approvals",
+      "path": "exposure/approval versioned",
+      "url": "https://github.com/openai/codex/releases/tag/rust-v0.115.0",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CX-20",
+        "MCP-CX-27"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/openai/codex/releases/tag/rust-v0.115.0"
+        },
+        {
+          "label": "dynamic exposure",
+          "url": "https://github.com/openai/codex/commit/70eddad6b075f26f0f93c66f7ec9a4e49cdadc93"
+        },
+        {
+          "label": "approval",
+          "url": "https://github.com/openai/codex/commit/bc24017d64829d0b97b8bc6ed529a389e1e8bc1b"
+        }
+      ]
+    },
+    {
+      "agent": "codex",
+      "version": "0.123.0",
+      "impact": "deferred namespaced dynamic tools进入tool search",
+      "path": "materialization source加入dynamic",
+      "url": "https://github.com/openai/codex/releases/tag/rust-v0.123.0",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CX-27"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/openai/codex/releases/tag/rust-v0.123.0"
+        },
+        {
+          "label": "fixed source",
+          "url": "https://github.com/openai/codex/commit/dc1a8f219075d8c4be28b2a95f335d4b16fb9387"
+        }
+      ]
+    },
+    {
+      "agent": "codex",
+      "version": "0.147.0",
+      "impact": "explicit namespaces、canonical dynamic items、catalog cache、thread-bound calls、opt-in MCP 2026-07-28 tools/list next_cursor pagination、stable binding reuse",
+      "path": "current schema采用owner/cache/revision/host-call字段",
+      "url": "https://github.com/openai/codex/releases/tag/rust-v0.147.0",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-CX-08",
+        "MCP-CX-11",
+        "MCP-CX-17",
+        "MCP-CX-30"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/openai/codex/releases/tag/rust-v0.147.0"
+        },
+        {
+          "label": "namespaces",
+          "url": "https://github.com/openai/codex/commit/11faf9af94fa345ba090701f071c8d3107fbca45"
+        },
+        {
+          "label": "canonical items",
+          "url": "https://github.com/openai/codex/commit/f659eb12bc8cecb976d92db192d9b2983c8053ff"
+        },
+        {
+          "label": "catalog cache",
+          "url": "https://github.com/openai/codex/commit/42c5d3c80d4295d26706b929f6fe968963e81c04"
+        },
+        {
+          "label": "thread calls",
+          "url": "https://github.com/openai/codex/commit/c4f2746c43a3ab87c2978657d7f2c274546e97fe"
+        },
+        {
+          "label": "protocol",
+          "url": "https://github.com/openai/codex/commit/be2e4afcd7392339d6adbaf0d31b26316bcaa2ab"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.0.194",
+      "impact": "MCP notifications/tools/list_changed",
+      "path": "catalog-change event ingestion",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.0.194",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-07",
+        "MCP-OC-08"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/anomalyco/opencode/releases/tag/v1.0.194"
+        },
+        {
+          "label": "exact commit",
+          "url": "https://github.com/anomalyco/opencode/commit/f4d61be8bdd857bd85481a787fc754dfa766fe92"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.0.219",
+      "impact": "MCP prompts成为slash commands；tool timeout configurable",
+      "path": "extension type/prompt + timeout config",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.0.219",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-22"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/anomalyco/opencode/releases/tag/v1.0.219"
+        },
+        {
+          "label": "exact commit",
+          "url": "https://github.com/anomalyco/opencode/commit/ed4ce67cdc24e4e9324a00cf176a45ccd267a584"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.17.0",
+      "impact": "catalog pagination；abort signal进入calls",
+      "path": "cursor/cancel receipts",
+      "url": "https://github.com/anomalyco/opencode/commit/0efc334ff94fb630cb2dc82b3bc46789d37588b1",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-06"
+      ],
+      "sources": [
+        {
+          "label": "pagination",
+          "url": "https://github.com/anomalyco/opencode/commit/0efc334ff94fb630cb2dc82b3bc46789d37588b1"
+        },
+        {
+          "label": "abort",
+          "url": "https://github.com/anomalyco/opencode/commit/79cff288a643fad0ee86cd38d2a10d0aa30ca859"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.17.4",
+      "impact": "catalog timeout覆盖tools/prompts/resources；local cwd/logs",
+      "path": "discovery span + cwd/log fields",
+      "url": "https://github.com/anomalyco/opencode/commit/f43b0d3afd80f4bb3b13982a25e350525d9ab189",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-04",
+        "MCP-OC-22"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anomalyco/opencode/commit/f43b0d3afd80f4bb3b13982a25e350525d9ab189"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.17.5",
+      "impact": "closed-client cleanup；expired-session recovery",
+      "path": "close/recovery transitions",
+      "url": "https://github.com/anomalyco/opencode/commit/1b096b4148e3eb274462157276c694f96fc4078c",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-19",
+        "MCP-OC-20"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anomalyco/opencode/commit/1b096b4148e3eb274462157276c694f96fc4078c"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.17.10",
+      "impact": "server instructions、resource read/templates",
+      "path": "instructions/resources纳入catalog",
+      "url": "https://github.com/anomalyco/opencode/commit/e8e83afbce66225a9256601a37ec7a6a4c21820c",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-16"
+      ],
+      "sources": [
+        {
+          "label": "fixed source",
+          "url": "https://github.com/anomalyco/opencode/commit/e8e83afbce66225a9256601a37ec7a6a4c21820c"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.17.14",
+      "impact": "final tag包含flag-gated experimental Code Mode MCP adapter",
+      "path": "exposure mode加入code_mode",
+      "url": "https://github.com/anomalyco/opencode/commit/cb93114424816144743e95f39e3d9388d71f394e",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-11",
+        "MCP-OC-12",
+        "MCP-OC-13",
+        "MCP-OC-14"
+      ],
+      "sources": [
+        {
+          "label": "adapter",
+          "url": "https://github.com/anomalyco/opencode/commit/cb93114424816144743e95f39e3d9388d71f394e"
+        },
+        {
+          "label": "gating",
+          "url": "https://github.com/anomalyco/opencode/commit/ed6dc879be0c087b6fab44fe8e76ab9544814bc1"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.18.8",
+      "impact": "MCP SDK v2 + expired-session recovery",
+      "path": "negotiated SDK/recovery reason",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.8",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-20"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.8"
+        },
+        {
+          "label": "recovery commit",
+          "url": "https://github.com/anomalyco/opencode/commit/921b1c6a34651870db4585e4e4114f0ba87102a7"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.18.9",
+      "impact": "恢复legacy MCP SDK compatibility",
+      "path": "protocol compatibility state",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.9",
+      "evidenceClass": "exact-history",
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.9"
+        },
+        {
+          "label": "compatibility commit",
+          "url": "https://github.com/anomalyco/opencode/commit/982a9044c515482e7792039be1db9c71cb572745"
+        }
+      ]
+    },
+    {
+      "agent": "opencode",
+      "version": "1.18.15",
+      "impact": "fixed audit baseline",
+      "path": "pin current dashboard behavior",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.15",
+      "evidenceClass": "exact-history",
+      "claims": [
+        "MCP-OC-01"
+      ],
+      "sources": [
+        {
+          "label": "release",
+          "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.15"
+        },
+        {
+          "label": "audit commit",
+          "url": "https://github.com/anomalyco/opencode/commit/d7b115f623760e68a4749d16508a9eca350f246f"
+        }
+      ]
+    }
+  ]
+}

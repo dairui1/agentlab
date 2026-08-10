@@ -185,6 +185,19 @@ test("renderer keeps evidence in place, handles deep links, and avoids unsafe HT
   assert.doesNotMatch(script, /scrollIntoView/);
   assert.match(script, /function focusMechanismItem\(position = "current"\)/);
   assert.match(script, /next\.searchParams\.set\("view", state\.view\)/);
+  assert.match(script, /function renderCollectionController\(records, config\)/);
+  assert.match(script, /row\.claimsByAgent\[agent\]/);
+  assert.match(script, /collectionChunks = \{ flows: 6, failures: 12, changes: 10 \}/);
+  assert.match(script, /url\.searchParams\.set\(key, value\)/);
+  assert.doesNotMatch(html, /<select\b/);
+  assert.match(html, /id="inspectorBackdrop"/);
+  assert.match(script, /inspector\.setAttribute\("role", "dialog"\)/);
+  assert.match(script, /inspector\.setAttribute\("aria-modal", "true"\)/);
+  assert.match(script, /inspectorBackdrop\.addEventListener\("click", \(\) => closeInspector\(\)\)/);
+  assert.match(script, /event\.key === "Escape"/);
+  assert.match(script, /inspector\.scrollTop = 0/);
+  assert.match(script, /kind === "compare" \|\| external/);
+  assert.match(script, /row\.setAttribute\("role", "row"\)/);
 });
 
 test("layout is three-pane on wide screens and row-first on mobile", () => {
@@ -199,5 +212,7 @@ test("layout is three-pane on wide screens and row-first on mobile", () => {
   assert.match(styles, /\.sharp-edge-strip \{[\s\S]*display: flex/);
   assert.match(styles, /\.sharp-edge-title \{[\s\S]*position: sticky[\s\S]*flex: 0 0 184px/);
   assert.doesNotMatch(styles, /grid-template-columns: 184px repeat\(5/);
+  assert.match(styles, /\.collection-toolbar \{[\s\S]*position: sticky/);
+  assert.match(styles, /\.collection-facet button\[aria-pressed="true"\]/);
   assert.doesNotMatch(styles, /\.operation-table[^}]*overflow-x:\s*auto/);
 });

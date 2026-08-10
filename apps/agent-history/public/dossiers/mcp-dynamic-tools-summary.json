@@ -1,0 +1,283 @@
+{
+  "id": "mcp-dynamic-tools",
+  "number": "007",
+  "title": "MCP 与动态工具",
+  "verifiedAt": "2026-08-10",
+  "snapshots": [
+    {
+      "agent": "claude-code",
+      "label": "Claude Code",
+      "version": "2.1.226",
+      "captures": 24
+    },
+    {
+      "agent": "codex",
+      "label": "Codex",
+      "version": "0.147.0",
+      "captures": 30
+    },
+    {
+      "agent": "opencode",
+      "label": "opencode",
+      "version": "1.18.15",
+      "captures": 22
+    }
+  ],
+  "thesis": "支持 MCP 不等于工具可调用：registration、transport、initialize、catalog、schema materialization、authority 与 invocation terminal 必须分别观测；Codex dynamicTools 是独立 host callback contract。",
+  "scope": "Claude Code 使用 current official docs 与 pinned history 分层；Codex、OpenCode 使用 exact commit source；MCP 2025-11-25 protocol 事实不自动升级为 client implementation。",
+  "models": [
+    {
+      "agent": "claude-code",
+      "label": "Claude Code",
+      "version": "2.1.226",
+      "archetype": "trust + deferred ToolSearch + direct hook",
+      "summary": "配置优先级、project trust、deferred schema、refresh retention 与 hook provenance 构成运行合同。",
+      "claims": [
+        "MCP-CC-01",
+        "MCP-CC-03",
+        "MCP-CC-11",
+        "MCP-CC-14",
+        "MCP-CC-22"
+      ]
+    },
+    {
+      "agent": "codex",
+      "label": "Codex",
+      "version": "0.147.0",
+      "archetype": "thread MCP runtime + separate dynamic host",
+      "summary": "Regular MCP 有 connection/catalog/binding/approval；dynamicTools 只有 thread contract 与 reverse host call。",
+      "claims": [
+        "MCP-CX-03",
+        "MCP-CX-17",
+        "MCP-CX-21",
+        "MCP-CX-27",
+        "MCP-CX-30"
+      ]
+    },
+    {
+      "agent": "opencode",
+      "label": "opencode",
+      "version": "1.18.15",
+      "archetype": "directory runtime + provider-step snapshot",
+      "summary": "同目录共享 client/catalog；direct schemas 与 Code Mode aggregation 是两种 exposure。",
+      "claims": [
+        "MCP-OC-01",
+        "MCP-OC-08",
+        "MCP-OC-10",
+        "MCP-OC-11",
+        "MCP-OC-19"
+      ]
+    }
+  ],
+  "matrix": [],
+  "unknowns": [
+    {
+      "id": "MCP-KU-01",
+      "title": "Claude discovery cache精确TTL、key、storage permission与跨版本invalidation",
+      "text": "cached index age无法计算",
+      "needed": "cold/warm/multi-version black-box matrix",
+      "experiment": "在隔离profile中对同一server做cold/warm启动，逐项改变endpoint、auth、cwd与Claude版本；随后断开remote并按时间间隔重复查询，同时检查本地cache文件。",
+      "observable": "记录每轮cache hit/miss、schema可见时间、首次过期时间、cache路径与权限，以及哪些key维度或版本变化触发invalidation。"
+    },
+    {
+      "id": "MCP-KU-02",
+      "title": "Claude list-changed连发的debounce、ordering与分页原子提交算法",
+      "text": "catalog可能跳revision",
+      "needed": "burst notifications + mid-page mutation test",
+      "experiment": "用可控的分页MCP server连续发送不同间隔的list-changed通知，并在第二页拉取期间修改目录或注入分页失败。",
+      "observable": "记录通知序号、refresh起止次数、cursor序列、发布的catalog hash/revision，以及任何partial或中间revision是否曾对调用可见。"
+    },
+    {
+      "id": "MCP-KU-03",
+      "title": "Claude ToolSearch ranking、stability、zero-result recall",
+      "text": "tool可发现性不是deterministic contract",
+      "needed": "fixed corpus replay by provider/model",
+      "experiment": "固定一组含近义名称、相似description和干扰项的tool corpus，对同一查询在各provider/model下重复运行30次，并轮换tool插入顺序。",
+      "observable": "计算recall@k、zero-result率、top-k排序方差与重复运行Jaccard，并标出provider、model或插入顺序造成的差异。"
+    },
+    {
+      "id": "MCP-KU-04",
+      "title": "Claude search到invoke之间是否强制同registry revision",
+      "text": "schema TOCTOU处理未知",
+      "needed": "delete/change schema between steps",
+      "experiment": "让ToolSearch先返回v1 schema，在模型形成调用后、dispatch前删除tool或切换为不兼容的v2 schema，再提交旧参数。",
+      "observable": "对比prompt与call时的registry revision/schema hash，记录调用被拒绝、重新校验、路由到旧实现或执行新实现，以及最终side-effect次数。"
+    },
+    {
+      "id": "MCP-KU-05",
+      "title": "Claude refresh移除tool时in-flight call是drain、cancel或继续",
+      "text": "side effect终态不清",
+      "needed": "long-running tool + removal test",
+      "experiment": "启动一个在commit前阻塞的长时写tool，确认进入执行后通过list-changed移除该tool，再分别释放、取消和超时该调用。",
+      "observable": "记录旧调用是drain、cancel还是继续，server commit次数、client terminal、late result是否发布，以及移除前后的catalog revision。"
+    },
+    {
+      "id": "MCP-KU-06",
+      "title": "Claude HTTP reconnect对未收到response request是否会replay",
+      "text": "duplicate write风险",
+      "needed": "fault injection at request/commit boundaries",
+      "experiment": "用带commit计数器的非幂等写tool，分别在server收包前、commit后回包前和401 refresh期间切断连接，再观察恢复流程。",
+      "observable": "记录wire request次数、server commit次数、logical call id与attempt id、retry cause、是否复用参数，以及用户最终收到的terminal。"
+    },
+    {
+      "id": "MCP-KU-07",
+      "title": "Claude WebSocket reconnect上限是否等于HTTP/SSE",
+      "text": "supervisor不能复用数字",
+      "needed": "transport-specific disconnect test",
+      "experiment": "对同一fixture分别使用WebSocket、HTTP和SSE，在connected后按固定节奏反复断线，直到client进入terminal或停止自动恢复。",
+      "observable": "逐transport记录自动重连次数、实际backoff间隔、session是否复用、最终状态与是否需要人工操作。"
+    },
+    {
+      "id": "MCP-KU-08",
+      "title": "Claude stdio process group、signals、zombie cleanup与crash-loop suppression",
+      "text": "child leak/loop风险",
+      "needed": "process tree + repeated crash test",
+      "experiment": "让stdio server派生grandchild，分别正常退出、被signal终止和连续快速crash；每轮后检查进程树、文件描述符与下一次启动。",
+      "observable": "记录PID/PGID、发送的signal、退出后残留descendant与FD、重启频率、backoff或抑制阈值，以及最终terminal。"
+    },
+    {
+      "id": "MCP-KU-09",
+      "title": "Claude exact-name permission在rename/schema change后的persistent invalidation",
+      "text": "stale approval风险",
+      "needed": "rename across restart/profile test",
+      "experiment": "先为旧的exact tool name建立持久allow，再分别仅rename、仅改schema和两者同时改变，并跨session、restart与profile调用新旧名称。",
+      "observable": "记录持久policy entry是否被保留或失效、新旧名称的prompt/allow/deny结果、旧route是否仍可调用，以及是否产生policy-impact提示。"
+    },
+    {
+      "id": "MCP-KU-10",
+      "title": "Claude plugin reload与in-flight MCP/OAuth/elicitation是否事务化",
+      "text": "reload race",
+      "needed": "coordinated long call + reload matrix",
+      "experiment": "分别把调用阻塞在tool执行、OAuth refresh和elicitation阶段，再对plugin做unchanged、changed与removed三类reload并解除阻塞。",
+      "observable": "记录connection是kept还是replaced、generation切换点、调用terminal与side effect、elicitation能否resume、token状态及reload事件顺序。"
+    },
+    {
+      "id": "MCP-KU-11",
+      "title": "Claude MCP跨server fairness、rate limit、backpressure/circuit breaker",
+      "text": "noisy neighbor",
+      "needed": "saturation test with slow/fast servers",
+      "experiment": "用一个高并发慢server持续占满请求，同时向另一个低延迟server定时发送调用；逐步提高并发并注入429与超时。",
+      "observable": "按server统计排队深度、start/complete latency、吞吐、starvation时长、429传播、backpressure信号与circuit open/close行为。"
+    },
+    {
+      "id": "MCP-KU-12",
+      "title": "Claude result artifact retention、permission、cleanup与remote resume可达性",
+      "text": "file reference可能失效或泄漏",
+      "needed": "lifecycle/storage audit",
+      "experiment": "生成超过inline limit的结果并取得file reference，检查本地权限；随后restart、resume、跨机器resume、删除session并等待cleanup窗口。",
+      "observable": "记录artifact路径、owner/mode/hash、各生命周期阶段的可读性、实际TTL与删除时点、remote resume结果，以及残留或越权读取。"
+    },
+    {
+      "id": "MCP-KU-13",
+      "title": "Claude stdio实际继承哪些host env/secrets",
+      "text": "sandbox docs只界定Bash",
+      "needed": "controlled env sentinel test",
+      "experiment": "在host环境注入按类别命名的无敏感sentinel变量，由受控stdio server只回传变量名与值hash；在不同scope、profile和显式environment覆盖下重复。",
+      "observable": "列出实际继承、过滤、覆盖的env key，比较cwd、PATH与credential-like sentinel的差异，并记录parent process与launch scope。"
+    },
+    {
+      "id": "MCP-KU-14",
+      "title": "Claude mcp_server_errors enum稳定性及是否覆盖runtime refresh",
+      "text": "parser compatibility",
+      "needed": "versioned stream-json fixtures",
+      "experiment": "从多个Claude版本采集stream-json init输出，覆盖stdio/remote的connect、auth、discover失败及运行中refresh失败，并用同一parser回放fixtures。",
+      "observable": "记录mcp_server_errors字段是否出现、enum值与payload shape、server/phase映射、未知值fallback、字段顺序依赖及runtime refresh覆盖情况。"
+    },
+    {
+      "id": "MCP-KU-15",
+      "title": "Codex未来版本是否把standard tools/list_changed从log升级为refresh",
+      "text": "dashboard warning会过期",
+      "needed": "re-audit each pinned release",
+      "experiment": "对每个新Codex release固定commit checkout并运行同一list_changed fixture，同时比较handler source和通知前后的tool catalog。",
+      "observable": "记录通知后是仅写log还是触发refresh、catalog hash/revision与event是否变化，并定位行为首次改变的release和commit。"
+    },
+    {
+      "id": "MCP-KU-16",
+      "title": "Codex regular HTTP transport对half-open、session expiry、network flap的底层retry",
+      "text": "audited supervisor无generic object不代表transport无任何恢复",
+      "needed": "transport fault suite",
+      "experiment": "通过fault proxy分别制造connect half-open、idle断链、in-flight reset、session expiry和短时network flap，逐项运行regular HTTP MCP调用。",
+      "observable": "记录wire attempts、backoff、session id复用或reinitialize、connection generation、恢复耗时、调用是否replay及最终terminal。"
+    },
+    {
+      "id": "MCP-KU-17",
+      "title": "具体Codex host是否为dynamicTools另加ACL、approval、timeout",
+      "text": "core contract不保证host behavior",
+      "needed": "host capability handshake/receipt",
+      "experiment": "对目标host注册read、write和长时dynamic tool，分别以允许、拒绝、无响应和取消场景调用，并抓取host handshake与审计日志。",
+      "observable": "记录host声明的capability、ACL决策、human approval事件、watchdog时长、cancel传播、executor identity和每次调用的provenance receipt。"
+    },
+    {
+      "id": "MCP-KU-18",
+      "title": "Codex regular tool cache在高并发thread间eviction/fetch race的用户可见时序",
+      "text": "32-entry LRU可能抖动",
+      "needed": "many-thread cache churn test",
+      "experiment": "准备超过32个可cache的stdio catalog，以barrier同步启动多thread做cold/warm读取；按不同seed重复访问并强制LRU eviction。",
+      "observable": "记录每个thread的hit/miss、eviction order、重复fetch次数、schema首次可见时间、readiness latency、错误catalog串用与顺序稳定性。"
+    },
+    {
+      "id": "MCP-KU-19",
+      "title": "Codex runtime replacement与已经开始的regular MCP call如何drain",
+      "text": "old binding保留authority但外部shutdown时序需验证",
+      "needed": "slow call + config reload/reconnect",
+      "experiment": "在generation A启动一个阻塞调用，随后reload config使server变为generation B或被删除，再释放A并同时发起新调用。",
+      "observable": "记录每个调用绑定的generation/revision、A client关闭时点、旧调用drain/cancel/complete结果与side effect，以及新调用是否只路由到B。"
+    },
+    {
+      "id": "MCP-KU-20",
+      "title": "Codex direct app-server call是否应有product-level human approval",
+      "text": "source 只证明 model approval 对该 direct path 不适用，host authority 仍未知",
+      "needed": "product policy decision + integration test",
+      "experiment": "先定义read/write与trusted/untrusted server的product policy矩阵，再从app-server direct path逐格调用，并检查host ACL、UI与审计记录。",
+      "observable": "记录是否出现human prompt、host ACL结果、actor与provenance、modelMcpApproval=not_applicable receipt，以及被拒绝场景是否仍产生side effect。"
+    },
+    {
+      "id": "MCP-KU-21",
+      "title": "OpenCode underlying SSE/HTTP transport对普通network close的内部retry细节",
+      "text": "OpenCode onclose只标failed不穷尽dependency behavior",
+      "needed": "dependency-version fault injection",
+      "experiment": "固定MCP SDK版本，用proxy在connect、idle和in-flight阶段切断SSE/HTTP连接，排除expired-session 404专用路径并重复多轮。",
+      "observable": "记录底层reconnect/reinitialize次数、backoff、session复用、wire request是否重放、OpenCode client/status变化和最终terminal。"
+    },
+    {
+      "id": "MCP-KU-22",
+      "title": "OpenCode runtime add是否在其他API层被持久化",
+      "text": "examined handler只改memory",
+      "needed": "restart + config diff experiment",
+      "experiment": "分别通过每个公开runtime add入口添加唯一server，保存添加前后disk config快照，再重启process、重开workspace并重新list/connect。",
+      "observable": "记录disk diff、restart后registration/status/tool count、owner scope，以及哪些API入口仅保留memory、哪些产生持久配置。"
+    },
+    {
+      "id": "MCP-KU-23",
+      "title": "OpenCode disk config reload是否总能invalidate所有directory ToolRegistry/MCP state",
+      "text": "stale state风险",
+      "needed": "multi-client reload matrix",
+      "experiment": "启动同目录与不同目录的多个client，直接修改disk config执行add/change/remove，再触发watcher或reload并从每个client查询和调用。",
+      "observable": "逐directory记录registry generation、catalog hash、refresh延迟、收到的change event、旧tool是否仍可调用，以及client间是否出现分叉。"
+    },
+    {
+      "id": "MCP-KU-24",
+      "title": "OpenCode normalized collision在不同insertion orders下的winner稳定性",
+      "text": "policy/tool routing可漂移",
+      "needed": "collision fixture ordering test",
+      "experiment": "构造两个会sanitize为同一model id的raw server/tool组合，以正序、逆序和并发顺序注册，跨restart重复并为该id配置permission。",
+      "observable": "记录published model id、实际winner与raw route、是否报告collision、permission命中对象，以及结果对插入顺序和restart是否稳定。"
+    },
+    {
+      "id": "MCP-KU-25",
+      "title": "OpenCode Code Mode integration对CPU/memory/long promise的host-level enforcement",
+      "text": "no passed limits不等于无其他runtime limit",
+      "needed": "runaway script/resource measurement",
+      "experiment": "在隔离test workspace中分别运行busy loop、永不resolve promise、持续分配内存、大量child MCP calls和超大output，且不显式传limits。",
+      "observable": "记录wall-clock终止点、CPU/RSS峰值、child call数、output bytes、kill/cancel/error类型，以及结束后是否残留process或调用。"
+    },
+    {
+      "id": "MCP-KU-26",
+      "title": "三产品server-side ACL、schema真实性、transaction、idempotency与audit completeness",
+      "text": "client不能证明副作用安全",
+      "needed": "server-specific conformance profile",
+      "experiment": "在每个server的专用test tenant中，用最小权限身份执行allow/deny、声明与实际schema偏差、commit前后故障、相同idempotency key重放和审计关联测试。",
+      "observable": "产出server级ACL矩阵、declared/observed schema hash、commit与rollback计数、重复调用副作用数、idempotency结果，以及client/server audit correlation完整率。"
+    }
+  ]
+}

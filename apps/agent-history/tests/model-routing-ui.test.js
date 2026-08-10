@@ -203,8 +203,8 @@ test("changes use exact immutable Claude history without inventing other-agent d
 test("renderer exposes operation groups, evidence grades, and verification relations without unsafe HTML", () => {
   assert.match(script, /workbench\.operationGroups \|\| \[\]/);
   assert.match(script, /claim\.type === "inference"/);
-  assert.match(script, /claim\.grade === "DOCS-FORWARD"/);
-  assert.match(script, /docs-forward.*当前文档/);
+  assert.match(script, /grade === "DOCS-FORWARD"/);
+  assert.match(script, /"current-docs": "当前文档"/);
   assert.match(script, /claim\.dependsOn/);
   assert.match(script, /claim\.unknowns/);
   assert.match(script, /claim\.disproof/);

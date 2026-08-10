@@ -1,0 +1,1559 @@
+{
+  "claims": [
+    {
+      "id": "MCP-CC-01",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "mcp add 只写入配置",
+      "statement": "claude mcp add 成功只证明配置写入，不证明连接或发现成功。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "claude mcp add"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#check-server-status"
+      }
+    },
+    {
+      "id": "MCP-CC-02",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "同名配置按整条 entry 覆盖",
+      "statement": "同名 server 冲突按 local > project > user > plugin > claude.ai 选择整条 entry，不做字段 merge。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C02",
+        "保存 winner + shadow chain"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#configuration-precedence"
+      }
+    },
+    {
+      "id": "MCP-CC-03",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "pending_trust 是独立状态",
+      "statement": "交互式 session 首次使用 project .mcp.json 需要 trust/approval。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        ".mcp.json"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#project-scope"
+      }
+    },
+    {
+      "id": "MCP-CC-04",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "非交互入口可不询问信任",
+      "statement": "-p、SDK、cloud 因不能显示 prompt，可不询问而加载 project MCP。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "-p"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#project-scope"
+      }
+    },
+    {
+      "id": "MCP-CC-05",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "缺失环境变量仍保留 literal",
+      "statement": "环境变量缺失时文档行为是保留 ${VAR} literal、给 warning并继续加载。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "${VAR}"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcpjson"
+      }
+    },
+    {
+      "id": "MCP-CC-06",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "支持四类 MCP transport",
+      "statement": "snapshot docs 支持 Streamable HTTP、SSE、WebSocket 与 stdio 四类 transport。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C06",
+        "transport是策略维度"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#connect-to-a-remote-mcp-server"
+      }
+    },
+    {
+      "id": "MCP-CC-07",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "HTTP/SSE 断线最多重连五次",
+      "statement": "HTTP/SSE 已连接后断线最多自动重连5次并指数退避。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C07",
+        "receipt记录retry/backoff"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#connection-retries"
+      }
+    },
+    {
+      "id": "MCP-CC-08",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "stdio 退出后不自动重连",
+      "statement": "stdio server退出后不自动重连。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C08",
+        "terminal/manual supervisor"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#connection-retries"
+      }
+    },
+    {
+      "id": "MCP-CC-09",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "初始连接只重试 transient error",
+      "statement": "初次建连 transient error最多重试3次，auth/not-found不走同一路径。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C09",
+        "retry分类按cause"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#connection-retries"
+      }
+    },
+    {
+      "id": "MCP-CC-10",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "EXACT-HISTORY",
+      "version": "2.1.226",
+      "title": "Discovery transient error 最多重试三次",
+      "statement": "2.1.191+ discovery transient error最多重试3次。",
+      "layer": "Pinned official history",
+      "confidence": "High",
+      "signals": [
+        "2.1.191+"
+      ],
+      "boundary": "Pinned history 证明版本变化，不公开闭源实现的完整状态机。",
+      "source": {
+        "label": "Exact-history",
+        "url": "https://github.com/anthropics/claude-code/blob/0bd954331e2dbf76024ac53b0fd997314f653e51/CHANGELOG.md"
+      }
+    },
+    {
+      "id": "MCP-CC-11",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "Indexed schema 不等于 materialized schema",
+      "statement": "ToolSearch开启时，默认只先暴露搜索面，匹配后再加载完整 MCP schema。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C11",
+        "indexed != materialized"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#mcp-tool-search"
+      }
+    },
+    {
+      "id": "MCP-CC-12",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "alwaysLoad 有五秒 startup 边界",
+      "statement": "alwaysLoad 可强制 upfront schema，并给 server startup最多5秒等待边界。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "alwaysLoad"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#mcp-tool-search"
+      }
+    },
+    {
+      "id": "MCP-CC-13",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS+EXACT-HISTORY",
+      "version": "2.1.226",
+      "title": "Remote 未连接时 cache 可先提供索引",
+      "statement": "docs标注 2.1.221+ 的 discovery cache 可在 remote未实际连接时先提供索引。",
+      "layer": "Current official docs plus pinned history",
+      "confidence": "High",
+      "signals": [
+        "2.1.221+"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs、history",
+        "url": "https://code.claude.com/docs/en/mcp#mcp-tool-search"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/anthropics/claude-code/blob/dd796139237c9c105ffed1e2a40ea3a1faae9108/CHANGELOG.md"
+      }
+    },
+    {
+      "id": "MCP-CC-14",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS+EXACT-HISTORY",
+      "version": "2.1.226",
+      "title": "Refresh 失败保留旧 catalog",
+      "statement": "dynamic refresh失败时 current docs保证保留上一份 tools/prompts/resources列表。",
+      "layer": "Current official docs plus pinned history",
+      "confidence": "High",
+      "signals": [
+        "C14",
+        "retained revision标 stale"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs、2.1.214",
+        "url": "https://code.claude.com/docs/en/mcp#dynamic-tool-updates"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/anthropics/claude-code/blob/07dcb0e13580b21174ff1bf6a7e1d5ead3b61d60/CHANGELOG.md"
+      }
+    },
+    {
+      "id": "MCP-CC-15",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "策略按 exact mcp__server__tool name 匹配",
+      "statement": "MCP permission、hooks与subagent tool lists按 exact mcp__server__tool name匹配。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "mcp__server__tool"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/tools-reference"
+      }
+    },
+    {
+      "id": "MCP-CC-16",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "requiresUserInteraction 不受普通 allow 绕过",
+      "statement": "requiresUserInteraction=true 的 tool不可被普通 allow rule静默绕过。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "requiresUserInteraction=true"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#interactive-mcp-tools"
+      }
+    },
+    {
+      "id": "MCP-CC-17",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "EXACT-HISTORY",
+      "version": "2.1.226",
+      "title": "Claude Code 支持 MCP elicitation",
+      "statement": "Claude Code从 2.1.76 起支持 MCP elicitation。",
+      "layer": "Pinned official history",
+      "confidence": "High",
+      "signals": [
+        "2.1.76"
+      ],
+      "boundary": "Pinned history 证明版本变化，不公开闭源实现的完整状态机。",
+      "source": {
+        "label": "Exact-history",
+        "url": "https://github.com/anthropics/claude-code/blob/420a1884671fe09addc881f9a62624dae952d21c/CHANGELOG.md"
+      }
+    },
+    {
+      "id": "MCP-CC-18",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "PROTOCOL",
+      "version": "2.1.226",
+      "title": "Tool application error 与 protocol error 分离",
+      "statement": "MCP tool application error与protocol error是不同结果类别。",
+      "layer": "Frozen MCP protocol",
+      "confidence": "High",
+      "signals": [
+        "C18",
+        "tool error不改变connection health"
+      ],
+      "boundary": "协议事实不证明 Claude Code 已实现全部 optional capability。",
+      "source": {
+        "label": "Frozen spec",
+        "url": "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#error-handling"
+      }
+    },
+    {
+      "id": "MCP-CC-19",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "大文本结果可投影为 file reference",
+      "statement": "过大文本结果可落盘并改为file reference，image仍受token limit。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C19",
+        "result用union类型"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#mcp-output-limits-and-warnings"
+      }
+    },
+    {
+      "id": "MCP-CC-20",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "OAuth 401 恢复会重放调用一次",
+      "statement": "已登录 remote返回401时，Claude Code可refresh、reconnect并重放原调用一次。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C20",
+        "logical call下记录auth-recovery attempt"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#authenticate-with-remote-mcp-servers"
+      }
+    },
+    {
+      "id": "MCP-CC-21",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "Plugin reload 保留未变连接",
+      "statement": "plugin reload保留配置未变化的连接，只连接新增、断开删除。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C21",
+        "reload receipt列kept/started/stopped"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#plugin-provided-mcp-servers"
+      }
+    },
+    {
+      "id": "MCP-CC-22",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "EXACT-HISTORY",
+      "version": "2.1.226",
+      "title": "Hook 可用 type: mcp_tool 直接调用 MCP",
+      "statement": "2.1.118+ hook可用 type: mcp_tool 直接调用MCP。",
+      "layer": "Pinned official history",
+      "confidence": "High",
+      "signals": [
+        "2.1.118+",
+        "type: mcp_tool"
+      ],
+      "boundary": "Pinned history 证明版本变化，不公开闭源实现的完整状态机。",
+      "source": {
+        "label": "Exact-history",
+        "url": "https://github.com/anthropics/claude-code/blob/925200dffc3d0aea02ffa9aa234b22d5efb63bc3/CHANGELOG.md"
+      }
+    },
+    {
+      "id": "MCP-CC-23",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "Deferred 与 upfront 变化影响不同 cache prefix",
+      "statement": "deferred tool变化与 upfront tool变化对prompt cache prefix的影响不同。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "C23",
+        "cache miss归因包含exposure mode"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/prompt-caching"
+      }
+    },
+    {
+      "id": "MCP-CC-24",
+      "agent": "claude-code",
+      "type": "fact",
+      "grade": "CURRENT-DOCS",
+      "version": "2.1.226",
+      "title": "Root JSON Schema combinator 会被兼容性改写",
+      "statement": "2.1.195+ 会兼容性改写root JSON Schema combinators。",
+      "layer": "Current official docs, not exact implementation",
+      "confidence": "Medium",
+      "signals": [
+        "2.1.195+"
+      ],
+      "boundary": "这是 current official docs 合同，不能伪装成 Claude Code 2.1.226 的 exact implementation guarantee。",
+      "source": {
+        "label": "Current-docs",
+        "url": "https://code.claude.com/docs/en/mcp#schema-compatibility"
+      }
+    },
+    {
+      "id": "MCP-CX-01",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Codex MCP CLI 暴露六个配置操作",
+      "statement": "codex mcp CLI包含 list/get/add/remove/login/logout。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "codex mcp"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/cli/src/mcp_cmd.rs#L45-L69"
+      }
+    },
+    {
+      "id": "MCP-CX-02",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "mcp add 先写配置再探测 OAuth",
+      "statement": "mcp add 写global config后才做HTTP OAuth support discovery。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "mcp add"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/cli/src/mcp_cmd.rs#L298-L445"
+      }
+    },
+    {
+      "id": "MCP-CX-03",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "McpRuntime 由 thread 持有",
+      "statement": "McpRuntime 的mutable state由一个Codex thread拥有。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "McpRuntime"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/runtime.rs#L71-L89"
+      }
+    },
+    {
+      "id": "MCP-CX-04",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Selected environment 决定 MCP 启动位置",
+      "statement": "selected plugin stdio MCP在其owning environment启动，HTTP使用该environment HTTP client。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X04",
+        "environment是registration identity"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server/README.md#L161-L166"
+      }
+    },
+    {
+      "id": "MCP-CX-05",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Enabled servers 并发启动",
+      "statement": "enabled MCP servers在connection set construction中并发启动。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X05",
+        "per-server startup spans"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/connection_manager.rs#L202-L230"
+      }
+    },
+    {
+      "id": "MCP-CX-06",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Startup 与 tool timeout 分别为 30s / 300s",
+      "statement": "default startup timeout是30秒，default tool timeout是300秒。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X06",
+        "phase-specific watchdog"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/rmcp_client.rs#L80-L95"
+      }
+    },
+    {
+      "id": "MCP-CX-07",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Startup success 包含 initialize 与首次 tools/list",
+      "statement": "startup success要求client creation、initialize和首次tools/list都完成。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X07",
+        "connected与catalog-ready不压平"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/rmcp_client.rs#L292-L391"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/rmcp_client.rs#L860-L956"
+      }
+    },
+    {
+      "id": "MCP-CX-08",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "2026-07-28 mode 使用 next_cursor",
+      "statement": "opt-in 2026-07-28 mode使用tools/list next_cursor，legacy mode忽略它。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "2026-07-28",
+        "next_cursor"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/rmcp_client.rs#L608-L658"
+      }
+    },
+    {
+      "id": "MCP-CX-09",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Required server 失败阻止 thread runtime 安装",
+      "statement": "required server失败会聚合并使initial thread MCP runtime安装失败。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X09",
+        "required impact显示到thread readiness"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/connection_manager/required.rs#L10-L55"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/session/mcp_runtime.rs#L84-L117"
+      }
+    },
+    {
+      "id": "MCP-CX-10",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Cached schema 可先于 live client 暴露",
+      "statement": "optional server capture使用1秒 startup grace，并可先暴露cached schema。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X10",
+        "cached schema不等于callable"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/connection_manager/tool_catalog.rs#L171-L241"
+      }
+    },
+    {
+      "id": "MCP-CX-11",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Regular tool cache 是 32-entry / 30-minute process LRU",
+      "statement": "regular tool catalog cache是process-scoped LRU，容量32、TTL 30分钟。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X11",
+        "cache owner/age显示"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/tool_catalog_cache.rs#L28-L68"
+      }
+    },
+    {
+      "id": "MCP-CX-12",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Regular cache 只覆盖稳定可识别的 stdio server",
+      "statement": "该regular cache只为可稳定识别的stdio server建立，HTTP当前不共享。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X12",
+        "cache eligibility字段"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/tool_catalog_cache.rs#L242-L269"
+      }
+    },
+    {
+      "id": "MCP-CX-13",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Cross-session cache 会剥离 instructions 与 annotations",
+      "statement": "cross-session cached tools会移除initialize instructions和tool annotations。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X13",
+        "metadata completeness字段"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/tool_catalog_cache.rs#L152-L172"
+      }
+    },
+    {
+      "id": "MCP-CX-14",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Codex 同时保留 raw route 与 model name",
+      "statement": "Codex保留raw server/tool routing identity，并生成去重、hash、最长64-byte的model names。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X14",
+        "raw/model mapping持久化"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/tools.rs#L105-L214"
+      }
+    },
+    {
+      "id": "MCP-CX-15",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "ui.visibility 控制 model exposure",
+      "statement": "tool存在ui.visibility时，只有包含model才进入model-facing catalog。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "ui.visibility",
+        "model"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/connection_manager/tool_catalog.rs#L37-L58"
+      }
+    },
+    {
+      "id": "MCP-CX-16",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "tool_search 决定 direct 或 deferred exposure",
+      "statement": "tool_search 开启时regular MCP tools注册为deferred，否则direct。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X16",
+        "exposure mode显示"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/mcp_tool_exposure.rs#L21-L40"
+      }
+    },
+    {
+      "id": "MCP-CX-17",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "McpBinding 冻结 catalog 与 client handles",
+      "statement": "McpBinding 冻结exact catalog和client handles。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "McpBinding"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/binding.rs#L29-L88"
+      }
+    },
+    {
+      "id": "MCP-CX-18",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Catalog revision 变化产生 stale_authority",
+      "statement": "PreparedMcpCall 在catalog revision变化后拒绝执行。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "PreparedMcpCall"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/binding.rs#L251-L288"
+      }
+    },
+    {
+      "id": "MCP-CX-19",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Model path 调用前重新取得 current call",
+      "statement": "model path调用前会等待current server并重新prepare exact call。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X19",
+        "prompt/call authority分开"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/tools/handlers/mcp.rs#L149-L205"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/mcp_tool_call.rs#L108-L161"
+      }
+    },
+    {
+      "id": "MCP-CX-20",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "MCP approval 支持四种 mode 与 per-tool override",
+      "statement": "MCP approval mode为auto、prompt、writes、approve，并支持per-tool override。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X20",
+        "approval snapshot保存"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/config/src/mcp_types.rs#L23-L65"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/server.rs#L291-L329"
+      }
+    },
+    {
+      "id": "MCP-CX-21",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Direct path 不进入 model approval",
+      "statement": "app-server direct mcpServer/tool/call 不进入 model-path approval 函数。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "mcpServer/tool/call"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited direct path；host API authority 仍未知，不证明该路径没有 ACL、人审或其他 authority gate。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server/src/request_processors/mcp_processor.rs#L469-L489"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/codex_thread.rs#L703-L716"
+      }
+    },
+    {
+      "id": "MCP-CX-22",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Local stdio 使用 env_clear 后重建环境",
+      "statement": "local stdio child使用env_clear后重建allowlist与显式环境。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "env_clear"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/rmcp-client/src/stdio_server_launcher.rs#L258-L285"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/rmcp-client/src/utils.rs#L14-L27"
+      }
+    },
+    {
+      "id": "MCP-CX-23",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "sandbox-state meta 是协作信息",
+      "statement": "sandbox state只在server声明codex/sandbox-state-meta capability时作为meta发送。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "codex/sandbox-state-meta"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/mcp_tool_call.rs#L722-L772"
+      }
+    },
+    {
+      "id": "MCP-CX-24",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "on_tool_list_changed 只写 info log",
+      "statement": "audited regular on_tool_list_changed implementation只写info log。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "on_tool_list_changed"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/rmcp-client/src/logging_client_handler.rs#L74-L92"
+      }
+    },
+    {
+      "id": "MCP-CX-25",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Config reload 只标记 runtime dirty 并 prewarm",
+      "statement": "config reload会mark loaded thread runtimes dirty并best-effort prewarm。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X25",
+        "reload != refreshed catalog"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server/src/mcp_refresh.rs#L9-L51"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/session/mcp_prewarm.rs#L1-L60"
+      }
+    },
+    {
+      "id": "MCP-CX-26",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Background reconnect 仅用于 reserved Codex Apps",
+      "statement": "background startup reconnect object只为reserved Codex Apps server构造。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X26",
+        "regular reconnect不外推"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/codex-mcp/src/rmcp_client.rs#L440-L523"
+      }
+    },
+    {
+      "id": "MCP-CX-27",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "dynamicTools 仅在 thread/start 注册",
+      "statement": "dynamicTools 只作为experimental thread/start参数出现。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "dynamicTools",
+        "thread/start"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L119-L138"
+      }
+    },
+    {
+      "id": "MCP-CX-28",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Dynamic schema 在 thread/start 验证",
+      "statement": "dynamic tool names/namespaces/schema/defer规则在thread start验证。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X28",
+        "invalid contract fail-fast"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server/src/request_processors/thread_processor.rs#L231-L375"
+      }
+    },
+    {
+      "id": "MCP-CX-29",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Dynamic tool specs 持久化到 thread",
+      "statement": "dynamic tool specs持久化到thread，并在empty start input时从history恢复。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "X29",
+        "resume compatibility contract"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/session/mod.rs#L659-L716"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/session/session.rs#L631-L650"
+      }
+    },
+    {
+      "id": "MCP-CX-30",
+      "agent": "codex",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "0.147.0",
+      "title": "Dynamic host handler 没有独立 wall-clock timeout",
+      "statement": "dynamic call通过item/tool/call反向请求host，audited handler没有自己的wall-clock timeout。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "item/tool/call"
+      ],
+      "boundary": "结论只限定 0.147.0 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/tools/handlers/dynamic.rs#L167-L248"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server/src/bespoke_event_handling.rs#L979-L1017"
+      }
+    },
+    {
+      "id": "MCP-OC-01",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "MCP runtime state 按 directory 共享",
+      "statement": "MCP runtime state按current directory key缓存，不按chat session隔离。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O01",
+        "owner=directory"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/effect/instance-state.ts#L26-L50"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L492-L560"
+      }
+    },
+    {
+      "id": "MCP-OC-02",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Enabled servers 无界并发初始化",
+      "statement": "配置中enabled servers以unbounded concurrency初始化。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O02",
+        "harness-side startup limiter"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L492-L529"
+      }
+    },
+    {
+      "id": "MCP-OC-03",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Remote MCP 先尝试 HTTP 再尝试 SSE",
+      "statement": "remote MCP依次尝试Streamable HTTP，再尝试SSE。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O03",
+        "transport attempt lineage"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L236-L337"
+      }
+    },
+    {
+      "id": "MCP-OC-04",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Local MCP 继承 process.env",
+      "statement": "local MCP默认workspace directory为cwd，并继承process.env后覆盖config environment。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "process.env"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L340-L369"
+      }
+    },
+    {
+      "id": "MCP-OC-05",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Tools list 失败会关闭 client",
+      "statement": "successful connect之后才拉tools；list失败会close client并标server failed。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O05",
+        "connect/discover phases分开"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L372-L415"
+      }
+    },
+    {
+      "id": "MCP-OC-06",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Catalog pagination 有 1000 页与重复 cursor guard",
+      "statement": "catalog pagination最多1000页，并检测重复cursor。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O06",
+        "cursor-loop error typed"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/catalog.ts#L11-L40"
+      }
+    },
+    {
+      "id": "MCP-OC-07",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "List-change refresh 失败保留旧 defs",
+      "statement": "list-changed refresh失败时旧defs保留，成功时才替换并发changed event。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O07",
+        "stale-retained revision"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L442-L471"
+      }
+    },
+    {
+      "id": "MCP-OC-08",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "下一 provider step 重新解析工具",
+      "statement": "每个provider step都会重新调用SessionTools.resolve()组装当时工具快照。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "SessionTools.resolve()"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/prompt.ts#L1221-L1285"
+      }
+    },
+    {
+      "id": "MCP-OC-09",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Sanitized <server>_<tool> 映射不检测 collision",
+      "statement": "model-facing MCP id是sanitized <server>_<tool>，该映射没有collision error。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "<server>_<tool>"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/catalog.ts#L117-L120"
+      }
+    },
+    {
+      "id": "MCP-OC-10",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "默认模式直接暴露每个 MCP tool",
+      "statement": "默认模式把每个MCP tool直接适配进provider tool table。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O10",
+        "exposure=direct"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/tools.ts#L388-L490"
+      }
+    },
+    {
+      "id": "MCP-OC-11",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Code Mode 用 execute 聚合 MCP schema",
+      "statement": "experimental Code Mode开启时，registry用一个execute替代direct MCP schemas。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "execute"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/tool/registry.ts#L275-L335"
+      }
+    },
+    {
+      "id": "MCP-OC-12",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Code Mode 执行时重新读取 mcp.tools()",
+      "statement": "Code Mode execution时会重新读取current mcp.tools()。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "mcp.tools()"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/tool/code-mode.ts#L188-L306"
+      }
+    },
+    {
+      "id": "MCP-OC-13",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Code Mode 每个 child call 单独判权",
+      "statement": "Code Mode每个child MCP call独立请求normalized tool id permission。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O13",
+        "child receipts不可折叠"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/tool/code-mode.ts#L134-L185"
+      }
+    },
+    {
+      "id": "MCP-OC-14",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Code Mode integration 未传执行 budgets",
+      "statement": "OpenCode integration调用Code Mode时没有传wall-clock、call-count或output limits。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O14",
+        "harness明确传budgets"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、library contract",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/tool/code-mode.ts#L188-L306"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/codemode/README.md#execution-limits"
+      }
+    },
+    {
+      "id": "MCP-OC-15",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Blanket deny 隐藏工具，其他规则调用时判定",
+      "statement": "blanket deny在provider request前隐藏tools；非blanket规则在调用前判定。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O15",
+        "exposure与call gate分开"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/llm/request.ts#L208-L214"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/permission/index.ts#L204-L219"
+      }
+    },
+    {
+      "id": "MCP-OC-16",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Server instructions 进入 <mcp_instructions> system block",
+      "statement": "connected MCP server instructions进入<mcp_instructions> system block。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "<mcp_instructions>"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/system.ts#L112-L127"
+      }
+    },
+    {
+      "id": "MCP-OC-17",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Runtime /mcp add 仅修改内存 config",
+      "statement": "experimental /mcp add修改directory runtime config，没有该path写disk config的证据。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "/mcp"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source、source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/server/routes/instance/httpapi/handlers/mcp.ts#L8-L110"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L627-L659"
+      }
+    },
+    {
+      "id": "MCP-OC-18",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Connect handler 返回 true 不等于 ready",
+      "statement": "POST /mcp/:name/connect handler返回true不证明underlying status ready。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "POST /mcp/:name/connect",
+        "true"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/server/routes/instance/httpapi/handlers/mcp.ts#L8-L110"
+      }
+    },
+    {
+      "id": "MCP-OC-19",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Ordinary onclose 会清理并标 failed",
+      "statement": "ordinary transport onclose删除client/defs/instructions并标failed。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "onclose"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L442-L455"
+      }
+    },
+    {
+      "id": "MCP-OC-20",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Expired HTTP session 404 只重试一次",
+      "statement": "expired Streamable HTTP session-bound POST 404有reinitialize并retry once的special recovery。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O20",
+        "recovery cause必须具体"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "official test",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/test/mcp/session-recovery.test.ts#L4-L46"
+      }
+    },
+    {
+      "id": "MCP-OC-21",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Custom/plugin tools 是 host-native JS/TS",
+      "statement": "custom/plugin tools是host-native JS/TS注册面，不是MCP或Code Mode sandbox。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O21",
+        "extension type分栏"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "source",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/tool/registry.ts#L116-L199"
+      }
+    },
+    {
+      "id": "MCP-OC-22",
+      "agent": "opencode",
+      "type": "fact",
+      "grade": "PINNED-CODE",
+      "version": "1.18.15",
+      "title": "Docs 5s 与 runtime 30s timeout 不一致",
+      "statement": "exact-tag docs写timeout默认5秒，但connect/catalog runtime fallback是30秒。",
+      "layer": "Exact snapshot source",
+      "confidence": "High",
+      "signals": [
+        "O22",
+        "docs/runtime divergence alert"
+      ],
+      "boundary": "结论只限定 1.18.15 的 audited path；不外推 provider SDK、host 或未来版本。",
+      "source": {
+        "label": "docs、runtime",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/web/src/content/docs/mcp-servers.mdx#L115-L127"
+      },
+      "compare": {
+        "label": "Secondary evidence",
+        "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/mcp/index.ts#L38-L50"
+      }
+    }
+  ]
+}
