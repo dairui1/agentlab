@@ -1,0 +1,2730 @@
+{
+  "title": "Tool 调用、结果与失败语义",
+  "subtitle": "Catalog · Identity · Validation · Execution · Outcome · Retry · Terminal",
+  "description": "把工具目录、调用身份、执行副作用、模型可见结果、终态、重试与后台工作拆成可实现、可排障的 Harness 合同。",
+  "eyebrow": "MECHANISM 005",
+  "verifiedAt": "2026-08-10",
+  "defaultView": "compare",
+  "defaultOperation": "settle-outcome",
+  "defaultClaim": "TOOL-OC-05",
+  "minimums": {
+    "operations": 16,
+    "flows": 8,
+    "hazards": 28
+  },
+  "sharpEdgeTitle": "最危险的 8 个 Tool 等号",
+  "operationRailLabel": "Harness 必须判定什么",
+  "views": {
+    "compare": {
+      "label": "操作速查",
+      "kicker": "TOOL RECEIPT REFERENCE",
+      "title": "一个 Tool Call 至少横跨六个真值面",
+      "description": "逐项对齐 effective catalog、identity、validation、execution、native terminal 与 semantic outcome。"
+    },
+    "flows": {
+      "label": "生命周期",
+      "kicker": "CALL TO RECONCILIATION",
+      "title": "从模型发起调用到 transport、child 与副作用全部收口",
+      "description": "只画可观察阶段，不把 ACK、parent terminal 或 session idle 冒充完成。"
+    },
+    "failures": {
+      "label": "失败面",
+      "kicker": "NON-EXECUTION / PARTIAL EFFECT / UNKNOWN",
+      "title": "失败形状相似，恢复动作却可能完全相反",
+      "description": "按目录漂移、身份串线、终态误判、部分副作用、重试重复与重连缺口分栏。"
+    },
+    "resources": {
+      "label": "状态与限额",
+      "kicker": "IDENTITY / PROJECTION / BUDGET",
+      "title": "调用状态、输出通道与资源上限必须保留原生语义",
+      "description": "对比 catalog scope、schema budget、timeout、output retention、parallel admission 与 async terminals。"
+    },
+    "changes": {
+      "label": "版本变化",
+      "kicker": "TOOL CONTRACT COMPATIBILITY",
+      "title": "Tool 合同会在 catalog、timeout、hook、retry 与 output 上漂移",
+      "description": "只列会改变 adapter 解码、执行恢复或 Harness 终态判断的版本节点。"
+    }
+  },
+  "viewDefaults": {
+    "compare": {
+      "claim": "TOOL-OC-05",
+      "label": "操作速查 / native terminal 与业务 outcome"
+    },
+    "flows": {
+      "claim": "TOOL-CX-06",
+      "label": "生命周期 / item 与 turn terminal"
+    },
+    "failures": {
+      "claim": "TOOL-CX-16",
+      "label": "失败面 / retry 与部分副作用"
+    },
+    "resources": {
+      "claim": "TOOL-CX-18",
+      "label": "状态与限额 / output projections"
+    },
+    "changes": {
+      "claim": "TOOL-CC-07",
+      "label": "版本变化 / Bash timeout 转后台"
+    }
+  },
+  "resourceCopy": {
+    "primaryTitle": "Native state planes",
+    "primaryIntro": "Catalog、call、approval、execution、item/part、query/turn、transport 与 child work 各有独立主键和 terminal。",
+    "secondaryTitle": "Budgets and lossy projections",
+    "secondaryIntro": "schema、stdout/stderr、delta、terminal aggregate、model-facing result 与 retained artifact 的上限和保真度不同。"
+  },
+  "snapshots": [
+    {
+      "agent": "claude-code",
+      "label": "Claude Code",
+      "version": "2.1.226",
+      "grade": "Pinned build capture + per-claim docs/internal labels"
+    },
+    {
+      "agent": "codex",
+      "label": "Codex",
+      "version": "0.147.0",
+      "grade": "Exact-tag source + app-server protocol"
+    },
+    {
+      "agent": "opencode",
+      "label": "opencode",
+      "version": "1.18.15",
+      "grade": "Exact-tag V1 source"
+    }
+  ],
+  "sharpEdges": [
+    {
+      "id": "terminal-not-success",
+      "label": "TERMINAL ≠ BUSINESS SUCCESS",
+      "text": "OpenCode completed 可含 exit 1、timeout 或 LSP errors；Codex 与 Claude 也必须把 native terminal 和 semantic outcome 分开。",
+      "claims": [
+        "TOOL-CC-10",
+        "TOOL-CX-07",
+        "TOOL-OC-05"
+      ],
+      "view": "compare",
+      "operation": "settle-outcome"
+    },
+    {
+      "id": "timeout-not-failed",
+      "label": "TIMEOUT ≠ FAILED",
+      "text": "Claude Bash 转 background、Codex shell 失败 exit 124、OpenCode Shell 通常 completed + exit:null。",
+      "claims": [
+        "TOOL-CC-07",
+        "TOOL-CX-08",
+        "TOOL-OC-05"
+      ],
+      "view": "flows",
+      "operation": "execute-shell"
+    },
+    {
+      "id": "call-not-idempotency",
+      "label": "CALL ID ≠ IDEMPOTENCY KEY",
+      "text": "三家的调用 ID 都用于关联，不承诺 exactly-once；retry 前必须查 effect receipt。",
+      "claims": [
+        "TOOL-CC-15",
+        "TOOL-CX-05",
+        "TOOL-OC-02"
+      ],
+      "view": "failures",
+      "operation": "retry-safely"
+    },
+    {
+      "id": "ack-not-terminal",
+      "label": "ACK ≠ TERMINAL",
+      "text": "approval resolved、interrupt ACK、message submit、poll result 与 launch response 都只是中间信号。",
+      "claims": [
+        "TOOL-CC-08",
+        "TOOL-CX-06",
+        "TOOL-CX-12",
+        "TOOL-OC-09"
+      ],
+      "view": "compare",
+      "operation": "reconcile-terminal"
+    },
+    {
+      "id": "hook-not-rollback",
+      "label": "POST HOOK ≠ ROLLBACK",
+      "text": "post hook 或 output rewrite 发生在副作用之后，失败只能改变模型看到什么。",
+      "claims": [
+        "TOOL-CC-05",
+        "TOOL-CX-10",
+        "TOOL-OC-04"
+      ],
+      "view": "failures",
+      "operation": "preserve-projections"
+    },
+    {
+      "id": "parent-not-child",
+      "label": "PARENT COMPLETE ≠ CHILD COMPLETE",
+      "text": "Agent、collaboration 与 Task 的父调用可以先 terminal，child work 仍在运行。",
+      "claims": [
+        "TOOL-CC-11",
+        "TOOL-CX-12",
+        "TOOL-OC-09"
+      ],
+      "view": "flows",
+      "operation": "track-delegated-work"
+    },
+    {
+      "id": "stream-not-ledger",
+      "label": "LIVE STREAM ≠ REPLAY LEDGER",
+      "text": "partial event、delta 与 SSE 都可能缺失或有损；重连要用 durable snapshot/terminal reconciliation。",
+      "claims": [
+        "TOOL-CC-16",
+        "TOOL-CX-18",
+        "TOOL-OC-16"
+      ],
+      "view": "resources",
+      "operation": "reconcile-terminal"
+    },
+    {
+      "id": "pipes-not-portable",
+      "label": "STDOUT / STDERR 不是统一合同",
+      "text": "Claude 与 OpenCode 合并 command streams；Codex public projection 也无法无损恢复 core 双流。",
+      "claims": [
+        "TOOL-CC-06",
+        "TOOL-CX-18",
+        "TOOL-OC-05"
+      ],
+      "view": "resources",
+      "operation": "execute-shell"
+    }
+  ],
+  "operations": [
+    {
+      "id": "snapshot-catalog",
+      "label": "冻结 Effective Catalog",
+      "question": "这一轮真正可执行、可发现、可并行的工具集合是什么？",
+      "icon": "list-tree",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "system/init.tools、最终 prompt、MCP/tool-search 状态",
+          "primitive": "wire name + session",
+          "contract": "入口/平台/permission/subagent/MCP 可改集合；以 只冻结当前 query/session snapshot，不把 capture 的 28 blocks 当全集 作为该 surface 的收口条件。",
+          "edge": "只冻结当前 query/session snapshot，不把 capture 的 28 blocks 当全集；不要把初始 tool list 当全局能力表。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "system/init.tools、最终 prompt、MCP/tool-search 状态"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "wire name + session"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "只冻结当前 query/session snapshot，不把 capture 的 28 blocks 当全集。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-01"
+          ],
+          "unknown": "TOOL-KU-01"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "step registry/spec plan/router",
+          "primitive": "canonical namespace.name + step/turn",
+          "contract": "registered → direct/deferred/code-mode exposure → finalized router；以 本 step 的 executable router/spec list 作为该 surface 的收口条件。",
+          "edge": "本 step 的 executable router/spec list；不要把初始 tool list 当全局能力表。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "step registry/spec plan/router"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "canonical namespace.name + step/turn"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "本 step 的 executable router/spec list。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-01",
+            "TOOL-CX-03"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "SessionTools.resolve / LLMRequestPrep.prepare",
+          "primitive": "tool key + request/model",
+          "contract": "built-in/custom/plugin/MCP → model/permission filter → hook/schema transform；以 实际送 provider 的 snapshot，ToolPart 本身不留 origin/schema version 作为该 surface 的收口条件。",
+          "edge": "实际送 provider 的 snapshot，ToolPart 本身不留 origin/schema version；不要把初始 tool list 当全局能力表。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "SessionTools.resolve / LLMRequestPrep.prepare"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool key + request/model"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "实际送 provider 的 snapshot，ToolPart 本身不留 origin/schema version。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-01"
+          ]
+        }
+      }
+    },
+    {
+      "id": "resolve-tool",
+      "label": "解析名称与来源",
+      "question": "wire name、alias、namespace、MCP sanitize 与 collision 如何落到唯一 dispatch target？",
+      "icon": "search",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "MCP mcp__server__tool、tool search、alwaysLoad",
+          "primitive": "search call 的 tool_use_id + returned wire name",
+          "contract": "deferred/unloaded → loaded/available；以 当前 catalog 中可调用 spec，alias/display name 不能 dispatch 作为该 surface 的收口条件。",
+          "edge": "当前 catalog 中可调用 spec，alias/display name 不能 dispatch；display name 与 sanitized key 都不能替代 origin。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "MCP mcp__server__tool、tool search、alwaysLoad"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "search call 的 tool_use_id + returned wire name"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "当前 catalog 中可调用 spec，alias/display name 不能 dispatch。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-01"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "tool_search + exposure planes",
+          "primitive": "search call_id + returned spec",
+          "contract": "deferred wrapper → search output → step-bound load；collision 可 skip 或 strict fail；以 ToolSearchOutput.status=completed 只证明 discovery，实际 router 仍以 step snapshot 为准 作为该 surface 的收口条件。",
+          "edge": "ToolSearchOutput.status=completed 只证明 discovery，实际 router 仍以 step snapshot 为准；display name 与 sanitized key 都不能替代 origin。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "tool_search + exposure planes"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "search call_id + returned spec"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "ToolSearchOutput.status=completed 只证明 discovery，实际 router 仍以 step snapshot 为准。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-02"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "registry/MCP catalog assembly",
+          "primitive": "exposed sanitized key + original (server,name)",
+          "contract": "普通 object assignment，custom/MCP collision 可覆盖；以 请求 catalog，无通用 deferred-search terminal 作为该 surface 的收口条件。",
+          "edge": "请求 catalog，无通用 deferred-search terminal；display name 与 sanitized key 都不能替代 origin。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "registry/MCP catalog assembly"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "exposed sanitized key + original (server,name)"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "请求 catalog，无通用 deferred-search terminal。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-01"
+          ]
+        }
+      }
+    },
+    {
+      "id": "correlate-call",
+      "label": "关联调用身份",
+      "question": "call、message、item、part、approval 与 task ID 怎样避免串线？",
+      "icon": "fingerprint",
+      "cells": {
+        "claude-code": {
+          "status": "exposed",
+          "surface": "complete ToolUseBlock",
+          "primitive": "tool_use_id，另存 API message_id、transcript uuid、parent_tool_use_id",
+          "contract": "partial API delta → complete block → result/hook；以 matching ToolResultBlock.tool_use_id，task ID 只是附加轴 作为该 surface 的收口条件。",
+          "edge": "matching ToolResultBlock.tool_use_id，task ID 只是附加轴；correlation ID 不是 durable primary key 或 idempotency key。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "complete ToolUseBlock"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id，另存 API message_id、transcript uuid、parent_tool_use_id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "matching ToolResultBlock.tool_use_id，task ID 只是附加轴。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-02"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "Responses function/custom item + app-server item",
+          "primitive": "call_id，另存 response item id、item id、Code Mode runtime id",
+          "contract": "model item → invocation → item/started/delta/item/completed；以 scoped (thread,turn,call_id) terminal item 作为该 surface 的收口条件。",
+          "edge": "scoped (thread,turn,call_id) terminal item；correlation ID 不是 durable primary key 或 idempotency key。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Responses function/custom item + app-server item"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call_id，另存 response item id、item id、Code Mode runtime id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "scoped (thread,turn,call_id) terminal item。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-05"
+          ]
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "provider tool-input-* / tool-call 与 message.part.updated",
+          "primitive": "持久主键 (sessionID,messageID,partID)，callID 仅 provider join",
+          "contract": "pending → running → completed/error；以 最新 persisted ToolPart 作为该 surface 的收口条件。",
+          "edge": "最新 persisted ToolPart；correlation ID 不是 durable primary key 或 idempotency key。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "provider tool-input-* / tool-call 与 message.part.updated"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "持久主键 (sessionID,messageID,partID)，callID 仅 provider join"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "最新 persisted ToolPart。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-02"
+          ]
+        }
+      }
+    },
+    {
+      "id": "validate-input",
+      "label": "校验与拒绝参数",
+      "question": "unknown、schema invalid 与业务字段错误在哪一层终结？",
+      "icon": "scan-line",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "availability/schema/tool guards",
+          "primitive": "tool_use_id",
+          "contract": "unknown/invalid 在 hooks 前终止，不触发 Pre/PostFailure；以 tool_use_error ToolResult，call terminal 但 agent loop 可继续 作为该 surface 的收口条件。",
+          "edge": "tool_use_error ToolResult，call terminal 但 agent loop 可继续；validation failure 可能没有 hooks 或 item started。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "availability/schema/tool guards"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "tool_use_error ToolResult，call terminal 但 agent loop 可继续。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-03"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "router + handler-specific parser",
+          "primitive": "call_id + raw JSON string",
+          "contract": "typed built-in、arbitrary dynamic、MCP server validation 各自处理；invalid MCP JSON 甚至可在 item started 前返回；以 RespondToModel output 或 Fatal turn error，不能假设统一 validator/item 作为该 surface 的收口条件。",
+          "edge": "RespondToModel output 或 Fatal turn error，不能假设统一 validator/item；validation failure 可能没有 hooks 或 item started。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "router + handler-specific parser"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call_id + raw JSON string"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "RespondToModel output 或 Fatal turn error，不能假设统一 validator/item。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-04"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "AI SDK repair + hidden invalid tool + Effect Schema wrapper",
+          "primitive": "callID/Part",
+          "contract": "lower-case repair → invalid completed，或真实 wrapper decode → ToolPart error；以 ToolPart state + actual tool name/error kind 作为该 surface 的收口条件。",
+          "edge": "ToolPart state + actual tool name/error kind；validation failure 可能没有 hooks 或 item started。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "AI SDK repair + hidden invalid tool + Effect Schema wrapper"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "callID/Part"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "ToolPart state + actual tool name/error kind。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-11"
+          ],
+          "unknown": "TOOL-KU-17"
+        }
+      }
+    },
+    {
+      "id": "decide-execution",
+      "label": "处理审批与非执行",
+      "question": "allow、deny、reject、correct、defer 与 decline 怎样保留来源和 loop 语义？",
+      "icon": "shield-check",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "PreToolUse/permission/control",
+          "primitive": "tool_use_id",
+          "contract": "allow/ask/deny/defer，deny 未执行；单-call -p defer 让 query terminal、tool pending；以 ToolResult + authoritative permission_denials，或 Result stop_reason=tool_deferred 作为该 surface 的收口条件。",
+          "edge": "ToolResult + authoritative permission_denials，或 Result stop_reason=tool_deferred；审批 ACK 与非执行 result 都不是执行 terminal。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "PreToolUse/permission/control"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "ToolResult + authoritative permission_denials，或 Result stop_reason=tool_deferred。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-12",
+            "TOOL-CC-13"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "approval server request/response + orchestrator",
+          "primitive": "approval request id 与 call_id 分离",
+          "contract": "request → resolved ACK → attempt(s) → item terminal；sandbox denial 可同 call context 再试一次；以 terminal item/turn，不是 approval ACK 作为该 surface 的收口条件。",
+          "edge": "terminal item/turn，不是 approval ACK；审批 ACK 与非执行 result 都不是执行 terminal。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "approval server request/response + orchestrator"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "approval request id 与 call_id 分离"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "terminal item/turn，不是 approval ACK。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-16",
+            "TOOL-CX-15"
+          ],
+          "unknown": "TOOL-KU-10"
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "permission reply once / always / reject 与 rule deny",
+          "primitive": "session + request/call",
+          "contract": "Denied/Rejected/Corrected 三条控制流，plain reject 可 fan-out sibling approvals；以 typed ToolPart error + loop blocker/continue 决策 作为该 surface 的收口条件。",
+          "edge": "typed ToolPart error + loop blocker/continue 决策；审批 ACK 与非执行 result 都不是执行 terminal。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "permission reply once / always / reject 与 rule deny"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "session + request/call"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "typed ToolPart error + loop blocker/continue 决策。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-10"
+          ]
+        }
+      }
+    },
+    {
+      "id": "execute-shell",
+      "label": "解码 Shell 结果",
+      "question": "stdout/stderr、exit、timeout 与 status 如何组合成业务 outcome？",
+      "icon": "square-terminal",
+      "cells": {
+        "claude-code": {
+          "status": "exposed",
+          "surface": "Bash structured output + ToolResult/hooks",
+          "primitive": "tool_use_id",
+          "contract": "running → success/error 或 background transition；以 is_error + failure first-line exit evidence；stdout 是 command stdout/stderr combined，stderr 是 harness notices 作为该 surface 的收口条件。",
+          "edge": "is_error + failure first-line exit evidence；stdout 是 command stdout/stderr combined，stderr 是 harness notices；不要跨 Agent 伪造统一双流或 success boolean。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Bash structured output + ToolResult/hooks"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "is_error + failure first-line exit evidence；stdout 是 command stdout/stderr combined，stderr 是 harness notices。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-06",
+            "TOOL-CC-07"
+          ],
+          "unknown": "TOOL-KU-03"
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "core exec streams、app-server commandExecution",
+          "primitive": "item id=call_id",
+          "contract": "started → approval/deltas → completed/failed/declined；以 public status + exitCode + aggregatedOutput + durationMs；core stdout/stderr 不能从 app projection复原 作为该 surface 的收口条件。",
+          "edge": "public status + exitCode + aggregatedOutput + durationMs；core stdout/stderr 不能从 app projection复原；不要跨 Agent 伪造统一双流或 success boolean。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "core exec streams、app-server commandExecution"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "item id=call_id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "public status + exitCode + aggregatedOutput + durationMs；core stdout/stderr 不能从 app projection复原。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-08"
+          ]
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "Shell ToolPart + running metadata",
+          "primitive": "Part/callID",
+          "contract": "running preview → usually completed；以 state.metadata.exit + output markers，command stdout/stderr 已按 arrival 合并；nonzero 不转 ToolPart error 作为该 surface 的收口条件。",
+          "edge": "state.metadata.exit + output markers，command stdout/stderr 已按 arrival 合并；nonzero 不转 ToolPart error；不要跨 Agent 伪造统一双流或 success boolean。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Shell ToolPart + running metadata"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "Part/callID"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "state.metadata.exit + output markers，command stdout/stderr 已按 arrival 合并；nonzero 不转 ToolPart error。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-05"
+          ]
+        }
+      }
+    },
+    {
+      "id": "drive-long-process",
+      "label": "驱动长进程",
+      "question": "launch、poll、retrieval timeout 与真正 process terminal 如何分层？",
+      "icon": "timer-reset",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Bash/Agent launch、TaskOutput、task messages",
+          "primitive": "original tool_use_id + task ID/output file",
+          "contract": "launch/foreground timeout → background_running → retrieval attempts → task completed/failed/stopped；以 task notification/status，不是 launch result 或 retrieval_status:timeout 作为该 surface 的收口条件。",
+          "edge": "task notification/status，不是 launch result 或 retrieval_status:timeout；父调用结束不代表进程或 task 结束。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Bash/Agent launch、TaskOutput、task messages"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "original tool_use_id + task ID/output file"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "task notification/status，不是 launch result 或 retrieval_status:timeout。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-07",
+            "TOOL-CC-08"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "unified exec_command / write_stdin / terminal list",
+          "primitive": "call id + process/session id + chunk id",
+          "contract": "tool response可无 exit code → repeated polls/input → exit/explicit terminate；以 exit item或 terminate/clean receipt；turn interrupt 不清理 background terminal 作为该 surface 的收口条件。",
+          "edge": "exit item或 terminate/clean receipt；turn interrupt 不清理 background terminal；父调用结束不代表进程或 task 结束。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "unified exec_command / write_stdin / terminal list"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call id + process/session id + chunk id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "exit item或 terminate/clean receipt；turn interrupt 不清理 background terminal。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-09"
+          ],
+          "unknown": "TOOL-KU-09"
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "锁定报告未定义同构 generic exec poll；Shell 保持同一 running Part直到 wrapper settle，background Task 另见 OP-10",
+          "primitive": "Part/callID",
+          "contract": "running metadata → completed/error；以 ToolPart + tool-specific metadata，不能发明 process-session terminal 作为该 surface 的收口条件。",
+          "edge": "ToolPart + tool-specific metadata，不能发明 process-session terminal；父调用结束不代表进程或 task 结束。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "锁定报告未定义同构 generic exec poll；Shell 保持同一 running Part直到 wrapper settle，background Task 另见 OP-10"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "Part/callID"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "ToolPart + tool-specific metadata，不能发明 process-session terminal。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-05"
+          ]
+        }
+      }
+    },
+    {
+      "id": "apply-file-change",
+      "label": "验证文件副作用",
+      "question": "read precondition、patch delta、disk state 与 diagnostics 谁是提交凭据？",
+      "icon": "file-diff",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Read/Edit/Write",
+          "primitive": "tool_use_id + absolute path",
+          "contract": "conversation-held read precondition → tool validation/execution → structured result；以 per-call ToolResult，非 lock/transaction/fsync proof 作为该 surface 的收口条件。",
+          "edge": "per-call ToolResult，非 lock/transaction/fsync proof；file tool success 不是事务、锁或 durability proof。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Read/Edit/Write"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id + absolute path"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "per-call ToolResult，非 lock/transaction/fsync proof。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-09"
+          ],
+          "unknown": "TOOL-KU-13"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "apply_patch freeform stream + fileChange item/turn diff",
+          "primitive": "call id + paths + attempt",
+          "contract": "patchUpdated proposed → parse/verify/approval → committed deltas；以 terminal fileChange + final diff，failed/denied 仍可有 committed prefix 作为该 surface 的收口条件。",
+          "edge": "terminal fileChange + final diff，failed/denied 仍可有 committed prefix；file tool success 不是事务、锁或 durability proof。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "apply_patch freeform stream + fileChange item/turn diff"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call id + paths + attempt"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "terminal fileChange + final diff，failed/denied 仍可有 committed prefix。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-10"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Read/Edit/Write ToolPart + watcher/LSP",
+          "primitive": "Part + resolved file path",
+          "contract": "permission → direct write/format/event/diagnostics → completed/error；以 disk/diff receipt + ToolPart；completed 可含 LSP errors，只有同-process Edit semaphore 作为该 surface 的收口条件。",
+          "edge": "disk/diff receipt + ToolPart；completed 可含 LSP errors，只有同-process Edit semaphore；file tool success 不是事务、锁或 durability proof。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Read/Edit/Write ToolPart + watcher/LSP"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "Part + resolved file path"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "disk/diff receipt + ToolPart；completed 可含 LSP errors，只有同-process Edit semaphore。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-06"
+          ]
+        }
+      }
+    },
+    {
+      "id": "invoke-extension",
+      "label": "调用 MCP 与扩展工具",
+      "question": "application error、transport error、plugin hook 与 provider execution 如何拆开？",
+      "icon": "plug-zap",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "mcp__server__tool、SDK custom ToolResult",
+          "primitive": "tool_use_id + server/tool",
+          "contract": "permission → handler → content normalization；exception / isError 成 model-visible error，loop通常继续；以 ToolResult + structured output/hook view，MCP hard timeout另算 作为该 surface 的收口条件。",
+          "edge": "ToolResult + structured output/hook view，MCP hard timeout另算；MCP isError、handler exception 与 transport failure 不可压平。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "mcp__server__tool、SDK custom ToolResult"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id + server/tool"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "ToolResult + structured output/hook view，MCP hard timeout另算。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-10"
+          ],
+          "unknown": "TOOL-KU-11"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "MCP public item、dynamic client request、direct/Code Mode projections",
+          "primitive": "call_id + server/raw tool 或 JSON-RPC request id",
+          "contract": "started → server/client response；以 MCP status + result.isError 或 error.message；dynamic status/success/contentItems，client ACK不是terminal 作为该 surface 的收口条件。",
+          "edge": "MCP status + result.isError 或 error.message；dynamic status/success/contentItems，client ACK不是terminal；MCP isError、handler exception 与 transport failure 不可压平。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "MCP public item、dynamic client request、direct/Code Mode projections"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call_id + server/raw tool 或 JSON-RPC request id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "MCP status + result.isError 或 error.message；dynamic status/success/contentItems，client ACK不是terminal。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-11",
+            "TOOL-CX-13"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "sanitized MCP key、plugin wrapper、providerExecuted ToolPart",
+          "primitive": "Part/callID + original server/name/origin",
+          "contract": "local permission/hooks或 provider-side execution → normalization/truncation；以 ToolPart，MCP isError 被抛为 error；provider tool不保证local hook/permission同构 作为该 surface 的收口条件。",
+          "edge": "ToolPart，MCP isError 被抛为 error；provider tool不保证local hook/permission同构；MCP isError、handler exception 与 transport failure 不可压平。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "sanitized MCP key、plugin wrapper、providerExecuted ToolPart"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "Part/callID + original server/name/origin"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "ToolPart，MCP isError 被抛为 error；provider tool不保证local hook/permission同构。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-03",
+            "TOOL-OC-07",
+            "TOOL-OC-08"
+          ],
+          "unknown": "TOOL-KU-16"
+        }
+      }
+    },
+    {
+      "id": "track-delegated-work",
+      "label": "追踪委派工作",
+      "question": "parent tool、message submit、child job 与 synthetic completion 各在何时 terminal？",
+      "icon": "network",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "Agent + task messages/files",
+          "primitive": "Agent tool_use_id + task/agent ID",
+          "contract": "completed discriminant，或 async/remote launch → progress → notification；以 foreground completed status 或 background task terminal；partial prose不算完成 作为该 surface 的收口条件。",
+          "edge": "foreground completed status 或 background task terminal；partial prose不算完成；launch/submit/poll 的 success 不等于 child 完成。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Agent + task messages/files"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "Agent tool_use_id + task/agent ID"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "foreground completed status 或 background task terminal；partial prose不算完成。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-11"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "collaboration functions + collabToolCall + child thread/mailbox",
+          "primitive": "call id + sender/receiver thread ids",
+          "contract": "spawn/message/wait submit → recipient activity → child turn/thread terminal；以 parent tool item只终结操作本身，message空结果/wait timed_out不证明child完成 作为该 surface 的收口条件。",
+          "edge": "parent tool item只终结操作本身，message空结果/wait timed_out不证明child完成；launch/submit/poll 的 success 不等于 child 完成。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "collaboration functions + collabToolCall + child thread/mailbox"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call id + sender/receiver thread ids"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "parent tool item只终结操作本身，message空结果/wait timed_out不证明child完成。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-12"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "Task ToolPart + child session/job + synthetic parent message",
+          "primitive": "parent Part/callID + task/job/child session ID",
+          "contract": "background launch使父 Part completed且 XML state=running → child settle → synthetic <task state=...>；以 child job/session terminal，不改写原父 Part 作为该 surface 的收口条件。",
+          "edge": "child job/session terminal，不改写原父 Part；launch/submit/poll 的 success 不等于 child 完成。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "Task ToolPart + child session/job + synthetic parent message"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "parent Part/callID + task/job/child session ID"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "child job/session terminal，不改写原父 Part。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-09"
+          ],
+          "unknown": "TOOL-KU-14"
+        }
+      }
+    },
+    {
+      "id": "preserve-projections",
+      "label": "保留进度与结果投影",
+      "question": "raw execution、hook rewrite、public item、model view 与 artifact 如何并存？",
+      "icon": "activity",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "partial StreamEvent、complete messages、Pre/Post hooks、structured output、ToolResult",
+          "primitive": "tool_use_id/parent_tool_use_id",
+          "contract": "partial UI → raw execution → post-hook rewrite → model-facing result；以 各 surface 分存，post rewrite不回滚side effect 作为该 surface 的收口条件。",
+          "edge": "各 surface 分存，post rewrite不回滚side effect；live delta 与 model-visible output 都不是原始账本。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "partial StreamEvent、complete messages、Pre/Post hooks、structured output、ToolResult"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id/parent_tool_use_id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "各 surface 分存，post rewrite不回滚side effect。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-05",
+            "TOOL-CC-04",
+            "TOOL-CC-16"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "item deltas、patchUpdated、core output、app-server terminal item、model/Code Mode result",
+          "primitive": "call/item id",
+          "contract": "optimistic delta/preview → terminal projection；以 terminal item/native result，delta拼接不能重建stream、status或所有terminal data 作为该 surface 的收口条件。",
+          "edge": "terminal item/native result，delta拼接不能重建stream、status或所有terminal data；live delta 与 model-visible output 都不是原始账本。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "item deltas、patchUpdated、core output、app-server terminal item、model/Code Mode result"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call/item id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "terminal item/native result，delta拼接不能重建stream、status或所有terminal data。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-18"
+          ],
+          "unknown": "TOOL-KU-04"
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "ctx.metadata() + full-snapshot message.part.updated + before/after hooks + SSE",
+          "primitive": "Part/callID",
+          "contract": "running snapshot → raw result → after-hook normalized result；以 persisted terminal Part；after-hook error可遮蔽已发生副作用 作为该 surface 的收口条件。",
+          "edge": "persisted terminal Part；after-hook error可遮蔽已发生副作用；live delta 与 model-visible output 都不是原始账本。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "ctx.metadata() + full-snapshot message.part.updated + before/after hooks + SSE"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "Part/callID"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "persisted terminal Part；after-hook error可遮蔽已发生副作用。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-04",
+            "TOOL-OC-03",
+            "TOOL-OC-15"
+          ],
+          "unknown": "TOOL-KU-15"
+        }
+      }
+    },
+    {
+      "id": "settle-outcome",
+      "label": "判定单次调用 Outcome",
+      "question": "native terminal 到达后，还要读哪些 tool-specific 字段才能标成功？",
+      "icon": "badge-check",
+      "cells": {
+        "claude-code": {
+          "status": "exposed",
+          "surface": "ToolResultBlock + success/failure hooks",
+          "primitive": "tool_use_id",
+          "contract": "executed success/failure或未执行 rejection各自settle；以 content/is_error只描述call，query另判 作为该 surface 的收口条件。",
+          "edge": "content/is_error只描述call，query另判；completed、is_error 与 generic success 都只覆盖局部语义。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "ToolResultBlock + success/failure hooks"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "content/is_error只描述call，query另判。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-04"
+          ]
+        },
+        "codex": {
+          "status": "exposed",
+          "surface": "app-server item + handler/model output",
+          "primitive": "item/call id",
+          "contract": "started → zero+ delta → completed；以 item/completed authoritative；generic function wire无 success，MCP completed 仅在 isError != true 作为该 surface 的收口条件。",
+          "edge": "item/completed authoritative；generic function wire无 success，MCP completed 仅在 isError != true；completed、is_error 与 generic success 都只覆盖局部语义。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "app-server item + handler/model output"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "item/call id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "item/completed authoritative；generic function wire无 success，MCP completed 仅在 isError != true。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-06",
+            "TOOL-CX-07"
+          ]
+        },
+        "opencode": {
+          "status": "exposed",
+          "surface": "ToolPart state",
+          "primitive": "Part/callID",
+          "contract": "pending → running → completed / error；以 terminal state是调用记录，但 semantic success还需exit/timeout/diagnostics/provider metadata decoder 作为该 surface 的收口条件。",
+          "edge": "terminal state是调用记录，但 semantic success还需exit/timeout/diagnostics/provider metadata decoder；completed、is_error 与 generic success 都只覆盖局部语义。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "ToolPart state"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "Part/callID"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "terminal state是调用记录，但 semantic success还需exit/timeout/diagnostics/provider metadata decoder。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-03"
+          ]
+        }
+      }
+    },
+    {
+      "id": "coordinate-parallel",
+      "label": "协调并行调用",
+      "question": "并行 admission、completion order、result writeback 与 batch barrier 如何观察？",
+      "icon": "split",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "同 assistant response 多 ToolUse + per-tool hooks/PostToolBatch",
+          "primitive": "tool_use_id set",
+          "contract": "calls独立并发settle → all-resolved barrier → batch hook一次；以 逐call results，batch无rollback、无arrival order保证 作为该 surface 的收口条件。",
+          "edge": "逐call results，batch无rollback、无arrival order保证；parallel batch 不是串行事务，也不默认 fail-fast。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "同 assistant response 多 ToolUse + per-tool hooks/PostToolBatch"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id set"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "逐call results，batch无rollback、无arrival order保证。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-14"
+          ],
+          "unknown": "TOOL-KU-07"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "step dispatcher/RwLock/live items/conversation",
+          "primitive": "call set + model ordinal",
+          "contract": "supportsParallel admission或互斥 → real overlap → FuturesOrdered writeback；以 逐item completed + timestamps，记录顺序不等于完成顺序 作为该 surface 的收口条件。",
+          "edge": "逐item completed + timestamps，记录顺序不等于完成顺序；parallel batch 不是串行事务，也不默认 fail-fast。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "step dispatcher/RwLock/live items/conversation"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "call set + model ordinal"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "逐item completed + timestamps，记录顺序不等于完成顺序。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-17"
+          ],
+          "unknown": "TOOL-KU-12"
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "同 assistant message多个 ToolParts/Fibers",
+          "primitive": "message + callID set",
+          "contract": "独立settle，但 permission reject fan-out与cleanup session-scoped；以 逐Part terminal +共享因果链，无batch transaction 作为该 surface 的收口条件。",
+          "edge": "逐Part terminal +共享因果链，无batch transaction；parallel batch 不是串行事务，也不默认 fail-fast。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "同 assistant message多个 ToolParts/Fibers"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "message + callID set"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "逐Part terminal +共享因果链，无batch transaction。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-13"
+          ]
+        }
+      }
+    },
+    {
+      "id": "retry-safely",
+      "label": "安全重试与重放",
+      "question": "model retry、provider retry、sandbox replay 与 host retry 怎样避免重复副作用？",
+      "icon": "refresh-cw",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "model loop、API retry frame、host policy",
+          "primitive": "每个新 ToolUseBlock独立 tool_use_id + host idempotency key",
+          "contract": "error进模型后可重试/改参/换工具，API retry是另一层；以 每次call各自settle，绝不按相同name/input自动dedup 作为该 surface 的收口条件。",
+          "edge": "每次call各自settle，绝不按相同name/input自动dedup；call ID 与相同 name/input 都不是幂等键。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "model loop、API retry frame、host policy"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "每个新 ToolUseBlock独立 tool_use_id + host idempotency key"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "每次call各自settle，绝不按相同name/input自动dedup。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-15"
+          ],
+          "unknown": "TOOL-KU-05"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "orchestrator attempts",
+          "primitive": "同 call_id + attempt index + sandbox/approval",
+          "contract": "仅sandbox denial在条件满足时最多second attempt；以 terminal attempt + first-attempt delta/effects，call_id非幂等键 作为该 surface 的收口条件。",
+          "edge": "terminal attempt + first-attempt delta/effects，call_id非幂等键；call ID 与相同 name/input 都不是幂等键。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "orchestrator attempts"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "同 call_id + attempt index + sandbox/approval"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "terminal attempt + first-attempt delta/effects，call_id非幂等键。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-16"
+          ],
+          "unknown": "TOOL-KU-06"
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "tool loop、session.status:retry、compaction、doom-loop permission",
+          "primitive": "step + provider attempt + Part/callID + input hash",
+          "contract": "provider exponential retry与model next-step分开；连续3个同tool/input触发approval而非自动终止；以 各ToolPart + provider status/effect receipts 作为该 surface 的收口条件。",
+          "edge": "各ToolPart + provider status/effect receipts；call ID 与相同 name/input 都不是幂等键。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "tool loop、session.status:retry、compaction、doom-loop permission"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "step + provider attempt + Part/callID + input hash"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "各ToolPart + provider status/effect receipts。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-11",
+            "TOOL-OC-14"
+          ]
+        }
+      }
+    },
+    {
+      "id": "cancel-and-teardown",
+      "label": "取消与清理",
+      "question": "interrupt ACK、tool self-settle、processor cleanup 与副作用复验如何收口？",
+      "icon": "circle-stop",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "query/tool/task control + result/task notification",
+          "primitive": "tool_use_id/task id",
+          "contract": "request → running tool自行收尾或cancel/interrupted result；以 call/task terminal；ACK不证明child退出，side effect不回滚 作为该 surface 的收口条件。",
+          "edge": "call/task terminal；ACK不证明child退出，side effect不回滚；cancel acknowledgement 不证明 kill 或 rollback。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "query/tool/task control + result/task notification"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "tool_use_id/task id"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "call/task terminal；ACK不证明child退出，side effect不回滚。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-12"
+          ]
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "turn/interrupt + dispatcher cancellation + background terminal controls",
+          "primitive": "thread/turn + active call ids + process ids",
+          "contract": "ACK → runtime-specific teardown或abort → item terminals → turn/completed:interrupted；以 turn和每item terminal，background另行terminate 作为该 surface 的收口条件。",
+          "edge": "turn和每item terminal，background另行terminate；cancel acknowledgement 不证明 kill 或 rollback。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "turn/interrupt + dispatcher cancellation + background terminal controls"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "thread/turn + active call ids + process ids"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "turn和每item terminal，background另行terminate。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-14"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "session abort + AbortSignal + processor cleanup",
+          "primitive": "session + tracked callID/Part",
+          "contract": "tool可先complete；否则cleanup等最多250ms再写 interrupted error；以 最终Part，completed与interrupted error都可能有output/effects 作为该 surface 的收口条件。",
+          "edge": "最终Part，completed与interrupted error都可能有output/effects；cancel acknowledgement 不证明 kill 或 rollback。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "session abort + AbortSignal + processor cleanup"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "session + tracked callID/Part"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "最终Part，completed与interrupted error都可能有output/effects。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-12"
+          ],
+          "unknown": "TOOL-KU-08"
+        }
+      }
+    },
+    {
+      "id": "reconcile-terminal",
+      "label": "收敛终态与重连",
+      "question": "call、turn/query、transport、background 与 reconnect truth 怎样全部闭合？",
+      "icon": "flag",
+      "cells": {
+        "claude-code": {
+          "status": "partial",
+          "surface": "ResultMessage → SDK iterator/stdout/process",
+          "primitive": "session/query + background task ids",
+          "contract": "query terminal → trailing frames/possible SDK exception → EOF/process terminal；background可继续；以 Result记录query，EOF记录transport，task notification记录background 作为该 surface 的收口条件。",
+          "edge": "Result记录query，EOF记录transport，task notification记录background；先记 native terminal，再 drain 或 GET reconcile。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "ResultMessage → SDK iterator/stdout/process"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "session/query + background task ids"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "Result记录query，EOF记录transport，task notification记录background。"
+            }
+          ],
+          "claims": [
+            "TOOL-CC-17"
+          ],
+          "unknown": "TOOL-KU-02"
+        },
+        "codex": {
+          "status": "partial",
+          "surface": "item/completed、turn/completed、app-server transport、background terminals",
+          "primitive": "thread/turn/item/process",
+          "contract": "各item terminal → turn terminal → client drain/reconnect；以 item truth不由turn fallback、ACK或delta替代，background terminal另算 作为该 surface 的收口条件。",
+          "edge": "item truth不由turn fallback、ACK或delta替代，background terminal另算；先记 native terminal，再 drain 或 GET reconcile。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "item/completed、turn/completed、app-server transport、background terminals"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "thread/turn/item/process"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "item truth不由turn fallback、ACK或delta替代，background terminal另算。"
+            }
+          ],
+          "claims": [
+            "TOOL-CX-06",
+            "TOOL-CX-09"
+          ]
+        },
+        "opencode": {
+          "status": "partial",
+          "surface": "SSE /event + GET messages/session status",
+          "primitive": "session/message/part",
+          "contract": "GET snapshot → live full-part events → disconnect → GET reconcile；以 persisted ToolPart；SSE无Last-Event-ID replay，idle不表示background child结束 作为该 surface 的收口条件。",
+          "edge": "persisted ToolPart；SSE无Last-Event-ID replay，idle不表示background child结束；先记 native terminal，再 drain 或 GET reconcile。",
+          "details": [
+            {
+              "label": "SURFACE",
+              "value": "SSE /event + GET messages/session status"
+            },
+            {
+              "label": "JOIN KEY",
+              "value": "session/message/part"
+            },
+            {
+              "label": "TERMINAL",
+              "value": "persisted ToolPart；SSE无Last-Event-ID replay，idle不表示background child结束。"
+            }
+          ],
+          "claims": [
+            "TOOL-OC-16"
+          ]
+        }
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "claude-call",
+      "agent": "claude-code",
+      "label": "Claude call、result 与 query drain",
+      "scope": "tool_use_id / query / transport",
+      "steps": [
+        {
+          "label": "catalog snapshot",
+          "meta": "session-effective"
+        },
+        {
+          "label": "complete ToolUseBlock",
+          "meta": "call identity"
+        },
+        {
+          "label": "validation + permission",
+          "meta": "may not execute"
+        },
+        {
+          "label": "ToolResultBlock",
+          "meta": "per-call terminal"
+        },
+        {
+          "label": "ResultMessage",
+          "meta": "query terminal"
+        },
+        {
+          "label": "iterator EOF / process exit",
+          "meta": "transport terminal"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "tool_use_id",
+          "effect": "join call/result/hooks",
+          "claims": [
+            "TOOL-CC-02",
+            "TOOL-CC-04"
+          ]
+        },
+        {
+          "primitive": "continued drain",
+          "effect": "preserve trailing frames/errors",
+          "claims": [
+            "TOOL-CC-17"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "codex-item",
+      "agent": "codex",
+      "label": "Codex item 与 turn 双层终态",
+      "scope": "app-server / call_id",
+      "steps": [
+        {
+          "label": "Responses tool call",
+          "meta": "call_id + item id"
+        },
+        {
+          "label": "item/started",
+          "meta": "renderable snapshot"
+        },
+        {
+          "label": "0+ deltas",
+          "meta": "provisional"
+        },
+        {
+          "label": "approval / execution",
+          "meta": "separate lifecycle"
+        },
+        {
+          "label": "item/completed",
+          "meta": "authoritative call truth"
+        },
+        {
+          "label": "turn/completed",
+          "meta": "turn terminal"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "item/completed",
+          "effect": "clear per-call pending state",
+          "claims": [
+            "TOOL-CX-06"
+          ]
+        },
+        {
+          "primitive": "turn/completed",
+          "effect": "never substitutes missing item terminal",
+          "claims": [
+            "TOOL-CX-06",
+            "TOOL-CX-07"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "opencode-part",
+      "agent": "opencode",
+      "label": "OpenCode durable ToolPart 与 SSE 重连",
+      "scope": "session / message / part",
+      "steps": [
+        {
+          "label": "pending",
+          "meta": "raw may be empty"
+        },
+        {
+          "label": "running",
+          "meta": "parsed input + metadata"
+        },
+        {
+          "label": "completed / error",
+          "meta": "durable terminal"
+        },
+        {
+          "label": "message.part.updated",
+          "meta": "live full snapshot"
+        },
+        {
+          "label": "SSE gap",
+          "meta": "not replayable"
+        },
+        {
+          "label": "GET messages",
+          "meta": "terminal reconciliation"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "session/message/part",
+          "effect": "durable primary key",
+          "claims": [
+            "TOOL-OC-02",
+            "TOOL-OC-03"
+          ]
+        },
+        {
+          "primitive": "GET transcript",
+          "effect": "overwrite live buffer after reconnect",
+          "claims": [
+            "TOOL-OC-16"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "claude-timeout",
+      "agent": "claude-code",
+      "label": "Claude Bash deadline 转后台",
+      "scope": "Bash / task lifecycle",
+      "steps": [
+        {
+          "label": "foreground Bash",
+          "meta": "default deadline"
+        },
+        {
+          "label": "deadline reached",
+          "meta": "not command terminal"
+        },
+        {
+          "label": "background_running result",
+          "meta": "parent transition"
+        },
+        {
+          "label": "task id + output file",
+          "meta": "retrieval handle"
+        },
+        {
+          "label": "TaskOutput / notification",
+          "meta": "task terminal"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "background_running",
+          "effect": "do not retry the command",
+          "claims": [
+            "TOOL-CC-07"
+          ],
+          "danger": true
+        },
+        {
+          "primitive": "task terminal",
+          "effect": "separate from query Result",
+          "claims": [
+            "TOOL-CC-08",
+            "TOOL-CC-17"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "codex-patch",
+      "agent": "codex",
+      "label": "Codex patch、部分提交与 sandbox replay",
+      "scope": "apply_patch / attempt / diff",
+      "steps": [
+        {
+          "label": "patchUpdated",
+          "meta": "proposed view"
+        },
+        {
+          "label": "parse + approval",
+          "meta": "no effect yet"
+        },
+        {
+          "label": "attempt 1",
+          "meta": "may commit prefix"
+        },
+        {
+          "label": "sandbox denial",
+          "meta": "conditional replay"
+        },
+        {
+          "label": "attempt 2",
+          "meta": "same call context"
+        },
+        {
+          "label": "terminal diff readback",
+          "meta": "effect receipt"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "committed_delta",
+          "effect": "record even on failure",
+          "claims": [
+            "TOOL-CX-10"
+          ],
+          "danger": true
+        },
+        {
+          "primitive": "attempt index",
+          "effect": "never assume retry is clean",
+          "claims": [
+            "TOOL-CX-16"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "opencode-task",
+      "agent": "opencode",
+      "label": "OpenCode background Task 父子分离",
+      "scope": "parent Part / child job",
+      "steps": [
+        {
+          "label": "Task call",
+          "meta": "parent Part running"
+        },
+        {
+          "label": "background launch",
+          "meta": "child session/job"
+        },
+        {
+          "label": "parent completed",
+          "meta": "text says running"
+        },
+        {
+          "label": "child execution",
+          "meta": "independent lifecycle"
+        },
+        {
+          "label": "synthetic follow-up",
+          "meta": "child terminal"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "parent Part",
+          "effect": "dispatch terminal only",
+          "claims": [
+            "TOOL-OC-09"
+          ],
+          "danger": true
+        },
+        {
+          "primitive": "child job/session",
+          "effect": "authoritative work terminal",
+          "claims": [
+            "TOOL-OC-09",
+            "TOOL-OC-16"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "codex-mcp",
+      "agent": "codex",
+      "label": "Codex MCP application / transport failure split",
+      "scope": "MCP public item",
+      "steps": [
+        {
+          "label": "resolve server/tool",
+          "meta": "raw identity"
+        },
+        {
+          "label": "readiness + parse",
+          "meta": "can fail before start"
+        },
+        {
+          "label": "item in progress",
+          "meta": "public lifecycle"
+        },
+        {
+          "label": "result.isError",
+          "meta": "application failure"
+        },
+        {
+          "label": "result null + error",
+          "meta": "transport/protocol failure"
+        },
+        {
+          "label": "item/completed",
+          "meta": "terminal"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "raw MCP result",
+          "effect": "preserve application receipt",
+          "claims": [
+            "TOOL-CX-11"
+          ]
+        },
+        {
+          "primitive": "transport error",
+          "effect": "separate recovery policy",
+          "claims": [
+            "TOOL-CX-11"
+          ],
+          "danger": true
+        }
+      ]
+    },
+    {
+      "id": "opencode-abort-retry",
+      "agent": "opencode",
+      "label": "OpenCode abort、provider retry 与 GET reconcile",
+      "scope": "processor / provider / SSE",
+      "steps": [
+        {
+          "label": "abort request",
+          "meta": "ack only"
+        },
+        {
+          "label": "tool self-settle",
+          "meta": "race path A"
+        },
+        {
+          "label": "250ms cleanup",
+          "meta": "race path B"
+        },
+        {
+          "label": "terminal Part",
+          "meta": "completed or interrupted error"
+        },
+        {
+          "label": "provider retry",
+          "meta": "separate attempt loop"
+        },
+        {
+          "label": "GET transcript",
+          "meta": "effect reconciliation"
+        }
+      ],
+      "controls": [
+        {
+          "primitive": "interrupted:true",
+          "effect": "does not prove no effect",
+          "claims": [
+            "TOOL-OC-12"
+          ],
+          "danger": true
+        },
+        {
+          "primitive": "attempt + effect receipt",
+          "effect": "gate provider retry",
+          "claims": [
+            "TOOL-OC-14",
+            "TOOL-OC-16"
+          ]
+        }
+      ]
+    }
+  ],
+  "hazards": [
+    {
+      "severity": "high",
+      "kind": "失败语义",
+      "title": "初始 tool list 当完整目录",
+      "contract": "每个 query/step 都必须保存实际可 dispatch 的 effective catalog receipt。",
+      "trigger": "启动时缓存初始 tool list，并在 MCP readiness、tool search 或下一 step 后继续复用。",
+      "signal": "catalog hash/name set 漂移；router 报 unknown tool，或新工具只在 search/code-mode surface 出现。",
+      "recovery": "每query/step snapshot effective catalog",
+      "doNotAssume": "初始列表覆盖 deferred、Code Mode、MCP、plugin 与 subagent 的完整工具面。",
+      "claims": [
+        "TOOL-CC-01",
+        "TOOL-CX-01",
+        "TOOL-OC-01"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "工具目录与扩展",
+      "title": "advertised schema 当原始、完整、统一验证的schema",
+      "contract": "source schema、effective advertised schema 与 validator owner 必须分存。",
+      "trigger": "schema 经 Codex compaction、plugin hook、provider transform 或 MCP normalization。",
+      "signal": "schema hash/bytes 改变、字段被删除或降级；provider 接受而 handler 拒绝，或反之。",
+      "recovery": "保存original/effective hash与validator owner；Codex 5KB/8KB降级单独告警",
+      "doNotAssume": "advertised schema 等于原始 schema，或一定由同一 runtime 强制校验。",
+      "claims": [
+        "TOOL-CC-01",
+        "TOOL-CC-03",
+        "TOOL-CX-03",
+        "TOOL-CX-04",
+        "TOOL-OC-01",
+        "TOOL-OC-04"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "身份与来源",
+      "title": "wire/display name 当稳定来源 ID",
+      "contract": "dispatch key 必须同时绑定 canonical wire name 与 origin tuple。",
+      "trigger": "alias、reserved namespace、MCP sanitize 或 custom/plugin key collision。",
+      "signal": "两个 raw origin 生成同一 key；collision 被 skip/overwrite，permission 记录却只剩 display name。",
+      "recovery": "存canonical wire name与origin (kind,server,rawName,path)，collision fail closed",
+      "doNotAssume": "wire/display name 自带稳定 provenance，或 sanitize 后仍全局唯一。",
+      "claims": [
+        "TOOL-CC-01",
+        "TOOL-CX-02",
+        "TOOL-OC-01",
+        "TOOL-OC-07"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "身份与来源",
+      "title": "混用call/message/part/runtime/approval身份",
+      "contract": "call、message、item/part、approval 与 task/process ID 必须作为独立轴持久化。",
+      "trigger": "只用 message ID、callID 或 approval ID 关联多调用/多 session 生命周期。",
+      "signal": "terminal/result 附着到错误调用、duplicate key 覆盖 waiter，或 approval resolve 了另一 item。",
+      "recovery": "保存所有identity axes；Claude join tool_use_id，Codex scoped call_id，OpenCode durable Part triple",
+      "doNotAssume": "tool_use_id、call_id 或 callID 在所有 session、retry 与 runtime 中都是完整主键。",
+      "claims": [
+        "TOOL-CC-02",
+        "TOOL-CX-05",
+        "TOOL-OC-02"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "失败语义",
+      "title": "期待validation failure走完整execution lifecycle",
+      "contract": "pre-execution rejection 要有 executionStarted=false 的独立 terminal receipt。",
+      "trigger": "UI 等待 success/failure hook 或 item started 才记录 unknown/schema-invalid 调用。",
+      "signal": "已有 error-shaped result，却没有 hook/item-start；OpenCode hidden invalid tool 反而落成 completed。",
+      "recovery": "executionStarted=false独立记录repair/rejection",
+      "doNotAssume": "hook 缺席表示成功，或 validation failure 一定走完整 execution lifecycle。",
+      "claims": [
+        "TOOL-CC-03",
+        "TOOL-CX-11",
+        "TOOL-OC-11"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "失败语义",
+      "title": "approval、deny、reject、correct、decline压成boolean",
+      "contract": "decision 必须保留 typed outcome、provenance、feedback 与 executionStarted。",
+      "trigger": "把 allow/deny/reject/correct/decline/defer 全部压成 approved=false。",
+      "signal": "同样的 denied UI 导致 loop stop/continue 不同；无法判断人类、policy 或 auto 来源。",
+      "recovery": "typed decision + provenance + feedback + executionStarted",
+      "doNotAssume": "Declined 或 error-shaped result 必然代表用户拒绝，也不要丢 correction feedback。",
+      "claims": [
+        "TOOL-CC-12",
+        "TOOL-CX-15",
+        "TOOL-OC-10"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "终态判定",
+      "title": "ACK、approval resolution或delta-end当terminal",
+      "contract": "只有 native per-call terminal 才能清理 pending；ACK 与 delta 永远是中间态。",
+      "trigger": "approval resolved、client response、interrupt ACK 或最后一段 delta 到达就显示 done。",
+      "signal": "随后仍出现 item/completed、ToolResult 或 terminal Part；pending 被过早移除又重新出现。",
+      "recovery": "Codex只由item/completed清item；Claude/OpenCode等native result/Part terminal",
+      "doNotAssume": "请求被接纳、审批已响应或流停止增长等于执行已经 terminal。",
+      "claims": [
+        "TOOL-CC-16",
+        "TOOL-CC-17",
+        "TOOL-CX-06",
+        "TOOL-OC-03",
+        "TOOL-OC-16"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "终态判定",
+      "title": "terminal envelope或generic success当业务成功",
+      "contract": "native terminal 与 tool-specific semantic decoder 必须同时通过才能标业务成功。",
+      "trigger": "generic success、is_error=false 或 ToolPart completed 直接驱动绿色完成态。",
+      "signal": "completed 同时携带 nonzero exit、timeout marker、LSP diagnostics、result.isError 或 child running。",
+      "recovery": "保留native terminal，再运行tool-specific semantic decoder",
+      "doNotAssume": "completed、generic success 或一次 ToolResult 能代表整次调用、query 和副作用都成功。",
+      "claims": [
+        "TOOL-CC-10",
+        "TOOL-CC-17",
+        "TOOL-CX-07",
+        "TOOL-CX-09",
+        "TOOL-OC-05",
+        "TOOL-OC-06"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "输出与重连",
+      "title": "伪造跨Agent独立 stdout/stderr",
+      "contract": "只保存 native channel semantics；跨 Agent 公共字段只能叫 combinedProcessOutput。",
+      "trigger": "从 Claude/OpenCode merged output 或 Codex public delta 人工拆出 stdout/stderr。",
+      "signal": "缺少 stream discriminator、aggregate 顺序与原始 arrival order 不同，或 UTF-8 mapping 已有损。",
+      "recovery": "只存native channel semantics；共有字段叫combinedProcessOutput，不要回填不存在的pipes",
+      "doNotAssume": "模型可见 output 可以无损恢复 OS pipes、字节顺序与编码。",
+      "claims": [
+        "TOOL-CC-06",
+        "TOOL-CX-08",
+        "TOOL-CX-18",
+        "TOOL-OC-05"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "超时语义",
+      "title": "execution timeout全部映射为failed",
+      "contract": "timeout outcome 必须按 agent、tool 与 execution/poll scope 解码。",
+      "trigger": "任何 timed_out 标记都映射为同一个 failed terminal 并触发自动重试。",
+      "signal": "Claude background_running、Codex exit 124、OpenCode completed + exit:null 同时出现不同恢复路径。",
+      "recovery": "timeout outcome按agent/tool分派",
+      "doNotAssume": "execution timeout、MCP deadline 与 poll timeout 具有同一 terminality。",
+      "claims": [
+        "TOOL-CC-07",
+        "TOOL-CX-08",
+        "TOOL-OC-05"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "超时语义",
+      "title": "launch、retrieval/poll、job completion合并",
+      "contract": "launchState、retrievalState 与 workState 必须拥有独立 terminal。",
+      "trigger": "收到 task/process ID、launch result 或一次 not_ready/timeout poll 就关闭工作项。",
+      "signal": "父调用已 completed 但 task/process/child 仍 active，或稍后才出现真正 completion notification。",
+      "recovery": "launchState/retrievalState/workState分列",
+      "doNotAssume": "launch 成功、poll 完成或父 ToolPart completed 等于后台工作完成。",
+      "claims": [
+        "TOOL-CC-08",
+        "TOOL-CX-09",
+        "TOOL-OC-09"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "终态判定",
+      "title": "收到Result/turn state就停止transport drain",
+      "contract": "query/turn terminal 立即记账，但 transport 继续 drain；断线 surface 必须主动 reconcile。",
+      "trigger": "收到 Claude Result、Codex turn state 或 OpenCode SSE close 后立刻停止消费。",
+      "signal": "Result 后仍有 lifecycle/error frame、Codex item 未 terminal，或 SSE gap 后 GET 出现新 Part。",
+      "recovery": "query/turn terminal立即记账，但持续drain或GET reconcile",
+      "doNotAssume": "loop terminal 是最后一个 transport frame，或 live stream 自带完整重放。",
+      "claims": [
+        "TOOL-CC-17",
+        "TOOL-CX-06",
+        "TOOL-OC-16"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "终态判定",
+      "title": "query/turn/session idle替代per-call或background terminal",
+      "contract": "call、item/part、query/turn、transport、background/child 五层 gate 必须独立闭合。",
+      "trigger": "session idle 或 turn completed 时批量清空所有 active call/process/child。",
+      "signal": "session 已 idle 但 child job/PTY 仍运行，或 background completion 晚于 parent turn。",
+      "recovery": "五层gate独立：call、item/part、query/turn、transport、background/child",
+      "doNotAssume": "上层 loop 空闲表示所有下层副作用与委派工作都结束。",
+      "claims": [
+        "TOOL-CC-08",
+        "TOOL-CC-17",
+        "TOOL-CX-06",
+        "TOOL-CX-09",
+        "TOOL-OC-09",
+        "TOOL-OC-16"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "工具目录与扩展",
+      "title": "MCP application error与transport/protocol error合并",
+      "contract": "MCP application result 与 transport/protocol error 必须保留为不同轴。",
+      "trigger": "把 result.isError、handler exception、timeout 与 connection failure序列化成一个 error string。",
+      "signal": "Codex result.isError 与 result:null+error 分叉；OpenCode normalization 后原 structured receipt 消失。",
+      "recovery": "保存result.isError/raw result与transportError两条互斥或并存轴",
+      "doNotAssume": "所有 MCP 错误使用同一 retry、展示或 compensation 策略。",
+      "claims": [
+        "TOOL-CC-10",
+        "TOOL-CX-11",
+        "TOOL-OC-07"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "副作用与投影",
+      "title": "post-hook block/rewrite当执行阻止或rollback",
+      "contract": "raw effect/result、post-hook outcome 与 model-facing projection 必须分别落账。",
+      "trigger": "post hook block、rewrite 或 exception 被当成执行前 gate 或 rollback receipt。",
+      "signal": "ToolPart/ToolResult 显示 error，但磁盘、网络或远端对象已经改变。",
+      "recovery": "raw effect/result、hook result、model projection分别落账",
+      "doNotAssume": "post-processing 失败会撤销 handler 已产生的副作用。",
+      "claims": [
+        "TOOL-CC-05",
+        "TOOL-CX-10",
+        "TOOL-CX-18",
+        "TOOL-OC-04"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "副作用与投影",
+      "title": "file-tool success当transaction/durability/diagnostics clean",
+      "contract": "文件操作要联合 read precondition、attempt、committed diff、disk readback 与 diagnostics。",
+      "trigger": "仅凭 Edit/Write/apply_patch 的成功 envelope 标记原子提交。",
+      "signal": "failed patch 仍有 committed prefix、external hash 漂移、completed 同时含 LSP errors。",
+      "recovery": "记录read precondition、attempt、diff/receipt和diagnostics，必要时磁盘复验",
+      "doNotAssume": "file-tool success 证明 transaction、锁、fsync、diagnostics clean 或跨进程一致性。",
+      "claims": [
+        "TOOL-CC-09",
+        "TOOL-CX-10",
+        "TOOL-OC-06"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "终态判定",
+      "title": "cancel/interrupt ACK当kill完成与副作用回滚",
+      "contract": "cancel request、native terminal、teardown complete 与 effectState 必须分别记录。",
+      "trigger": "interrupt/abort ACK 到达后立即释放资源、重试或宣称副作用已回滚。",
+      "signal": "进程/child 仍运行；同一取消有时 completed、有时 interrupted error，且两者都带 output/effect。",
+      "recovery": "保存requestAt/terminalAt/teardownAt/effectState，background单独terminate",
+      "doNotAssume": "cancel acknowledgement 证明 kill 完成、remote action 停止或 side effect 回滚。",
+      "claims": [
+        "TOOL-CC-12",
+        "TOOL-CX-14",
+        "TOOL-OC-12"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "并行与委派",
+      "title": "parallel batch当串行事务或fail-fast",
+      "contract": "并行组要保留逐 call 时间轴、call-set barrier 与共享控制因果。",
+      "trigger": "按声明顺序串行展示，或第一个失败后假设 siblings 已取消。",
+      "signal": "siblings 在失败后继续 terminal；Codex writeback order 隐藏 overlap，OpenCode reject 级联 approvals。",
+      "recovery": "逐call时间轴 + call-set barrier + shared-control因果",
+      "doNotAssume": "parallel batch 是事务、默认 fail-fast，或列表顺序等于完成顺序。",
+      "claims": [
+        "TOOL-CC-14",
+        "TOOL-CX-17",
+        "TOOL-OC-13"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "重试与副作用",
+      "title": "retry当exactly-once或天然幂等",
+      "contract": "每层 retry 都必须有 attempt scope、effect receipt 与显式幂等政策。",
+      "trigger": "transport crash、sandbox denial 或 provider retry 后直接重放有副作用的调用。",
+      "signal": "同一业务对象出现重复写入/扣款/部署；first attempt 已有 diff，但第二次仍执行。",
+      "recovery": "每层attempt独立；non-idempotent需业务key/effect receipt/人工闸门",
+      "doNotAssume": "runtime retry、模型重发或 provider replay 提供 exactly-once。",
+      "claims": [
+        "TOOL-CC-15",
+        "TOOL-CX-16",
+        "TOOL-OC-14"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "身份与来源",
+      "title": "用重复call ID或相同name/input自动去重",
+      "contract": "correlation ID 与 host/business idempotency key 必须是两个字段。",
+      "trigger": "用重复 call ID 或相同 name/input 自动 merge、drop 或复用旧 waiter。",
+      "signal": "合法的新调用被吞，或 pending map 被覆盖；跨 retry 的 effect 无法区分。",
+      "recovery": "幂等键必须host/business显式生成；重复correlation ID报conflict而非merge",
+      "doNotAssume": "ID 相同意味着同一业务操作，输入相同也不意味着可安全去重。",
+      "claims": [
+        "TOOL-CC-15",
+        "TOOL-CX-05",
+        "TOOL-CX-16",
+        "TOOL-OC-02",
+        "TOOL-OC-11"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "失败语义",
+      "title": "把不同产品的“deferred”压成一个boolean",
+      "contract": "catalogExposure=deferred 与 callTermination=deferred 必须使用不同状态域。",
+      "trigger": "用一个 deferred boolean 同时表示 Codex searchable spec 与 Claude pending call。",
+      "signal": "Codex discovery 被显示成未完成执行，或 Claude pending call 被显示成工具未加载。",
+      "recovery": "catalogExposure与callTermination=deferred分开；只Claude单call defer建立pending invocation",
+      "doNotAssume": "三家名为 deferred 的概念具有同一对象、生命周期或恢复动作。",
+      "claims": [
+        "TOOL-CC-13",
+        "TOOL-CX-01",
+        "TOOL-CX-02",
+        "TOOL-OC-03"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "终态判定",
+      "title": "async parent invocation terminal当child work terminal",
+      "contract": "parent invocation 与 child work 必须各有 ID、state、terminal 与失败原因。",
+      "trigger": "Agent/Task/spawn 父调用 settled 后立即关闭 child job。",
+      "signal": "parent completed 后 child 仍 running，稍后另有 synthetic/notification/thread terminal。",
+      "recovery": "parent operation与child work各有ID、state、terminal",
+      "doNotAssume": "异步父调用 terminal 等于委派工作 terminal。",
+      "claims": [
+        "TOOL-CC-11",
+        "TOOL-CX-12",
+        "TOOL-OC-09"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "并行与委派",
+      "title": "delegated message submit当recipient已处理",
+      "contract": "submit、delivery、processing 与 child completion 必须是四个 milestone。",
+      "trigger": "message/followup 的空 success 或 admission result 被展示为 recipient 已处理。",
+      "signal": "submit receipt 已有但 recipient 无 activity/ack，child turn 也没有 terminal。",
+      "recovery": "追踪submit/delivery/processing/child completion四milestones",
+      "doNotAssume": "消息入队、发送 API 成功或通知生成表示接收方已经消费。",
+      "claims": [
+        "TOOL-CC-08",
+        "TOOL-CC-11",
+        "TOOL-CX-12",
+        "TOOL-OC-09"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "超时语义",
+      "title": "poll/retrieval timeout当job failure",
+      "contract": "observation timeout 只终结本次 poll，不改变被观察 job 的真实 state。",
+      "trigger": "TaskOutput timeout、wait_agent timed_out 或一次 retrieval not_ready 后标 child failed。",
+      "signal": "后续 poll 返回 running/completed；job timeline 没有 failure terminal。",
+      "recovery": "observation timeout只结束本次poll；保持work state unknown/running并允许继续wait",
+      "doNotAssume": "poll/retrieval timeout 是 execution timeout 或 job terminal。",
+      "claims": [
+        "TOOL-CC-08",
+        "TOOL-CX-12",
+        "TOOL-OC-05",
+        "TOOL-OC-07"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "输出与重连",
+      "title": "live event/delta stream当可重放账本",
+      "contract": "live buffer 只能乐观渲染，durable snapshot/terminal 必须覆盖它。",
+      "trigger": "把 partial block、delta 或 SSE event 持久化成唯一回放账本。",
+      "signal": "断线后 UI 卡在 pending/running，terminal body/hash 无法由 deltas 重建。",
+      "recovery": "durable snapshot/terminal覆盖live buffer，断线reconcile",
+      "doNotAssume": "live stream 完整、无 gap、可 replay，或包含所有 terminal 字段。",
+      "claims": [
+        "TOOL-CC-16",
+        "TOOL-CC-17",
+        "TOOL-CX-18",
+        "TOOL-OC-16"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "失败语义",
+      "title": "partial subagent/model prose当完整成功",
+      "contract": "只有 structured discriminant 与 child/item terminal 能标完整成功。",
+      "trigger": "看到非空、语义完整的 subagent/model prose 就关闭工作项。",
+      "signal": "API cutoff/partial 标记、interrupted projection，或 child job 仍 active。",
+      "recovery": "只有discriminant/child terminal能标complete，partial显示incomplete badge",
+      "doNotAssume": "自然语言看似完整就代表没有截断、失败或尚未收口的子任务。",
+      "claims": [
+        "TOOL-CC-11",
+        "TOOL-CX-12",
+        "TOOL-OC-09"
+      ]
+    },
+    {
+      "severity": "critical",
+      "kind": "失败语义",
+      "title": "readOnlyHint/idempotent annotation当执行审计事实",
+      "contract": "readOnly/idempotent annotation 只影响 capability/admission，不改变 effect audit。",
+      "trigger": "依据 readOnlyHint 放宽并发、审批、重试或副作用核验。",
+      "signal": "标记只读的调用仍产生文件/远端变化，或 server metadata 与实际 effect 不符。",
+      "recovery": "annotation只作capability hint；effect receipt/permission/sandbox独立",
+      "doNotAssume": "annotation 是本次执行事实、权限证明或幂等保证。",
+      "claims": [
+        "TOOL-CC-10",
+        "TOOL-CX-17",
+        "TOOL-OC-07"
+      ]
+    },
+    {
+      "severity": "high",
+      "kind": "输出与重连",
+      "title": "truncation path或model-visible output当永久原始artifact",
+      "contract": "raw、public、model-facing、retained artifact 四个 projection 都要带 hash/cap/retention。",
+      "trigger": "只保存 rewritten output 或临时 truncation path，并把它当永久原始结果。",
+      "signal": "body hash/bytes 不同、compaction 后内容清空、retention 到期后 path 失效。",
+      "recovery": "raw/model/public/retained四projection加hash、cap、retention",
+      "doNotAssume": "model-visible output 完整，或 outputPath 跨时间、主机与部署永久可读。",
+      "claims": [
+        "TOOL-CC-05",
+        "TOOL-CC-06",
+        "TOOL-CX-18",
+        "TOOL-OC-15"
+      ]
+    }
+  ],
+  "isolation": [
+    {
+      "label": "Catalog provenance",
+      "cells": {
+        "claude-code": "session/query capture；MCP/search 可改变集合",
+        "codex": "registered / direct / deferred / code-mode 按 step 分层",
+        "opencode": "built-in/custom/plugin/MCP 动态合成；Part 不存 origin"
+      },
+      "claims": [
+        "TOOL-CC-01",
+        "TOOL-CX-01",
+        "TOOL-OC-01"
+      ]
+    },
+    {
+      "label": "Dispatch identity",
+      "cells": {
+        "claude-code": "wire name + tool_use_id",
+        "codex": "namespace.name + scoped call_id",
+        "opencode": "durable Part triple + provider callID"
+      },
+      "claims": [
+        "TOOL-CC-02",
+        "TOOL-CX-05",
+        "TOOL-OC-02"
+      ]
+    },
+    {
+      "label": "Validator owner",
+      "cells": {
+        "claude-code": "availability/schema/tool guards 在 hooks 前",
+        "codex": "built-in / dynamic / MCP 各自 parser",
+        "opencode": "repair path 与 Effect decode 分离"
+      },
+      "claims": [
+        "TOOL-CC-03",
+        "TOOL-CX-04",
+        "TOOL-OC-11"
+      ]
+    },
+    {
+      "label": "Execution vs model view",
+      "cells": {
+        "claude-code": "raw result、PostToolUse、ToolResult 分层",
+        "codex": "handler/core、public item、model/Code Mode 分层",
+        "opencode": "raw result、after hook、persisted Part 分层"
+      },
+      "claims": [
+        "TOOL-CC-05",
+        "TOOL-CX-18",
+        "TOOL-OC-04"
+      ]
+    },
+    {
+      "label": "Call vs loop terminal",
+      "cells": {
+        "claude-code": "ToolResult / Result / EOF 三层",
+        "codex": "item / turn / background terminal 分层",
+        "opencode": "Part / assistant / session / child 分层"
+      },
+      "claims": [
+        "TOOL-CC-17",
+        "TOOL-CX-06",
+        "TOOL-OC-16"
+      ]
+    },
+    {
+      "label": "Background ownership",
+      "cells": {
+        "claude-code": "task ID + output file；launch 非 completion",
+        "codex": "process/session id；turn interrupt 不清 PTY",
+        "opencode": "parent Task Part 与 child job 分离"
+      },
+      "claims": [
+        "TOOL-CC-08",
+        "TOOL-CX-09",
+        "TOOL-OC-09"
+      ]
+    },
+    {
+      "label": "Retry attempt scope",
+      "cells": {
+        "claude-code": "model/tool retry 与 API retry 分开",
+        "codex": "sandbox replay 记录同 call 的 attempt",
+        "opencode": "provider retry 与 tool loop 分开"
+      },
+      "claims": [
+        "TOOL-CC-15",
+        "TOOL-CX-16",
+        "TOOL-OC-14"
+      ]
+    },
+    {
+      "label": "File effect boundary",
+      "cells": {
+        "claude-code": "read-state guard，不是 transaction/lock",
+        "codex": "failed patch 可有 committed prefix",
+        "opencode": "completed 可含 LSP errors；只同进程 semaphore"
+      },
+      "claims": [
+        "TOOL-CC-09",
+        "TOOL-CX-10",
+        "TOOL-OC-06"
+      ]
+    },
+    {
+      "label": "MCP failure plane",
+      "cells": {
+        "claude-code": "model-visible result；MCP hard timeout 独立",
+        "codex": "result.isError 与 transport error 分开",
+        "opencode": "isError 抛普通 Error，再 normalization"
+      },
+      "claims": [
+        "TOOL-CC-10",
+        "TOOL-CX-11",
+        "TOOL-OC-07"
+      ]
+    },
+    {
+      "label": "Reconnect truth",
+      "cells": {
+        "claude-code": "complete messages + Result + drain",
+        "codex": "terminal items，不从 deltas 重建",
+        "opencode": "GET persisted messages 覆盖 SSE gap"
+      },
+      "claims": [
+        "TOOL-CC-16",
+        "TOOL-CX-18",
+        "TOOL-OC-16"
+      ]
+    }
+  ],
+  "limits": [
+    {
+      "metric": "SL-01 Catalog scope",
+      "claude-code": "锁定 sdk-cli capture有28个tool blocks；只是该session/entry catalog，MCP/search/subagent可变。",
+      "codex": "registered、DIRECT、DEFERRED、CODE_MODE是不同集合；snapshot按step。",
+      "opencode": "built-in/custom/plugin/MCP按model/permission/filter/hook动态合成；Part不存origin。",
+      "claims": [
+        "TOOL-CC-01",
+        "TOOL-CX-01",
+        "TOOL-OC-01"
+      ]
+    },
+    {
+      "metric": "SL-02 Schema / validation budget",
+      "claude-code": "exact prompt有built-in schema，但无public per-tool schema-version negotiation；validation/hook boundary主要是DF。",
+      "codex": "normalized schema >5,000 bytes做best-effort删减；Agent Plugin spec >8,000 bytes时参数降级为permissive object；Responses function strict:false；core无统一validator。",
+      "opencode": "hook和provider transform可改schema；MCP强制object/additionalProperties:false；tool wrapper Effect-decode，provider/本地仍是不同层。",
+      "claims": [
+        "TOOL-CC-01",
+        "TOOL-CC-03",
+        "TOOL-CX-03",
+        "TOOL-CX-04",
+        "TOOL-OC-01",
+        "TOOL-OC-04",
+        "TOOL-OC-07"
+      ]
+    },
+    {
+      "metric": "SL-03 Correlation identity",
+      "claude-code": "主join为tool_use_id；另存message ID、uuid、parent ID、task ID。",
+      "codex": "scoped主join为thread/turn/call_id；Responses item、Code Mode runtime、approval ID分离。",
+      "opencode": "durable主键为session/message/part；provider callID只join input/result。",
+      "claims": [
+        "TOOL-CC-02",
+        "TOOL-CX-05",
+        "TOOL-OC-02"
+      ]
+    },
+    {
+      "metric": "SL-04 Per-call states / authoritative terminal",
+      "claude-code": "无统一public四态；validation/non-execution/execute/result分支，matching ToolResult终结call，Result终结query。",
+      "codex": "public item started → 0+ delta → completed；item/completed是authoritative call truth，turn另算。",
+      "opencode": "durable pending → running → completed / error；最新persisted terminal Part是真值，pending.raw不可靠。",
+      "claims": [
+        "TOOL-CC-03",
+        "TOOL-CC-04",
+        "TOOL-CC-17",
+        "TOOL-CX-06",
+        "TOOL-OC-03",
+        "TOOL-OC-16"
+      ]
+    },
+    {
+      "metric": "SL-05 Shell channels / success rule",
+      "claude-code": "command stdout/stderr合并进structured stdout，harness notice在stderr；foreground exit code无稳定独立field。",
+      "codex": "core有stdout/stderr/aggregate；public command item只给aggregate；exit0 completed、nonzero failed、declined=-1。",
+      "opencode": "handle.all单一combined stream；wrapper通常completed，semantic outcome读metadata.exit/markers。",
+      "claims": [
+        "TOOL-CC-06",
+        "TOOL-CX-08",
+        "TOOL-CX-18",
+        "TOOL-OC-05"
+      ]
+    },
+    {
+      "metric": "SL-06 Deadline / cancellation limits",
+      "claude-code": "Bash default 120,000ms、max 600,000ms，deadline转background；MCP是hard wall-clock，低于1,000ms的timeout值被忽略。",
+      "codex": "command default 10s，timeout规范化exit124并保留partial output；cancel是否等待teardown由runtime声明。",
+      "opencode": "Shell timeout/abort kill后通常completed、exit null；MCP catalog default 30s且progress reset timeout；processor cleanup最多等250ms。",
+      "claims": [
+        "TOOL-CC-07",
+        "TOOL-CX-08",
+        "TOOL-CX-14",
+        "TOOL-OC-05",
+        "TOOL-OC-07",
+        "TOOL-OC-12"
+      ]
+    },
+    {
+      "metric": "SL-07 Output / retention limits",
+      "claude-code": "Bash failure text >10,000 chars middle-truncate；Read默认最多2,000 lines；temp-space/inode问题可令output lost。",
+      "codex": "shell live delta最多10,000个；retained bytes、model token、MCP event各自cap；aggregate不保留真实interleave。",
+      "opencode": "tool output >2,000 lines或50KiB写truncation file，默认保留7天；Shell running preview 30,000 chars；unsupported或>10MiB MCP blob omitted。",
+      "claims": [
+        "TOOL-CC-06",
+        "TOOL-CC-09",
+        "TOOL-CX-18",
+        "TOOL-OC-05",
+        "TOOL-OC-07",
+        "TOOL-OC-15"
+      ]
+    },
+    {
+      "metric": "SL-08 Parallel admission / ordering",
+      "claude-code": "independent calls可并行；per-call settle后PostToolBatch barrier一次；max/order/fairness未公开。",
+      "codex": "default supportsParallel=false；shell/exec true，MCP可config/readOnlyHint opt-in；FuturesOrdered按模型ordinal回写。",
+      "opencode": "native runtime每local call一Fiber；逐call真实完成序发布；reject与cleanup可session级联。",
+      "claims": [
+        "TOOL-CC-14",
+        "TOOL-CX-17",
+        "TOOL-OC-13"
+      ]
+    },
+    {
+      "metric": "SL-09 Retry / loop guards",
+      "claude-code": "tool retry无统一count/backoff；API retry另有frame；defer只支持-p单call且无timeout/retry limit。",
+      "codex": "只有符合条件的sandbox denial可自动再attempt一次；generic call_id无idempotency contract。",
+      "opencode": "AI SDK maxRetries=0，外层provider retry负责backoff；最近3个同tool+完全相同input触发doom-loop permission，不是自动fail。",
+      "claims": [
+        "TOOL-CC-13",
+        "TOOL-CC-15",
+        "TOOL-CX-16",
+        "TOOL-OC-11",
+        "TOOL-OC-14"
+      ]
+    },
+    {
+      "metric": "SL-10 Async / loop / transport terminals",
+      "claude-code": "launch、retrieval、task三层；Result可先于transport EOF，background可晚于query。",
+      "codex": "invocation、PTY/background process、item、turn各有terminal；interrupt不kill background。",
+      "opencode": "parent Task Part、child job、assistant/session idle分层；SSE不可replay，GET transcript用于reconcile。",
+      "claims": [
+        "TOOL-CC-08",
+        "TOOL-CC-17",
+        "TOOL-CX-09",
+        "TOOL-CX-14",
+        "TOOL-OC-09",
+        "TOOL-OC-16"
+      ]
+    }
+  ],
+  "changes": [
+    {
+      "date": "2025-10-15",
+      "agent": "claude-code",
+      "version": "2.0.19",
+      "impact": "long-running Bash从kill改为auto-background。",
+      "path": "timeout从terminal failure迁移为parent-call transition + task lifecycle。",
+      "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L4240-L4243"
+    },
+    {
+      "date": "2026-03-31",
+      "agent": "claude-code",
+      "version": "2.1.89",
+      "impact": "加PreToolUse defer、PermissionDenied；修MCP multi-block error content。",
+      "path": "feature-detect pending-call resume与typed permission/error rendering。",
+      "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L2524-L2535"
+    },
+    {
+      "date": "2026-04-27",
+      "agent": "claude-code",
+      "version": "2.1.121",
+      "impact": "alwaysLoad、all-tool updatedToolOutput、MCP startup transient retry最多3次。",
+      "path": "catalog load、post-view rewrite与startup retry需版本门控。",
+      "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L1898-L1909"
+    },
+    {
+      "date": "2026-06-02",
+      "agent": "claude-code",
+      "version": "2.1.161",
+      "impact": "failed Bash不再cancel parallel siblings，每call独立result。",
+      "path": "删除batch fail-fast假设；旧transcript需容忍orphan/取消语义。",
+      "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L1131-L1135"
+    },
+    {
+      "date": "2026-07-18",
+      "agent": "claude-code",
+      "version": "2.1.214",
+      "impact": "加长Tool Call heartbeat；slow consumer stream-json drain修复。",
+      "path": "heartbeat不是terminal；Result后仍需drain。",
+      "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L278-L284"
+    },
+    {
+      "date": "2026-08-07",
+      "agent": "codex",
+      "version": "0.147.0",
+      "impact": "runtime assembly、spec、readiness与step router集中化。",
+      "path": "每step从effective router取catalog与parallel capability。",
+      "url": "https://github.com/openai/codex/releases/tag/rust-v0.147.0"
+    },
+    {
+      "date": "2026-08-07",
+      "agent": "codex",
+      "version": "0.147.0",
+      "impact": "custom/namespaced/MCP exposure分为direct/deferred/code-mode。",
+      "path": "migration时把一个available boolean拆成surface bit planes。",
+      "url": "https://github.com/openai/codex/pull/36781"
+    },
+    {
+      "date": "2026-08-07",
+      "agent": "codex",
+      "version": "0.147.0",
+      "impact": "加strict collision errors、canonical functions namespace与description conflict。",
+      "path": "collision记录skipped或hard fail；禁止静默归因为not installed。",
+      "url": "https://github.com/openai/codex/pull/36954"
+    },
+    {
+      "date": "2026-08-07",
+      "agent": "codex",
+      "version": "0.147.0",
+      "impact": "MCP 2026-07-28、pagination、non-blocking startup、stable bindings/readiness。",
+      "path": "readiness属于target server call path；不能用global startup ACK判MCP可用。",
+      "url": "https://github.com/openai/codex/releases/tag/rust-v0.147.0"
+    },
+    {
+      "date": "2026-08-07",
+      "agent": "codex",
+      "version": "0.147.0",
+      "impact": "apply_patch进入统一approval/sandbox/retry编排，同时保留committed delta。",
+      "path": "patch retry前必须检查first attempt diff/effect。",
+      "url": "https://github.com/openai/codex/pull/36745"
+    },
+    {
+      "date": "2026-08-07",
+      "agent": "codex",
+      "version": "0.147.0",
+      "impact": "unified exec output集中为可表达running session、exit、omission与Code Mode结构的结果。",
+      "path": "tool response与process terminal必须拆开，新增process/session/chunk axes。",
+      "url": "https://github.com/openai/codex/pull/37083"
+    },
+    {
+      "date": "2026-04-10",
+      "agent": "opencode",
+      "version": "1.4.3",
+      "impact": "interrupted Bash开始保留final output与truncation details。",
+      "path": "abort terminal不能再默认no output/no effect。",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.4.3"
+    },
+    {
+      "date": "2026-06-17",
+      "agent": "opencode",
+      "version": "1.17.8",
+      "impact": "MCP progress reset timeout、server error text surfaced、schema compatibility修复。",
+      "path": "MCP timeout watchdog和error parser需版本门控。",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.17.8"
+    },
+    {
+      "date": "2026-08-05",
+      "agent": "opencode",
+      "version": "1.18.14",
+      "impact": "structured mid-stream provider errors被保留，更多transient errors可retry。",
+      "path": "provider attempt/reason可观测，但重复副作用风险上升。",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.14"
+    },
+    {
+      "date": "2026-08-07",
+      "agent": "opencode",
+      "version": "1.18.15",
+      "impact": "truncation cleanup按mtime；repeated compaction保留earlier tool-call history。",
+      "path": "outputPath retention与compaction lineage按此版本验收。",
+      "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.15"
+    }
+  ]
+}

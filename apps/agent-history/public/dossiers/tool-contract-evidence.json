@@ -1,0 +1,1343 @@
+{
+  "claims": [
+    {
+      "id": "TOOL-CC-01",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "Tool surface 是 session 产物，不是固定 SDK 常量",
+      "statement": "锁定的 sdk-cli prompt 中有 28 个 tool blocks，从 Agent、Bash、file/search、task/cron，到 Workflow、Write；Agent 与 Bash 的输入 schema 都显式 additionalProperties:false。 固定 prompt 自己写明 tool 运行受 permission mode、hooks 影响，独立 call 可在一个 response 中并行。 live docs 进一步把 tools（availability）、allowed/disallowed（permission）分开；MCP key 使用 mcp__{server}__{tool}，tool search 还可延迟完整 schema。固定 artifact 也说明 alwaysLoad 会绕过 defer_loading，但会让 startup 等待 MCP 连接。",
+      "layer": "Exact-build + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "sdk-cli",
+        "Agent",
+        "Bash",
+        "Workflow",
+        "Write",
+        "additionalProperties:false"
+      ],
+      "boundary": "每个 query/session 保存最终 catalog snapshot：wire name + provenance + description hash + input schema hash + availability source + permission visibility。不要把 SDK enum 或此次 28 工具作为全平台能力表。Agent/旧名 Task、TaskOutput/旧 alias 等也要求 adapter 支持 alias 但输出 canonical name。",
+      "source": {
+        "label": "2.1.226 harness contract L11-L16",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L11-L16"
+      },
+      "compare": {
+        "label": "Agent schema L95-L159",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L95-L159"
+      }
+    },
+    {
+      "id": "TOOL-CC-02",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "一次调用至少有四个身份轴，只有 tool_use_id 贯穿 call/result/hook",
+      "statement": "live Python SDK 把 call 定义为 ToolUseBlock {id,name,input}，result 定义为 ToolResultBlock {tool_use_id,content,is_error}。 AssistantMessage.message_id 是 API message ID；同一 turn 的多个 message 可以共享它。uuid 是 transcript 内 message 标识。nested/subagent complete message 用 parent_tool_use_id 归因。 fixed artifact 的 tool-result display metadata、structured output、MCP display metadata 全都按 matching tool_use_id / block id 关联；MCP display title 不改变 wire name。",
+      "layer": "Exact-build Internal + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "ToolUseBlock {id,name,input}",
+        "ToolResultBlock {tool_use_id,content,is_error}",
+        "AssistantMessage.message_id",
+        "uuid",
+        "parent_tool_use_id",
+        "tool_use_id"
+      ],
+      "boundary": "最少保存：session_id + transcript message uuid + API message_id + tool_use_id + tool name。background task 再加 task_id。UI 展示名只能是 label，dispatch、permission、result reconciliation 一律使用 wire name 和 tool_use_id。",
+      "source": {
+        "label": "ToolUseBlock / ToolResultBlock, live Python reference L2264-L2288",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#tooluseblock"
+      },
+      "compare": {
+        "label": "AssistantMessage IDs, live reference L1938-L1964",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#assistantmessage"
+      }
+    },
+    {
+      "id": "TOOL-CC-03",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "unknown tool、schema invalid、tool-specific validation 属于 pre-execution rejection",
+      "statement": "live hooks contract 明确：unknown tool、input schema/tool-specific validation failure 在执行前返回 tool_use_error。 schema/tool validation 发生在 hooks 前，因此既不触发 PreToolUse，也不触发 PostToolUseFailure；permission denial 会经过 PreToolUse，但不会触发 failure hook。 fixed artifact 的 mcp_server_errors 说明 invalid --mcp-config entry 会被跳过，affected server 直接不出现在 mcp_servers[]；其 category 是 open set。",
+      "layer": "Docs-forward + Exact-build Internal + Exact-history",
+      "confidence": "High",
+      "signals": [
+        "tool_use_error",
+        "PreToolUse",
+        "PostToolUseFailure",
+        "mcp_server_errors",
+        "--mcp-config",
+        "mcp_servers[]"
+      ],
+      "boundary": "规范化状态至少分成 rejected_unavailable、rejected_invalid_input、denied_policy、failed_runtime。若只监听 PostToolUseFailure，catalog drift 与模型生成坏参数会变成监控盲区。",
+      "source": {
+        "label": "PostToolUseFailure scope, live hooks L1822-L1825",
+        "url": "https://code.claude.com/docs/en/hooks#posttoolusefailure"
+      },
+      "compare": {
+        "label": "exact skipped MCP config signal",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L27364"
+      }
+    },
+    {
+      "id": "TOOL-CC-04",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "hooks 把成功、运行失败和未执行拒绝切成三个互斥观察面",
+      "statement": "PreToolUse 在参数生成后、tool processing 前运行，输入有 tool_name/tool_input/tool_use_id；SDK callback timeout 会阻断 call 并向模型返回命名 timeout error。 PostToolUse 只在 tool 成功完成后运行；duration_ms 不含 permission prompt 与 PreToolUse 时间。 PostToolUseFailure 只覆盖“已开始后抛错”或 MCP error result；cancel running tool 不触发它，interruption 放在 tool result 中。 2.1.119 changelog 把 duration_ms 加进成功/失败 hook，并给 OTel tool_result/tool_decision 加 tool_use_id。",
+      "layer": "Exact-history + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "PreToolUse",
+        "tool_name/tool_input/tool_use_id",
+        "PostToolUse",
+        "duration_ms",
+        "PostToolUseFailure",
+        "tool_result/tool_decision"
+      ],
+      "boundary": "不要把三种 hook 拼成一个布尔 tool_ok。需要独立 span：validate、pre_hook、permission_wait、execute、post_hook，并让 duration_ms 只代表 execute phase。",
+      "source": {
+        "label": "PreToolUse timing, live hooks L1445-L1456",
+        "url": "https://code.claude.com/docs/en/hooks#pretooluse"
+      },
+      "compare": {
+        "label": "PostToolUse timing, live hooks L1755-L1786",
+        "url": "https://code.claude.com/docs/en/hooks#posttooluse"
+      }
+    },
+    {
+      "id": "TOOL-CC-05",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "PostToolUse output replacement 只是 model-view rewrite，不是 side-effect rollback",
+      "statement": "updatedToolOutput 在 tool 已成功执行后才替换“Claude 将看到的结果”；文件写入、命令、网络请求已经发生，telemetry 也已采集 original output。 built-in replacement 要匹配 tool output schema；不匹配会被忽略并使用 original。MCP replacement 不做同样的 built-in schema validation。 PostToolUse 的 tool_response 是 structured per-tool Output；PostToolBatch 的 tool_response 是序列化后、模型实际收到的 string/content blocks。fixed artifact 也把 structured result 描述为完整 Output object，而非发给模型的字符串。",
+      "layer": "Exact-build Internal + Exact-history + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "updatedToolOutput",
+        "tool_response",
+        "raw_execution_output",
+        "post_hook_model_output",
+        "model_facing_content"
+      ],
+      "boundary": "同时保留 raw_execution_output、post_hook_model_output 与 model_facing_content。审计与重放不可只存 rewrite 后文本；安全阻断必须在 PreToolUse 或更底层做。",
+      "source": {
+        "label": "updatedToolOutput boundary, live hooks L1791-L1817",
+        "url": "https://code.claude.com/docs/en/hooks#posttooluse-decision-control"
+      },
+      "compare": {
+        "label": "PostToolBatch response shape, live hooks L1881-L1914",
+        "url": "https://code.claude.com/docs/en/hooks#posttoolbatch"
+      }
+    },
+    {
+      "id": "TOOL-CC-06",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "Bash 的 structured stdout/stderr 名称不等于 OS pipe",
+      "statement": "live Python reference 定义 Bash Output：stdout 内是 command stdout 与 stderr 合并后的交错流；stderr 是 tool/harness 自己添加的 notices，不是 command stderr。 failed Bash/PowerShell 如果 process 确实启动并退出，failure text 第一行是 Exit code N，之后是一块 stdout/stderr interleaved output；process 启动失败可以没有 exit line。 failure text 超过 10,000 chars 会 middle-truncate，且 harness 可插入 timeout line。fixed binary 还包含 temp filesystem 满或 inode 耗尽时“stdout/stderr writes failed，output lost”的诊断。 background TaskOutput.task 才文档化了 type-specific exitCode；foreground Bash structured Output 没有独立 exit-code field。",
+      "layer": "Exact-build Internal + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "stdout",
+        "stderr",
+        "Exit code N",
+        "TaskOutput.task",
+        "exitCode",
+        "process_stdout"
+      ],
+      "boundary": "normalized record 不要伪造 process_stdout / process_stderr。推荐字段：combined_output、harness_notices、exit_code?:number、spawn_failed:boolean、output_truncated:boolean、output_lost:boolean。foreground exit code 只能从受控首行解析，并保留 raw string。",
+      "source": {
+        "label": "Bash Output, live Python reference L3020-L3039",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#bash"
+      },
+      "compare": {
+        "label": "Bash failure text contract, live hooks L1850-L1858",
+        "url": "https://code.claude.com/docs/en/hooks#posttoolusefailure-input"
+      }
+    },
+    {
+      "id": "TOOL-CC-07",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "foreground Bash timeout 是 background transition；MCP timeout 才是 hard deadline",
+      "statement": "fixed prompt 给 Bash timeout default 120,000 ms、max 600,000 ms，并支持显式 run_in_background。 fixed binary 的 timeout result 明写：command 未在期限内完成，被移到 background，返回 task ID 和 output path，完成时再通知。2.0.19 changelog 也记录从 kill 改为 auto-background；2.1.210 改善了这条消息，防止模型把它误认为显式 background。 control channel 也能按 tool_use_id background 正在阻塞的 Bash/subagent；blocking call 立即返回 “running in background” result，task 继续并在 settle 后发 notification。 MCP per-server timeout 是真正 hard wall-clock；progress notification 不延长，低于 1000 ms 的值被忽略。",
+      "layer": "Exact-build + Exact-history",
+      "confidence": "High",
+      "signals": [
+        "timeout",
+        "run_in_background",
+        "tool_use_id",
+        "foreground -> background_running",
+        "failed_timeout"
+      ],
+      "boundary": "把 Bash timeout 状态建模为 foreground -> background_running，不是 failed_timeout。相反 MCP timeout 可以归类 runtime timeout。两个都叫 timeout，但 terminality 相反。",
+      "source": {
+        "label": "Bash prompt L161-L169",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L161-L169"
+      },
+      "compare": {
+        "label": "exact auto-background timeout message",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L8731"
+      }
+    },
+    {
+      "id": "TOOL-CC-08",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "background launch、retrieval 与 completion 是三个状态机",
+      "statement": "fixed TaskOutput prompt 已标 deprecated：Bash/remote task 的 output file 含 stdout/stderr；local agent .output 是完整 subagent JSONL transcript 的 symlink，不应当成普通 output read。 live SDK reference 有 TaskStartedMessage、periodic TaskProgressMessage 与最终 TaskNotificationMessage(status=completed|failed|stopped)，均可携带 original tool_use_id。 TaskOutput.retrieval_status 是 success|timeout|not_ready，另有 task.status 与可选 exitCode。retrieval timeout 只说明本次读取没等到，不说明 job 失败。 fixed artifact 对 crash/resume 还存在三种分支：previous process 丢失 in-process state；无 completion record 时可从 transcript 自动重启；已完成但只丢 notification 时不会重启。",
+      "layer": "Exact-build Internal + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "TaskOutput",
+        ".output",
+        "TaskStartedMessage",
+        "TaskProgressMessage",
+        "TaskNotificationMessage(status=completed|failed|stopped)",
+        "tool_use_id"
+      ],
+      "boundary": "分别存 launch_state、retrieval_state、task_state。最终 truth 是 task notification/status + output artifact，而不是父 ToolResult。重连时要做 reconciliation，不能看到“无 completion notification”就盲目重跑。",
+      "source": {
+        "label": "TaskOutput exact prompt L1389-L1432",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L1389-L1432"
+      },
+      "compare": {
+        "label": "TaskStarted/Progress/Notification, live reference L2129-L2216",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#taskstartedmessage"
+      }
+    },
+    {
+      "id": "TOOL-CC-09",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "file tools 有 harness-held read precondition，但不是事务或文件锁",
+      "statement": "exact prompt 要求 Edit 前在当前 conversation Read；old_string 必须字节级匹配且 unique，除非 replace_all:true。Write 覆盖 existing file 前也必须 Read；新建文件不需要。 Read 要 absolute path，默认最多 2,000 lines，text result 带行号；directory、missing、empty file 返回 error/reminder 而不是内容。 live structured outputs 分别是 Edit {message,replacements,file_path}、Read text/image discriminants、Write {message,bytes_written,file_path}。 这些 success shape 只证明 tool 返回成功；没有 public contract 声称 batch transaction、跨进程 file lock、fsync durability 或对后续 external mutation 的保护。",
+      "layer": "Exact-build + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "old_string",
+        "replace_all:true",
+        "{message,replacements,file_path}",
+        "{message,bytes_written,file_path}",
+        "read observation"
+      ],
+      "boundary": "把 read-before-edit token 当 optimistic precondition，不当 lock。记录 read observation、input hash、result path/count，再由业务层做必要验证。parallel sibling file calls 不应放在一个“原子编辑组”里。",
+      "source": {
+        "label": "Edit exact prompt L568-L605",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L568-L605"
+      },
+      "compare": {
+        "label": "Read exact prompt L959-L1001",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L959-L1001"
+      }
+    },
+    {
+      "id": "TOOL-CC-10",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "MCP/custom tool error 是 model-visible result，通常不终止 agent loop",
+      "statement": "live custom-tool contract 要求 result content，可选 structuredContent 和 isError/is_error；content 可混合 text/image/audio/resource/resource_link。 uncaught handler exception 会被 in-process MCP server 捕获并转成 carrying raw exception message 的 error result；loop 继续。显式 isError:true 让 handler 自己写 model-facing error。 Claude 接到 error 后可以 retry、换工具或解释，但文档没有保证哪一种，也没有统一 retry 次数。 annotation 只有 readOnlyHint 控制 parallel eligibility；destructiveHint/idempotentHint/openWorldHint 是信息性 hint，不是 enforcement。即便 readOnlyHint:true 也不阻止 handler 写盘。",
+      "layer": "Docs-forward + Exact-build Internal",
+      "confidence": "High",
+      "signals": [
+        "content",
+        "structuredContent",
+        "isError/is_error",
+        "isError:true",
+        "readOnlyHint",
+        "destructiveHint/idempotentHint/openWorldHint"
+      ],
+      "boundary": "MCP adapter 要把 tool_call_failed 与 query_failed 分开。handler 必须 scrub secrets 后再构造 error；不要把 raw exception 直接当用户可见安全文本。幂等性必须由 host 自己持有，不从 annotation 推断执行安全。",
+      "source": {
+        "label": "custom tool result and naming, live docs",
+        "url": "https://code.claude.com/docs/en/agent-sdk/custom-tools#create-a-custom-tool"
+      },
+      "compare": {
+        "label": "handler errors, live docs L437-L445",
+        "url": "https://code.claude.com/docs/en/agent-sdk/custom-tools#handle-errors"
+      }
+    },
+    {
+      "id": "TOOL-CC-11",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "Agent/subagent result 是 discriminated output；partial report 不等于完成",
+      "statement": "exact prompt 的 Agent 默认 background，可显式 run_in_background:false；foreground 等完成，background 先返回 launch result并异步通知。 live Python reference 把 output 分为 status:\"completed\"、async_launched、remote_launched。completed 包含 content、resolved model、models used、tool count、duration、tokens、usage/tool stats；launch variants 带 agent/task ID 与 output file。 live subagent docs 给出 version floor：2.1.199 起 API error 不再伪装成 findings。foreground 已有 text 时返回 partial output + cut-off marker；没有 text或只有 tool calls 时 Agent tool failure；background 标 failed并在 completion message 中带 API error 与 last output。",
+      "layer": "Exact-build + Exact-build Internal + Docs-forward with explicit version floors",
+      "confidence": "High",
+      "signals": [
+        "run_in_background:false",
+        "status:\"completed\"",
+        "async_launched",
+        "remote_launched",
+        "status",
+        "content/completion notification"
+      ],
+      "boundary": "先按 status discriminant 解码，再看 content/completion notification。展示 partial output时必须显式标 incomplete，不可把一段看似完整的 prose 当 success。launch ack 只能进入 running。",
+      "source": {
+        "label": "Agent exact prompt L95-L160",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L95-L160"
+      },
+      "compare": {
+        "label": "Agent output variants, live Python reference L2876-L2962",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#agent"
+      }
+    },
+    {
+      "id": "TOOL-CC-12",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "deny、interrupt、cancel 与 defer 都可能是 error-shaped，但语义不同",
+      "statement": "fixed runtime prompt直接告诉模型：denied call 表示用户拒绝，应该调整，不要原样重试。 fixed internal non_execution_kind 区分 user-rejected、permission-rule、automode-*、interrupted、cancelled；字段缺失表示 tool 跑到 completion。SDK control denial 目前会丢 human provenance，落成 permission-rule。 auto-denial advisory frame 是 best-effort；fixed artifact 指定 result.permission_denials 才是 authoritative record，且早期 hook deny 不一定进入该 frame。 cancellation of a running tool 不触发 PostToolUseFailure；side effects 是否已发生取决于 signal 到达时机。",
+      "layer": "Exact-build + Exact-build Internal + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "non_execution_kind",
+        "user-rejected",
+        "permission-rule",
+        "automode-*",
+        "interrupted",
+        "cancelled"
+      ],
+      "boundary": "统一 UI 可以都显示“未成功”，但 durable event 必须保留 execution_started 与 termination_kind。至少区分：user_denied、policy_denied、auto_denied、interrupted、cancelled、runtime_failed；未知值按 open enum 保存。",
+      "source": {
+        "label": "exact denied-call instruction L11-L15",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L11-L15"
+      },
+      "compare": {
+        "label": "exact non_execution_kind",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L27238"
+      }
+    },
+    {
+      "id": "TOOL-CC-13",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "defer 是一个 query terminal / tool pending 的双层状态",
+      "statement": "live hooks docs把 defer 限定在 claude -p 的单 tool call：PreToolUse 返回 defer，tool 不执行，process 以 stop_reason:\"tool_deferred\" 和 deferred_tool_use{id,name,input} 退出；resume 后同 call 再触发 PreToolUse。 没有 defer timeout 或 retry limit；host可以再次 defer。parallel batch 中 defer 被忽略，因为 resume 只能重放一个 pending call。 deferred MCP/tool 在 resume 时已不可用，query 以 tool_deferred_unavailable、is_error:true 结束，且发生在 hook 前；payload 仍保留缺失 tool identity。 fixed artifact说明 SDK deferred_tool_use 是从 internal attachment frame 派生。",
+      "layer": "Exact-build Internal + Exact-history + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "defer",
+        "claude -p",
+        "stop_reason:\"tool_deferred\"",
+        "deferred_tool_use{id,name,input}",
+        "tool_deferred_unavailable",
+        "is_error:true"
+      ],
+      "boundary": "需要同时落两条状态：query=completed_for_now，tool=pending_external_input。pending object 必须持久化 session ID、tool ID/name/input、permission mode manifest、catalog fingerprint；resume 时先验证 tool 仍存在。",
+      "source": {
+        "label": "defer flow and edge cases, live hooks L1637-L1662",
+        "url": "https://code.claude.com/docs/en/hooks#defer-a-tool-call-for-later"
+      },
+      "compare": {
+        "label": "exact attachment derivation",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L27778"
+      }
+    },
+    {
+      "id": "TOOL-CC-14",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "parallel batch 的每个 call 独立 settle；hook 也不是串行事务",
+      "statement": "exact prompt 允许 independent calls 在一个 response 中 parallel。 exact artifact与 live hooks一致：PostToolUse per-tool，parallel calls 时可并发；PostToolBatch 在所有 calls resolved 后恰好一次、位于下一 model request 前。 fixed binary 还有一个 end-turn guard：如果 tool result 或 MCP end-turn 已结束 turn且不会 reinvoke model，PostToolBatch 的 blocking/context output 会被丢弃。 2.1.161 changelog明确：failed Bash 不再 cancel batch siblings，每个 tool 独立返回 result。更早的 2.1.0、2.1.7、2.1.9 连续修复 parallel orphan tool_result，说明旧版本不能假设今天的 pairing 稳定性。",
+      "layer": "Exact-build + Exact-history + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "native lifecycle event",
+        "terminal receipt"
+      ],
+      "boundary": "以 tool_use_id 集合做 batch barrier，不依赖 callback/result arrival order。PostToolUse handler要线程安全；batch不提供 rollback。一个 call 失败后，其他 calls 的 side effects 仍可能完成。",
+      "source": {
+        "label": "Claude 2.1.226 PostToolBatch lifecycle",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L26995"
+      },
+      "compare": {
+        "label": "Claude 2.1.161 independent sibling results",
+        "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L1131-L1135"
+      }
+    },
+    {
+      "id": "TOOL-CC-15",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "tool retry 是模型策略，不是一个统一 runtime guarantee",
+      "statement": "custom MCP error 进入模型上下文后，Claude“可以”retry、换工具或解释；这是 choice，不是 guaranteed retry。 fixed prompt要求 denial 后 adjust，不要 verbatim retry。PermissionDenied hook 的 {retry:true} 也只是告诉模型“may retry”，不执行 call。 fixed binary 有独立 api_retry frame，携带 API retry counters；这是 model/API request retry，不是 tool execution retry。 fixed artifact 还存在 max-output-tokens continuation、refusal fallback/tombstone、context-hint clear 等恢复路径；它们可能替换或清掉之前 message/tool_result，不等同于再次执行原 tool。",
+      "layer": "Exact-build Internal + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "PermissionDenied",
+        "{retry:true}",
+        "api_retry"
+      ],
+      "boundary": "每次 model-emitted ToolUseBlock 都当新 invocation；若 host 想对 network/tool层自动重试，必须显式 idempotency key、attempt、effect-unknown状态和 per-tool policy。不要看到相同 name/input 就自动去重，也不要在 transport crash 后盲重跑。",
+      "source": {
+        "label": "custom-tool error loop semantics, live docs L437-L445",
+        "url": "https://code.claude.com/docs/en/agent-sdk/custom-tools#handle-errors"
+      },
+      "compare": {
+        "label": "exact denial retry instruction",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/prompt.md#L13-L15"
+      }
+    },
+    {
+      "id": "TOOL-CC-16",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "partial stream、complete message、tool result 与 nested attribution 要分开消费",
+      "statement": "live Python SDK 的 Message union包含 User/Assistant/System/Result/StreamEvent/RateLimitEvent；StreamEvent 只有 include_partial_messages=True 时出现，携带 raw Claude API event。 StreamEvent 只针对 main session，parent_tool_use_id 总为 None；subagent attribution 要读 complete Assistant/User messages 的 parent_tool_use_id。 Assistant stop_reason:\"tool_use\" 只表示 API assistant turn转入 tool execution，不表示 query、task或业务目标完成。 fixed artifact把 interrupted assistant message标成 truncated：可能从未收到 stop_reason，content 可在单词中间结束。Python Literal 也可能漏掉 CLI 新 error string，官方要求未知值按 unknown 处理。",
+      "layer": "Exact-build Internal + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "StreamEvent",
+        "include_partial_messages=True",
+        "parent_tool_use_id",
+        "stop_reason:\"tool_use\""
+      ],
+      "boundary": "partial frame只能驱动临时 UI，不做 durable completion。完整 message入账后按 uuid/message_id reconcile；truncated/unknown enum要保留 raw值。nested agent内容的 primary correlation是 parent tool use ID，不是猜时间区间。",
+      "source": {
+        "label": "Message union, live reference L1894-L1911",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#message"
+      },
+      "compare": {
+        "label": "Assistant message and open errors, live reference L1938-L1982",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#assistantmessage"
+      }
+    },
+    {
+      "id": "TOOL-CC-17",
+      "agent": "claude-code",
+      "type": "fact",
+      "version": "2.1.226",
+      "title": "ResultMessage 终结 query loop，但不一定是最后一个 transport frame",
+      "statement": "live Python reference称 ResultMessage 是 final result，subtype 为 success、error_during_execution、error_max_turns、error_max_budget_usd、error_max_structured_output_retries。success 仍可能 is_error:true，表示 loop完成但最后 API request失败。 result text、errors、api_error_status、permission denials、deferred tool、cost/usage各有不同适用条件；single-shot query() 会先 yield final result，再 raise plain Exception。 terminal_reason 是 live docs-forward field；docs明确 older CLI/local slash/synth fatal可能为 None，不能当 required exact-build field。 fixed internal command_lifecycle 明确：fresh-turn command 的 completed 可以在 Result 之后到达；",
+      "layer": "Exact-build Internal + Exact-history + Docs-forward",
+      "confidence": "High",
+      "signals": [
+        "success",
+        "error_during_execution",
+        "error_max_turns",
+        "error_max_budget_usd",
+        "error_max_structured_output_retries",
+        "is_error:true"
+      ],
+      "boundary": "收到 Result时立即记录 query terminal及计费，但继续读 iterator/stdout直到 EOF 或明确 transport close；保存 Result 后再处理 SDK抛出的 exception。最终状态至少有 query_terminal、transport_terminal、background_terminal 三层。",
+      "source": {
+        "label": "ResultMessage fields and subtypes, live reference L2000-L2038",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#resultmessage"
+      },
+      "compare": {
+        "label": "Result-before-raise, live reference L2297-L2307",
+        "url": "https://code.claude.com/docs/en/agent-sdk/python#claudesdkerror"
+      }
+    },
+    {
+      "id": "TOOL-CX-01",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "工具目录是“可执行 runtime × 多 surface exposure”，不等于初始 prompt 里的 tool list",
+      "statement": "ToolSpec 可以是 function、namespace、tool_search、web_search 或 freeform custom tool；ToolExecutor 把 tool_name、spec、search metadata、并发能力和真正的 handler 绑定在一起。exposure 又把 DIRECT、DEFERRED、CODE_MODE 作为独立 bit plane，默认并发能力为 false。因此“模型初始可见工具”“可被搜索后加载工具”“Code Mode 可调用工具”“host 内已注册工具”是四个不同集合。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "canonical namespace.name",
+        "effective exposure",
+        "source",
+        "是否 deferred",
+        "是否 code-mode available",
+        "supportsParallel。"
+      ],
+      "boundary": "catalog/advertisement plane vs executable dispatch plane。",
+      "source": {
+        "label": "tool_spec.rs L18-L56",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/tool_spec.rs#L18-L56"
+      },
+      "compare": {
+        "label": "tool_executor.rs L14-L28",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/tool_executor.rs#L14-L28"
+      }
+    },
+    {
+      "id": "TOOL-CX-02",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "deferred discovery 会改写可加载 spec，名称冲突可以静默跳过或 strict fail",
+      "statement": "deferred function/freeform 会被包装进 canonical functions namespace，标记 defer_loading=true；function 的 output_schema 在搜索结果中被移除。外部工具若占用保留的 functions.shell_command 或与已注册工具重名，默认路径会跳过并记录 collision；只有启用 error_on_tool_collisions 才把首个名称冲突或 namespace description 冲突提升为 ToolCollision。tool_search 自身还会抢占同名 namespace。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "registered",
+        "model-visible",
+        "searchable",
+        "collision/skipped reason",
+        "strict collision config",
+        "search source。"
+      ],
+      "boundary": "discoverable spec 是加载入口，不保证原始声明的所有 metadata 被保留，也不保证同名外部工具进入目录。",
+      "source": {
+        "label": "tool_search.rs L23-L84",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/tool_search.rs#L23-L84"
+      },
+      "compare": {
+        "label": "registry.rs L317-L351",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/registry.rs#L317-L351"
+      }
+    },
+    {
+      "id": "TOOL-CX-03",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "声明给模型的 JSON Schema 可能被 sanitization 和有损压缩",
+      "statement": "Codex 只建模 Structured Outputs 的 JSON Schema 子集；解析时会 sanitize、删除不可达 definitions，并拒绝 singleton null schema。normalized schema 超过 5,000 bytes 后会依次删 descriptions、definitions、深层 object 结构和 composition，且这是 best-effort，不是硬 cap。Agent Plugin MCP tool 的完整序列化 spec 超过 8,000 bytes 时，参数 schema 会直接降级为允许 additional properties 的空 object；转换出的 Responses function tool 统一是 strict:false。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "original schema hash/size",
+        "effective schema hash/size",
+        "compacted/degraded 标记",
+        "strict",
+        "dropped fields。"
+      ],
+      "boundary": "server/source schema vs 实际发送给模型的 schema；两者可显著不同。",
+      "source": {
+        "label": "json_schema.rs L12-L18",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/json_schema.rs#L12-L18"
+      },
+      "compare": {
+        "label": "json_schema.rs L188-L228",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/json_schema.rs#L188-L228"
+      }
+    },
+    {
+      "id": "TOOL-CX-04",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "参数验证是 handler-specific，不存在一个统一的 core JSON Schema validator",
+      "statement": "Responses function call 的 arguments 在 core 中保留为 JSON string；router 只将它封装为 ToolPayload::Function。built-in handler 常用 serde_json::from_str<T> 做 typed validation，某些参数 struct 还声明 deny_unknown_fields；dynamic tool 只解析为任意 serde_json::Value；MCP 则先检查 JSON 是否可解析，随后由 MCP server 决定业务字段是否合法。0.147.0 的通用 registry dispatch 路径没有按已广告 schema 再统一 validate arguments。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "raw arguments",
+        "parse/validation stage",
+        "validator owner",
+        "normalized arguments",
+        "server rejection body。"
+      ],
+      "boundary": "model-facing schema guidance、Codex handler parsing、remote tool/server semantic validation 是三层。",
+      "source": {
+        "label": "models.rs L875-L890",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/models.rs#L875-L890"
+      },
+      "compare": {
+        "label": "tool_payload.rs L5-L20",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/tool_payload.rs#L5-L20"
+      }
+    },
+    {
+      "id": "TOOL-CX-05",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "call_id 是工具关联主键，Responses item id 和 Code Mode runtime id 都不是它",
+      "statement": "function/custom tool call 携带模型给出的 call_id；Responses item 自身还可以有另一个 optional id。router 将 call_id 原样放进 ToolInvocation，command/MCP/dynamic/collaboration 的 public item 通常直接以它作为 item.id。Code Mode 的 runtime_tool_call_id 只要求在一个 cell 内唯一，源码明确说它不是 Codex tool call id。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "用 (threadId",
+        "turnId",
+        "item.id/call_id) 关联生命周期",
+        "另存 responseItemId",
+        "cellId/runtimeToolCallId 和 approvalId/requestId。"
+      ],
+      "boundary": "模型 response item identity、Codex tool-call identity、nested runtime identity、approval request identity 必须分开。",
+      "source": {
+        "label": "models.rs L811-L890",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/models.rs#L811-L890"
+      },
+      "compare": {
+        "label": "router.rs L153-L204",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/router.rs#L153-L204"
+      }
+    },
+    {
+      "id": "TOOL-CX-06",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "标准 app-server item 生命周期只有一个 terminal truth",
+      "statement": "app-server 明确定义每个 item 都走 item/started → zero or more item-specific deltas → item/completed；started 是可立即渲染的完整快照，completed 是 authoritative execution/result state。turn/completed 只携带最终 agent message 作为 fallback，不替代完整 item/* 流。审批 request、客户端 ACK、delta 结束、模型收到 tool output 都不是 public item 的 terminal truth。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "started/completed timestamps",
+        "item status",
+        "turn status",
+        "pending state 必须以 terminal event 清理。"
+      ],
+      "boundary": "transport ACK / approval resolution / live progress / terminal item / terminal turn 是五种不同信号。",
+      "source": {
+        "label": "app-server README L1517-L1531",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L1517-L1531"
+      },
+      "compare": {
+        "label": "app-server README L1555-L1562",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L1555-L1562"
+      }
+    },
+    {
+      "id": "TOOL-CX-07",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "generic tool failure 有“回模型继续”与“终止 turn”两级，但 success 不在 function output wire 上",
+      "statement": "FunctionCallError 只有 RespondToModel 和 Fatal。前者被封成同一 call_id 的 function/custom failure output，让模型获得一次 follow-up；后者升级为 CodexErr::Fatal。例如未知工具是 RespondToModel，不兼容 payload kind 是 Fatal。FunctionCallOutputPayload.success 只是 Codex 内部 metadata，序列化到 Responses API 时只发送 string 或 content items body。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "failure class",
+        "handler_executed",
+        "model-visible body",
+        "public terminal item",
+        "turn terminal status。"
+      ],
+      "boundary": "dispatch/control-flow success、tool/business success、public item status、模型看见的 output text 不是一个 boolean。",
+      "source": {
+        "label": "function_call_error.rs L1-L10",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/function_call_error.rs#L1-L10"
+      },
+      "compare": {
+        "label": "parallel.rs L73-L87",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/parallel.rs#L73-L87"
+      }
+    },
+    {
+      "id": "TOOL-CX-08",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "shell terminal result 由 status + exit code 判定，stdout/stderr/aggregate 是不同数据",
+      "statement": "core shell output 同时保存 exit_code、独立 stdout、独立 stderr、aggregated output、duration 与 timed_out。执行完成时 exit 0 映射 completed，非 0 映射 failed；拒绝映射 declined 且 exit code 为 -1。默认 command timeout 是 10 秒，timeout 被规范化为 exit 124 并保留已收集 output。app-server v2 的 public commandExecution 只公开 aggregated output、exitCode、durationMs 和 status，不公开 core 的独立 stdout/stderr。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "status",
+        "exitCode",
+        "durationMs",
+        "timeout reason",
+        "aggregated output",
+        "需要细分流时只能使用更低层 core event/telemetry。"
+      ],
+      "boundary": "process outcome vs output capture；stderr 非空不自动等于 failed，exit 0 才是当前 shell success rule。",
+      "source": {
+        "label": "exec_output.rs L39-L47",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/exec_output.rs#L39-L47"
+      },
+      "compare": {
+        "label": "exec.rs L58-L80",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/exec.rs#L58-L80"
+      }
+    },
+    {
+      "id": "TOOL-CX-09",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "unified exec 的“tool call 已返回”和“进程已结束”是两件事",
+      "statement": "exec_command 的 result 可携带 process_id 而没有 exit_code，表示进程继续在 background session 中运行；Code Mode 看到的是 {chunk_id, wall_time_seconds, exit_code?, session_id?, original_token_count?, output}。其 success_for_logging() 固定返回 true，sandbox denial 也可被包装为带 exit code 的普通 ExecCommandToolOutput。因此 generic tool telemetry success 不能替代 command terminal status/exit code。turn/interrupt 也不会终止 background terminals，必须显式 clean/terminate。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "processId/sessionId",
+        "chunkId",
+        "exitCode?",
+        "后续 write_stdin items",
+        "background terminal list",
+        "显式 termination result。"
+      ],
+      "boundary": "one tool invocation response、PTY session lifecycle、turn lifecycle 是三层。",
+      "source": {
+        "label": "context.rs L313-L405",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/context.rs#L313-L405"
+      },
+      "compare": {
+        "label": "context.rs L442-L468",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/context.rs#L442-L468"
+      }
+    },
+    {
+      "id": "TOOL-CX-10",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "apply_patch 的 streamed patch 只是 proposed state，失败后仍可能已有 committed prefix",
+      "statement": "apply_patch 是 freeform custom tool，不走 function JSON arguments；可选 streaming consumer 每 500ms 把模型生成中的 patch 解析为 structured patchUpdated，但真正执行前还要完整 parse、verify、approval/sandbox。runtime 在每次 attempt 后把已应用 delta 追加进 committed_delta，即使 patch 返回 error；sandbox denial 路径也会把已知 prefix 保留在 final file-change/turn diff 中。成功时 direct model output 是文本，Code Mode result 反而是空 object {}。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "patchUpdated 仅标 proposed",
+        "以 terminal fileChange.status + final changes/turn diff 判已落盘",
+        "记录 partial commit 和 attempt number。"
+      ],
+      "boundary": "argument preview、verified patch、committed filesystem delta、model response 是四个状态。",
+      "source": {
+        "label": "apply_patch.rs L56-L139",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/apply_patch.rs#L56-L139"
+      },
+      "compare": {
+        "label": "apply_patch.rs L330-L441",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/apply_patch.rs#L330-L441"
+      }
+    },
+    {
+      "id": "TOOL-CX-11",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "MCP 有两种失败 envelope：result.isError 与 transport/protocol error",
+      "statement": "正常 MCP call 先发 in-progress item，再在 terminal item 中二选一：MCP server 返回 CallToolResult 且 isError=true 时，item 是 failed 但仍保留 result；transport/protocol error 时，item 是 failed、result=null、error.message 有值。isError 不为 true 才是 completed。模型 direct surface 收到的是普通 FunctionCallOutput，structuredContent 优先序列化为文本；Code Mode 得到 raw CallToolResult，但会移除 _meta。JSON arguments 在 lifecycle started 之前就解析，因此 invalid JSON 可直接返回 error result 而没有对应 MCP item started/completed。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "terminal status",
+        "result.isError",
+        "result.content/structuredContent",
+        "error.message",
+        "是否曾 started",
+        "server/tool identity。"
+      ],
+      "boundary": "MCP application error、MCP transport error、Codex model-facing output、public lifecycle item 四层不可折叠。",
+      "source": {
+        "label": "mcp_tool_call.rs L108-L160",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/mcp_tool_call.rs#L108-L160"
+      },
+      "compare": {
+        "label": "mcp_tool_call.rs L893-L967",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/mcp_tool_call.rs#L893-L967"
+      }
+    },
+    {
+      "id": "TOOL-CX-12",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "collaboration 的 direct result、public item 与 operational outcome 不同构",
+      "statement": "MultiAgent v2 参数多为 typed serde 且拒绝未知字段。spawn 的 direct result 是 JSON text {task_name,nickname?}，Code Mode 是 JSON object；成功 send_message/followup_task 返回空文本，只证明 communication submit 成功，不证明接收 agent 已处理；wait_agent 返回 {message,timed_out}，即使 timed_out:true，tool logging 和 public collab item 仍是 completed。public collabToolCall 记录 sender/receivers/status/agent states，但不携带上述 direct result body。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "call status",
+        "receiver ids",
+        "agent states",
+        "direct result JSON",
+        "timed_out",
+        "后续 mailbox/child lifecycle。"
+      ],
+      "boundary": "dispatch accepted、delivery queued、recipient processing、recipient completion 是不同 milestone。",
+      "source": {
+        "label": "multi_agents_common.rs L44-L83",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/multi_agents_common.rs#L44-L83"
+      },
+      "compare": {
+        "label": "spawn.rs L189-L267",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs#L189-L267"
+      }
+    },
+    {
+      "id": "TOOL-CX-13",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "dynamic tool 是 host/client round-trip，client failure 会被合成为业务失败 output",
+      "statement": "dynamic handler 只把 arguments 解析成 JSON Value，登记 call_id → oneshot sender，发 item/started，等待 app client response，再发带 contentItems/success 的 completed/failed item。相同 pending call_id 会覆盖旧 sender并仅写 warning。app-server 若遇到 client error、channel failure、response shape 错误、remote image 或非 data audio，会生成文本 fallback 且 success:false，而不是让这些失败都升级成 turn-fatal transport error。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "callId",
+        "request id",
+        "client latency",
+        "synthetic fallback flag/reason",
+        "content item validation",
+        "terminal success/status。"
+      ],
+      "boundary": "Codex↔app-server request、app-server↔client request、client业务执行、回模型 output 是四段。",
+      "source": {
+        "label": "dynamic.rs L126-L162",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/dynamic.rs#L126-L162"
+      },
+      "compare": {
+        "label": "dynamic.rs L171-L245",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/dynamic.rs#L171-L245"
+      }
+    },
+    {
+      "id": "TOOL-CX-14",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "turn cancellation 会按 runtime 能力选择“等待 teardown”或“直接 abort”，但 ACK 仍不是完成",
+      "statement": "tool dispatcher 收到 cancellation 后，若 terminal 已被别的路径认领就等待原 result；若 runtime 声明需要 cancellation teardown，则先认领 abort terminal outcome 再等待 handler 清理；否则直接 abort task。最终会构造 aborted by user output。shell 明确选择等待 runtime cancellation。app-server 的 turn/interrupt {} 只表示已接受请求，必须等 turn/completed.status=\"interrupted\"；而 background terminals 不随 turn 一起终止。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "interrupt request id",
+        "tool terminal ownership",
+        "teardown duration",
+        "turn terminal status",
+        "still-running background process list。"
+      ],
+      "boundary": "interrupt request ACK、tool task abort、process teardown、turn terminal、background session terminal 分开。",
+      "source": {
+        "label": "parallel.rs L145-L220",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/parallel.rs#L145-L220"
+      },
+      "compare": {
+        "label": "parallel.rs L257-L279",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/parallel.rs#L257-L279"
+      }
+    },
+    {
+      "id": "TOOL-CX-15",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "timeout、decline、sandbox denial、cancel 和 protocol failure 是五类不同终态",
+      "statement": "command 有 completed|failed|declined；shell timeout 是带 partial output 的 sandbox timeout并规范化 exit 124；sandbox denial 可触发 retry；ToolError::Rejected 当前同时被 user decline 和少量 setup/runtime rejection 复用，所以一部分非用户失败也可能显示为 declined；turn cancel 最终是 interrupted；MCP/dynamic protocol/client failure则使用各自 failed envelope。另一方面，wait_agent timed_out:true 仍是 completed data。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "outcomeClass 至少枚举 completed|process_failed|timed_out|declined|cancelled|sandbox_denied|protocol_failed|business_failed，并保留原始 status/error/exit。"
+      ],
+      "boundary": "用户意图、policy decision、runtime/process outcome、transport health、业务 polling outcome 不能统一命名为 error 或 denied。",
+      "source": {
+        "label": "item.rs L994-L1002",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/item.rs#L994-L1002"
+      },
+      "compare": {
+        "label": "exec.rs L773-L825",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/exec.rs#L773-L825"
+      }
+    },
+    {
+      "id": "TOOL-CX-16",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "sandbox denial 的自动 replay 最多再尝试一次，但 call_id 不是 idempotency key",
+      "statement": "通用 ToolOrchestrator 顺序是 approval → first sandbox attempt；只有识别为 sandbox denial、tool 允许 escalation、policy/approval 条件满足时，才使用同一 request/tool context 做 second attempt。它不是对任意失败的通用 retry，也没有在该 generic dispatch path 中声明 side-effect dedup/idempotency contract。apply_patch 已明确证明 first attempt 可能留下 committed prefix，因此相同 call_id 的第二次执行不能被视为“第一次从未发生”。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "attempt index",
+        "sandbox/profile",
+        "first-attempt output/delta",
+        "retry reason/approval",
+        "side-effect class",
+        "terminal attempt。"
+      ],
+      "boundary": "correlation identity 不提供 exactly-once；automatic sandbox replay 也不是 business retry policy。",
+      "source": {
+        "label": "Codex conditional replay orchestration",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/orchestrator.rs#L217-L332"
+      },
+      "compare": {
+        "label": "Codex approval and second-attempt path",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/orchestrator.rs#L370-L485"
+      }
+    },
+    {
+      "id": "TOOL-CX-17",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "并发 admission 与结果记录顺序不同，ordered output 会隐藏真实 overlap",
+      "statement": "一个 step 的 tool calls 共享 RwLock：声明支持并发的 runtime 取 read lock，可以互相重叠；不支持并发的取 write lock，与其他调用互斥。default 是不并发，但 shell_command 与 exec_command 显式返回 true；MCP 在 server config opt-in 或 readOnlyHint=true 时并发。与此同时，tool futures 存入 FuturesOrdered 并按模型产生顺序写回 conversation，因此记录顺序不等于 wall-clock completion 顺序。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "queuedAt/admittedAt/startedAt/completedAt",
+        "parallel capability source",
+        "lock wait",
+        "model ordinal。"
+      ],
+      "boundary": "admission order、execution interval、live event order、model conversation output order 四者可不同。",
+      "source": {
+        "label": "tool_executor.rs L122-L126",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/tools/src/tool_executor.rs#L122-L126"
+      },
+      "compare": {
+        "label": "parallel.rs L40-L60",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/parallel.rs#L40-L60"
+      }
+    },
+    {
+      "id": "TOOL-CX-18",
+      "agent": "codex",
+      "type": "fact",
+      "version": "0.147.0",
+      "title": "output 有多级截断和投影，delta 拼接不能重建所有 terminal data",
+      "statement": "core command delta 含 stdout/stderr discriminator 和 raw bytes；app-server 映射时用 lossy UTF-8 转成单个 delta string，并丢掉 stream 字段。shell live delta 最多 10,000 个；retained output 有 byte cap；aggregated output 实现是先 stdout 后 stderr，不保留真实时间交错，超 cap 时还偏向保留 stderr。模型看到的 formatted output再次按 token policy 截断。MCP 的 public event copy另有 byte cap，过大时把整个 structured result塌成 text preview；direct model context又独立截断，而 Code Mode拿 raw result。",
+      "layer": "Exact tag rust-v0.147.0 source",
+      "confidence": "High",
+      "signals": [
+        "truncated/omitted bytes",
+        "original token count",
+        "surface",
+        "stream fidelity",
+        "encoding loss",
+        "event vs model body hash。"
+      ],
+      "boundary": "live display、public terminal item、rollout event、model context、Code Mode result 都是不同 projection。",
+      "source": {
+        "label": "protocol.rs L3628-L3647",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/protocol.rs#L3628-L3647"
+      },
+      "compare": {
+        "label": "event_mapping.rs L428-L463",
+        "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/event_mapping.rs#L428-L463"
+      }
+    },
+    {
+      "id": "TOOL-OC-01",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "Catalog 是运行时合成物，ToolPart 不保留来源或 schema 版本",
+      "statement": "built-in 集合包括 invalid、shell、read、glob、grep、edit/write、task、web、todo、skill、patch 等，并受 feature/client flags 影响。 自定义工具来自配置目录下 {tool,tools}/*.{js,ts} 和 plugin 的 tool exports。 MCP 工具在 SessionTools.resolve 的后半段另行加入。 registry 会按 provider/model 选择 apply_patch 或 edit/write，决定 websearch、code-mode、LSP、plan 等可见性。 tool.definition hook 可改变 description/parameters；之后还会做 provider-specific schema transform。 持久化 ToolPart 只有 tool 名、callID、state 和通用 metadata，没有 origin、schema hash、plugin/server ID。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "{tool,tools}/*.{js,ts}",
+        "tool",
+        "SessionTools.resolve",
+        "apply_patch",
+        "edit/write",
+        "tool.definition"
+      ],
+      "boundary": "每轮都应保存“最终送给模型的 catalog snapshot”：tool key + origin + description hash + schema hash + permission visibility + model。只从 transcript 的 tool 字符串反推来源不可靠。 还有一个实现层陷阱：工具最终装进普通 object，custom 可以复用 built-in key，MCP 名也经过 sanitize 后赋值；代码没有冲突错误。Harness 应在 catalog 构建时检测 key collision，而不是接受 last assignment。",
+      "source": {
+        "label": "registry.ts L116-L199",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/registry.ts#L116-L199"
+      },
+      "compare": {
+        "label": "registry.ts L201-L247",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/registry.ts#L201-L247"
+      }
+    },
+    {
+      "id": "TOOL-OC-02",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "一次调用有四个身份轴；callID 是关联键，不是完整主键",
+      "statement": "OpenCode 自己生成有序 MessageID(msg_*) 与 PartID(prt_*)。 所有 Part 都携带 sessionID/messageID/partID；ToolPart 再携带 provider 的 callID。 processor 内存 map 以 callID 找到对应的持久 ToolPart，再用三元位置读取/更新。 同一个 callID 的 input start/delta/end 会复用同一 Part；providerExecuted 可以在后续 event 到达时补到 top-level metadata。 ToolPart 的 provider call metadata 和 tool result metadata 是不同位置：前者在 Part top-level metadata，后者在 state.metadata。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "MessageID(msg_*)",
+        "PartID(prt_*)",
+        "sessionID/messageID/partID",
+        "callID",
+        "providerExecuted",
+        "metadata"
+      ],
+      "boundary": "建议主键使用 sessionID/messageID/partID，把 callID 当 provider correlation ID。trace span 也应同时写四个字段。不要用 callID 单独做跨 session 去重。",
+      "source": {
+        "label": "session schema L17-L27",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/v1/session.ts#L17-L27"
+      },
+      "compare": {
+        "label": "session schema L81-L85",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/v1/session.ts#L81-L85"
+      }
+    },
+    {
+      "id": "TOOL-OC-03",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "ToolPart 是四态持久状态机，但 pending.raw 在该实现里不是可靠的参数流",
+      "statement": "text pending { input, raw } running { input, title?, metadata?, time.start } completed{ input, output, title, metadata, time.start/end/compacted?, attachments? } error { input, error, metadata?, time.start/end } tool-input-start/delta/end 只确保 pending ToolPart 存在。 exact-tag processor 并没有把 delta text 追加到 pending.raw；新建值是空字符串。 正式 tool-call event 才把解析后 input 写入 running，并记录 start time。 tool-result / tool-error 将 running 转为 completed/error；非 running 的 late result 不会再次 settle。 每次 session.updatePart 发布完整 message.part.updated snapshot。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "\n\n- ",
+        " 只确保 pending ToolPart 存在。\n- exact-tag processor 并没有把 delta text 追加到 ",
+        "；新建值是空字符串。\n- 正式 ",
+        " event 才把解析后 input 写入 running，并记录 start time。\n- ",
+        " / ",
+        " 将 running 转为 completed/error；非 running 的 late result 不会再次 settle。\n- 每次 "
+      ],
+      "boundary": "UI 可显示 pending，但不能把 raw 当逐字 tool JSON stream。需要可编辑/可审计参数时，以 running state 的 parsed input 为第一稳定边界；若真要 raw delta，必须在 LLM adapter 层另行采集。",
+      "source": {
+        "label": "session schema L259-L313",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/v1/session.ts#L259-L313"
+      },
+      "compare": {
+        "label": "processor.ts L216-L253",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/processor.ts#L216-L253"
+      }
+    },
+    {
+      "id": "TOOL-OC-04",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "本地工具的通用执行合同包含 validation、permission context、hooks 与统一输出",
+      "statement": "Tool definition 的规范结果是 title:string + metadata:object + output:string + attachments?。 通用 wrapper 先用 Effect Schema decode 参数；失败转成 ToolInvalidArgumentsError，文案明确要求模型 rewrite input。 Tool.Context 包含 session/message/call/agent、AbortSignal、历史消息、进度 metadata callback 与 permission ask。 tool.execute.before 可修改 args；工具完成后 tool.execute.after 可修改 title/output/metadata。 通用 wrapper 默认对 output 做截断；若工具已经在 metadata 写了 truncated，则避免再次截断。 plugin after hook 位于真实工具执行之后；如果 hook 自己失败，最终 ToolPart 可记录 error，但底层副作用可能已经发生。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "title:string + metadata:object + output:string + attachments?",
+        "ToolInvalidArgumentsError",
+        "Tool.Context",
+        "tool.execute.before",
+        "tool.execute.after",
+        "truncated"
+      ],
+      "boundary": "至少记录四个时间点：advertised input、post-before-hook input、raw tool result、post-after-hook result。否则难以解释模型发出的参数和实际执行参数为何不同，也无法识别“副作用成功但观测 hook 失败”。",
+      "source": {
+        "label": "tool.ts L18-L65",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/tool.ts#L18-L65"
+      },
+      "compare": {
+        "label": "tool.ts L99-L149",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/tool.ts#L99-L149"
+      }
+    },
+    {
+      "id": "TOOL-OC-05",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "Shell 将 stdout/stderr 合并；exit、timeout、abort 都主要藏在 metadata/output",
+      "statement": "Shell 读取 handle.all，因此 stdout 与 stderr 进入同一个按到达顺序合并的文本流；V1 ToolPart 没有独立 stdout/stderr 字段。 运行中不断用 ctx.metadata({metadata:{output:last}}) 保存最多 30,000 字符的尾部 preview。 正常退出码写到 metadata.exit；不论 0 还是非零，Shell 自身都返回普通 ExecuteResult，所以通常进入 completed。 超时和用户 abort 会 kill process，exit:null，并把原因写进 output 的 <shell_metadata>；工具仍返回 ExecuteResult。 大输出保留尾部，完整内容写 truncation file；metadata 标出 truncated/outputPath。 因此“ToolPart completed”只说明 Shell wrapper 完成收尾，不说明 command exit 0。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "handle.all",
+        "ctx.metadata({metadata:{output:last}})",
+        "metadata.exit",
+        "0",
+        "completed",
+        "exit:null"
+      ],
+      "boundary": "Shell 结果至少分成：transport terminal、exit code、timedOut、aborted、truncated。不要用 ToolPart status 生成绿色成功标记；exit !== 0 应是独立 outcome。",
+      "source": {
+        "label": "shell.ts L428-L480",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/shell.ts#L428-L480"
+      },
+      "compare": {
+        "label": "shell.ts L481-L559",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/shell.ts#L481-L559"
+      }
+    },
+    {
+      "id": "TOOL-OC-06",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "File tools 的成功结果是“操作完成 + diagnostics”，不是事务提交",
+      "statement": "Read 先做 external-directory 与 read permission，再区分 directory、text、image/PDF、binary。 Text read 单行最多 2,000 chars，单次最多 50 KiB；metadata 记录 preview、display、line range、total lines、truncated。 Image/PDF 作为 attachments 返回；binary text read 则 error。 Write/Edit 在 permission 后直接写文件、可运行 formatter、发布 filesystem watcher event，再查询 LSP diagnostics。 Write/Edit 即使 output 包含 LSP errors detected...，仍返回 completed ExecuteResult。 Edit 对同一 resolved filepath 有进程内 semaphore，但多个不同工具/进程之间没有 transcript 级事务或 rollback。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "LSP errors detected...",
+        "write applied",
+        "format applied",
+        "diagnostics clean"
+      ],
+      "boundary": "文件调用要分开显示 write applied、format applied、diagnostics clean。abort/error 后也应检查 snapshot/diff 或磁盘，而不是假设副作用未发生。",
+      "source": {
+        "label": "read.ts L229-L297",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/read.ts#L229-L297"
+      },
+      "compare": {
+        "label": "read.ts L300-L376",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/read.ts#L300-L376"
+      }
+    },
+    {
+      "id": "TOOL-OC-07",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "MCP tool 经过命名、permission、timeout 与 content normalization 四道转换",
+      "statement": "MCP key 为 sanitize(server) + \"_\" + sanitize(tool)；原 MCP name 在 client call 时使用。 input schema 被强制为 object、additionalProperties:false；再经过 provider schema transform。 每个 MCP call 先走 OpenCode permission；CallToolResult.isError 被抛成普通 Error，优先拼接 text content。 MCP progress 会 reset timeout，调用接受 AbortSignal；默认 catalog timeout 30 秒，可被配置覆盖。 若 MCP 只返回 structuredContent 且没有 content，会注入 JSON text；否则保留原 content。 OpenCode 将 text 合并为 output，将 image/允许的 resource blob 转 attachments；不支持或超过 10 MiB 的 blob 只留下 omitted marker。 MCP result metadata 被合并进 ToolPart state metadata，再加 truncation flags；title 默认为空字符串。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "sanitize(server) + \"_\" + sanitize(tool)",
+        "additionalProperties:false",
+        "CallToolResult.isError",
+        "server/name",
+        "isError"
+      ],
+      "boundary": "应保留原始 server/name 与对模型暴露的 sanitized key，两者不可互换。错误分析还要区分 MCP isError、transport/timeout、permission 与 content omission。",
+      "source": {
+        "label": "catalog.ts L11-L82",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/mcp/catalog.ts#L11-L82"
+      },
+      "compare": {
+        "label": "catalog.ts L103-L120",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/mcp/catalog.ts#L103-L120"
+      }
+    },
+    {
+      "id": "TOOL-OC-08",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "Plugin tool 的输出可被归一化和截断，原始返回形状不会原封不动持久化",
+      "statement": "plugin tool 可以返回 plain string，或 {title, output, metadata, attachments}。 string 结果被归一化为 empty title、empty metadata、string output。 目录工具若 default export，ID 是文件 namespace；named export 则是 namespace_export。 plugin args 可以是全 Zod schema；legacy 混合/JSON Schema 走兼容转换。 registry wrapper 会对 plugin output 截断，并在 metadata 写 truncated/outputPath。 OpenTelemetry span 带 tool/session/message/call ID，但持久 ToolPart 不带 plugin package/path provenance。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "{title, output, metadata, attachments}",
+        "namespace_export",
+        "truncated/outputPath"
+      ],
+      "boundary": "插件生态的 result metadata 不是稳定的跨工具 schema。索引器应把通用 envelope 与 opaque metadata 分离，并在 catalog snapshot 保存 plugin origin。",
+      "source": {
+        "label": "registry.ts L120-L175",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/registry.ts#L120-L175"
+      },
+      "compare": {
+        "label": "registry.ts L178-L199",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/registry.ts#L178-L199"
+      }
+    },
+    {
+      "id": "TOOL-OC-09",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "Task tool 的父 ToolPart terminal 与子任务 terminal 不是一回事",
+      "statement": "foreground Task 等待 child background job：child error/cancel 会使 Task tool error；child completed 才返回 <task state=\"completed\">。 experimental background Task 立即返回 <task state=\"running\"> 和 child session/job IDs。 这个立即返回在通用 ToolPart 状态机里是一个正常 ExecuteResult，因此父 ToolPart 会成为 completed。 child 真正完成/失败后，OpenCode 向 parent session 注入新的 synthetic user text <task state=\"completed|error\">；它不会把原父 ToolPart 从 completed 再更新一次。 resume 由 task_id 指向既有 child session；metadata 携带 parent/child session 和 model。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "<task state=\"completed\">",
+        "<task state=\"running\">",
+        "completed",
+        "<task state=\"completed|error\">",
+        "task_id",
+        "task tool invocation terminal"
+      ],
+      "boundary": "必须建模两个 terminal：task tool invocation terminal 与 child job terminal。若只看父 ToolPart，会把“已成功排队”误报为“子任务已完成”。",
+      "source": {
+        "label": "OpenCode background Task parent terminal",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L216-L307"
+      },
+      "compare": {
+        "label": "OpenCode synthetic child completion",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L310-L347"
+      }
+    },
+    {
+      "id": "TOOL-OC-10",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "deny、reject、correct 是三种不同控制流",
+      "statement": "declarative rule deny 直接抛 PermissionDeniedError，包含相关 ruleset，不产生 pending approval。 prompt reply 只有 once / always / reject。 plain reject 抛 PermissionRejectedError；带 message 的 reject 抛 PermissionCorrectedError(feedback)。 一个 reject 会同时 reject 同 session 的其他 pending permission requests。 processor 只把 PermissionRejectedError（以及 Question rejected）视为 loop blocker；DeniedError 与 CorrectedError 仍作为 tool error 回给模型继续 loop。 experimental.continue_loop_on_deny=true 会使 plain reject 也不阻断 loop。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "deny",
+        "PermissionDeniedError",
+        "once / always / reject",
+        "reject",
+        "PermissionRejectedError",
+        "PermissionCorrectedError(feedback)"
+      ],
+      "boundary": "建议 outcome code 至少为 policy_denied / user_rejected / user_corrected / approval_once / approval_always。尤其不能把 feedback correction 显示成普通取消，它是模型自修复输入。",
+      "source": {
+        "label": "permission core L7-L33",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/v1/permission.ts#L7-L33"
+      },
+      "compare": {
+        "label": "permission service L67-L107",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/permission/index.ts#L67-L107"
+      }
+    },
+    {
+      "id": "TOOL-OC-11",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "invalid name、invalid args 与重复调用有三套修复路径",
+      "statement": "AI SDK experimental_repairToolCall 会先尝试把 tool name lower-case 后匹配现有 key。 仍无法修复时，调用隐藏的 invalid tool，并把原 tool 名与解析 error 填入 input；它返回普通 completed output 给模型。 若进入真实 tool wrapper 后 Schema decode 失败，则产生 ToolInvalidArgumentsError，最终是 ToolPart error，文案要求 rewrite。 普通 tool error 不会自动停止 loop，模型可以在下一 step 重写参数。 连续最近 3 个 Parts 都是同 tool + 完全相同 JSON input 时，会请求 doom_loop permission；不是自动报错或自动重试上限。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "experimental_repairToolCall",
+        "invalid",
+        "ToolInvalidArgumentsError",
+        "doom_loop",
+        "repair->invalid completed",
+        "real tool error"
+      ],
+      "boundary": "失败聚类时要区分 repair->invalid completed 和 real tool error。重复尝试应按 normalized input hash 关联，并显示是否触发 doom-loop approval。",
+      "source": {
+        "label": "llm.ts L276-L323",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/llm.ts#L276-L323"
+      },
+      "compare": {
+        "label": "invalid.ts L4-L20",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/invalid.ts#L4-L20"
+      }
+    },
+    {
+      "id": "TOOL-OC-12",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "abort 有“工具自行收尾”与“processor cleanup”两条竞态路径",
+      "statement": "session abort 最终触发当前 LLM/Tool AbortSignal。 工具若在 signal 后仍返回结果，SessionTools 会主动 completeToolCall，用于保存 shell 等工具的最终输出。 processor cleanup 会等待所有 tracked calls 最多 250 ms；之后把仍未 settle 的 calls 改成 error: Tool execution aborted，并写 metadata.interrupted:true。 cleanup 保留 running 时已上报的 metadata，因此 Shell partial output 不丢。 model replay 遇到 interrupted error 且 metadata.output 是 string，会把 partial output 投影成 output-available，而不是 error result。 generic pending/running orphan replay 则会合成 [Tool execution was interrupted] error result，防止 Anthropic dangling tool_use。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "completeToolCall",
+        "error: Tool execution aborted",
+        "metadata.interrupted:true",
+        "metadata.output",
+        "output-available",
+        "[Tool execution was interrupted]"
+      ],
+      "boundary": "同一次用户取消可能落成 completed 或 interrupted error，取决于工具是否在 cleanup 前 settle；两者都可能有有效 output/副作用。UI 应显示 cancel requested 与 terminal state 两个时间点。",
+      "source": {
+        "label": "OpenCode abort cleanup race",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/processor.ts#L539-L597"
+      },
+      "compare": {
+        "label": "OpenCode processor abort fixture",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/test/session/processor-effect.test.ts#L816-L878"
+      }
+    },
+    {
+      "id": "TOOL-OC-13",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "并行 calls 独立 settle，但 permission 与 cleanup 有 session 级联动",
+      "statement": "processor 用 callID -> Deferred map 同时追踪多个 tool calls。 native runtime 对每个非 provider-executed call 启动一个 Fiber，等待所有 settlements 后结束 result stream。 completed/error 各自按 callID 更新，不提供 batch transaction 或 batch rollback。 permission service 对 reject 做 session-wide fan-out：同 session 其他 pending approvals 也全部 reject。 processor 在停止/中断时 cleanup 剩余 calls，所以一个阻断型 rejection 可导致 sibling unresolved calls 最终变 interrupted error。 ToolPart 的 event arrival/terminal 顺序由真实并行完成顺序决定，不保证等于模型声明顺序。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "callID -> Deferred",
+        "reject",
+        "call-set"
+      ],
+      "boundary": "并行组需要单独的 call-set 视图：逐 call terminal、共享 approval fan-out、共享 turn cancel。不能把第一个失败当作整个 batch 的唯一原因，也不能按 Part 列表顺序推断执行顺序。",
+      "source": {
+        "label": "processor.ts L60-L75",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/processor.ts#L60-L75"
+      },
+      "compare": {
+        "label": "processor.ts L123-L205",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/processor.ts#L123-L205"
+      }
+    },
+    {
+      "id": "TOOL-OC-14",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "Tool loop 与 provider retry 是两层循环，失败语义不能混",
+      "statement": "Tool loop 由 assistant finish、是否存在非 provider-executed ToolPart、tool result 是否需要回送模型共同驱动。 provider 即使回 stop，只要 assistant message 里有本地 tool calls，loop 仍继续把 results 回送。 agent.steps 到达后实现方式是追加 MAX_STEPS_PROMPT，要求模型 text-only；请求里仍传入 tools，因此这是 prompt enforcement，不是从 catalog 物理删除工具。 provider/API/network retry 使用独立 exponential schedule；session.status 变为 retry，包含 attempt/message/next。 context overflow 明确不走 retry，而转 compaction。 AI SDK 自身 maxRetries 默认 0；外层 SessionRetry 才是主要 retry loop。 实现推论：如果可重试 stream error 发生前已有工具副作用，外层重新发同一模型请求并没有 idempotency fence，可能再次生成/执行工具。",
+      "layer": "Exact tag v1.18.15 source + control-flow inference",
+      "confidence": "High",
+      "signals": [
+        "stop",
+        "agent.steps",
+        "MAX_STEPS_PROMPT",
+        "session.status",
+        "maxRetries",
+        "step"
+      ],
+      "boundary": "把 step、provider attempt、tool call 做三层 ID。对 side-effect tool 应以 call-level idempotency key 或业务 receipt 去重；不能假设 provider retry 没有工具副作用。",
+      "source": {
+        "label": "OpenCode provider retry schedule",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/retry.ts#L26-L147"
+      },
+      "compare": {
+        "label": "OpenCode tool-loop continuation",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/prompt.ts#L1092-L1129"
+      }
+    },
+    {
+      "id": "TOOL-OC-15",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "Truncation 与 compaction 都会改变模型看到的结果，但方式不同",
+      "statement": "普通 tool output 默认超过 2,000 lines 或 50 KiB 就保存到 truncation directory，并把 preview + path 写进 ToolPart output/metadata。 truncation file 默认按 mtime 保留 7 天，随后后台清理；它不是 durable transcript attachment。 compaction prune 默认关闭；开启后只处理 completed ToolParts，不处理 error，且保护近期约 40k estimated tokens 与 skill 工具。 prune 不删除 ToolPart output，而是设置 state.time.compacted；后续 model projection 用 [Old tool result content cleared]。 compaction summarizer 序列化 completed/error tool calls，但 completed output 最多 2,000 chars；附件只变成描述。 V1 v1.18.15 修复 repeated compaction 丢掉早期 tool-call history 的问题。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "skill",
+        "state.time.compacted",
+        "[Old tool result content cleared]",
+        "v1.18.15",
+        "output truncated at execution",
+        "full output path expired"
+      ],
+      "boundary": "应区分：output truncated at execution、full output path expired、output hidden from active model context、summary only retained 2k chars。它们是四个不同的数据可用性状态。",
+      "source": {
+        "label": "truncate.ts L12-L43",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/truncate.ts#L12-L43"
+      },
+      "compare": {
+        "label": "truncate.ts L53-L83",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/truncate.ts#L53-L83"
+      }
+    },
+    {
+      "id": "TOOL-OC-16",
+      "agent": "opencode",
+      "type": "fact",
+      "version": "1.18.15",
+      "title": "SSE 用于实时通知，GET transcript 才适合做 terminal reconciliation",
+      "statement": "工具状态通过 message.part.updated 发布完整 Part snapshot；文本另有 delta event。 assistant message 的 finish/error/time 通过 message.updated；turn error 另有 session.error；运行态有 session.status busy/retry/idle。 /event 只监听连接建立后的 live events，并发送 heartbeat。 SSE wire event 的 id 字段被设为 undefined；OpenCode event ID 在 JSON data 内，不是标准 SSE resume cursor。 route 没有 Last-Event-ID replay 逻辑。 GET /session/:sessionID/message 返回持久化 WithParts[]，单 message GET 也可读取完整 Parts。 tool error 通常只体现在 ToolPart，不一定产生 session.error；session idle 只说明当前 prompt loop idle，不保证 background child terminal。",
+      "layer": "Exact tag v1.18.15 V1 source",
+      "confidence": "High",
+      "signals": [
+        "message.part.updated",
+        "message.updated",
+        "session.error",
+        "session.status busy/retry/idle",
+        "/event",
+        "id"
+      ],
+      "boundary": "正确同步算法是：先 GET snapshot，注册/消费 live SSE，检测断线或 sequence gap 后再次 GET 并按 partID 覆盖。terminal ToolPart 以最新 persisted state 为准，不能以 toast、permission reply 或 session idle 代替。",
+      "source": {
+        "label": "session schema L571-L657",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/v1/session.ts#L571-L657"
+      },
+      "compare": {
+        "label": "session status schema L9-L49",
+        "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/session-status-event.ts#L9-L49"
+      }
+    }
+  ]
+}

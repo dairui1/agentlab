@@ -1,0 +1,111 @@
+{
+  "id": "tool-contract",
+  "number": "005",
+  "title": "Tool 调用、结果与失败语义",
+  "verifiedAt": "2026-08-10",
+  "scope": "Claude Code 2.1.226、Codex 0.147.0、OpenCode 1.18.15 的 effective catalog、call identity、native lifecycle、semantic outcome、side effect、retry 与 terminal reconciliation。",
+  "unknowns": [
+    {
+      "id": "TOOL-KU-01",
+      "title": "跨provider/build的schema version negotiation",
+      "text": "跨provider/build的schema version negotiation：三家都没有统一public per-tool schema version/hash协商。",
+      "needed": "保存每次effective catalog hash；unknown fields保留；source/effective schema分存。"
+    },
+    {
+      "id": "TOOL-KU-02",
+      "title": "Claude terminal_reason exact 2.1.226 floor与值全集",
+      "text": "Claude terminal_reason exact 2.1.226 floor与值全集：只有live reference充分。",
+      "needed": "optional + open enum；以Result subtype/is_error与drain为主，不伪装exact field。"
+    },
+    {
+      "id": "TOOL-KU-03",
+      "title": "lossless OS stdout/stderr ordering、bytes与encoding fidelity",
+      "text": "lossless OS stdout/stderr ordering、bytes与encoding fidelity：Claude/OpenCode已合并，Codex public mapping有损。",
+      "needed": "不逆向恢复pipes；需要时接lower-level native capture并标surface。"
+    },
+    {
+      "id": "TOOL-KU-04",
+      "title": "output/schema caps、config override与跨版本稳定性",
+      "text": "output/schema caps、config override与跨版本稳定性：当前数字多是实现default，不是协议常量。",
+      "needed": "cap/omitted/truncated/retention全部随receipt记录，绝不写死成兼容保证。"
+    },
+    {
+      "id": "TOOL-KU-05",
+      "title": "统一tool retry count/backoff不存在",
+      "text": "统一tool retry count/backoff不存在：model、API/provider、sandbox replay、MCP/server、host retry各自独立。",
+      "needed": "层级化attemptScope；未配置时禁止host自动retry有side effect的call。"
+    },
+    {
+      "id": "TOOL-KU-06",
+      "title": "crash/reconnect后的exactly-once与call dedup",
+      "text": "crash/reconnect后的exactly-once与call dedup：没有跨host/process通用保证。",
+      "needed": "state=effect_unknown，先reconcile receipt/remote object/filesystem，再决定retry。"
+    },
+    {
+      "id": "TOOL-KU-07",
+      "title": "并发最大值、fairness、start/completion order与resource isolation",
+      "text": "并发最大值、fairness、start/completion order与resource isolation：只证明部分overlap/lock/barrier。",
+      "needed": "timestamps和admission reason全量保存；不对UI order赋因果。"
+    },
+    {
+      "id": "TOOL-KU-08",
+      "title": "cancellation atomicity与child process/remote action真正停止时点。",
+      "text": "cancellation atomicity与child process/remote action真正停止时点。",
+      "needed": "ACK后仍标effect_unknown；等待native terminal并执行domain reconciliation。"
+    },
+    {
+      "id": "TOOL-KU-09",
+      "title": "background work跨query end、app restart、thread unload与系统休眠后的保留/回收。",
+      "text": "background work跨query end、app restart、thread unload与系统休眠后的保留/回收。",
+      "needed": "child/process inventory持久化；restart后主动list/GET/rejoin，不凭missing notification重启。"
+    },
+    {
+      "id": "TOOL-KU-10",
+      "title": "denial provenance跨public surfaces的可靠度",
+      "text": "denial provenance跨public surfaces的可靠度：internal taxonomy、Declined、typed permission errors不能一概证明human action。",
+      "needed": "provenance使用unknown / user / policy / auto open enum；原始decision/error保留。"
+    },
+    {
+      "id": "TOOL-KU-11",
+      "title": "MCP server自己的retry、transaction commit、idempotency key与compensation。",
+      "text": "MCP server自己的retry、transaction commit、idempotency key与compensation。",
+      "needed": "runtime只记录application/transport receipt；server-specific policy插件化。"
+    },
+    {
+      "id": "TOOL-KU-12",
+      "title": "readOnlyHint真实性与本次执行实际effect。",
+      "text": "readOnlyHint真实性与本次执行实际effect。",
+      "needed": "只用于展示/capability/admission；不调整审计结论或默认retry安全级。"
+    },
+    {
+      "id": "TOOL-KU-13",
+      "title": "file atomicity/durability与external editor/cross-process race。",
+      "text": "file atomicity/durability与external editor/cross-process race。",
+      "needed": "no-guarantee标记；对高风险操作保存pre/post hash、diff与durability receipt。"
+    },
+    {
+      "id": "TOOL-KU-14",
+      "title": "async/delegated work的durable delivery guarantee",
+      "text": "async/delegated work的durable delivery guarantee：launch/submit成功不证明recipient消费，parent结束/压缩后notification是否必达未知。",
+      "needed": "child link持久化；delivery与completion各有receipt；missing terminal只显示unknown。"
+    },
+    {
+      "id": "TOOL-KU-15",
+      "title": "telemetry/event delivery、secret redaction与trailing-frame全集",
+      "text": "telemetry/event delivery、secret redaction与trailing-frame全集：correlation字段不等exactly-once，raw exception/output/hook/task files没有统一scrub边界。",
+      "needed": "telemetry非terminal truth；raw content按surface做redaction；unknown late/trailing event保存并告警。"
+    },
+    {
+      "id": "TOOL-KU-16",
+      "title": "Provider-executed tool 是否继承 local tool 控制面",
+      "text": "OpenCode 会标记 providerExecuted，但 permission、before/after hook、retention 与 local tool 是否等价并无通用保证。",
+      "needed": "按 provider 做 conformance fixture；默认把 local permission/hook/retention 标为 unknown，而不是继承。"
+    },
+    {
+      "id": "TOOL-KU-17",
+      "title": "pending.raw 不累积是合同还是实现遗漏",
+      "text": "OpenCode schema 保留 pending.raw，但 1.18.15 processor 没有稳定累积 provider argument delta；不能把空值宣传成跨版本保证。",
+      "needed": "捕获多个 provider 的 input-stream fixture，并跟踪后续版本是否开始填充 raw；UI 仅显示参数生成中。"
+    }
+  ]
+}

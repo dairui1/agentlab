@@ -54,6 +54,15 @@
       summary: "/dossiers/session-resume-summary.json",
       workbench: "/dossiers/session-resume-workbench.json",
     },
+    "tool-contract": {
+      label: "Tool 调用与失败语义",
+      description: "目录、身份、执行结果、重试与终态收敛",
+      icon: "wrench",
+      href: "/mechanisms?mechanism=tool-contract",
+      evidence: "/dossiers/tool-contract-evidence.json",
+      summary: "/dossiers/tool-contract-summary.json",
+      workbench: "/dossiers/tool-contract-workbench.json",
+    },
   };
   const requestedDossier = new URL(location.href).searchParams.get("mechanism");
   const dossierId = dossierRegistry[requestedDossier] ? requestedDossier : "subagent-orchestration";
