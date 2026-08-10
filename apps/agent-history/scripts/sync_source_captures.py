@@ -61,6 +61,37 @@ def existing_versions(root: Path, agent: str) -> set[str]:
     }
 
 
+def prune_superseded_placeholders(
+    *, phistory_root: Path, overlay_root: Path, agent: str
+) -> int:
+    upstream_versions = existing_versions(phistory_root, agent)
+    overlay_versions = existing_versions(overlay_root, agent)
+    pruned = 0
+    for version in sorted(upstream_versions & overlay_versions):
+        capture = overlay_root / "captures" / agent / version
+        metadata_path = capture / "meta.json"
+        if metadata_path.is_symlink() or not metadata_path.is_file():
+            continue
+        metadata = read_json_object(metadata_path)
+        if metadata.get("capture_kind") != "official-source-history":
+            continue
+        children = list(capture.iterdir())
+        if any(
+            child.name not in {"meta.json", "prompt.md"}
+            or child.is_symlink()
+            or not child.is_file()
+            for child in children
+        ):
+            raise SourceCaptureError(
+                f"refusing to prune modified source-only capture: {capture}"
+            )
+        for child in children:
+            child.unlink()
+        capture.rmdir()
+        pruned += 1
+    return pruned
+
+
 def release_timestamp(release: Mapping[str, Any]) -> str:
     published = release.get("publishedAt")
     if isinstance(published, str) and published:
@@ -167,6 +198,11 @@ def sync(
     counts: dict[str, int] = {}
     for agent in agents:
         config = SOURCE_AGENTS[agent]
+        prune_superseded_placeholders(
+            phistory_root=phistory_root,
+            overlay_root=overlay_root,
+            agent=agent,
+        )
         index_path = official_root / f"{agent}.json"
         index = read_json_object(index_path)
         repository = index.get("repository")

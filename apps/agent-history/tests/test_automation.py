@@ -923,6 +923,37 @@ class SourceCaptureSyncTests(unittest.TestCase):
             self.assertFalse((overlay / "captures/hermes/v2026.3.17").exists())
             self.assertTrue((overlay / "captures/hermes/v2026.3.28").is_dir())
 
+    def test_prunes_source_placeholder_when_phistory_later_captures_version(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            placeholder = overlay / "captures/mimo/0.1.11"
+            placeholder.mkdir(parents=True)
+            (placeholder / "prompt.md").write_text("placeholder", encoding="utf-8")
+            (placeholder / "meta.json").write_text(
+                json.dumps(
+                    {
+                        "version": "0.1.11",
+                        "capture_kind": "official-source-history",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            upstream = phistory / "captures/mimo/0.1.11"
+            upstream.mkdir(parents=True)
+            (upstream / "prompt.md").write_text("real capture", encoding="utf-8")
+
+            pruned = source_sync.prune_superseded_placeholders(
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agent="mimo",
+            )
+
+            self.assertEqual(pruned, 1)
+            self.assertFalse(placeholder.exists())
+            self.assertEqual((upstream / "prompt.md").read_text(), "real capture")
+
 
 class DailyUpdateTests(unittest.TestCase):
     def test_step_order_backfill_limit_and_optional_deploy(self):
