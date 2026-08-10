@@ -58,6 +58,7 @@ OFFICIAL_REPOSITORIES = {
     "claude-code": "anthropics/claude-code",
     "cline": "cline/cline",
     "codex": "openai/codex",
+    "opencode": "anomalyco/opencode",
     "qwen-code": "QwenLM/qwen-code",
     "reasonix": "esengine/DeepSeek-Reasonix",
 }

@@ -21,6 +21,10 @@ SOURCE_AGENTS = {
         "label": "Cline",
         "package": "cline/cline",
     },
+    "opencode": {
+        "label": "opencode",
+        "package": "anomalyco/opencode",
+    },
     "qwen-code": {
         "label": "Qwen Code",
         "package": "QwenLM/qwen-code",

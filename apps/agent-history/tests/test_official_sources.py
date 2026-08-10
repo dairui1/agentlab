@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 from urllib.error import URLError
@@ -84,6 +85,46 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(releases[-1]["tag"], "rust-v0.10.0")
         self.assertEqual(releases[-1]["notes"]["sourceKind"], "github-release")
         self.assertNotIn("0.11.0-alpha.1", json.dumps(releases))
+
+    def test_collects_recent_stable_opencode_releases(self) -> None:
+        body = json.dumps(
+            [
+                {
+                    "tag_name": "v1.18.15",
+                    "name": "opencode 1.18.15",
+                    "body": "Chronological message ordering is fixed.",
+                    "html_url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.15",
+                    "published_at": "2026-08-07T06:49:55Z",
+                    "draft": False,
+                    "prerelease": False,
+                },
+                {
+                    "tag_name": "pr-38252-videos",
+                    "published_at": "2026-08-07T06:49:55Z",
+                    "draft": False,
+                    "prerelease": False,
+                },
+                {
+                    "tag_name": "v1.17.0",
+                    "published_at": "2026-05-01T00:00:00Z",
+                    "draft": False,
+                    "prerelease": False,
+                },
+            ]
+        ).encode()
+        releases = official.github_releases(
+            FakeCache(body),
+            repository="anomalyco/opencode",
+            tag_pattern=official.STANDARD_TAG_RE,
+            product_name="opencode",
+            max_pages=1,
+            timeout=1,
+            allow_stale_on_error=False,
+            published_since=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        )
+
+        self.assertEqual([item["version"] for item in releases], ["1.18.15"])
+        self.assertIn("Chronological", releases[0]["notes"]["text"])
 
     def test_extracts_bounded_key_files_from_official_compare_diff(self) -> None:
         body = (FIXTURES / "official_codex_compare.diff").read_bytes()

@@ -32,6 +32,7 @@ USER_AGENT = "agentlab-agent-history/1.0 (+https://agentlab.dairui1.com)"
 CODEX_REPOSITORY = "openai/codex"
 CLAUDE_REPOSITORY = "anthropics/claude-code"
 CLINE_REPOSITORY = "cline/cline"
+OPENCODE_REPOSITORY = "anomalyco/opencode"
 QWEN_CODE_REPOSITORY = "QwenLM/qwen-code"
 REASONIX_REPOSITORY = "esengine/DeepSeek-Reasonix"
 CODEX_RELEASES_URL = f"https://api.github.com/repos/{CODEX_REPOSITORY}/releases"
@@ -748,6 +749,7 @@ def sync(
     recent_cutoff = datetime.now(timezone.utc) - timedelta(days=62)
     recent_configs = {
         "cline": (CLINE_REPOSITORY, CLINE_TAG_RE, "Cline CLI"),
+        "opencode": (OPENCODE_REPOSITORY, STANDARD_TAG_RE, "opencode"),
         "qwen-code": (QWEN_CODE_REPOSITORY, STANDARD_TAG_RE, "Qwen Code"),
         "reasonix": (REASONIX_REPOSITORY, STANDARD_TAG_RE, "Reasonix"),
     }
