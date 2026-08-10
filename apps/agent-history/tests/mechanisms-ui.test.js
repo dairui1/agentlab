@@ -9,78 +9,125 @@ const read = (file) => fs.readFileSync(path.join(publicRoot, file), "utf8");
 const html = read("mechanisms.html");
 const script = read("mechanisms.js");
 const styles = read("mechanisms.css");
+const workbench = JSON.parse(read("dossiers/subagent-workbench.json"));
 const summary = JSON.parse(read("dossiers/subagent-orchestration.json"));
 const evidence = JSON.parse(read("dossiers/subagent-evidence.json"));
 const claims = new Map(evidence.claims.map((claim) => [claim.id, claim]));
 const unknowns = new Map(summary.unknowns.map((item) => [item.id, item]));
 const agents = ["claude-code", "codex", "opencode"];
 
-function compareUrls() {
+function collectRefs(value, key, target = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectRefs(item, key, target));
+  } else if (value && typeof value === "object") {
+    for (const [field, item] of Object.entries(value)) {
+      if (field === key) {
+        const values = Array.isArray(item) ? item : [item];
+        target.push(...values.filter((entry) => typeof entry === "string" && /^(CC|CX|OC|KU)-\d+$/.test(entry)));
+      } else {
+        collectRefs(item, key, target);
+      }
+    }
+  }
+  return target;
+}
+
+function operation(id) {
+  return workbench.operations.find((item) => item.id === id);
+}
+
+function internalCompareUrls() {
   return [
     ...evidence.claims.map((claim) => claim.compare.url),
-    ...summary.timeline.map((item) => item.url),
+    ...workbench.changes.map((item) => item.url),
   ].filter((url) => url.startsWith("/"));
 }
 
-test("mechanism dossier is wired into the application", () => {
+test("mechanism workbench is wired as a compact five-view application", () => {
   const index = read("index.html");
   assert.match(index, /href="\/mechanisms\.html"/);
-  assert.match(html, /<h1 id="dossierTitle"><\/h1>/);
+  assert.match(html, /id="contractApp"/);
+  assert.match(html, /id="sharpEdgeStrip"/);
+  assert.match(html, /id="contractWorkspace"/);
+  assert.match(html, /id="operationList"/);
+  assert.match(html, /id="evidenceInspector"/);
+  assert.match(html, /id="contractPanel"[^>]*role="tabpanel"/);
+  assert.equal((html.match(/role="tab"/g) || []).length, 5);
+  for (const view of ["compare", "flows", "failures", "resources", "changes"]) {
+    assert.match(html, new RegExp(`data-view="${view}"`));
+  }
   assert.match(html, /src="\/mechanisms\.js"/);
   assert.match(html, /href="\/mechanisms\.css"/);
-  for (const id of ["control-surfaces", "matrix", ...agents, "evolution", "observations", "unknowns", "evidence"]) {
-    assert.match(html, new RegExp(`id="${id}"[^>]*tabindex="-1"`), `missing focusable #${id}`);
-    assert.match(html, new RegExp(`href="#${id}"`), `missing navigation link to #${id}`);
-  }
 });
 
-test("deprecated generic copy and self-built-Agent advice stay deleted", () => {
+test("article-era repetition and self-built-Agent advice stay deleted", () => {
   const banned = [
-    "识别边界", "创建执行者", "独立执行", "回收结果",
-    "派发入口", "协调方式", "状态模型", "控制面的颗粒度不同",
-    "隔离不只等于独立对话", "恢复语义正在成为标准能力", "档案目录",
+    "对自研 Agent 的启示", "自研 Agent", "自建 Agent", "机制解剖", "跨 Agent 观察",
+    "证据账本", "档案目录", "识别边界", "创建执行者", "独立执行", "回收结果",
+    "派发入口", "协调方式", "控制面的颗粒度不同",
   ];
   for (const phrase of banned) assert.equal(html.includes(phrase), false, `banned copy: ${phrase}`);
-  assert.doesNotMatch(html, /对自研\s*Agent\s*的启示|自研\s*Agent|自建\s*Agent/i);
-  assert.doesNotMatch(html, />\s*已核验\s*</);
+  assert.doesNotMatch(html, /id="(dossierTitle|anatomies|observations|evidence)"/);
+  assert.doesNotMatch(html, /class="mechanism-section/);
 });
 
-test("summary exposes three asymmetric models and a 12-dimension matrix", () => {
-  assert.deepEqual(summary.snapshots.map((item) => item.agent), agents);
-  assert.deepEqual(summary.models.map((item) => item.agent), agents);
-  assert.equal(summary.matrix.length, 12);
-  assert.match(summary.thesis, /三层编排/);
-  assert.match(summary.thesis, /mailbox Agent 树/);
-  assert.match(summary.thesis, /Task-backed child session/);
-  for (const row of summary.matrix) {
-    assert.ok(row.group && row.label);
-    assert.deepEqual(Object.keys(row.cells), agents);
-    for (const cell of Object.values(row.cells)) {
-      assert.ok(cell.text.length >= 12);
-      assert.ok(cell.claims?.length || cell.unknown, `${row.group} has an unsupported cell`);
-      for (const id of cell.claims || []) assert.ok(claims.has(id), `matrix has unresolved ${id}`);
-      if (cell.unknown) assert.ok(unknowns.has(cell.unknown), `matrix has unresolved ${cell.unknown}`);
+test("workbench data is operation-first and complete enough for harness lookup", () => {
+  assert.deepEqual(workbench.snapshots.map((item) => item.agent), agents);
+  assert.equal(workbench.operations.length, 11);
+  assert.equal(workbench.flows.length, 5);
+  assert.equal(workbench.hazards.length, 9);
+  assert.equal(workbench.isolation.length, 4);
+  assert.equal(workbench.limits.length, 7);
+  assert.equal(workbench.changes.length, 9);
+  assert.ok(workbench.sharpEdges.length >= 5);
+  assert.equal(workbench.defaultOperation, "create");
+
+  const statuses = new Set(["exposed", "partial", "not-exposed", "unknown"]);
+  for (const item of workbench.operations) {
+    assert.ok(item.id && item.label && item.question && item.icon);
+    assert.deepEqual(Object.keys(item.cells), agents);
+    for (const cell of Object.values(item.cells)) {
+      assert.ok(statuses.has(cell.status), `${item.id} has an invalid status`);
+      assert.ok(cell.primitive && cell.contract && cell.edge, `${item.id} has a shallow cell`);
+      assert.ok(cell.claims?.length || cell.unknown, `${item.id} has an unsupported cell`);
     }
   }
 });
 
-test("all fact references resolve and every fact is used", () => {
-  const referenced = new Set([
-    ...summary.models.flatMap((item) => item.claims),
-    ...summary.matrix.flatMap((row) => Object.values(row.cells).flatMap((cell) => cell.claims || [])),
-    ...summary.anatomies.flatMap((item) => item.claims),
-    ...summary.observations.flatMap((item) => item.claims),
-  ]);
-  for (const id of referenced) assert.ok(claims.has(id), `unresolved fact ${id}`);
-  for (const id of claims.keys()) assert.ok(referenced.has(id), `${id} exists only in the ledger`);
-  for (const anatomy of summary.anatomies) {
-    assert.ok(anatomy.claims.length >= 6, `${anatomy.agent} anatomy is too shallow`);
-    assert.ok(anatomy.claims.every((id) => claims.get(id)?.agent === anatomy.agent));
-  }
+test("all workbench facts and known-unknown references resolve", () => {
+  const factRefs = new Set(collectRefs(workbench, "claims"));
+  const unknownRefs = new Set(collectRefs(workbench, "unknown"));
+  for (const id of factRefs) assert.ok(claims.has(id), `unresolved fact ${id}`);
+  for (const id of unknownRefs) assert.ok(unknowns.has(id), `unresolved known-unknown ${id}`);
+  for (const id of claims.keys()) assert.ok(factRefs.has(id), `${id} exists only in the evidence file`);
+  assert.deepEqual([...unknownRefs].sort(), ["KU-02", "KU-06", "KU-07", "KU-08", "KU-09", "KU-11"]);
+  assert.ok(claims.has(workbench.defaultClaim));
 });
 
-test("atomic facts carry versioned evidence, boundary, and confidence", () => {
-  assert.equal(evidence.claims.length, 20);
+test("the quick reference encodes the contract traps harness authors actually hit", () => {
+  assert.match(operation("steer").cells.codex.primitive, /send_message.*followup_task/);
+  assert.match(operation("steer").cells.codex.contract, /唤醒 idle child/);
+  assert.match(operation("wait-event").cells.codex.contract, /任一 live Agent/);
+  assert.match(operation("wait-event").cells.codex.edge, /不返回 child payload/);
+  assert.match(operation("wait-event").cells.codex.details.find((item) => item.label === "RETURN").value, /agent-update.*timeout.*user-steer/);
+  assert.match(operation("wait-child").cells.codex.primitive, /no targeted wait/);
+  assert.match(operation("join-all").cells["claude-code"].edge, /可落 null/);
+  assert.match(operation("join-all").cells["claude-code"].primitive, /parallel\(thunks/);
+  assert.match(operation("result").cells.codex.edge, /wait success.*child output/);
+  assert.equal(operation("result").cells.codex.unknown, "KU-11");
+  assert.match(operation("resume").cells.opencode.edge, /调用成功不证明续跑命中/);
+  assert.match(operation("resume").cells.codex.contract, /target idle.*target running/);
+  assert.doesNotMatch(operation("create").cells.opencode.primitive, /background/);
+  assert.ok(operation("create").cells["claude-code"].details.some((item) => item.label === "REQUIRED"));
+  assert.doesNotMatch(JSON.stringify(operation("create").cells["claude-code"].details), /\b(resume|name|mode)\b/);
+  assert.match(operation("files").question, /Conversation 隔离后，文件是否仍共享/);
+  assert.match(operation("files").cells.codex.contract, /即时互相可见/);
+  assert.ok(workbench.hazards.some((item) => /task_id lookup failure 静默 fresh/.test(item.title)));
+  assert.ok(workbench.hazards.some((item) => /Workflow barrier 可带 null/.test(item.title)));
+});
+
+test("atomic facts carry versioned sources, boundaries, and comparison targets", () => {
+  assert.equal(evidence.claims.length, 23);
   assert.equal(claims.size, evidence.claims.length, "duplicate fact IDs");
   for (const claim of evidence.claims) {
     assert.equal(claim.type, "fact");
@@ -94,10 +141,9 @@ test("atomic facts carry versioned evidence, boundary, and confidence", () => {
   }
 });
 
-test("snapshot counts and current versions match the published corpus", () => {
-  for (const snapshot of summary.snapshots) {
+test("snapshot versions match the published corpus", () => {
+  for (const snapshot of workbench.snapshots) {
     const history = JSON.parse(read(`data/agents/${snapshot.agent}/history.json`));
-    assert.equal(history.versions.length, snapshot.captures);
     assert.ok(history.versions.some((item) => item.version === snapshot.version));
     for (const claim of evidence.claims.filter((item) => item.agent === snapshot.agent)) {
       assert.equal(claim.version, snapshot.version);
@@ -105,9 +151,10 @@ test("snapshot counts and current versions match the published corpus", () => {
   }
 });
 
-test("all AgentLab comparison links resolve to a captured outline item", () => {
-  assert.ok(compareUrls().length >= 20);
-  for (const href of compareUrls()) {
+test("all internal comparison links resolve to a captured outline item", () => {
+  const urls = internalCompareUrls();
+  assert.ok(urls.length >= 24);
+  for (const href of urls) {
     const url = new URL(href, "https://agentlab.dairui1.com");
     assert.equal(url.searchParams.get("mode"), "compare");
     assert.equal(url.searchParams.get("view"), "structure");
@@ -121,31 +168,25 @@ test("all AgentLab comparison links resolve to a captured outline item", () => {
   }
 });
 
-test("observations and unknowns remain visibly distinct from facts", () => {
-  assert.ok(summary.observations.length >= 6);
-  assert.ok(summary.unknowns.length >= 10);
-  for (const item of summary.observations) {
-    assert.match(item.id, /^OBS-\d{2}$/);
-    assert.ok(item.claims.length >= 1);
-    assert.ok(item.claims.every((id) => claims.has(id)));
-  }
-  for (const item of summary.unknowns) {
-    assert.match(item.id, /^KU-\d{2}$/);
-    assert.ok(item.text && item.needed);
-  }
-  assert.match(script, /dataset\.claimType = "observation"/);
-  assert.match(script, /dataset\.claimType = "unknown"/);
-  assert.match(styles, /border-style: double/);
-  assert.match(styles, /border-style: dashed/);
+test("renderer keeps evidence in place, handles deep links, and avoids unsafe HTML", () => {
+  assert.doesNotMatch(script, /\.innerHTML\s*=/);
+  assert.doesNotMatch(script, /scrollIntoView|location\.hash\s*=/);
+  assert.match(script, /rel = "noopener noreferrer"/);
+  assert.match(script, /url\.searchParams\.set\("view"/);
+  assert.match(script, /\^#evidence-/);
+  assert.match(script, /inspector\.classList\.add\("is-open"\)/);
+  assert.match(script, /event\.key === "ArrowRight"/);
+  assert.match(script, /aria-labelledby/);
 });
 
-test("renderer is safe, responsive, and keyboard-addressable", () => {
-  assert.doesNotMatch(script, /\.innerHTML\s*=/);
-  assert.match(script, /rel = "noopener noreferrer"/);
-  assert.match(script, /window\.addEventListener\("hashchange"/);
-  assert.match(script, /IntersectionObserver/);
-  assert.match(styles, /:target/);
-  assert.match(styles, /scroll-margin-top/);
-  assert.match(styles, /@media \(max-width: 780px\)/);
-  assert.match(styles, /\.matrix-row \{ display: block;/);
+test("layout is three-pane on wide screens and row-first on mobile", () => {
+  assert.match(styles, /grid-template-columns: 196px minmax\(0, 1fr\) var\(--inspector-width\)/);
+  assert.match(styles, /@media \(max-width: 1280px\)[\s\S]*\.evidence-inspector \{[\s\S]*position: fixed/);
+  assert.match(styles, /@media \(max-width: 900px\)/);
+  assert.match(styles, /\.operation-row \{\s*display: block;/);
+  assert.match(styles, /\.operation-rail \{[\s\S]*overflow-x: auto/);
+  assert.match(styles, /\.evidence-inspector \{\s*inset: auto 8px 8px/);
+  assert.match(styles, /\.contract-workspace:not\(\[data-view="compare"\]\) \.operation-rail \{\s*display: none/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.sharp-edge-strip \{\s*display: none/);
+  assert.doesNotMatch(styles, /\.operation-table[^}]*overflow-x:\s*auto/);
 });

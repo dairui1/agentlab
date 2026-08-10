@@ -71,6 +71,26 @@
       "compare": { "label": "当前 TaskCreate contract", "url": "/?mode=compare&agent=claude-code&left=2.1.225&right=2.1.226&view=structure&section=tool%3Ataskcreate" }
     },
     {
+      "id": "CC-08", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "Workflow 的单项失败会成为 null 数据",
+      "statement": "agent() 被跳过或 terminal API error、pipeline stage throw、parallel thunk failure 都可解析为 null；parallel barrier 不因此整体 reject。",
+      "layer": "Runtime Prompt + official docs", "confidence": "High",
+      "signals": ["agent()", "pipeline()", "parallel()", "null"],
+      "boundary": "内部 retry policy 未公开；脚本若不显式检查 null，运行时不保证聚合结果完整。",
+      "source": { "label": "Dynamic workflows failure contract", "url": "https://code.claude.com/docs/en/workflows" },
+      "compare": { "label": "当前 Workflow contract", "url": "/?mode=compare&agent=claude-code&left=2.1.219&right=2.1.226&view=structure&section=tool%3Aworkflow" }
+    },
+    {
+      "id": "CC-09", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "前后台 API error 返回不同形状",
+      "statement": "foreground 在已有文本时返回 partial output 并标记未完成，否则可能是 tool failure；background 标记 failed，并在 completion notification 中携带 API error 与最后输出。",
+      "layer": "Official docs + Runtime Prompt", "confidence": "High",
+      "signals": ["partial output", "tool failure", "failed", "completion notification"],
+      "boundary": "该分类针对 API/rate-limit/overload/server error，不代表所有工具错误或逻辑失败使用同一 envelope。",
+      "source": { "label": "Claude subagent API errors", "url": "https://code.claude.com/docs/en/sub-agents" },
+      "compare": { "label": "当前 Agent contract", "url": "/?mode=compare&agent=claude-code&left=2.1.225&right=2.1.226&view=structure&section=tool%3Aagent" }
+    },
+    {
       "id": "CX-01", "agent": "codex", "type": "fact", "version": "0.147.0",
       "title": "当前捕获暴露六个独立 collaboration controls",
       "statement": "创建、枚举、纯投递、投递并唤醒、中断和等待各自拥有独立 tool contract。",
@@ -112,13 +132,13 @@
     },
     {
       "id": "CX-05", "agent": "codex", "type": "fact", "version": "0.147.0",
-      "title": "投递、唤醒与等待是三种不同操作",
-      "statement": "send_message 不启动 turn；followup_task 可唤醒 idle child；wait_agent 只返回谁有更新的摘要，不返回消息 payload。",
+      "title": "纯投递与条件唤醒是两种操作",
+      "statement": "send_message 只投递，不启动 turn；followup_task 在目标 idle 时会启动 turn，目标 running 时则在采样边界或 pending tool call 后投递。",
       "layer": "Captured Tool schema", "confidence": "High",
-      "signals": ["does not trigger", "trigger a turn", "summary only"],
+      "signals": ["does not trigger", "wake idle child", "message boundaries", "pending tool call"],
       "boundary": "ordering、buffering、acknowledgement 与 exactly-once delivery 均未公开。",
       "source": { "label": "Codex collaboration tools", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L236-L324" },
-      "compare": { "label": "wait_agent contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-wait-agent" }
+      "compare": { "label": "send_message contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-send-message" }
     },
     {
       "id": "CX-06", "agent": "codex", "type": "fact", "version": "0.147.0",
@@ -139,6 +159,16 @@
       "boundary": "不可外推为所有 Codex 客户端、账号或计划的全局默认。",
       "source": { "label": "Codex 0.147.0 line 216", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L216" },
       "compare": { "label": "Developer contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=developer-prompt" }
+    },
+    {
+      "id": "CX-08", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "wait_agent 是无 target 的 first-event wait",
+      "statement": "wait_agent 等待任一 live Agent 的 mailbox/final-status 更新、timeout 或新的 user input；分别返回 Agent 更新摘要、timeout summary 或 user-steer interruption summary，不返回 child payload。",
+      "layer": "Captured Tool schema", "confidence": "High",
+      "signals": ["mailbox update", "final-status", "timeout summary", "user input", "summary"],
+      "boundary": "这不是 targeted wait、wait-all 或 child deadline；payload、事件 ordering 与 replay 未公开。",
+      "source": { "label": "wait_agent lines 378-394", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L378-L394" },
+      "compare": { "label": "wait_agent contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=tool%3Acollaboration-wait-agent" }
     },
     {
       "id": "OC-01", "agent": "opencode", "type": "fact", "version": "1.18.15",

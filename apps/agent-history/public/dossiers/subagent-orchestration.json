@@ -172,6 +172,7 @@
     { "id": "KU-07", "title": "opencode 运行中 steering", "text": "当前 Task surface 没有独立 steer 原语；缺少 contract 不等于内部绝对不存在。", "needed": "固定版本 UI/API contract" },
     { "id": "KU-08", "title": "Codex 当前权限传播", "text": "0.147.0 的 approval、sandbox 与 escalation 传播未知；0.115.0 只能作历史辅证。", "needed": "0.147.0 固定版本源码或 trace" },
     { "id": "KU-09", "title": "依赖图与 barrier", "text": "Codex/opencode 当前 model-facing surface 未暴露 dependency graph 或 join primitive。", "needed": "调度 API 或固定版本 runtime source" },
-    { "id": "KU-10", "title": "编排 replay", "text": "Codex/opencode 当前 surface 未暴露 orchestration checkpoint；缺少 contract 不等于实现不存在。", "needed": "checkpoint/replay contract" }
+    { "id": "KU-10", "title": "编排 replay", "text": "Codex/opencode 当前 surface 未暴露 orchestration checkpoint；缺少 contract 不等于实现不存在。", "needed": "checkpoint/replay contract" },
+    { "id": "KU-11", "title": "Codex child 结果 envelope", "text": "已核验 wait_agent 不返回 payload；最终 child 结果的字段、顺序、持久性与重放合同未在本次 capture 中单独核验。", "needed": "0.147.0 final-delivery schema 或 completion trace" }
   ]
 }

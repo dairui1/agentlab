@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="AgentLab 机制档案：基于固定版本 Prompt、工具契约与源码，拆解 Coding Agent 的 Sub-agent 编排。">
-  <title>Sub-agent 编排 · AgentLab 机制档案</title>
+  <meta name="description" content="AgentLab Sub-agent control contract explorer：查询创建、寻址、等待、恢复、结果、取消和文件副作用。">
+  <title>Sub-agent control contracts · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/mechanisms.css">
 </head>
 <body>
-  <div class="app-shell mechanism-shell">
+  <div class="app-shell contract-shell">
     <header class="topbar">
       <a class="brand" href="/" aria-label="AgentLab 首页">
         <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
@@ -23,91 +23,80 @@
         <a href="/mechanisms" aria-current="page"><i data-lucide="network" aria-hidden="true"></i><span>机制档案</span></a>
       </div>
       <div class="header-links">
-        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库">
-          <i data-lucide="github" aria-hidden="true"></i>
-        </a>
+        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
       </div>
     </header>
 
-    <main id="dossierRoot" class="mechanism-page" aria-busy="true">
-      <div id="dossierStatus" class="mechanism-status" role="status" aria-live="polite">
-        <span class="loading-spinner" aria-hidden="true"></span><span>正在装载证据链</span>
+    <main id="contractApp" class="contract-app" aria-busy="true">
+      <div id="contractStatus" class="contract-status" role="status" aria-live="polite">
+        <span class="loading-spinner" aria-hidden="true"></span><span>正在装载控制合同</span>
       </div>
 
-      <header id="overview" class="mechanism-hero" hidden>
-        <div class="mechanism-hero-main">
-          <p id="dossierKicker" class="mechanism-kicker"></p>
-          <h1 id="dossierTitle"></h1>
-          <p id="dossierThesis" class="mechanism-thesis"></p>
-          <p id="dossierScope" class="mechanism-scope"></p>
+      <header id="contractHeader" class="contract-header" hidden>
+        <div class="contract-title-block">
+          <span class="contract-eyebrow">MECHANISM / SUB-AGENT ORCHESTRATION</span>
+          <div class="contract-title-row">
+            <h1 id="contractTitle"></h1>
+            <span id="contractDate" class="contract-date"></span>
+          </div>
+          <p id="contractSubtitle"></p>
         </div>
-        <div id="snapshotStrip" class="snapshot-strip" aria-label="核验快照"></div>
-        <div class="epistemic-legend" aria-label="证据类型图例">
-          <span data-type="fact">事实</span>
-          <span data-type="observation">观察</span>
-          <span data-type="unknown">未知</span>
-          <small>每条事实都可下钻到固定版本证据</small>
-        </div>
+        <div id="snapshotLine" class="contract-snapshots" aria-label="核验版本"></div>
       </header>
 
-      <nav class="mechanism-nav" data-dossier-nav aria-label="档案章节" hidden>
-        <a href="#control-surfaces">控制面</a>
-        <a href="#matrix">工程矩阵</a>
-        <a href="#claude-code">Claude</a>
-        <a href="#codex">Codex</a>
-        <a href="#opencode">opencode</a>
-        <a href="#evolution">演进</a>
-        <a href="#observations">观察</a>
-        <a href="#unknowns">未知项</a>
-        <a href="#evidence">证据账本</a>
+      <section id="sharpEdgeStrip" class="sharp-edge-strip" aria-label="关键合同差异" hidden></section>
+
+      <nav id="viewTabs" class="contract-view-tabs" role="tablist" aria-label="机制视图" hidden>
+        <button id="tabCompare" type="button" role="tab" aria-controls="contractPanel" data-view="compare"><i data-lucide="table-properties" aria-hidden="true"></i><span>操作速查</span></button>
+        <button id="tabFlows" type="button" role="tab" aria-controls="contractPanel" data-view="flows"><i data-lucide="workflow" aria-hidden="true"></i><span>生命周期</span></button>
+        <button id="tabFailures" type="button" role="tab" aria-controls="contractPanel" data-view="failures"><i data-lucide="triangle-alert" aria-hidden="true"></i><span>失败面</span></button>
+        <button id="tabResources" type="button" role="tab" aria-controls="contractPanel" data-view="resources"><i data-lucide="layers-3" aria-hidden="true"></i><span>隔离与资源</span></button>
+        <button id="tabChanges" type="button" role="tab" aria-controls="contractPanel" data-view="changes"><i data-lucide="git-compare-arrows" aria-hidden="true"></i><span>版本变化</span></button>
       </nav>
 
-      <section id="control-surfaces" class="mechanism-section" tabindex="-1" hidden>
-        <header class="mechanism-section-heading">
-          <span>01</span><div><h2>三种控制模型</h2><p>先看状态与控制权落在哪里，而不是把三个工具名排成同一类。</p></div>
-        </header>
-        <div id="modelBands" class="model-bands"></div>
-      </section>
+      <div id="contractWorkspace" class="contract-workspace" hidden>
+        <aside class="operation-rail" aria-labelledby="operationRailTitle">
+          <div class="rail-heading">
+            <span id="operationRailTitle">开发者要做什么</span>
+          </div>
+          <nav id="operationList" aria-label="按操作筛选">
+            <button id="showAllOperations" class="operation-button rail-all" type="button" aria-pressed="true"><i data-lucide="rows-3" aria-hidden="true"></i><span>全部操作</span></button>
+          </nav>
+          <div class="rail-scope">
+            <strong>Evidence scope</strong>
+            <span>model-visible contract</span>
+            <span>exact-tag source</span>
+            <span>official docs / release</span>
+          </div>
+        </aside>
 
-      <section id="matrix" class="mechanism-section" tabindex="-1" hidden>
-        <header class="mechanism-section-heading">
-          <span>02</span><div><h2>工程矩阵</h2><p>12 个维度逐行对照；上下文、文件、恢复与返回值分别陈述，不压成勾选表。</p></div>
-        </header>
-        <div id="matrixGrid" class="mechanism-matrix" role="table" aria-label="Sub-agent 编排工程矩阵"></div>
-      </section>
+        <section id="contractPanel" class="contract-canvas" role="tabpanel" aria-live="polite" aria-labelledby="tabCompare">
+          <header class="canvas-heading">
+            <div>
+              <span id="canvasKicker"></span>
+              <h2 id="canvasTitle"></h2>
+              <p id="canvasDescription"></p>
+            </div>
+            <div class="contract-state-legend" aria-label="合同状态">
+              <span data-state="exposed">已暴露</span>
+              <span data-state="partial">有边界</span>
+              <span data-state="not-exposed">未暴露</span>
+              <span data-state="unknown">未知</span>
+            </div>
+          </header>
+          <div id="canvasContent" class="canvas-content"></div>
+        </section>
 
-      <section id="claude-code" class="mechanism-section anatomy-section" tabindex="-1" hidden></section>
-      <section id="codex" class="mechanism-section anatomy-section" tabindex="-1" hidden></section>
-      <section id="opencode" class="mechanism-section anatomy-section" tabindex="-1" hidden></section>
-
-      <section id="evolution" class="mechanism-section" tabindex="-1" hidden>
-        <header class="mechanism-section-heading">
-          <span>06</span><div><h2>机制演进</h2><p>这里记录“本地语料首次可见”与固定版本变化，不把观察点写成产品首发日。</p></div>
-        </header>
-        <div id="timeline" class="mechanism-timeline"></div>
-      </section>
-
-      <section id="observations" class="mechanism-section" tabindex="-1" hidden>
-        <header class="mechanism-section-heading">
-          <span>07</span><div><h2>跨 Agent 观察</h2><p>由多条事实推导；观察与厂商事实分开标记。</p></div>
-        </header>
-        <div id="observationList" class="observation-ledger"></div>
-      </section>
-
-      <section id="unknowns" class="mechanism-section" tabindex="-1" hidden>
-        <header class="mechanism-section-heading">
-          <span>08</span><div><h2>未知项账本</h2><p>公开契约没有回答的问题，保留为空白，不用工具名称补完运行时。</p></div>
-        </header>
-        <div id="unknownList" class="unknown-ledger"></div>
-      </section>
-
-      <section id="evidence" class="mechanism-section" tabindex="-1" hidden>
-        <header class="mechanism-section-heading">
-          <span>09</span><div><h2>原子证据账本</h2><p>20 条当前事实。版本、证据层、置信度、边界和直接定位都在同一条记录里。</p></div>
-        </header>
-        <div id="evidenceFilters" class="evidence-filters" role="group" aria-label="筛选证据"></div>
-        <div id="evidenceLedger" class="evidence-ledger"></div>
-      </section>
+        <aside id="evidenceInspector" class="evidence-inspector" aria-labelledby="inspectorTitle">
+          <header>
+            <div><span id="inspectorContext">EVIDENCE INSPECTOR</span><h2 id="inspectorTitle">选择一条合同</h2></div>
+            <button id="closeInspector" class="icon-button" type="button" aria-label="关闭证据详情" title="关闭"><i data-lucide="x" aria-hidden="true"></i></button>
+          </header>
+          <div id="inspectorContent" class="inspector-content">
+            <p class="inspector-empty">点击任意“证据”按钮，在不离开当前比较位置的情况下检查版本、来源和边界。</p>
+          </div>
+        </aside>
+      </div>
     </main>
   </div>
 

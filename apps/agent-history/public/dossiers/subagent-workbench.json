@@ -1,0 +1,219 @@
+{
+  "title": "Sub-agent control contracts",
+  "subtitle": "固定版本下可调用、可观测、可恢复的控制合同",
+  "verifiedAt": "2026-08-10",
+  "defaultView": "compare",
+  "defaultOperation": "create",
+  "defaultClaim": "CC-02",
+  "snapshots": [
+    { "agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "grade": "Runtime contract + official docs" },
+    { "agent": "codex", "label": "Codex", "version": "0.147.0", "grade": "Captured model-visible contract" },
+    { "agent": "opencode", "label": "opencode", "version": "1.18.15", "grade": "Exact-tag source + capture" }
+  ],
+  "sharpEdges": [
+    { "id": "wait-not-result", "label": "wait_agent ≠ result", "text": "Codex wait 返回 Agent 更新、timeout 或 user-steer interruption 摘要，不含 child payload。", "claims": ["CX-08"], "view": "compare", "operation": "wait-event" },
+    { "id": "resume-miss", "label": "task_id miss = fresh run", "text": "opencode Session lookup 失败会静默创建新 child。", "claims": ["OC-02"], "view": "failures" },
+    { "id": "mode-semantic", "label": "background 改变合同", "text": "Claude 的工具池、结果通道与 API error shape 都会变化。", "claims": ["CC-03", "CC-09"], "view": "failures" },
+    { "id": "context-files", "label": "fresh context ≠ 文件隔离", "text": "对话可以 fresh；工作区仍可能共享。", "claims": ["CC-02", "CC-06", "CX-03", "CX-04", "OC-01"], "view": "resources" },
+    { "id": "null-data", "label": "Workflow item 可返回 null", "text": "agent 终止/API error、pipeline stage throw、parallel thunk failure 可落为 null；不等于所有脚本错误都不 throw。", "claims": ["CC-08"], "view": "failures" }
+  ],
+  "operations": [
+    {
+      "id": "create", "label": "创建 child", "question": "调用哪个入口，默认怎么运行？", "icon": "plus",
+      "cells": {
+        "claude-code": { "status": "exposed", "surface": "Agent model tool", "primitive": "Agent(description, prompt, subagent_type?, model?, run_in_background?, isolation?)", "contract": "普通 Agent 建 fresh transcript；fork 是显式另一模式。", "edge": "2.1.226 默认 background；isolation=remote 是 gated 且强制 background。", "details": [{ "label": "REQUIRED", "value": "description · prompt" }, { "label": "DEFAULT", "value": "subagent_type=general-purpose · run_in_background=true" }, { "label": "OPTIONAL", "value": "subagent_type · model · run_in_background · isolation=worktree|remote" }, { "label": "CONSTRAINT", "value": "isolation=remote → run_in_background=true" }], "claims": ["CC-02", "CC-03"] },
+        "codex": { "status": "exposed", "surface": "collaboration tool", "primitive": "spawn_agent(task_name, message, fork_turns?, model?, reasoning_effort?)", "contract": "返回可递归寻址的 child 节点。", "edge": "fork_turns 默认 all；full-history fork 不能同时覆盖 model/reasoning。", "details": [{ "label": "REQUIRED", "value": "task_name · message" }, { "label": "DEFAULT", "value": "fork_turns=all" }, { "label": "RETURN", "value": "canonical child path" }], "claims": ["CX-01", "CX-02", "CX-03"] },
+        "opencode": { "status": "exposed", "surface": "TaskTool / captured", "primitive": "task(description, prompt, subagent_type, task_id?, command?)", "contract": "不带 task_id 时创建带 parentID 的 child Session。", "edge": "background 不在当前 captured schema；只能先做 capability detection。", "details": [{ "label": "REQUIRED", "value": "description · prompt · subagent_type" }, { "label": "OPTIONAL", "value": "task_id · command" }, { "label": "GATE", "value": "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS" }], "claims": ["OC-01", "OC-04"] }
+      }
+    },
+    {
+      "id": "address", "label": "保存句柄", "question": "后续操作应该保存哪个地址？", "icon": "fingerprint",
+      "cells": {
+        "claude-code": { "status": "exposed", "surface": "Agent + Workflow", "primitive": "Agent ID / name · Workflow run ID", "contract": "Agent 地址续 transcript；Workflow run ID 指向同一 Claude Code session 内的前缀恢复缓存。", "edge": "两种句柄不能互换；跨 session 无恢复合同。", "details": [{ "label": "AGENT", "value": "ID/name → transcript" }, { "label": "WORKFLOW", "value": "run ID → same-session prefix cache" }], "claims": ["CC-04"] },
+        "codex": { "status": "partial", "surface": "current root tree", "primitive": "/root/.../child", "contract": "canonical task path 编码当前 root tree 的 ancestry。", "edge": "不等同 app-server thread ID；跨 root/restart 持久性未公开。", "details": [{ "label": "SCOPE", "value": "current root collaboration tree" }, { "label": "AFTER INTERRUPT", "value": "address retained" }, { "label": "RESTART", "value": "unknown" }], "claims": ["CX-02", "CX-06"] },
+        "opencode": { "status": "partial", "surface": "child Session", "primitive": "task_id → child Session", "contract": "task_id 续接 child Session，而不是 parent transcript。", "edge": "任一 lookup failure 都不报 resume miss，而是 fresh create。", "details": [{ "label": "MISS", "value": "silent fresh Session" }, { "label": "PROJECT / RESTART", "value": "scope not verified" }], "claims": ["OC-02"] }
+      }
+    },
+    {
+      "id": "steer", "label": "运行中补信息", "question": "消息会投递、唤醒，还是续跑？", "icon": "messages-square",
+      "cells": {
+        "claude-code": { "status": "exposed", "surface": "Agent", "primitive": "SendMessage(to, message)", "contract": "运行中在下个 tool round 处理；部分已结束 Agent 可恢复。", "edge": "这是 Agent transcript 控制，不是 Workflow resumeFromRunId。", "claims": ["CC-04"] },
+        "codex": { "status": "exposed", "primitive": "send_message ≠ followup_task", "contract": "send 只投递；followup 可唤醒 idle child。", "edge": "不要把两者封成同一个 send。", "claims": ["CX-05"] },
+        "opencode": { "status": "not-exposed", "primitive": "task_id continuation", "contract": "当前 Task surface 没有独立 mid-flight steer/wake control。", "edge": "缺少 control 不证明底层绝对不存在。", "unknown": "KU-07", "claims": ["OC-02"] }
+      }
+    },
+    {
+      "id": "wait-event", "label": "等待任一事件", "question": "谁先有事件就返回，还是等待指定 child？", "icon": "radio-tower",
+      "cells": {
+        "claude-code": { "status": "partial", "surface": "Agent background", "primitive": "completion / failed notification", "contract": "后台 Agent 完成后异步通知；当前表面没有等任一 Agent 的显式 wait 原语。", "edge": "notification 与 foreground tool result 不是同一 envelope。", "claims": ["CC-03", "CC-09"] },
+        "codex": { "status": "exposed", "surface": "mailbox first-event", "primitive": "wait_agent(timeout_ms)", "contract": "等待任一 live Agent 的 mailbox/final-status 更新、timeout，或新的 user input。", "edge": "没有 target；不保证 wait-all，也不返回 child payload。", "details": [{ "label": "TIMEOUT", "value": "default 30s · min 10s · max 60m" }, { "label": "WAKE", "value": "Agent update · timeout · new user input" }, { "label": "RETURN", "value": "agent-update | timeout | user-steer interruption summary" }], "claims": ["CX-08"] },
+        "opencode": { "status": "not-exposed", "surface": "TaskTool / captured", "primitive": "no event-wait control", "contract": "当前 captured schema 只有 foreground Task 调用；source-only background 依赖 synthetic reinjection。", "edge": "不要把 source-only background 当成已启用的 wait API。", "unknown": "KU-06", "claims": ["OC-04"] }
+      }
+    },
+    {
+      "id": "wait-child", "label": "等待指定 child", "question": "调用是否阻塞到这个 child 完成？", "icon": "hourglass",
+      "cells": {
+        "claude-code": { "status": "exposed", "surface": "Agent foreground", "primitive": "Agent(..., run_in_background=false)", "contract": "foreground 调用阻塞并直接返回 tool result。", "edge": "2.1.226 默认 background；必须显式 false 才是此合同。", "claims": ["CC-03"] },
+        "codex": { "status": "not-exposed", "surface": "collaboration tool", "primitive": "no targeted wait", "contract": "wait_agent 没有 target 参数，只等待任一 live Agent 的首个更新。", "edge": "需要调用方按 target 聚合异步事件；不能假装是 join。", "claims": ["CX-08"] },
+        "opencode": { "status": "exposed", "surface": "TaskTool foreground", "primitive": "task(...)", "contract": "当前 captured foreground Task 阻塞到 child 结束，并返回最后一个 text part。", "edge": "返回值不是完整 transcript 或完整 tool trace。", "claims": ["OC-03", "OC-04"] }
+      }
+    },
+    {
+      "id": "join-all", "label": "汇合全部", "question": "有没有真正的 barrier / wait-all？", "icon": "combine",
+      "cells": {
+        "claude-code": { "status": "exposed", "surface": "Workflow", "primitive": "parallel(thunks: Array<() => Promise<any>>)", "contract": "脚本拥有 barrier；按 thunk 输入位置解析结果。", "edge": "thunk failure 或 thunk 内 agent terminal/API error 可落 null；pipeline stage throw 属于另一条 Workflow path。", "details": [{ "label": "INPUT", "value": "async thunks, not values/items" }, { "label": "ORDER", "value": "thunk input position" }, { "label": "ITEM FAILURE", "value": "selected thunk/agent failures → null" }], "claims": ["CC-08"] },
+        "codex": { "status": "not-exposed", "surface": "collaboration tool", "primitive": "no wait-all primitive", "contract": "当前 model-facing surface 没有 dependency graph 或 barrier。", "edge": "wait_agent 是 first-event wait，不是 wait-all。", "unknown": "KU-09", "claims": ["CX-08"] },
+        "opencode": { "status": "not-exposed", "surface": "TaskTool / captured", "primitive": "no join primitive", "contract": "当前 Task surface 没有多 child barrier。", "edge": "并行 fan-out 与汇合需要外层 orchestrator。", "unknown": "KU-09" }
+      }
+    },
+    {
+      "id": "result", "label": "读取结果", "question": "真正进入 parent 的内容是什么？", "icon": "package-open",
+      "cells": {
+        "claude-code": { "status": "exposed", "surface": "Agent + Workflow", "primitive": "tool result · notification", "contract": "Agent 前台返回 tool result，后台通知；Workflow 只给一次 completion。", "edge": "前后台 API error envelope 不同；不要共用一个 parser。", "details": [{ "label": "AGENT FG", "value": "tool result" }, { "label": "AGENT BG", "value": "completion / failed notification" }, { "label": "WORKFLOW", "value": "single completion notification" }], "claims": ["CC-03", "CC-09"] },
+        "codex": { "status": "unknown", "surface": "captured surface", "primitive": "no pull-result primitive", "contract": "已核验的 wait_agent 只返回三类状态摘要，不包含 payload；最终结果 envelope 未在本次证据中核验。", "edge": "wait success 不能当 child output，也不要发明 result schema。", "unknown": "KU-11", "claims": ["CX-08"] },
+        "opencode": { "status": "partial", "surface": "Task foreground + gated bg", "primitive": "last text part · synthetic <task_result>", "contract": "captured foreground 只取最后 text part；feature-gated background 以 synthetic text 回注。", "edge": "完整 transcript、非文本 parts 与 tool outputs 不回传。", "details": [{ "label": "CAPTURED FG", "value": "last text part" }, { "label": "SOURCE-ONLY BG", "value": "synthetic <task_result> / failure text" }], "claims": ["OC-03", "OC-04"] }
+      }
+    },
+    {
+      "id": "cancel", "label": "取消 / 中断", "question": "停止的是 turn、child，还是地址？", "icon": "circle-stop",
+      "cells": {
+        "claude-code": { "status": "partial", "surface": "Agent / Workflow background", "primitive": "TaskStop(task_id)", "contract": "停止后台 Agent/Workflow；部分 Agent transcript 仍可由 SendMessage 恢复。", "edge": "stop 不等于删除 transcript；具体可恢复条件保留边界。", "claims": ["CC-03", "CC-04"] },
+        "codex": { "status": "exposed", "primitive": "interrupt_agent(target)", "contract": "只停当前 turn，节点仍可 message/follow-up。", "edge": "当前 surface 没有 close/shutdown。", "claims": ["CX-06"] },
+        "opencode": { "status": "partial", "surface": "Task foreground", "primitive": "parent abort → child cancel", "contract": "captured foreground 的 parent abort 会传播 cancel。", "edge": "没有独立 cancel 参数；background interrupt 只属于 feature-gated source path。", "claims": ["OC-06"] }
+      }
+    },
+    {
+      "id": "resume", "label": "恢复计算", "question": "句柄恢复的是 transcript、地址还是缓存？", "icon": "rotate-ccw",
+      "cells": {
+        "claude-code": { "status": "exposed", "surface": "Agent + Workflow", "primitive": "SendMessage · resumeFromRunId", "contract": "一个续 Agent transcript；另一个复用最长未改完成前缀。", "edge": "Workflow 不是任意 DAG checkpoint，且只在同一 session 内恢复。", "details": [{ "label": "AGENT", "value": "SendMessage → same transcript" }, { "label": "WORKFLOW", "value": "run ID → longest unchanged completed prefix" }], "claims": ["CC-04"] },
+        "codex": { "status": "partial", "surface": "conditional wake", "primitive": "followup_task(target, message)", "contract": "target idle 时启动新 turn；target running 时在 sampling/message boundary 或 pending tool call 后投递。", "edge": "不是无条件启动并发 turn；transcript durability 未完整公开。", "claims": ["CX-05", "CX-06"] },
+        "opencode": { "status": "partial", "primitive": "task(task_id, ...)", "contract": "有效 ID 续 Session；任一 lookup failure 落入 fresh create path。", "edge": "调用成功不证明续跑命中。", "claims": ["OC-02"] }
+      }
+    },
+    {
+      "id": "files", "label": "文件副作用", "question": "Conversation 隔离后，文件是否仍共享？", "icon": "files",
+      "cells": {
+        "claude-code": { "status": "partial", "primitive": "isolation: \"worktree\"", "contract": "默认工作面共享；Agent/Workflow 可显式选择 worktree。", "edge": "没有自动 merge/cherry-pick 保证。", "claims": ["CC-06"] },
+        "codex": { "status": "partial", "primitive": "shared container / filesystem / CWD", "contract": "Agents 的修改即时互相可见。", "edge": "当前 control surface 未暴露锁、事务或 worktree。", "claims": ["CX-04"] },
+        "opencode": { "status": "partial", "primitive": "active directory / workspace", "contract": "Task 路径不分配 per-task worktree。", "edge": "消息裁剪不会回滚文件副作用。", "claims": ["OC-01", "OC-03"] }
+      }
+    },
+    {
+      "id": "capability", "label": "能力与限额", "question": "工具、权限、深度和并发如何作用？", "icon": "gauge",
+      "cells": {
+        "claude-code": { "status": "partial", "primitive": "mode-specific tools · separate caps", "contract": "foreground/background/fork 工具池不同；Agent 与 Workflow 有不同限额。", "edge": "不能合成一个 Claude 并发数。", "claims": ["CC-03", "CC-05"] },
+        "codex": { "status": "unknown", "primitive": "fork_turns · capture-scoped slots", "contract": "fork_turns 控制对话历史；本次捕获为四个总 slots。", "edge": "0.147.0 权限传播与通用 cap 未知。", "unknown": "KU-08", "claims": ["CX-03", "CX-07"] },
+        "opencode": { "status": "partial", "primitive": "child ruleset + parent deny · depth 1", "contract": "subagent ruleset 为主，继续承受 parent deny；默认 depth 1。", "edge": "真实 fan-out cap 与 Task deadline 未公开。", "claims": ["OC-05", "OC-06"] }
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "claude-agent", "agent": "claude-code", "label": "Claude Agent", "scope": "model-driven",
+      "steps": [
+        { "label": "Agent(...) ", "meta": "fresh | fork" },
+        { "label": "Agent ID / name", "meta": "addressable" },
+        { "label": "running", "meta": "background default" },
+        { "label": "completion", "meta": "result or notification" }
+      ],
+      "controls": [
+        { "primitive": "SendMessage", "effect": "steer next round / resume transcript", "claims": ["CC-04"] },
+        { "primitive": "TaskStop", "effect": "stop background task; transcript deletion is not implied", "claims": ["CC-03", "CC-04"] },
+        { "primitive": "isolation: worktree", "effect": "separate checkout, no auto-merge contract", "claims": ["CC-06"] }
+      ]
+    },
+    {
+      "id": "claude-workflow", "agent": "claude-code", "label": "Claude Workflow", "scope": "script-driven",
+      "steps": [
+        { "label": "Workflow(script)", "meta": "run ID" },
+        { "label": "agent / pipeline / parallel", "meta": "JS owns control" },
+        { "label": "journal + values", "meta": "selected item failures may be null" },
+        { "label": "completion", "meta": "one notification" }
+      ],
+      "controls": [
+        { "primitive": "parallel(thunks)", "effect": "barrier preserves thunk positions; selected failures can be null", "claims": ["CC-08"] },
+        { "primitive": "resumeFromRunId", "effect": "reuse longest unchanged completed prefix", "claims": ["CC-04"] }
+      ]
+    },
+    {
+      "id": "claude-teams", "agent": "claude-code", "label": "Claude Teams", "scope": "experimental",
+      "steps": [
+        { "label": "team lead", "meta": "coordinator" },
+        { "label": "mailbox peers", "meta": "long-lived sessions" },
+        { "label": "shared Task graph", "meta": "owner / blocks" },
+        { "label": "idle / failure events", "meta": "notifications" }
+      ],
+      "controls": [
+        { "primitive": "SendMessage", "effect": "peer communication", "claims": ["CC-01", "CC-07"] },
+        { "primitive": "TaskCreate / Update", "effect": "shared coordination records, not a file lock", "claims": ["CC-07"] }
+      ]
+    },
+    {
+      "id": "codex-collaboration", "agent": "codex", "label": "Codex collaboration", "scope": "captured surface",
+      "steps": [
+        { "label": "spawn_agent", "meta": "fork_turns" },
+        { "label": "canonical path", "meta": "/root/.../child" },
+        { "label": "active / idle", "meta": "address retained" },
+        { "label": "completion event", "meta": "payload envelope unverified" }
+      ],
+      "controls": [
+        { "primitive": "send_message", "effect": "deliver only; no wake", "claims": ["CX-05"] },
+        { "primitive": "followup_task", "effect": "wake idle; running target receives at a boundary", "claims": ["CX-05"] },
+        { "primitive": "wait_agent", "effect": "agent-update / timeout / user-steer summaries; no payload", "claims": ["CX-08"] },
+        { "primitive": "interrupt_agent", "effect": "stop turn, keep address", "claims": ["CX-06"] }
+      ]
+    },
+    {
+      "id": "opencode-task", "agent": "opencode", "label": "opencode Task", "scope": "task-backed session",
+      "steps": [
+        { "label": "task(task_id?)", "meta": "fresh or lookup" },
+        { "label": "child Session", "meta": "same workspace" },
+        { "label": "foreground", "meta": "captured contract" },
+        { "label": "last text part", "meta": "result is intentionally lossy" }
+      ],
+      "controls": [
+        { "primitive": "lookup failure", "effect": "fresh Session, no explicit miss signal", "claims": ["OC-02"], "danger": true },
+        { "primitive": "parent abort", "effect": "cancel foreground child", "claims": ["OC-06"] },
+        { "primitive": "background (source-only)", "effect": "feature-gated synthetic reinjection; absent in capture", "claims": ["OC-04"] },
+        { "primitive": "task_id", "effect": "continue child Session", "claims": ["OC-02"] }
+      ]
+    }
+  ],
+  "hazards": [
+    { "severity": "critical", "kind": "重复执行", "title": "task_id lookup failure 静默 fresh", "contract": "opencode 任一 Session lookup failure 都可走 create path。", "trigger": "task(task_id=stored_id) 做 continuation", "signal": "没有 resume-miss error；可能返回新的 child task/session id", "recovery": "把返回 ID 与预期 ID 做相关校验，再决定是否接受 fresh run", "doNotAssume": "task_id 重试一定命中原任务。", "claims": ["OC-02"], "unknown": "storage error taxonomy" },
+    { "severity": "critical", "kind": "丢失 payload", "title": "wait 与业务结果不是同一通道", "contract": "Codex wait 只给三类状态 summary；opencode foreground 只给 last text part。", "trigger": "把 wait/task completion 当成完整结果读取", "signal": "只有 Agent update/timeout/interruption 摘要，或只有最后一个 text part", "recovery": "把 completion、payload completeness 与文件产物状态分开记录", "doNotAssume": "wait/result envelope 含完整 child 输出。", "claims": ["CX-08", "OC-03"] },
+    { "severity": "critical", "kind": "静默不完整", "title": "Workflow barrier 可带 null 完成", "contract": "parallel 的 thunk failure 或 thunk 内 agent terminal/API error 可解析为 null，不整体 reject。", "trigger": "parallel(thunks) barrier resolve", "signal": "结果数组保持 thunk 位置，但失败项是 null", "recovery": "逐项校验 null 与产物，不以 barrier resolve 作为全成功", "doNotAssume": "barrier 成功等于所有 thunks 成功。", "claims": ["CC-08"], "unknown": "internal retry policy" },
+    { "severity": "high", "kind": "文件冲突", "title": "fresh conversation 仍可能共享 working copy", "contract": "Codex/opencode 共享；Claude 默认共享，worktree 需显式选择。", "trigger": "多个 child 写同一 checkout", "signal": "并行 diff、未预期文件变化或测试互相污染", "recovery": "用显式 worktree 或串行 ownership；不要用 fresh context 代替文件隔离", "doNotAssume": "fresh context 等于 file isolation。", "claims": ["CC-06", "CX-04", "OC-01"], "unknown": "lock / ownership / merge arbitration" },
+    { "severity": "high", "kind": "能力漂移", "title": "相同 Agent definition 在执行模式间能力可变", "contract": "Claude foreground/background/fork 的工具池并不相同。", "trigger": "切换 run_in_background 或 fork 模式", "signal": "可用 tools、嵌套能力与 failure channel 变化", "recovery": "按 mode 分别做 schema capability check", "doNotAssume": "background 只是 UI flag。", "claims": ["CC-03"] },
+    { "severity": "high", "kind": "错误解析", "title": "Claude 前后台 provider API error shape 不同", "contract": "API/rate-limit/overload/server error 在 foreground 可变成 partial/tool failure，background 走 failed notification。", "trigger": "provider API、rate-limit、overload 或 server error", "signal": "前台 partial/tool failure 与后台 failed notification 不同", "recovery": "只为这些 provider errors 按 foreground/background 分 parser；其他 tool/logic failures 另行分类", "doNotAssume": "任意 child tool error 都使用这套 envelope。", "claims": ["CC-09"], "unknown": "other tool / logic failure taxonomy" },
+    { "severity": "medium", "kind": "资源生命周期", "title": "interrupt 不等于 close", "contract": "Codex interrupt 只停当前 turn，target 仍可寻址。", "trigger": "interrupt_agent(target)", "signal": "节点保留，可继续 message 或 follow-up", "recovery": "单独追踪 turn stopped、address retained 与 slot release", "doNotAssume": "interrupt 已销毁 child 或释放 slot。", "claims": ["CX-06"], "unknown": "slot release contract" },
+    { "severity": "medium", "kind": "消息 / 副作用分离", "title": "结果裁剪不会回滚 workspace", "contract": "opencode 只回最后 text part，但 child 文件副作用仍保留。", "trigger": "foreground Task 返回 lossy text", "signal": "消息中看不到完整 trace，但 workspace 已变化", "recovery": "把 result channel 与 artifact ledger 分开核对", "doNotAssume": "消息不完整等于执行已回滚。", "claims": ["OC-03"] },
+    { "severity": "medium", "kind": "产物整合", "title": "worktree 没有自动合并合同", "contract": "Claude worktree 隔离 checkout，但未承诺自动 merge/cherry-pick。", "trigger": "isolated Agent 完成", "signal": "child checkout 有 diff，parent branch 没有", "recovery": "显式读取 diff，并由外层流程决定 merge/cherry-pick", "doNotAssume": "isolated child 的改动会自动回主分支。", "claims": ["CC-06"], "unknown": "merge policy" }
+  ],
+  "isolation": [
+    { "label": "Conversation 初始化", "cells": { "claude-code": "普通 Agent fresh；fork 继承完整父历史", "codex": "fork_turns = none / all / N", "opencode": "fresh child Session；不复制 parent messages" }, "claims": ["CC-02", "CX-03", "OC-01"] },
+    { "label": "Mutable workspace", "cells": { "claude-code": "默认共享；可选 per-Agent worktree", "codex": "同 container / filesystem / CWD", "opencode": "active directory / workspace，无 per-task worktree" }, "claims": ["CC-06", "CX-04", "OC-01"] },
+    { "label": "Tools / permissions", "cells": { "claude-code": "foreground / background / fork 池不同", "codex": "0.147.0 当前传播合同未知", "opencode": "child ruleset + parent deny" }, "claims": ["CC-03", "OC-05"], "unknown": "KU-08" },
+    { "label": "Continuation state", "cells": { "claude-code": "Agent transcript 或 Workflow prefix cache", "codex": "addressable child；无 checkpoint contract", "opencode": "child Session；lookup miss 静默 fresh" }, "claims": ["CC-04", "CX-05", "OC-02"] }
+  ],
+  "limits": [
+    { "metric": "普通 child depth", "claude-code": "默认 3，可配置", "codex": "通用值未知", "opencode": "默认 1，可配置", "claims": ["CC-05", "OC-06"] },
+    { "metric": "普通 Agent running cap", "claude-code": "普通 Agent 默认 20", "codex": "不可通约：未公开 children cap", "opencode": "未公开", "claims": ["CC-05"] },
+    { "metric": "capture 总 collaboration slots", "claude-code": "不适用", "codex": "本次 capture 为 4，含 coordinator", "opencode": "不适用", "claims": ["CX-07"] },
+    { "metric": "Workflow concurrency", "claude-code": "up to 16；capture 另给 CPU formula", "codex": "未暴露独立 Workflow", "opencode": "未暴露独立 Workflow", "claims": ["CC-05"] },
+    { "metric": "每 run 总调用", "claude-code": "Workflow 1,000 agents/run", "codex": "未知", "opencode": "未知", "claims": ["CC-05"] },
+    { "metric": "Timeout / deadline", "claude-code": "分 surface，未归一", "codex": "wait 10s–60m；它不是 child deadline", "opencode": "TaskTool 无 timeout 参数；外层未知", "claims": ["CX-08", "OC-06"] },
+    { "metric": "Fairness / backpressure", "claude-code": "未知", "codex": "未知", "opencode": "未知", "unknown": "KU-02" }
+  ],
+  "changes": [
+    { "date": "2026-02-20", "agent": "claude-code", "version": "2.1.48 → 2.1.50", "impact": "新增 isolation: worktree", "path": "并行文件写入与产物整合", "url": "/?mode=compare&agent=claude-code&left=2.1.48&right=2.1.50&view=structure&section=tool%3Atask" },
+    { "date": "2026-05-28", "agent": "claude-code", "version": "2.1.153 → 2.1.154", "impact": "新增 Workflow runtime", "path": "barrier、failure-as-null、resume cache", "url": "/?mode=compare&agent=claude-code&left=2.1.153&right=2.1.154&view=structure&section=tool%3Aworkflow" },
+    { "date": "2026-06-22", "agent": "claude-code", "version": "2.1.185 → 2.1.186", "impact": "resume / steer 迁入 SendMessage", "path": "Agent 地址持久化与续接", "url": "/?mode=compare&agent=claude-code&left=2.1.185&right=2.1.186&view=structure&section=tool%3Asendmessage" },
+    { "date": "2026-07-01", "agent": "claude-code", "version": "2.1.197 → 2.1.198", "impact": "Agent 默认切为 background", "path": "阻塞、工具池、结果与 failure envelope 全部改变", "url": "/?mode=compare&agent=claude-code&left=2.1.197&right=2.1.198&view=structure&section=tool%3Aagent" },
+    { "date": "2026-07-24", "agent": "claude-code", "version": "2.1.217 → 2.1.219", "impact": "默认 nested depth 回到 3", "path": "递归 fan-out", "url": "https://code.claude.com/docs/en/sub-agents" },
+    { "date": "2026-05-15", "agent": "opencode", "version": "1.14.50 → 1.14.51", "impact": "实验性 background 出现", "path": "schema capability detection", "url": "/?mode=compare&agent=opencode&left=1.14.50&right=1.14.51&view=structure&section=tool%3Atask" },
+    { "date": "2026-05-23", "agent": "opencode", "version": "1.15.3 → 1.15.4", "impact": "未开 flag 时从 schema 隐藏 background", "path": "先探测 OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS，再生成调用", "url": "/?mode=compare&agent=opencode&left=1.15.3&right=1.15.4&view=structure&section=tool%3Atask" },
+    { "date": "2026-07-15", "agent": "opencode", "version": "1.18.1 → 1.18.2", "impact": "默认 nested depth 变为 1", "path": "nested delegation", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.2" },
+    { "date": "2026-08-05", "agent": "codex", "version": "0.146.1 capture", "impact": "六个 collaboration contracts 同时可见", "path": "capture-first visibility；不是 launch-date 证明", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.146.1/prompt.md" }
+  ]
+}
