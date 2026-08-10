@@ -217,7 +217,7 @@ test("Computer Use headings form one implementation map instead of unrelated edi
   const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
     .map((match) => plainText(match[1]));
 
-  assert.match(html, /<span class="article-series">实现拆解 · 能力档案 002 · 持续更新<\/span>/);
+  assert.match(html, /<span class="article-series">实现拆解 · 能力档案 002<\/span>/);
   assert.match(html, /<h1>Codex Computer Use<\/h1>/);
   assert.deepEqual(articleSectionIds(html), [
     "thesis",
@@ -246,8 +246,14 @@ test("Computer Use headings form one implementation map instead of unrelated edi
     "故障恢复",
     "相邻组件",
     "证据范围",
-    "未解部分",
+    "结论与边界",
   ]);
+
+  assert.doesNotMatch(
+    html,
+    /下一轮动态实验|这篇会跟着构建继续维护|没变（unchanged）|后续会接着追|这份档案怎么维护/,
+    "reader-facing conclusion should not read like an internal research backlog",
+  );
 
   const study = studies["computer-use"];
   assert.deepEqual(study.architecture.map((item) => item.title.split("：")[0]), [
@@ -256,6 +262,39 @@ test("Computer Use headings form one implementation map instead of unrelated edi
   assert.deepEqual(study.loop.map((item) => item.title.split("：")[0]), [
     "路由", "目标绑定", "授权", "观察", "决策", "动作", "验证", "收束",
   ]);
+});
+
+test("Browser Use headings form the same kind of implementation map", () => {
+  const html = articles["browser-use"];
+  const toc = html.match(/<aside\b[^>]*id="articleToc"[^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
+  const tocTitles = [...toc.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => plainText(match[1]));
+  const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
+    .map((match) => plainText(match[1]));
+
+  assert.match(html, /<span class="article-series">实现拆解 · 能力档案 001<\/span>/);
+  assert.deepEqual(tocTitles, sectionTitles, "Browser Use TOC and section headings should use the same implementation labels");
+  assert.deepEqual(sectionTitles.map((title) => title.split("：")[0]), [
+    "整体模型",
+    "后端路由",
+    "动作接口",
+    "只读执行",
+    "信任边界",
+    "宿主结构",
+    "标签页生命周期",
+    "安全策略",
+    "Chrome 链路",
+    "结果回传",
+    "故障恢复",
+    "结论与边界",
+  ]);
+});
+
+test("capability pages do not expose internal editorial backlog or maintenance notes", () => {
+  const readerFacingCopy = [capabilitiesHtml, ...Object.values(articles)].join("\n");
+  assert.doesNotMatch(
+    readerFacingCopy,
+    /下一轮动态实验|文章采用构建锁定维护|文章持续维护时|下一次版本核验|开放问题与维护|持续维护|后续会接着追|这份档案怎么维护|这篇怎么处理/,
+  );
 });
 
 test("article evidence inspectors and interactive controls expose accessible static contracts", () => {

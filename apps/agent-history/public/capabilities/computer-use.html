@@ -37,13 +37,13 @@
             <nav class="article-breadcrumb" aria-label="面包屑">
               <a href="/capabilities.html">能力拆解</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Computer Use</span>
             </nav>
-            <span class="article-series">实现拆解 · 能力档案 002 · 持续更新</span>
+            <span class="article-series">实现拆解 · 能力档案 002</span>
             <h1>Codex Computer Use</h1>
-            <p class="article-dek">这篇拆的是 Codex for macOS 固定构建中的 Computer Use 实现：两种入口怎样进入运行时，App Policy 和本地 IPC 怎么串起来，截图、Accessibility 与动作原语又如何连接到 CUAService。</p>
+            <p class="article-dek">沿 Codex for macOS 的固定构建，拆开 Computer Use 的两种入口、App Policy、本地 IPC，以及截图、Accessibility 和动作原语怎样连接到 CUAService。</p>
             <div class="article-byline">
               <span>这次拆的是 26.730.61639 (6234)</span>
               <span>2026-08-10 首次核验</span>
-              <span>后续会接着追</span>
+              <span>静态实现拆解</span>
             </div>
           </div>
           <div class="article-product-mark" aria-hidden="true"><img src="/assets/capability-computer-use.svg" alt=""></div>
@@ -74,13 +74,13 @@
             <li><a href="#failure-model" data-index="09">故障恢复：按失败层判断能否重试</a></li>
             <li><a href="#adjacent-channels" data-index="10">相邻组件：History、Skysight、PIP 与主动控制的边界</a></li>
             <li><a href="#release-anatomy" data-index="11">证据范围：固定构建、文件摘要与推断强度</a></li>
-            <li><a href="#open-questions" data-index="12">未解部分：CUAService 内部仍缺哪些证据</a></li>
+            <li><a href="#open-questions" data-index="12">结论与边界：这套实现能确认到哪一步</a></li>
           </ol>
           <div class="article-toc-note"><strong>证据范围</strong>manifest、JavaScript 和 IPC schema 可以直接读取；CUAService 的内部控制流只能根据签名二进制、链接框架、符号和字符串推断。下面描述的是固定构建里的静态实现关系，不是一次真实会话的运行 trace。</div>
         </aside>
 
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">先看主线。在 <code>node_repl</code> 路径里，模型生成 JavaScript，可信 <code>@oai/sky</code> 把 Window 调用交给 typed client；App Policy 查询与状态、动作请求都经本地 socket 进入 CUAService，服务再连接 macOS 的屏幕捕获、Accessibility 和输入能力。安装包还保留 stdio MCP 入口，本文会单独说明，但不会把两条入口画成同一条链。</p>
+          <p class="article-lead">先看主线。在 <code>node_repl</code> 路径里，模型生成 JavaScript，可信 <code>@oai/sky</code> 把 Window 调用交给 typed client；App Policy 查询与状态、动作请求都经本地 socket 进入 CUAService，服务再连接 macOS 的屏幕捕获、Accessibility 和输入能力。安装包还保留 stdio MCP 入口，但两条入口不能画成同一条运行链。</p>
 
           <section id="thesis" data-article-section>
             <span class="section-number">01 / 整体架构</span>
@@ -106,10 +106,10 @@
             <h2>调用入口：stdio MCP 与 node_repl</h2>
             <p>包里能找到两种入口。一种是走标准输入输出（stdio）的 MCP 客户端，由 <code>.mcp.json</code> 拉起安装后的 <code>SkyComputerUseClient</code>；另一种是 <code>node_repl</code>，也就是一个会保持状态的 Node JavaScript 控制台。模型只需导入一次 <code>@oai/sky</code>，后面可以继续复用同一份绑定。两边都认识 IPC-2 这套进程间通信 schema，但请求从哪儿来、会话能活多久，完全不是一回事。<button class="evidence-ref" type="button" data-evidence="CU-01 CU-02 CU-03 CU-05 CU-23" data-evidence-trigger>CU-01–03,05,23</button></p>
             <div class="article-table-wrap"><table class="article-table">
-              <thead><tr><th>从哪儿进</th><th>上层怎么调用</th><th>能保持多久</th><th>这篇怎么处理</th></tr></thead>
+              <thead><tr><th>从哪儿进</th><th>上层怎么调用</th><th>能保持多久</th><th>在实现链中的位置</th></tr></thead>
               <tbody>
-                <tr><td>node_repl + @oai/sky</td><td>模型生成 JavaScript，再调用 window 门面</td><td>内核会保持；客户端用到时才创建</td><td>沿这条主线一路往下追</td></tr>
-                <tr><td>stdio MCP 客户端</td><td>独立进程接收 MCP 请求</td><td>跟随 sidecar 辅助进程</td><td>确认它存在，但不和主线混写</td></tr>
+                <tr><td>node_repl + @oai/sky</td><td>模型生成 JavaScript，再调用 window 门面</td><td>内核会保持；客户端用到时才创建</td><td>主分析路径</td></tr>
+                <tr><td>stdio MCP 客户端</td><td>独立进程接收 MCP 请求</td><td>跟随 sidecar 辅助进程</td><td>并列入口</td></tr>
               </tbody>
             </table></div>
             <p>安装包能证明两扇门都在，也足够让我们看清 <code>node_repl</code> 这一路怎么调用。它证明不了的，是某次真实会话里的功能开关（feature gate）最后选了哪一扇。所以看到“这个能力在包里”，先停一下，别顺手写成“这次调用肯定走过它”。</p>
@@ -256,7 +256,7 @@
             <span class="section-number">10 / 相邻组件</span>
             <h2>相邻组件：History、Skysight、PIP 与主动控制的边界</h2>
             <p>CUAService bundle 里面还能翻到 Computer History / Skysight 事件流、记忆管线（memory pipeline）和历史控制项；<code>native/sky.node</code> 与 Codex shell 里，也露出了 remote-hosted PIP 的显示和设置字符串。它们确实和 Computer Use 挨得很近。但“挨得近”只能证明组件存在，不能证明每一次主动 click 都要经过历史捕获或 PIP。眼下没有这份证据。<button class="evidence-ref" type="button" data-evidence="CU-20 CU-21 CU-22" data-evidence-trigger>CU-20–22</button></p>
-            <p>这条界线一定要守住。不然看见一个 event stream 字符串，很容易脑补成“每次动作都会长期记录”；看见一个 PIP 组件，又顺手把它当成动作传输通道。现在能说的只有：这些组件在，名字也给了些职责线索。采集有没有打开、数据留多久、会不会上传、怎样和会话关联，都得靠另一轮动态研究回答。</p>
+            <p>这条界线一定要守住。不然看见一个 event stream 字符串，很容易脑补成“每次动作都会长期记录”；看见一个 PIP 组件，又顺手把它当成动作传输通道。现有证据只能确认这些组件存在，并给出部分职责线索。采集是否开启、数据留多久、会不会上传、怎样和会话关联，安装包没有回答。</p>
           </section>
 
           <section id="release-anatomy" data-article-section>
@@ -268,18 +268,18 @@
           </section>
 
           <section id="open-questions" data-article-section>
-            <span class="section-number">12 / 未解部分</span>
-            <h2>未解部分：CUAService 内部仍缺哪些证据</h2>
-            <p>下一轮动态实验，我更想追这几件事：App policy 到底怎么保存，组织规则又怎么盖过它；AX 树、焦点、截图裁剪和输入合成，在原生层里究竟怎样接起来；过期的 element id 到了服务端，会不会默认拒绝（fail closed）；动作刚好撞上 timeout 或断线时，实际走到了哪一步；还有，历史捕获、PIP 与主动会话，是否真的互不相干。</p>
-            <p>这篇会跟着构建继续维护。碰到新版本，先重算证据摘要，再老老实实给结论贴上没变（unchanged）、变了（changed）、被推翻（disproved）或还不知道（unknown）。旧构建里已经确认的事实，不会只为了让页面“看起来最新”就被悄悄擦掉。</p>
-            <div class="article-callout"><strong>到这里，哪些话还不能说</strong><p>手里没有原生 Swift 的完整源码，所以本文不会外推组织 policy 怎样下发、服务端 telemetry 怎样留存，也不会假装所有 macOS 控件都按同一种方式工作。这里描述的是安装包里能审计的接口、编译产物和边界，不是一段真实用户会话的逐次调用记录。</p></div>
+            <span class="section-number">12 / 结论与边界</span>
+            <h2>结论与边界：这套实现能确认到哪一步</h2>
+            <p>把整条链收回来，Codex Computer Use 并不是模型直接接管 Mac。沿 <code>node_repl</code> 这条主路，模型生成调用，可信的 <code>@oai/sky</code> 负责绑定目标和检查参数，App Policy 与系统权限逐层放行，本地 transport 再把请求交给 CUAService。截图和 AX 树提供观察，动作执行完还要重新读取界面，才能知道用户要的结果是否真的出现。</p>
+            <p>这套分层会直接改变排错方式。看得到 App，不代表有权操作；调用超时，不代表动作没有发生；安装包里出现 History、PIP 或 telemetry，也不代表一次主动控制必然经过它们。权限问题、重试策略和隐私判断，都得沿各自的链路找证据，不能混成一句“Computer Use 做的”。</p>
+            <div class="article-callout"><strong>仍然不能确认的部分</strong><p>现有安装包还回答不了几件事：CUAService 怎样保存和合并 App Policy；AX 树、截图裁剪与输入合成在原生层怎样衔接；过期的 element id 是否一定会被拒绝；timeout 或断线发生时，动作究竟执行到了哪一步；历史捕获、PIP 与主动会话之间是否存在运行时关联。没有动态 trace 或完整的原生实现，这些都只能留在未知项里。</p></div>
           </section>
         </article>
 
         <aside class="article-margin" aria-label="读到这里可以随时回看的侧注">
           <div class="article-margin-block"><span>主线就这一条</span><strong>node_repl → @oai/sky → socket 策略查询 → 状态/动作 → CUAService → macOS</strong><small>别忘了，光查询策略就已经跨过 transport。</small></div>
           <div class="article-margin-block"><span>最容易混淆的地方</span><strong>App 获准访问，不等于动作获准，也不等于 macOS TCC 放行。</strong><small>三个“允许”，回答的是三个问题。</small></div>
-          <div class="article-margin-block"><span>这份档案怎么维护</span><strong>23 条证据，9 个明确记下的未知。</strong><small>每份证据文件都保留相对 bundle 的路径和完整摘要。</small></div>
+          <div class="article-margin-block"><span>证据边界</span><strong>23 条文件证据，9 个明确未知。</strong><small>每份证据都保留相对 bundle 的路径和完整摘要。</small></div>
         </aside>
       </div>
 
