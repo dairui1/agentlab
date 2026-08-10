@@ -94,11 +94,11 @@
   min-height: 28px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 2px;
-  border: 0;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
   border-radius: var(--radius-s);
-  background: transparent;
+  background: color-mix(in srgb, var(--accent-soft) 46%, var(--surface));
   color: var(--text);
   cursor: pointer;
   font: 700 12px/1.2 var(--sans);
@@ -107,6 +107,7 @@
 
 .mechanism-menu-trigger:hover,
 .mechanism-menu-trigger[aria-expanded="true"] {
+  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -350,6 +351,17 @@
   scrollbar-width: thin;
 }
 
+.sharp-edge-strip::after {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  flex: 0 0 46px;
+  margin-left: -46px;
+  background: linear-gradient(to right, transparent, var(--surface-raised));
+  content: "";
+  pointer-events: none;
+}
+
 .sharp-edge-title {
   position: sticky;
   left: 0;
@@ -460,7 +472,7 @@
 }
 
 .contract-workspace {
-  min-height: calc(100vh - 275px);
+  min-height: 60vh;
   display: grid;
   grid-template-columns: 196px minmax(0, 1fr) var(--inspector-width);
   border-inline: 1px solid var(--border);
@@ -485,7 +497,8 @@
   position: sticky;
   top: 0;
   align-self: start;
-  height: 100vh;
+  height: auto;
+  max-height: 100vh;
   overflow-y: auto;
 }
 
@@ -616,6 +629,14 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 5px;
+}
+
+.contract-state-legend .contract-state-legend-label {
+  min-height: 0;
+  padding: 0 2px 0 0;
+  border: 0;
+  color: var(--muted);
+  font: 700 9px/1 var(--mono);
 }
 
 .contract-state-legend span,
@@ -1456,8 +1477,20 @@
   position: sticky;
   top: 0;
   align-self: start;
-  height: 100vh;
+  height: auto;
+  max-height: 100vh;
   overflow-y: auto;
+}
+
+.evidence-inspector::after {
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 26px;
+  margin-top: -26px;
+  background: linear-gradient(to bottom, transparent, var(--surface-raised));
+  content: "";
+  pointer-events: none;
 }
 
 .inspector-backdrop {

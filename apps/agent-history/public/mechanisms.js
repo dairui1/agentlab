@@ -331,7 +331,9 @@
     });
     const mechanismLabel = currentMechanism?.querySelector("strong")?.textContent || workbench.title;
     document.getElementById("mechanismMenuLabel").textContent = mechanismLabel;
-    document.getElementById("mechanismMenuTrigger").setAttribute("aria-label", `切换机制档案，当前：${mechanismLabel}`);
+    const dossierCount = Object.keys(dossierRegistry).length;
+    document.querySelector(".mechanism-switcher-label").textContent = `机制档案 · ${dossierCount} 份`;
+    document.getElementById("mechanismMenuTrigger").setAttribute("aria-label", `切换机制档案（共 ${dossierCount} 份），当前：${mechanismLabel}`);
     if (workbench.views) {
       document.querySelectorAll("[data-view]").forEach((button) => {
         const label = workbench.views[button.dataset.view]?.label;

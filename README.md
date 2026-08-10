@@ -12,6 +12,8 @@ AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、C
 
 - **更新情报**：按 Agent、信号类型和重要性筛选近期变化。
 - **版本比较**：比较实际请求、Prompt 结构和 Tools，保留逐行证据。
+- **机制档案**：横向核对多个 Agent 暴露给 Harness 的控制合同、失败面和版本边界。
+- **能力拆解**：以持续维护的长篇档案锁定具体产品构建，纵向复原单项能力的宿主桥接、执行链路、权限与故障模型。
 - **多源证据**：组合 Phistory 快照、官方 changelog、GitHub Releases 与公开代码比较结果。
 - **中文解读**：生成重要性、变化摘要和对自研 Agent 的启示；模型不可用时保留确定性回退结果。
 
@@ -76,12 +78,18 @@ node .codex/skills/agentlab-update-feed/scripts/query-feed.mjs \
   --filter 'feedAgent=codex&signal=tools&priority=high&limit=10&format=markdown'
 ```
 
+## 写作语气
+
+项目里也放了一份 [`de-ai-ify`](.codex/skills/de-ai-ify/SKILL.md) skill。研究文章、交互提示、证据说明和报错文案在发布前都要照着它过一遍：少说套话，多讲清楚“哪一步、出了什么事、读者接下来能做什么”。口语化不能拿来糊弄事实，尤其不能编造个人经历，也不能把文件里的静态线索写成已经亲手跑通的结果。
+
 ## 仓库结构
 
 ```text
 agentlab/
   apps/agent-history/
     public/             # Web 应用源码与静态资源
+      capabilities/    # 单项能力的长篇文章与经审阅研究数据
+      dossiers/        # 跨 Agent 机制档案数据
     scripts/            # 同步、规范化、分析、构建和发布脚本
     tests/              # Python 与 Node.js 测试
     ops/                # 本机日更自动化
@@ -94,6 +102,7 @@ agentlab/
 - 只使用公开、可引用、用户自有或明确允许保存的材料。
 - 不提交账号 Token、内部日志、私有工作区内容、非公开系统提示词或未授权泄露源码。
 - 来源事实、产品观察、工程推断和待验证问题必须分层表达。
+- 已安装产品研究必须钉住构建版本与文件摘要；打包产物不是上游源码，组件存在也不等于运行路径已命中。
 - 上游快照被视为不可信输入；构建过程限制文件类型、大小、路径和产物范围。
 - 模型分析不等同于上游声明，应用会单独标记推断和确定性证据。
 

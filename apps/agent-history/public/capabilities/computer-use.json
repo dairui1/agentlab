@@ -1,0 +1,888 @@
+{
+  "id": "computer-use",
+  "number": "002",
+  "title": "Computer Use",
+  "product": "Codex for macOS",
+  "subtitle": "从调用入口到 macOS 原生服务的实现链",
+  "description": "这份档案沿 Codex for macOS 26.730.61639 的固定构建拆解 Computer Use。主线从 node_repl 中的模型 JavaScript 开始，经过受信任的 @oai/sky、App Policy wrapper、typed client 与 framed JSON-RPC，进入 CUAService，最终接到 macOS 的屏幕捕获、Accessibility 和输入能力。安装包还保留 stdio MCP 入口；两条入口并列，不会被合并成同一条运行链。后文按入口、信任边界、权限、观察、动作、验证和故障恢复展开。",
+  "verifiedAt": "2026-08-10",
+  "scope": [
+    {
+      "label": "Build",
+      "value": "26.730.61639 (6234)",
+      "note": "这次核验只认本机 /Applications/Codex.app 里的这一份安装包"
+    },
+    {
+      "label": "Platform",
+      "value": "macOS · arm64",
+      "note": "原生服务把最低系统版本写成了 macOS 14.4"
+    },
+    {
+      "label": "Plugin",
+      "value": "computer-use 1.0.1000621",
+      "note": "随 Codex 打包，license 标为 proprietary"
+    },
+    {
+      "label": "Runtime",
+      "value": "cua_node 0.0.6 · Node 24.14.0",
+      "note": "这是给 darwin-arm64 单独准备的执行环境"
+    },
+    {
+      "label": "Library",
+      "value": "@oai/sky 0.6.2 · @oai/cua 0.1.1",
+      "note": "这次只顺着 macOS window API 往下追"
+    },
+    {
+      "label": "Native service",
+      "value": "CUAService 26.803.1000621",
+      "note": "它的 bundle id 是 com.openai.sky.CUAService"
+    },
+    {
+      "label": "App archive",
+      "value": "app.asar · sha256 3fea92820c0fb7a69473e7a8308a8e5b8e91524289a84181a33533ec6cb51d45",
+      "note": "这是 whole-file digest；它管桌面设置与工具呈现，不是主动动作的 transport"
+    },
+    {
+      "label": "ASAR integrity",
+      "value": "Info.plist · SHA256 cc49d1cb25230b40d26bf1cd21b57bc2418724bace999ee7757780ea22804b91",
+      "note": "这是 ElectronAsarIntegrity metadata，别把它当成 app.asar 的 whole-file digest"
+    },
+    {
+      "label": "Evidence root",
+      "value": "Codex.app/Contents/Resources",
+      "note": "下文所有 artifact 路径都从这个目录算起"
+    }
+  ],
+  "boundary": "先把边界说清楚。这次我只核验本机 Resources 里的插件合同、cua_node 运行时、已编译 JavaScript、Mach-O 元数据和静态字符串。能从固定文件直接读到的记作 observation；靠链接库、符号或相邻产物判断的记作 inference，并把推断止步在哪里单独写出来。evidence.sha256 都是对应文件完整的 64 位小写 SHA-256。手上没有完整的原生 Swift 源码，所以这里不会顺势猜服务端模型、组织策略怎么下发、数据会留多久，也不会把静态代码当成全部运行时行为。正文主追这条 node_repl 路线：node_repl → @oai/sky wrapper → computeruse.sock / CUAService policy 查询 → trusted elicitation / 决策 → 同一 socket 上的状态或动作请求 → CUAService → macOS。发行包里确实还有 MCP 入口，但静态证据回答不了当前会话究竟选了哪一条。Computer History / Skysight 和 Codex PIP 也在附近，不过它们不属于这条主动动作链。",
+  "views": {
+    "architecture": {
+      "label": "架构",
+      "kicker": "ACTIVE PATH",
+      "title": "实现链路：从模型调用到 macOS 原生服务",
+      "description": "顺着插件入口一路看到 macOS API，会发现策略判断也得走 socket 去问服务。每一层能做什么、做不了什么，都比“模型会点屏幕”这句话具体得多。"
+    },
+    "loop": {
+      "label": "闭环",
+      "kicker": "OBSERVE · ACT · VERIFY",
+      "title": "执行闭环：观察界面、执行动作、重新验证",
+      "description": "这不是一段录好后蒙头执行的宏。它先认目标、再过授权、读取状态、做一小步，然后重新读一遍。后一次观察，才决定下一步。"
+    },
+    "guardrails": {
+      "label": "护栏",
+      "kicker": "POLICY STACK",
+      "title": "权限与策略栈：模型政策、App Policy 与 macOS 权限",
+      "description": "模型政策先判断意图，app policy 再判断目标，可信 realm 看住宿主特权，最后还有 macOS 权限和原生服务。它们拦的不是同一件事，也不能互相顶替。"
+    },
+    "failures": {
+      "label": "故障",
+      "kicker": "FAIL CLOSED",
+      "title": "故障模型：目标、权限、会话、传输与协议",
+      "description": "这个固定 build 从 appNotAllowed 一直分到 screenLocked。目标没认准、权限没给、会话被接管和协议不兼容，恢复办法各不相同。"
+    },
+    "artifacts": {
+      "label": "产物",
+      "kicker": "EXACT BUILD",
+      "title": "实现证据索引：插件、运行时、客户端与原生服务",
+      "description": "插件声明、模型合同、运行时、适配器、原生服务和相邻通道都列在这里。每个判断都能回到这个固定 build 里的具体文件。"
+    }
+  },
+  "defaultView": "architecture",
+  "defaultItem": "arch-trusted-runtime",
+  "defaultClaim": "CU-09",
+  "architecture": [
+    {
+      "id": "arch-plugin-entry",
+      "title": "入口层：node_repl 与 MCP 是两条并列路径",
+      "summary": "先看插件声明，会发现 stdio MCP launcher 和 skills 同时存在。不过 code-mode 的打包指令写得更具体：主动操作 UI 时走 node_repl + @oai/sky。",
+      "claims": ["CU-01", "CU-02", "CU-03", "CU-05", "CU-23"],
+      "layer": "01 · Contract",
+      "icon": "package",
+      "role": "它让 Codex 找到这项能力，也把操作政策和兼容的 MCP 进程入口一起带进来。",
+      "interface": "plugin.json → .mcp.json / skills；launcher 接受 mcp 子命令。",
+      "implementation": "MCP 配置会用 stdio 启动已安装 Computer Use app 里的 SkyComputerUseClient；另一边，code-mode 合同要求在持久 node_repl 会话里 import @oai/sky。",
+      "boundary": "这里很容易读过头：包里有两个入口，不代表一次调用会同时走两条路。本文沿 node_repl 往下追，把 MCP client 留作并列入口；至于当前会话的 feature gate 最终选了谁，现有证据没有告诉我们。"
+    },
+    {
+      "id": "arch-trusted-runtime",
+      "title": "运行时边界：模型代码从 untrusted realm 开始",
+      "summary": "模型写下的 root JavaScript 一开始待在 untrusted realm。只有命中路径或哈希信任规则的 package graph，才会跨进 trusted realm，拿到 privileged nodeRepl bridge。",
+      "claims": ["CU-06", "CU-07", "CU-09"],
+      "layer": "02 · Runtime",
+      "icon": "shield-check",
+      "role": "把模型代码和 nativePipe、LaunchServices、elicitation 这些宿主特权隔开。",
+      "interface": "untrustedContext ↔ trusted package import boundary ↔ frozen trustedNodeRepl。",
+      "implementation": "独立的 Node 24.14.0 runtime 跑着多组 VM contexts。可信 importer 会替依赖图守住各自的 realm，@oai/sky 的延迟方法则从受限 process facade 和 privileged nodeRepl 属性里取能力。",
+      "boundary": "@oai/sky 能借桥接器做特权操作，不等于模型的 root cell 也能直接 import process、拿走 privileged nativePipe / LaunchServices / elicitation，更不等于它能伪造批准结果。普通 socket 还受另一层宿主 sandbox 约束，realm 规则本身推不出那层权限。"
+    },
+    {
+      "id": "arch-sky-facade",
+      "title": "适配层：@oai/sky 暴露十个 Window 原语",
+      "summary": "@oai/sky 先用惰性 Proxy 选中 mac target，再露出十个窗口级观察与动作原语。它负责把调用接好，但不会替模型决定下一步该点哪里。",
+      "claims": ["CU-07", "CU-08", "CU-10", "CU-15"],
+      "layer": "03 · Adapter",
+      "icon": "code-2",
+      "role": "把模型容易生成的 snake_case 参数，翻成 typed mac client 能接住的调用。",
+      "interface": "list_apps、get_app_state、click、drag、press_key、scroll、set_value、select_text、type_text、perform_secondary_action。",
+      "implementation": "platform client 要到第一次真正访问属性时才创建。mac factory 共用一个 first-injection Set，每个动作外面只包一层很薄的适配函数。",
+      "boundary": "这份 API surface 只能回答“可以发什么请求”。它没有承诺所有 app 都能访问，也没有承诺每次拿到的辅助功能树都完整。"
+    },
+    {
+      "id": "arch-policy-mediator",
+      "title": "策略层：App 定向调用先查询 App Policy",
+      "summary": "只要调用指向某个 app，哪怕只是读取状态，typed client 也会先通过本地 socket 查询 getAppPolicy。wrapper 拿到结果后，才分别处理组织拒绝、安全禁止，或请用户批准。",
+      "claims": ["CU-11", "CU-12", "CU-13", "CU-17"],
+      "layer": "04 · Policy round trip",
+      "icon": "badge-check",
+      "role": "向服务取得 app policy，必要时触发 Codex elicitation、记下批准结果，并在用户做决定时暂停外层超时。",
+      "interface": "ComputerUseIPCAppPolicyRequest → allowed / denied / forbidden → createElicitation → appPath rewrite。",
+      "implementation": "getAppPolicy 会先经 MacNativePipeTransport 发出一条独立 IPC request。wrapper 还会确认 app 是普通 data property，把输入复制成冻结对象；批准 metadata 里带着 app、风险、tool call，以及 session/always persistence 选项。",
+      "boundary": "这道关卡只管“能不能访问这个 app”。到了删除、付款等高风险动作，action-time confirmation 仍然要单独处理；macOS TCC 也不会因为这里放行就消失。"
+    },
+    {
+      "id": "arch-native-transport",
+      "title": "传输层：JSON-RPC 经 Unix socket 发往原生服务",
+      "summary": "可信 bridge 连到 app-group Unix socket。线上不是裸 JSON：每个 JSON-RPC 2.0 请求前都有 4-byte little-endian 长度前缀，并带着 CodexComputerUseIPC-2 协议版本。",
+      "claims": ["CU-12", "CU-13"],
+      "layer": "05 · Transport",
+      "icon": "cable",
+      "role": "把 policy、state 和 action 这些 typed request 串行化，变成有 deadline 的本地服务调用。授权查询和获批后的工作请求，都从这里经过。",
+      "interface": "~/Library/Group Containers/2DC432GLL2.com.openai.sky.CUAService/IPC/computeruse.sock。",
+      "implementation": "frame 不能超过 8 MiB。第一次连接只等 250 ms；服务不在时，会请宿主用 ensureService 或 LaunchServices 拉起，再留 5 s 重连。单次调用默认最多等 120 s。",
+      "boundary": "连接一关，transport cache 就会被丢掉。但源码里没看到它会自动重放已经送出的副作用请求。换句话说，超时之后不能想当然地点第二次。"
+    },
+    {
+      "id": "arch-native-service",
+      "title": "服务层：CUAService 捕获状态并执行动作",
+      "summary": "这个签名过的 arm64 LSUIElement app 管着主动窗口会话、策略判断、截图与辅助功能结果，也负责把输入执行下去。MCP client 和 Sky JS 最终都面对同一套 IPC schema。",
+      "claims": ["CU-16", "CU-18", "CU-19", "CU-23"],
+      "layer": "06 · Service",
+      "icon": "app-window",
+      "role": "把 app 标识找到具体的运行窗口，再执行 ComputerUseIPC 请求。",
+      "interface": "ComputerUseIPCAppPolicyRequest、AppGetSkyshotRequest、AppPerformActionRequest、ListAppsRequest。",
+      "implementation": "bundle 版本是 26.803.1000621。二进制链接了 AppKit、ApplicationServices、CoreGraphics 和 ScreenCaptureKit，也露出 AXUIElement / CGEvent 相关符号。",
+      "boundary": "到这里，证据开始变薄。Resources 里只有编译后的二进制和少量 BUILD/resources；底层 Swift 控制流怎么走、全部 app policy 规则长什么样，都看不完整。"
+    },
+    {
+      "id": "arch-macos-substrate",
+      "title": "系统层：Screen Recording、Accessibility 与输入合成",
+      "summary": "观察结果把 app-window screenshot 和 accessibility text 放在一起；执行时既能指向 element id，也能使用窗口坐标。可不管上面几层怎么批准，系统权限仍是最后一道门。",
+      "claims": ["CU-14", "CU-15", "CU-16", "CU-19"],
+      "layer": "07 · OS",
+      "icon": "monitor-cog",
+      "role": "借助 Screen Recording / Accessibility 读取窗口，再合成局部输入。",
+      "interface": "Screenshot file URL + AX text；elementIndex / coordinate；key、text、scroll、secondary AX action。",
+      "implementation": "服务端先返回 skyshot；JS adapter 再把 screenshot URL、文本和首轮 appSpecificInstructions 拼成 AppState。",
+      "boundary": "element index 只该和最新状态一起用。截图可能漏掉屏幕外内容，AX tree 也可能残缺；手上的证据更没有覆盖每一种 macOS 控件会怎样处理。"
+    },
+    {
+      "id": "arch-adjacent-channels",
+      "title": "相邻通道：Computer History 与 PIP 不属于主动动作主链",
+      "summary": "同一个安装包里还能看到 Computer History / Skysight event stream 和 Codex remote-hosted PIP。它们确实共享一部分服务产物，却不是 click 这类主动请求必经的 action socket 阶段。",
+      "claims": ["CU-20", "CU-21", "CU-22"],
+      "layer": "Adjacent",
+      "icon": "panels-top-left",
+      "role": "一边负责被动历史与摘要，另一边负责在桌面端呈现活动。",
+      "interface": "Skysight start/status/pause/history schema；RemoteHostedPIPContent host/presentation symbols。",
+      "implementation": "CUAService 二进制和 resources 里有 event stream、memory pipeline 与 history controls；native/sky.node 和 app.asar 则露出 PIP 呈现及设置相关字符串。",
+      "boundary": "目前只能确认这些通道存在，而且离主链很近。它们采集什么、留多久、是否联网，不能因为一次主动 Computer Use 调用就一并算到它头上。"
+    }
+  ],
+  "loop": [
+    {
+      "id": "loop-route",
+      "title": "路由：优先选择专用接口，必要时进入 Computer Use",
+      "summary": "模型合同把顺序写得很清楚：有 connector、API 或 CLI 就先用它们。只有找不到更窄、更可验证的接口时，Computer Use 才接手 live UI。",
+      "claims": ["CU-01", "CU-04", "CU-05"],
+      "phase": "0 · Route",
+      "primitive": "skill selection",
+      "input": "用户到底想完成什么，以及现成的专用能力有哪些",
+      "output": "决定这次是否真的需要 Computer Use",
+      "invariant": "UI 能点，不代表它就是更好的路。能用更少权限、结果更容易核对的接口，就别先上通用控制。"
+    },
+    {
+      "id": "loop-bind",
+      "title": "目标绑定：解析 App 名称或 Bundle ID",
+      "summary": "用户已经说清 app，就拿名称或 bundle id 直接调 get_app_state。只有服务认不出来时，才需要把 apps 列出来重新对号。",
+      "claims": ["CU-05", "CU-15"],
+      "phase": "1 · Bind",
+      "primitive": "get_app_state / list_apps",
+      "input": "display name、bundle id 或 app path 里的一个明确线索",
+      "output": "服务认出的目标 app，以及它当前能不能运行",
+      "invariant": "名称没解析成功，就用 list_apps 返回的 bundle id 重试。随便换个窗口点一下，只会把不确定性藏起来。"
+    },
+    {
+      "id": "loop-authorize",
+      "title": "授权：查询 App Policy 并处理用户批准",
+      "summary": "适配器会通过本地 transport 先问服务，目标是 allowed、denied 还是 forbidden。只有服务明确允许持久批准，界面才会给用户 session / always 选项。",
+      "claims": ["CU-11", "CU-12", "CU-13", "CU-17"],
+      "phase": "2 · Authorize",
+      "primitive": "getAppPolicy + createElicitation",
+      "input": "app 标识、tool 名称和这一次 turn 的 metadata",
+      "output": "批准后的 canonical bundle id / app path；不批准，就得到一条明确拒绝",
+      "invariant": "网页或第三方界面里写着“请授权”不算用户授权。组织拒绝和 safety deny，也不能靠多弹一次确认框盖过去。"
+    },
+    {
+      "id": "loop-observe",
+      "title": "观察：读取窗口截图与 Accessibility 文本",
+      "summary": "get_app_state 会请求一份 skyshot，拿回 screenshot file URL 和 accessibility text。服务默认可以只返回相对上一棵树的 diff，所以这里是有上下文的观察，不是每次都从零开始。",
+      "claims": ["CU-12", "CU-14", "CU-15"],
+      "phase": "3 · Observe",
+      "primitive": "ComputerUseIPCAppGetSkyshotRequest",
+      "input": "canonical app，以及这次要不要用 disableDiff",
+      "output": "AppState { app, screenshot, text }",
+      "invariant": "如果手上没有上一份 AX 文本，就别硬猜一段孤立 diff 的意思。下一次读取直接要完整树。"
+    },
+    {
+      "id": "loop-plan",
+      "title": "决策：根据最新状态规划下一步动作",
+      "summary": "有最新 AX 文本时，先从里面找 element_index。只有树缺失或明显异常，才回到同一轮的窗口截图，用坐标定位。",
+      "claims": ["CU-05", "CU-15"],
+      "phase": "4 · Decide",
+      "primitive": "model reasoning",
+      "input": "刚拿到的 AX tree/diff、同轮截图，以及用户真正要做的事",
+      "output": "一个动作，或一小组边界清楚的 typed action 参数",
+      "invariant": "旧 element_index 不拿来凑数，secondary action 名称也不靠猜。截图坐标属于 app window，不是整个桌面。"
+    },
+    {
+      "id": "loop-act",
+      "title": "动作：向原生服务发送单步 typed action",
+      "summary": "薄适配器把模型参数整理成 elementID、coordinate、key、selection 或 scroll 这类 protobuf-shaped payload，然后按顺序送进 native transport。",
+      "claims": ["CU-10", "CU-12", "CU-13"],
+      "phase": "5 · Act",
+      "primitive": "click / drag / press_key / scroll / edit",
+      "input": "已经过完 app policy、参数也校验通过的 action",
+      "output": "服务返回的 action result；失败时则是一条结构化错误",
+      "invariant": "会真正产生风险的动作，要在落下去之前完成 action-time confirmation。type_text 只要含换行，就要按“可能触发提交”来对待。"
+    },
+    {
+      "id": "loop-verify",
+      "title": "验证：重新读取状态，确认界面结果",
+      "summary": "合同要求做完一个或几个动作后再次 get_app_state。runtime 通常会等界面稳定一些，再返回 diff 或全量状态。",
+      "claims": ["CU-05", "CU-14"],
+      "phase": "6 · Verify",
+      "primitive": "get_app_state",
+      "input": "刚刚被操作的同一个 app",
+      "output": "新截图、树的变化，以及下一轮可用的 fresh indices",
+      "invariant": "action result 说成功，只能说明调用走完了，不等于用户要的结果已经出现。继续、恢复还是停止，要看可见 readback。"
+    },
+    {
+      "id": "loop-close",
+      "title": "收束：区分完成、取消与失败并说明结果",
+      "summary": "适配器会记下 completed、cancelled 或 failed。用户接管和主动停止归到 cancelled；transport 或服务本身出错，仍然算 failed。",
+      "claims": ["CU-16", "CU-17"],
+      "phase": "7 · Close",
+      "primitive": "telemetry + response metadata",
+      "input": "最后一次看见的界面状态，以及 terminal result",
+      "output": "一段人能看懂的说明：完成了什么，或该从哪里恢复",
+      "invariant": "被拒绝、遇到锁屏或 blocked URL，就在这里停下。不能换个入口绕护栏，也不能把一条遥测事件当成持久的执行回执。"
+    }
+  ],
+  "guardrails": [
+    {
+      "id": "guard-least-privilege",
+      "title": "最小权限路由：专用接口优先于 Computer Use",
+      "summary": "它的定位是通用 UI fallback。换句话说，本机任务不是一上来就交给它，能走专用接口时应该先走专用接口。",
+      "claims": ["CU-01", "CU-04", "CU-05"],
+      "stage": "Routing",
+      "trigger": "同一个任务既能用 connector、API、CLI，也能靠 GUI 完成",
+      "decision": "选那个同样能表达意图、权限却最窄的接口",
+      "enforcement": "这条由模型 skill / developer contract 约束，不是原生服务写死的限制",
+      "persistence": "换一个任务，就重新做一次判断"
+    },
+    {
+      "id": "guard-trusted-realm",
+      "title": "可信运行时边界：模型代码与宿主特权隔离",
+      "summary": "root cells 拿不到 trusted package 才有的 nativePipe、LaunchServices 与 elicitation。依赖能不能跨过边界，看的是路径/哈希 trust 规则，不是模型自己声明“我可信”。",
+      "claims": ["CU-09", "CU-13"],
+      "stage": "Execution boundary",
+      "trigger": "model-authored JS 想动态 import 一个 package",
+      "decision": "untrusted、trusted、untrusted-package 或 trusted-package context",
+      "enforcement": "真正把边界守住的是 node_repl VM context、frozen globals 和 privileged bridge auth token",
+      "persistence": "同一 kernel 里，module graph 会留在原来的 realm；reset 以后才重建"
+    },
+    {
+      "id": "guard-app-policy",
+      "title": "App Policy：所有定向读写先过目标策略",
+      "summary": "所有 app-targeted 调用共用同一个 wrapper。结果不会粗暴压成 true / false，而是保留 allowed、organization denied 和 safety forbidden 的区别。",
+      "claims": ["CU-11"],
+      "stage": "Before state / action",
+      "trigger": "调用除 list_apps 之外的任何 mac window primitive",
+      "decision": "要么直接继续，要么请用户批准；组织拒绝和安全禁止则停下",
+      "enforcement": "typed client 先在 socket 上调用 CUAService getAppPolicy；需要询问用户时，再走 trusted createElicitation",
+      "persistence": "服务可以开放 session / always，但具体 app policy 存在哪里，现有代码没有公开"
+    },
+    {
+      "id": "guard-action-confirmation",
+      "title": "动作确认：高风险副作用在执行前确认",
+      "summary": "模型政策把几种情况分开了：必须交给用户、必须 action-time 确认、可以具体预批准，以及无需确认。敏感数据也要在输入之前问，而不是输完再补一句。",
+      "claims": ["CU-04", "CU-05"],
+      "stage": "Before side effect",
+      "trigger": "下一步涉及删除、权限、凭据、安装、敏感传输、财务，或政策列出的其他动作",
+      "decision": "风险够低就继续，需要确认就停住，必须交接的动作则让用户亲自完成",
+      "enforcement": "靠模型政策和对话里的用户确认执行。可见实现中的 trusted createElicitation 只批 app access，并不是动作风险分类器",
+      "persistence": "initial prompt 里的具体预批准，只有政策明确允许时才算数"
+    },
+    {
+      "id": "guard-fresh-state",
+      "title": "状态新鲜度：element_index 只对最新状态有效",
+      "summary": "合同把 element_index 定义得很窄：它只指最新 get_app_state 文本里的索引。上下文断了，可以用 disableDiff 重新同步完整树。",
+      "claims": ["CU-05", "CU-14", "CU-15"],
+      "stage": "Observe / act",
+      "trigger": "UI 已经变化、索引可能失效、diff 没有上下文，或 AX 本身不完整",
+      "decision": "先重读最新状态；还不够时，要完整树，或退回同轮截图的窗口坐标",
+      "enforcement": "操作合同和 typed API 会提醒调用方；服务端会不会拒绝陈旧索引，目前仍不知道",
+      "persistence": "界面每变一次，索引就从新状态重新推导"
+    },
+    {
+      "id": "guard-protocol-validation",
+      "title": "协议校验：无效参数与异常 frame 直接失败",
+      "summary": "client 会逐项检查 app、坐标、元素整数、滚动页数、按键和枚举。transport 还把 frame 卡在 8 MiB，并检查 JSON-RPC response shape。",
+      "claims": ["CU-12", "CU-13", "CU-16"],
+      "stage": "Serialization",
+      "trigger": "参数无效、frame 太大、API 版本对不上，或 response 已经 malformed",
+      "decision": "动作还没发出就抛 TypeError；如果问题在传输层，则关闭或丢弃 transport，并返回结构化错误",
+      "enforcement": "这一层由 @oai/sky client 和 MacNativePipeTransport 共同守住",
+      "persistence": "每条 request 都检查；transport 一旦 closed，对应 cache 也会清掉"
+    },
+    {
+      "id": "guard-os-permissions",
+      "title": "系统权限：App 获批不等于 macOS 权限就绪",
+      "summary": "服务明确区分权限还在等待、权限没有授予，以及 screenLocked。用户允许访问某个 app，并不会顺手替代系统层许可。",
+      "claims": ["CU-16", "CU-18", "CU-19"],
+      "stage": "Native execution",
+      "trigger": "要读取屏幕、访问 AX、发送输入，或者设备的锁屏状态发生变化",
+      "decision": "条件齐全就执行；否则提示用户完成权限、终止 session，或直接拒绝",
+      "enforcement": "最终由 macOS TCC / session state 和 CUAService 一起执行",
+      "persistence": "状态由系统和服务管理；bundle 没有公开完整状态机"
+    },
+    {
+      "id": "guard-observability",
+      "title": "遥测边界：记录调用结果，不参与授权",
+      "summary": "adapter 会尽力记录 client launch、批准请求与结果、tool duration 和 terminal status，也允许用环境变量关闭。但它只是记录，不参与授权。",
+      "claims": ["CU-17"],
+      "stage": "Around call",
+      "trigger": "client 被创建、发生批准交互，或工具调用走到终点",
+      "decision": "写下 completed / cancelled / failed，以及相应的关联 metadata",
+      "enforcement": "@oai/sky telemetry adapter 负责记录；它失败时会被吞掉，不影响主调用",
+      "persistence": "本地源码只到发送这一侧，证明不了服务端如何留存、采样或删除"
+    }
+  ],
+  "failures": [
+    {
+      "id": "failure-permissions",
+      "title": "系统权限失败：区分 pending 与 not granted",
+      "summary": "系统权限是一条独立的失败线。pending 说明用户可能还在设置窗口里操作，not granted 则是没有拿到许可；两者不能用同一句“重试一下”打发。",
+      "claims": ["CU-16", "CU-19"],
+      "layer": "macOS / Service",
+      "codes": ["-10009 permissionsNotGranted", "-10014 permissionsPending"],
+      "signal": "拿不到 skyshot/AX 结果，或者服务明确说用户还在权限窗口里操作",
+      "recovery": "先保留当前任务，等用户完成 Accessibility 与 Screen Recording，再对同一个 app 重试 get_app_state",
+      "effect": "观察都没成功，主动循环就该停在 Observe 之前。此时改用坐标盲点不是恢复，而是在绕过证据"
+    },
+    {
+      "id": "failure-target",
+      "title": "目标与策略失败：解析失败、denied 与 forbidden",
+      "summary": "目标解析失败有原生错误枚举，service enum 里也有 appNotAllowed。可 wrapper 的 denied / forbidden 分支抛的是普通 Error。它们看起来都像“访问失败”，证据上却不是同一组错误码。",
+      "claims": ["CU-05", "CU-11", "CU-16"],
+      "layer": "Policy / Targeting",
+      "codes": ["service: -10006 appNotAllowed", "service: -10007 runningApplicationNotFound", "service: -10010 invalidApp", "service: -10018 ambiguousApp", "wrapper: denied / forbidden (ordinary Error)"],
+      "signal": "display name 对不上唯一目标、服务找不到正在运行的 app，或 wrapper 收到 denied / forbidden policy decision",
+      "recovery": "如果只是名字含糊，用 list_apps 给出的 canonical id 再试。若是 policy 拒绝，就把边界解释清楚，别换个别名碰运气",
+      "effect": "目标和许可没有同时确定，动作就不该走到 AppPerformActionRequest"
+    },
+    {
+      "id": "failure-observation",
+      "title": "观察状态失效：AX 不完整、diff 断档或索引过期",
+      "summary": "辅助功能读取失败有原生 code。另一类麻烦更隐蔽：diff 没有上下文，或 element_index 来自旧状态。它们属于合同级故障，目前没找到专用 code。",
+      "claims": ["CU-05", "CU-14", "CU-15", "CU-16"],
+      "layer": "Observation",
+      "codes": ["-10008 accessibilityError", "contract: stale element_index", "contract: incomplete AX text"],
+      "signal": "元素已经消失、动作落空、手里只有一截 tree diff，或截图和 AX 文本彼此对不上",
+      "recovery": "重新调用 get_app_state。上下文仍不够就设 disableDiff=true；完整树也帮不上忙时，才用同一轮截图的窗口坐标 fallback",
+      "effect": "这里要重新规划。上一轮的索引不是稳定 selector，继续复用只会把错误放大"
+    },
+    {
+      "id": "failure-session",
+      "title": "会话中断：无活动会话、用户接管、停止或锁屏",
+      "summary": "服务会区分没有活动 session、用户主动停止、用户干预和设备锁屏。adapter 只把两种由用户终止的情况归为 cancelled，其余状态仍保留各自含义。",
+      "claims": ["CU-16", "CU-17"],
+      "layer": "Session",
+      "codes": ["-10011 noActiveSession", "-10012 userStoppedSession", "-10016 userIntervened", "-10020 screenLocked"],
+      "signal": "PIP 或前台控制被用户拿回去、session 已不存在，或设备锁住了",
+      "recovery": "马上停止自动动作。等用户重新授权、解锁或明确说继续，再从一份新状态开始",
+      "effect": "当前 tool call 会落到 cancelled 或 failed。无论哪一种，旧索引和先前的窗口假设都不能再用"
+    },
+    {
+      "id": "failure-transport",
+      "title": "传输失败：连接、超时与副作用状态不确定",
+      "summary": "第一次连 socket 失败，会触发一次宿主 ensure/start 流程。可一旦遇到超时、closed pipe、超大 frame 或 malformed JSON-RPC，调用就直接失败；其中 action 超时还留下“副作用是否已经发生”的歧义。",
+      "claims": ["CU-12", "CU-13"],
+      "layer": "Transport",
+      "codes": ["transport: initial connect timeout", "transport: startup failed", "transport: frame > 8 MiB", "transport: request timeout"],
+      "signal": "250 ms 初连窗口或 5 s 重连窗口耗尽、pipe close、response shape 无效，或默认 120 s deadline 到期",
+      "recovery": "可以让 transport cache 重建，但第一步应该重新观察。凡是无法确认副作用有没有落地的 action，都不要自动重放",
+      "effect": "pending request 会被 reject。接下来不是简单点“重试”，而是由调用方判断这一次重试是否会重复操作"
+    },
+    {
+      "id": "failure-protocol",
+      "title": "协议失败：版本、认证或 payload 解析不匹配",
+      "summary": "sender、request type、bootstrap port 和 client API version 都有各自的服务错误。这说明协议失败不是一团模糊的“IPC 坏了”，而是可以定位到具体边界。",
+      "claims": ["CU-12", "CU-13", "CU-16"],
+      "layer": "Protocol",
+      "codes": ["-10000 senderProcessNotAuthenticated", "-10001 couldNotGetRequestData", "-10002 couldNotGetRequestTypeName", "-10003 couldNotResolveRequestType", "-10004 unhandledEvent", "-10005 unknownError", "-10013 incompatibleClientVersion", "-10017 couldNotGetSenderPID", "-10019 couldNotGetBootstrapPort"],
+      "signal": "ping 返回的 serverApiVersion 不是 CodexComputerUseIPC-2，或服务无法认证 sender、无法解析 request",
+      "recovery": "别现场修改 payload 去猜协议。先重启版本匹配的 bundled client/service；仍失败，就把 exact build 和 code 一起报出来",
+      "effect": "这里选择 fail closed，免得旧 client 按未知 schema 发出动作"
+    },
+    {
+      "id": "failure-safety",
+      "title": "安全终止：blocked URL、forbidden 与 hand-off",
+      "summary": "blockedURL 来自原生服务；另一边，模型政策还明确要求不能绕过浏览器安全 interstitial 和其他 hand-off 场景。它们都应该结束当前自动循环，而不是触发技术重试。",
+      "claims": ["CU-04", "CU-11", "CU-16"],
+      "layer": "Safety",
+      "codes": ["-10015 blockedURL", "policy: forbidden", "policy: hand-off required"],
+      "signal": "服务拒绝这个 URL、app policy 返回 forbidden，或下一步按政策必须由用户完成",
+      "recovery": "把限制说清楚，再找合法的专用接口，或者把操作交还用户。不能改用坐标、换一个 app 或新开 session 绕过去",
+      "effect": "循环到这里应当明确结束。继续技术重试不会改变政策边界"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "artifact-plugin-manifest",
+      "title": "Plugin manifest：声明插件版本、Skill 与 MCP 入口",
+      "summary": "这份 manifest 把插件版本、展示信息、skills 和 MCP server 入口钉在了一起，是追整条链最合适的起点。",
+      "claims": ["CU-01"],
+      "kind": "manifest",
+      "path": "plugins/openai-bundled/plugins/computer-use/.codex-plugin/plugin.json",
+      "version": "1.0.1000621",
+      "role": "告诉产品这项能力叫什么、放在哪里，以及该从哪些入口发现它",
+      "publicSurface": "plugin contract"
+    },
+    {
+      "id": "artifact-mcp-config",
+      "title": ".mcp.json：配置 stdio MCP 启动",
+      "summary": "文件不长，却把 launcher、mcp 参数、工作目录和 CODEX_HOME 透传方式都交代了。",
+      "claims": ["CU-02", "CU-03"],
+      "kind": "config + shell",
+      "path": "plugins/openai-bundled/plugins/computer-use/.mcp.json",
+      "role": "提供一条和 node_repl 并列的 MCP 入口",
+      "publicSurface": "runtime wiring"
+    },
+    {
+      "id": "artifact-model-policy",
+      "title": "模型合同：规定使用条件、执行闭环与确认边界",
+      "summary": "相关合同一份管“什么时候该用 Computer Use”，另一份管 node_repl / @oai/sky 怎么跑，以及哪些动作必须走 action-time policy。",
+      "claims": ["CU-04", "CU-05"],
+      "kind": "skill + injected instructions",
+      "path": "plugins/openai-bundled/plugins/computer-use/.codex-plugin/computer-use-node-repl.md",
+      "role": "约束模型侧的观察闭环、API 用法和确认边界",
+      "publicSurface": "model-facing contract"
+    },
+    {
+      "id": "artifact-cua-runtime",
+      "title": "cua_node runtime：承载 node_repl 与可信桥接",
+      "summary": "它不是复用任意系统 Node，而是一套独立的 darwin-arm64 runtime，里面带着 node_repl、@oai/sky、图像与浏览器依赖。",
+      "claims": ["CU-06", "CU-09"],
+      "kind": "runtime",
+      "path": "cua_node/manifest.json",
+      "version": "0.0.6 · Node 24.14.0",
+      "role": "让 JavaScript 会话持续存在，同时把可信宿主桥守在独立边界里",
+      "publicSurface": "node_repl"
+    },
+    {
+      "id": "artifact-sky-package",
+      "title": "@oai/sky：提供模型侧 macOS 适配 API",
+      "summary": "模型面对的 window API，就由这里的已编译 JS、类型和文档共同组成。",
+      "claims": ["CU-07", "CU-08", "CU-10", "CU-11", "CU-12", "CU-13", "CU-14", "CU-15", "CU-16", "CU-17"],
+      "kind": "JavaScript package",
+      "path": "cua_node/lib/node_modules/@oai/sky",
+      "version": "0.6.2",
+      "role": "负责选平台、套上策略、调用 IPC client，再把返回值整理成模型能用的形状",
+      "publicSurface": "import @oai/sky"
+    },
+    {
+      "id": "artifact-native-service",
+      "title": "Codex Computer Use.app：承载原生服务及配套进程",
+      "summary": "CUAService、MCP client、installer、lock-screen guardian、资源和签名 metadata，都能在这个 app bundle 里找到。",
+      "claims": ["CU-18", "CU-19", "CU-20", "CU-23"],
+      "kind": "macOS app bundle",
+      "path": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app",
+      "version": "26.803.1000621",
+      "role": "承载原生 ComputerUseIPC 服务，以及它需要的配套进程",
+      "publicSurface": "local service"
+    },
+    {
+      "id": "artifact-service-binary",
+      "title": "SkyComputerUseService：执行策略、状态捕获与动作请求",
+      "summary": "它是 arm64 原生服务二进制。因为没有源码，这里只能从链接库、符号、错误和协议字符串做静态核验。",
+      "claims": ["CU-16", "CU-19", "CU-20"],
+      "kind": "Mach-O executable",
+      "path": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+      "role": "承接策略判断、状态捕获与动作执行，旁边还有 history service 相关职责",
+      "publicSurface": "none"
+    },
+    {
+      "id": "artifact-mcp-client",
+      "title": "SkyComputerUseClient：连接 stdio MCP 与原生服务",
+      "summary": "plugin launcher 会带 mcp 参数启动这个 arm64 sidecar；静态内容里同时能看到 stdio MCP 和 ComputerUseIPC schema。",
+      "claims": ["CU-03", "CU-23"],
+      "kind": "Mach-O executable",
+      "path": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+      "version": "26.803.1000621",
+      "role": "把 MCP stdio 接到 native service，是 node_repl 路线旁边的另一种 client",
+      "publicSurface": "mcp"
+    },
+    {
+      "id": "artifact-app-instructions",
+      "title": "AppInstructions：提供 App 特定操作提示",
+      "summary": "bundle 会按应用存放提示；window_result adapter 可以在第一次返回该 app 状态时，把对应内容选择性注入。",
+      "claims": ["CU-14"],
+      "kind": "resource directory",
+      "path": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/Resources/Package_ComputerUse.bundle/Contents/Resources/AppInstructions",
+      "role": "在通用状态文本上补一层 app-specific 上下文",
+      "publicSurface": "indirect model context"
+    },
+    {
+      "id": "artifact-skysight",
+      "title": "Skysight / Computer History：提供被动历史与摘要资源",
+      "summary": "这里放的是 event stream 摘要与 memory 提示资源。它们属于被动历史能力，不是主动 action loop 每次都会经过的文件。",
+      "claims": ["CU-20"],
+      "kind": "adjacent resources",
+      "path": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/Resources/Package_ComputerUse.bundle/Contents/Resources/SkysightSummarizer.md",
+      "role": "给被动历史通道提供摘要资源",
+      "publicSurface": "adjacent"
+    },
+    {
+      "id": "artifact-pip-native",
+      "title": "native/sky.node：承载 PIP 原生桥接",
+      "summary": "这个 native addon 处理 remote-hosted PIP presentation 和 cursor/location host；@oai/sky action JSON-RPC 不由它承担。",
+      "claims": ["CU-21"],
+      "kind": "native addon",
+      "path": "native/sky.node",
+      "role": "在桌面端把 Computer Use 活动呈现出来",
+      "publicSurface": "adjacent UI"
+    },
+    {
+      "id": "artifact-app-shell",
+      "title": "app.asar：提供设置、会话与工具状态界面",
+      "summary": "Computer Use 设置、allowed apps、PIP 和 tool-call 状态文案都能在这里找到。不过它只能证明产品 shell 的呈现，不能拿来代替动作链证据。",
+      "claims": ["CU-22"],
+      "kind": "ASAR archive",
+      "path": "app.asar",
+      "version": "Codex 26.730.61639",
+      "role": "提供设置和会话呈现这一层控制面",
+      "publicSurface": "desktop UI"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "CU-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "manifest 先把插件身份钉死了",
+      "statement": "plugin.json 写明 computer-use 版本是 1.0.1000621，license 是 proprietary，定位是 macOS automation；skills 目录和 MCP server 配置也在同一份声明里。",
+      "artifact": "plugins/openai-bundled/plugins/computer-use/.codex-plugin/plugin.json",
+      "locator": "$.version, $.license, $.keywords, $.mcpServers, $.skills, $.interface",
+      "sha256": "d62ba1ccf0bce201d0c8cce2e14815eecd7dd6f69e81611e05d640f5fe430613",
+      "boundary": "这能确认产品怎么声明自己，却不能说明这台 Mac 已经授予底层每一项系统权限。"
+    },
+    {
+      "id": "CU-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "MCP 入口先落到本地 launcher",
+      "statement": ".mcp.json 显示，computer-use MCP server 会调用相对路径下的 launcher，并带上 mcp 子命令；cwd 指向插件根，配置里只明确透传 CODEX_HOME。",
+      "artifact": "plugins/openai-bundled/plugins/computer-use/.mcp.json",
+      "locator": "$.mcpServers[\"computer-use\"]",
+      "sha256": "3516e1755f57daa9cc705c4dc048a149d5561f6d3b18059dc72fff721d7e9a73",
+      "boundary": "它证明这条入口可用，但回答不了当前 code-mode 调用有没有真的走这里。"
+    },
+    {
+      "id": "CU-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "launcher 自己不做动作，只负责找到 client",
+      "statement": "shell launcher 会去 CODEX_HOME/computer-use/Codex Computer Use.app 里找 SkyComputerUseClient。文件缺失或不能执行就直接失败；找到后，则用 exec 原样传入参数。",
+      "artifact": "plugins/openai-bundled/plugins/computer-use/bin/computer-use-client-launcher",
+      "locator": "codex_home/client resolution, executable check, final exec",
+      "sha256": "096edf245e994f4a9a00177da90969acd2abe7d8acd73dad23844a40aea007f2",
+      "boundary": "所以别在这个 shell 里找 click 的实现。它只是引路，真正的 client 在安装后的 app bundle 里。"
+    },
+    {
+      "id": "CU-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "动作确认不是原生服务顺手包办的",
+      "statement": "skill 把 UI 副作用拆成四类：必须交接、需要 action-time 确认、允许具体预批准，以及无需确认。它还特别写明，第三方内容不能替用户授予权限。",
+      "artifact": "plugins/openai-bundled/plugins/computer-use/skills/computer-use/SKILL.md",
+      "locator": "Computer Use Confirmations Policy; confirmation modes and hygiene",
+      "sha256": "2079334b8e4329bd12eb30719198146f8f844605ca3c354410315d2a39688d4e",
+      "boundary": "这是一份约束模型行为的合同，不代表原生二进制已经硬编码识别所有业务风险。"
+    },
+    {
+      "id": "CU-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "code-mode 的操作顺序写得很具体",
+      "statement": "注入合同要求保持 node_repl 会话，只 import 一次 @oai/sky。动手前先取 app state，优先使用最新 element index；动作之后再观察，AX 信息不够时才退到截图坐标。",
+      "artifact": "plugins/openai-bundled/plugins/computer-use/.codex-plugin/computer-use-node-repl.md",
+      "locator": "Bootstrap; API surface; Workflow; Actions using app; Reading screenshots",
+      "sha256": "e0ec667e63fba01381eb889ddbfd44a05b8556b1e502428e8ff0a474750a08d6",
+      "boundary": "这说明官方合同希望循环怎样运行，但文档不是一次真实执行 trace，不能拿它证明某次动作确实按顺序发生。"
+    },
+    {
+      "id": "CU-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Computer Use 带着自己的 arm64 Node runtime",
+      "statement": "runtime manifest 把平台固定为 darwin-arm64，同时写明 Node 24.14.0、cua-node 0.0.6 archive 版本和 node_repl 路径。",
+      "artifact": "cua_node/manifest.json",
+      "locator": "$.platform, $.arch, $.node_version, $.runtime_archive_version, $.node_repl_path",
+      "sha256": "df538d564fb075fa4dccbdcdadefc5fb902e5fd685a7c2289a3d4b784c9bbade",
+      "boundary": "manifest 能回答版本和路径，却没写 VM 怎么判断信任。要看那条边界，还得继续读 node_repl binary。"
+    },
+    {
+      "id": "CU-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "@oai/sky 暴露给调用方的 surface 是固定的",
+      "statement": "package.json 把版本写成 0.6.2，ESM export 指向已编译的 dist entry，同时附带生成好的 window API types。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/package.json",
+      "locator": "$.version, $.type, $.main, $.exports, $.types",
+      "sha256": "6fcd0ef7d0b746dfbeedce74a862d88c5bbf6c5e595c20862feb53265b603b3f",
+      "boundary": "package metadata 只能说明 JS 这一侧是什么版本。native service 是否真和它兼容，要等协议 ping 在运行时确认。"
+    },
+    {
+      "id": "CU-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "mac client 到第一次使用时才创建",
+      "statement": "sky export 本身是一个惰性 Proxy。第一次真正访问属性时，它才读取 OAI_SKY_CONFIG_PATH 或 process.platform；在 darwin 上选中 mac client 后会缓存下来。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/sky.js",
+      "locator": "sky Proxy; lazy getter; OAI_SKY_CONFIG_PATH platform selection",
+      "sha256": "ead404f6e6105603782474d4c1fcb7b4c764874b7208ff1d6de2f6c23110f5b9",
+      "boundary": "这段代码能证明 adapter 怎样选 client，但不能据此认定模型可以任意改动受信配置。"
+    },
+    {
+      "id": "CU-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "root JS 和 trusted package 之间，确实隔着一道 realm",
+      "statement": "node_repl binary 内嵌的 kernel 明确区分 untrusted/trusted contexts。模型 root cells 从 untrusted 起步；只有命中 trust 规则的 package graph，才会拿到含 nativePipe、LaunchServices、createElicitation 和 suspended-timeout 的 privileged bridge。",
+      "artifact": "cua_node/bin/node_repl",
+      "locator": "embedded kernel.js strings: runtime contexts, trusted dynamic importer, trustedNodeRepl bridge",
+      "sha256": "707da0a37f1139f30798f1d1fe9a1e02449e86c160e0c4c160362c84c6ed58d3",
+      "boundary": "静态 kernel 足以确认隔离设计存在。不过本次进程实际注入了哪些完整 trust allowlist 值，手上的证据没有读到。"
+    },
+    {
+      "id": "CU-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "mac facade 很薄，重活不在这里做",
+      "statement": "mac factory 共暴露十个 window primitives。每个动作主要把 snake_case 输入映射给 lazy MacComputerUseClient；它们还共享一个 Set，用来控制首轮 app instruction。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/create_client.js",
+      "locator": "create_client() returned target and methods",
+      "sha256": "1929fc8d5609aa28abae9553414e8bc5d801debf3381e5e8ff1f4d7d0e94027b",
+      "boundary": "这层做的是参数整形和包装。真正触碰 AX/CGEvent 的实现仍在原生服务里。"
+    },
+    {
+      "id": "CU-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "只要调用指向 app，就先经过 policy wrapper",
+      "statement": "wrapper 会先查询 getAppPolicy，并分别处理 allowed、organization denied 和 safety forbidden。需要用户决定时，它调用可信 elicitation；批准后，再把 appPath 写入一份冻结的参数副本。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.js",
+      "locator": "withComputerUsePolicy(); app decision switch; createElicitation metadata; frozen input copy",
+      "sha256": "e5610c6d042a47ac2e5e83751fdf6ae11de30311b14c8347898598f309a88dc2",
+      "boundary": "session / always 这类持久批准能不能出现，由服务返回决定。至于组织策略从哪里来、完整 safety 规则有哪些，源码没有公开。"
+    },
+    {
+      "id": "CU-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "typed client 先把请求形状和参数关住",
+      "statement": "MacComputerUseClient 使用 CodexComputerUseIPC-2，默认 timeout 是 120 s。get state、policy、start 和 action 会映射成各自的 request type；app、坐标、element、pages、key 与枚举也会先在本地校验。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.js",
+      "locator": "MacComputerUseClient; request type constants; parameter validators; default apiVersion/timeout",
+      "sha256": "ca40f65f155435db1599c19babf617c6a04af3c5fab5390b33b9610f2696ddc7",
+      "boundary": "本地校验只是第一道检查，不能代替服务端认证，更不能代替服务端的业务约束。"
+    },
+    {
+      "id": "CU-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "这条 Unix socket 的 framing 和启动窗口都能对上",
+      "statement": "transport 连接 app-group 下的 computeruse.sock，以 4-byte little-endian length prefix 封装 JSON-RPC 2.0，frame 上限是 8 MiB。250 ms 内初连失败，就经 host ensureService/LaunchServices 拉起服务，再尝试连接 5 s。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js",
+      "locator": "MacNativePipeTransport.create/connect/request; encodeMessageFrame/decodeMessageFrames; ensureService bootstrap",
+      "sha256": "87de3dc9bbd228e44a60e045b6fa9265dc76177a960c37dc43a8b2aca6add91d",
+      "boundary": "transport 会排队 request，也会管理连接；唯独没有看到 exactly-once 的副作用回执。这是判断超时能否重试时最要紧的缺口。"
+    },
+    {
+      "id": "CU-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "模型看到的 AppState，不只有一张截图",
+      "statement": "window_result 要求 service 返回 skyshot，再把 screenshot URL 和 text 组合成 AppState。如果服务还给出 appSpecificInstructions，adapter 通常只在该 app 的第一次结果前加一次。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.js",
+      "locator": "window_result(); screenshot/text extraction; first-access Set; appSpecificInstructions adapter",
+      "sha256": "9a6fb6e0e7e5a90cf8e77f11907d9692feb03a16452e87dbcb51d4424ca0a3f4",
+      "boundary": "可以确定首轮注入层存在，但这不代表指令内容一定正确，也不说明它覆盖所有 app，更没有回答它实际提升了多少效果。"
+    },
+    {
+      "id": "CU-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "element_index 只和最新 state 配套",
+      "statement": "生成文档定义了 AppState、十个 mac primitives 和 disableDiff，也明确说明 element_index 来自最新 get_app_state 文本；坐标则相对 app-window screenshot。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/docs/sky-window-api.md",
+      "locator": "WindowComputerUseClient; GetAppStateInput; AppState; indexed action inputs",
+      "sha256": "bab5d7253c7949c25e46321eb28849640dd1f5bce3e6d804b0c43ec82dce590d",
+      "boundary": "这是 supported API 的使用合同，不是 selector 永久稳定的承诺，也不是 AX 信息始终完整的保证。"
+    },
+    {
+      "id": "CU-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "服务把 21 种失败拆成了明确错误",
+      "statement": "JS error map 覆盖 -10000 至 -10020，分别涉及认证、request decode、app access、AX、权限、session、版本、blocked URL、用户干预、歧义目标、bootstrap 和锁屏。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/errors.js",
+      "locator": "ServerErrorCode map; SkyComputerUseError",
+      "sha256": "9dd27e4cf0ea4456b3ad472fab8cbbe093ad1184d0cb25a8c05e738ee00cfd43",
+      "boundary": "枚举告诉我们服务能表达哪些错误，却不能保证这个 build 的每一条执行路径都真能触发每个 code。"
+    },
+    {
+      "id": "CU-17",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "批准过程和最终状态会尽力留下遥测",
+      "statement": "adapter 会记录 client launched、approval requested/resolved 和 tool called。tool called 事件带 duration、bundle、thread/turn/item metadata，以及 completed/cancelled/failed；环境变量可以禁用，写日志失败也不会拖垮主调用。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-telemetry.js",
+      "locator": "logComputerUseClientCreated/ApprovalRequested/ApprovalResolved/ToolCalled; analytics disable checks",
+      "sha256": "8078fa8d76930ae8b307bf84ad9bde981c065d744ac2dbc259c7aad342ec5714",
+      "boundary": "读到本地 adapter，只能知道它打算怎样记录。事件是否真的发出、服务端怎样采样、留存或删除，都还不能下结论。"
+    },
+    {
+      "id": "CU-18",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Info.plist 把原生 service 的身份写明了",
+      "statement": "Info.plist 给出的 bundle id 是 com.openai.sky.CUAService，版本是 26.803.1000621，同时声明 LSUIElement、最低 macOS 14.4，以及 Apple Events 与 Contacts 使用说明。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/Info.plist",
+      "locator": "CFBundleIdentifier/Version, LSMinimumSystemVersion, LSUIElement, usage descriptions",
+      "sha256": "4dd6c35e2f0ce90a73e16a6625b00b845720d0388404d8b1fc8795a3a14b79c6",
+      "boundary": "plist 里写了 usage description，不等于用户已经点过允许；更不能据此说每次 UI 控制都会用到 Contacts 或 Apple Events。"
+    },
+    {
+      "id": "CU-19",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "静态线索都指向 AX、屏幕捕获和合成输入",
+      "statement": "service Mach-O 链接了 ScreenCaptureKit、AppKit、ApplicationServices 和 CoreGraphics；其中还能找到 AXUIElement、Accessibility、CGEvent、ScreenCaptureWorker 与 computeruse.sock 标识。它们和上层看到的 screenshot + AX + action surface 能够互相对上。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+      "locator": "Mach-O load commands and static symbol/string tables",
+      "sha256": "d8cfa43b2f80543ba1b71fe9fcc9915a7c6ecd82e344d4e93034dcb0b4a276bc",
+      "boundary": "这是证据很强的静态推断，但终究不是 Swift 源码，也不是动态系统调用 trace。具体到每种输入怎样合成，不能只凭这些符号还原。"
+    },
+    {
+      "id": "CU-20",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "Skysight 就在同一个 bundle 里，但属于被动观察",
+      "statement": "service 二进制里还能看到 EventStream、SkysightService、memory pipeline、ComputerHistoryMCPServer 和 history controls。bundle 也带有 Skysight summary/memory resources；合在一起看，它更像一项独立的被动观察能力。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+      "locator": "static symbols/strings: EventStream*, Skysight*, ComputerHistory*",
+      "sha256": "d8cfa43b2f80543ba1b71fe9fcc9915a7c6ecd82e344d4e93034dcb0b4a276bc",
+      "boundary": "住在同一个 service 里，不代表主动 get_app_state/click 就会启动、读取或上传 Computer History。它保留多久、有没有网络行为，仍是未知。"
+    },
+    {
+      "id": "CU-21",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "native/sky.node 更像 PIP 呈现层，不像 action transport",
+      "statement": "addon 的静态标识集中在 RemoteHostedPIPContent host、presentation、cursor location 和 Browser Use PIP lifecycle；其中没有出现 @oai/sky JS 那套 MacNativePipeTransport 实现。",
+      "artifact": "native/sky.node",
+      "locator": "static strings: RemoteHostedPIPContent* and PIP host lifecycle",
+      "sha256": "af1f81038acf0a56a632a87ef1a3bb460d67d298add3ef5b241529a795e7659a",
+      "boundary": "这个归类依据的是静态符号职责。原生 addon 源码不在手上，所以不能排除它还藏着没暴露出来的辅助职责。"
+    },
+    {
+      "id": "CU-22",
+      "kind": "observation",
+      "confidence": "medium",
+      "title": "Codex shell 另管设置和工具状态怎么呈现",
+      "statement": "app.asar 的静态字符串里能找到 Computer Use allowed apps、安装/管理、locked use、PIP、sounds 和各 action tool-call 状态文案。这说明桌面 shell 确实承担 UI 管理与呈现。",
+      "artifact": "app.asar",
+      "locator": "string table: settings.computerUse.*, codex.mcpTool.computerUse.*, remoteHostedPip.computerUse",
+      "sha256": "3fea92820c0fb7a69473e7a8308a8e5b8e91524289a84181a33533ec6cb51d45",
+      "boundary": "仅凭字符串，推不出设置背后的完整 reducer、存储方式或 action IPC 实现。PIP UI 也不该因此被并进 computeruse.sock 主链。"
+    },
+    {
+      "id": "CU-23",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "embedded client 的两端，分别接 stdio MCP 和 IPC-2",
+      "statement": "SkyComputerUseClient Mach-O 中能找到 mcp.transport.stdio、tool/approval telemetry 和 CodexComputerUseIPC-2 request schema，与 plugin launcher 声明的 mcp 入口正好对得上。",
+      "artifact": "cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+      "locator": "static strings: mcp.transport.stdio, CodexComputerUseIPC-2, ComputerUseIPC*",
+      "sha256": "f31a9e837920df1dfc6238501945bceaae6588009fb24409ece7777cacb38ea4",
+      "boundary": "这些静态符号能证明 sidecar 同时懂两端协议。可当前会话到底选了它，还是走 node_repl route，依然没有运行时证据。"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "CU-KU-01",
+      "title": "原生 Swift 里面究竟怎样执行，仍然看不见",
+      "text": "Resources 给出的只有签名 Mach-O、bundle resources 和少量 BUILD metadata。AX tree 怎么构建、截图怎样裁剪、focus enforcement 在哪一步发生、输入如何合成，以及 URL policy 怎样判断，都缺完整源码。",
+      "needed": "要把这块补上，需要 26.803.1000621 对应的 Swift source snapshot；或者至少要有一条能审计系统调用与 AX request/result 的动态 trace"
+    },
+    {
+      "id": "CU-KU-02",
+      "title": "app policy 的答案从哪里来，还差关键一段",
+      "text": "JS 这一侧看得到 allowed、denied、forbidden、risk 和持久批准能力。可组织 policy 从哪里下发、内置 forbidden app/URL 规则有哪些、always-allowed app 存在哪里，都没有完整公开。",
+      "needed": "还需要固定 build 的 policy schema、持久存储 readback，以及 organization override 实际生效时的 trace"
+    },
+    {
+      "id": "CU-KU-03",
+      "title": "旧 element index 到服务端会怎样失败，尚无答案",
+      "text": "合同一直提醒调用方使用最新 index，但没看到证据表明服务会给 AX tree 标 revision，也没看到它承诺对陈旧 index 一定 fail closed。",
+      "needed": "需要一组 conformance fixture：窗口重排、菜单关闭、列表虚拟化后故意复用 index，并保留完整 service response"
+    },
+    {
+      "id": "CU-KU-04",
+      "title": "最棘手的未知：断线时，动作到底做了没有",
+      "text": "transport 有 request id、deadline 和 reconnect，却没看到 idempotency key 或 durable action receipt。于是 click/type 过程中一旦断线，仅凭调用失败无法判断副作用是否已经落地。",
+      "needed": "需要分别在 write、service apply、response 三个边界注入断线，再把 request id、action receipt 和 UI readback 对在一起"
+    },
+    {
+      "id": "CU-KU-05",
+      "title": "appSpecificInstructions 存在，但到底帮了多少忙",
+      "text": "adapter 和 per-app resource files 足以证明首轮注入层存在。问题是，准确率、覆盖范围、版本漂移和指令冲突优先级，目前都没有评测数据。",
+      "needed": "需要给每个 app 一组固定任务，对照开启与关闭注入后的动作成功率、额外步数和安全错误"
+    },
+    {
+      "id": "CU-KU-06",
+      "title": "Skysight / Computer History 的数据最后去了哪里",
+      "text": "静态产物能看到 event stream、local segment、memory pipeline 和 history controls。我没有把它们硬塞进主动 action path，因为还缺证据说明它们是否默认启用、保留哪些内容、会不会经过网络。",
+      "needed": "要回答这些问题，需要设置状态、文件系统 readback、进程/网络 trace、clear-history 验证，以及明确的 retention contract"
+    },
+    {
+      "id": "CU-KU-07",
+      "title": "PIP 和 action session 到底怎样绑定",
+      "text": "Codex shell 和 native/sky.node 都指向一套独立 presentation lifecycle。可是它如何关联 thread/turn、PIP 隐藏后会发生什么、呈现失败会不会拖累 action session，这几处还没有闭合。",
+      "needed": "需要 PIP host ↔ CUAService 的 XPC schema，再配一条发生在同一 turn 内的完整 lifecycle trace"
+    },
+    {
+      "id": "CU-KU-08",
+      "title": "MCP sidecar 和 node_repl，运行时究竟选谁",
+      "text": "bundle 同时带着 MCP stdio sidecar 和 node_repl + @oai/sky。当前模型合同更偏向后者，但具体 feature gate 怎么判、失败后怎样 fallback、会话能否迁移，都无法从静态包完整还原。",
+      "needed": "需要 Codex plugin resolver / runtime selection source，以及同一任务分别走两种入口时的 tool trace"
+    },
+    {
+      "id": "CU-KU-09",
+      "title": "遥测发出去以后怎样处理，本地代码说不清",
+      "text": "本地 adapter 只能证明 best-effort event shape 和 disable switches 存在。采样比例、失败重试、事件关联、保留周期和用户控制，都不能从客户端代码反推。",
+      "needed": "还需要产品 telemetry contract、服务端 retention policy，以及关闭遥测时的 network verification"
+    }
+  ]
+}

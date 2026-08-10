@@ -31,6 +31,7 @@
     view: "request",
     wrap: true,
     releaseDetailsOpen: false,
+    analysisExpanded: false,
     loadRequest: 0,
     compareRequest: 0,
     monacoPromise: null,
@@ -90,6 +91,8 @@
     hunkCount: document.getElementById("hunkCount"),
     additionCount: document.getElementById("additionCount"),
     deletionCount: document.getElementById("deletionCount"),
+    changelogBand: document.getElementById("changelogBand"),
+    analysisCondenseToggle: document.getElementById("analysisCondenseToggle"),
     changelogTitle: document.getElementById("changelogTitle"),
     changelogRange: document.getElementById("changelogRange"),
     changelogSummary: document.getElementById("changelogSummary"),
@@ -663,26 +666,27 @@
 
   function feedFactLabels(item) {
     const stats = item.entry.stats || {};
-    const facts = [];
+    const measured = [];
     const toolAdded = stats.toolsAdded?.length || 0;
     const toolRemoved = stats.toolsRemoved?.length || 0;
     const toolModified = stats.toolsModified?.length || 0;
-    if (toolAdded) facts.push(`Tools +${toolAdded}`);
-    if (toolRemoved) facts.push(`Tools -${toolRemoved}`);
-    if (toolModified) facts.push(`Tools 调整 ${toolModified}`);
+    if (toolAdded) measured.push(`Tools +${toolAdded}`);
+    if (toolRemoved) measured.push(`Tools -${toolRemoved}`);
+    if (toolModified) measured.push(`Tools 调整 ${toolModified}`);
     const lineChanges = (Number(stats.additions) || 0) + (Number(stats.deletions) || 0);
-    if (lineChanges) facts.push(`Prompt +${formatNumber(stats.additions)} / -${formatNumber(stats.deletions)}`);
+    if (lineChanges) measured.push(`Prompt +${formatNumber(stats.additions)} / -${formatNumber(stats.deletions)}`);
     const staticLayer = item.entry.layers?.staticPrompt;
     const staticChanges = staticLayer?.changes;
     const staticCount = (Number(staticChanges?.addedCount) || 0)
       + (Number(staticChanges?.removedCount) || 0)
       + (Number(staticChanges?.modifiedCount) || 0);
-    if (staticCount) facts.push(`Static Prompt ${formatNumber(staticCount)} 项`);
+    if (staticCount) measured.push(`Static Prompt ${formatNumber(staticCount)} 项`);
     const layers = appCore.normalizeSourceLayers(item.entry, item.release, item.previousRelease);
-    if (layers.find((layer) => layer.id === "official")?.state === "changed") facts.push("官方发布说明");
-    if (layers.find((layer) => layer.id === "code")?.state === "changed") facts.push("Code 变化");
-    if (!facts.length && item.noChange) facts.push("核验无变化");
-    return facts.slice(0, 4);
+    const sources = [];
+    if (layers.find((layer) => layer.id === "official")?.state === "changed") sources.push("官方发布说明");
+    if (layers.find((layer) => layer.id === "code")?.state === "changed") sources.push("Code 变化");
+    if (!measured.length && !sources.length && item.noChange) measured.push("核验无变化");
+    return { measured: measured.slice(0, 4), sources: sources.slice(0, 2) };
   }
 
   function comparisonHref(item) {
@@ -749,8 +753,18 @@
     footer.className = "intelligence-footer";
     const facts = document.createElement("span");
     facts.className = "feed-facts";
-    feedFactLabels(item).forEach((label) => {
+    const factGroups = feedFactLabels(item);
+    factGroups.measured.forEach((label) => {
       const fact = document.createElement("span");
+      fact.className = "feed-fact-measured";
+      fact.title = "证据统计：来自请求快照的可量化差异";
+      fact.textContent = label;
+      facts.appendChild(fact);
+    });
+    factGroups.sources.forEach((label) => {
+      const fact = document.createElement("span");
+      fact.className = "feed-fact-source";
+      fact.title = "证据来源：该来源在本版本有可追溯变化";
       fact.textContent = label;
       facts.appendChild(fact);
     });
@@ -828,8 +842,8 @@
     const visibleCount = formatNumber(items.length);
     const totalCount = formatNumber(matchingItems.length);
     elements.feedResultCount.textContent = items.length < matchingItems.length
-      ? `${visibleCount} / ${totalCount} 条`
-      : `${totalCount} 条${highValueOnly ? "高价值" : "情报"}`;
+      ? `已加载 ${visibleCount} 条 · 共 ${totalCount} 条`
+      : `共 ${totalCount} 条${highValueOnly ? "高价值" : "情报"}`;
     elements.feedResultCount.setAttribute(
       "aria-label",
       `显示 ${visibleCount} 条，共 ${totalCount} 条${highValueOnly ? "高价值情报" : "情报"}`,
@@ -852,7 +866,28 @@
       disconnectFeedLoadObserver();
       return;
     }
-    const nodes = items.map(makeFeedItem);
+    // 排序键与展示键必须一致：上游按 UTC 日期排序，展示用本地日期，
+    // 跨时区会拆出重复的日期组，因此按本地日期标签稳定重排后再分组。
+    const feedDayLabel = (item) => {
+      const date = new Date(item.capturedAt || "");
+      return Number.isNaN(date.getTime()) ? "" : formatCaptured(item.capturedAt);
+    };
+    const orderedItems = [...items].sort((left, right) => (
+      feedDayLabel(right).localeCompare(feedDayLabel(left))
+    ));
+    const nodes = [];
+    let currentDay = null;
+    orderedItems.forEach((item) => {
+      const dayLabel = feedDayLabel(item) || "时间未知";
+      if (dayLabel !== currentDay) {
+        currentDay = dayLabel;
+        const divider = document.createElement("h2");
+        divider.className = "feed-date-divider";
+        divider.textContent = dayLabel;
+        nodes.push(divider);
+      }
+      nodes.push(makeFeedItem(item));
+    });
     if (items.length < matchingItems.length) {
       const more = document.createElement("div");
       more.className = "feed-load-more";
@@ -989,6 +1024,7 @@
     state.changelog = null;
     state.changelogError = null;
     state.releaseDetailsOpen = false;
+    state.analysisExpanded = false;
     renderAgentContext();
     setPageError("");
     setEditorPlaceholder(`正在读取 ${agent.label} 历史`, "loading");
@@ -1175,11 +1211,27 @@
     elements.releaseDetailsToggle.setAttribute("aria-expanded", String(state.releaseDetailsOpen));
   }
 
+  function entriesDeclareNoBehaviorChange(entries) {
+    return entries.length > 0 && entries.every((entry) => (entry.categories || [])
+      .some((category) => /^(no-change|无行为变化|无可见变化)$/i.test(String(category).trim())));
+  }
+
+  function renderAnalysisCondensed(condensed) {
+    elements.changelogBand.dataset.condensed = String(condensed);
+    elements.changelogBand.dataset.expanded = String(state.analysisExpanded);
+    elements.analysisCondenseToggle.hidden = !condensed;
+    elements.analysisCondenseToggle.setAttribute("aria-expanded", String(state.analysisExpanded));
+    elements.analysisCondenseToggle.querySelector("span").textContent = state.analysisExpanded
+      ? "收起完整分析与证据"
+      : "展开完整分析与证据";
+  }
+
   function renderChangelog() {
     const entries = selectedChangelogEntries();
     const reverse = isReverseComparison();
     const rangeText = `${displayVersion(state.left)} → ${displayVersion(state.right)}`;
     elements.changelogRange.textContent = reverse ? `${rangeText} · 反向` : rangeText;
+    renderAnalysisCondensed(entriesDeclareNoBehaviorChange(entries));
 
     if (!entries.length) {
       const status = state.changelogError ? "error" : state.left === state.right ? "complete" : "pending";
@@ -1291,12 +1343,34 @@
     );
   }
 
-  function makeSectionButton(section) {
+  function outlineChangedNames() {
+    const entries = selectedChangelogEntries();
+    if (!entries.length) return new Set();
+    const stats = combinedStats(entries);
+    const names = new Set();
+    [
+      ...stats.changedSections,
+      ...stats.toolsAdded,
+      ...stats.toolsRemoved,
+      ...stats.toolsModified,
+    ].forEach((name) => names.add(String(name).trim().toLocaleLowerCase()));
+    return names;
+  }
+
+  function sectionHasChanges(section, changedNames) {
+    return [section.label, section.id]
+      .some((name) => changedNames.has(String(name || "").trim().toLocaleLowerCase()));
+  }
+
+  function makeSectionButton(section, changedNames = new Set()) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "section-button";
     button.dataset.section = section.key;
     button.setAttribute("aria-current", String(section.key === state.section));
+    const changed = section.kind !== "request" && sectionHasChanges(section, changedNames);
+    button.dataset.changed = String(changed);
+    if (changed) button.title = "本次比较区间内该结构有变化";
     const icon = document.createElement("i");
     icon.dataset.lucide = section.kind === "request"
       ? "file-text"
@@ -1307,13 +1381,15 @@
     label.textContent = section.label;
     const lines = document.createElement("span");
     lines.className = "section-lines";
-    lines.textContent = `${section.startLine}–${section.endLine}`;
+    lines.textContent = changed ? "变更" : `${section.startLine}–${section.endLine}`;
+    if (changed) lines.dataset.changed = "true";
     button.append(icon, label, lines);
     return button;
   }
 
   function renderOutline() {
     const items = currentOutlineItems();
+    const changedNames = outlineChangedNames();
     const query = elements.sectionSearch.value.trim().toLocaleLowerCase("zh-CN");
     const requestItem = {
       id: "request",
@@ -1328,10 +1404,14 @@
       `${section.label || ""} ${section.id || ""}`.toLocaleLowerCase("zh-CN").includes(query)
     ));
     elements.outlineVersion.textContent = `${displayVersion(state.right)} · 目标请求`;
-    elements.sectionCount.textContent = query ? `${filtered.length}/${items.length}` : String(items.length);
+    const changedCount = items.filter((section) => sectionHasChanges(section, changedNames)).length;
+    elements.sectionCount.textContent = query
+      ? `${filtered.length}/${items.length} 项`
+      : changedCount ? `${changedCount} 项变更 / 共 ${items.length} 项` : `共 ${items.length} 项`;
+    elements.sectionCount.title = "目标版本的请求结构与 Tool Definition 数量";
 
     const fragment = document.createDocumentFragment();
-    if (requestMatches) fragment.appendChild(makeSectionButton(requestItem));
+    if (requestMatches) fragment.appendChild(makeSectionButton(requestItem, changedNames));
     if (!filtered.length && !requestMatches) {
       const empty = document.createElement("p");
       empty.className = "section-empty";
@@ -1348,7 +1428,7 @@
         heading.className = "outline-group-label";
         heading.textContent = label;
         fragment.appendChild(heading);
-        group.forEach((section) => fragment.appendChild(makeSectionButton(section)));
+        group.forEach((section) => fragment.appendChild(makeSectionButton(section, changedNames)));
       });
     }
     elements.sectionList.replaceChildren(fragment);
@@ -1595,6 +1675,7 @@
     state.right = elements.rightVersion.value;
     if (!currentOutlineItems().some((section) => section.key === state.section)) state.section = null;
     state.releaseDetailsOpen = false;
+    state.analysisExpanded = false;
     syncControls();
     syncUrl();
     renderComparison();
@@ -1817,6 +1898,11 @@
     renderOutline();
     syncUrl();
     revealSelectedSection(true);
+  });
+
+  elements.analysisCondenseToggle.addEventListener("click", () => {
+    state.analysisExpanded = !state.analysisExpanded;
+    renderAnalysisCondensed(elements.changelogBand.dataset.condensed === "true");
   });
 
   elements.releaseDetailsToggle.addEventListener("click", () => {

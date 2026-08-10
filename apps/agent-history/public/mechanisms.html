@@ -20,7 +20,8 @@
       <div class="segmented mode-switch" role="group" aria-label="页面视图">
         <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
         <a href="/?mode=compare"><i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span></a>
-        <a href="/mechanisms" aria-current="page"><i data-lucide="network" aria-hidden="true"></i><span>机制档案</span></a>
+        <a href="/mechanisms.html" aria-current="page"><i data-lucide="network" aria-hidden="true"></i><span>机制档案</span></a>
+        <a href="/capabilities.html"><i data-lucide="scan-search" aria-hidden="true"></i><span>能力拆解</span></a>
       </div>
       <div class="header-links">
         <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
@@ -85,11 +86,12 @@
               <h2 id="canvasTitle"></h2>
               <p id="canvasDescription"></p>
             </div>
-            <div class="contract-state-legend" aria-label="合同状态">
-              <span data-state="exposed">已暴露</span>
-              <span data-state="partial">有边界</span>
-              <span data-state="not-exposed">未暴露</span>
-              <span data-state="unknown">未知</span>
+            <div class="contract-state-legend" aria-label="合同状态图例">
+              <span class="contract-state-legend-label">状态图例</span>
+              <span data-state="exposed" title="该能力在公开合同中可直接调用">已暴露</span>
+              <span data-state="partial" title="可调用，但带有边界条件或受限作用域">有边界</span>
+              <span data-state="not-exposed" title="公开合同中不存在对应入口">未暴露</span>
+              <span data-state="unknown" title="现有证据不足以判定">未知</span>
             </div>
           </header>
           <div id="canvasContent" class="canvas-content"></div>

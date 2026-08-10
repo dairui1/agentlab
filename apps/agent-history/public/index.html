@@ -30,6 +30,9 @@
         <a href="/mechanisms.html">
           <i data-lucide="network" aria-hidden="true"></i><span>机制档案</span>
         </a>
+        <a href="/capabilities.html">
+          <i data-lucide="scan-search" aria-hidden="true"></i><span>能力拆解</span>
+        </a>
       </div>
 
       <div class="header-links">
@@ -50,13 +53,6 @@
           <div>
             <span class="section-kicker"><i data-lucide="radar" aria-hidden="true"></i>跨 Agent 变化监测</span>
             <h1 id="intelligenceTitle">近期开发情报</h1>
-          </div>
-          <div id="dataHealth" class="data-health" aria-label="数据健康" data-state="loading">
-            <span class="health-indicator" aria-hidden="true"></span>
-            <div>
-              <strong>数据载入中</strong>
-              <span>正在汇总 Agent 快照</span>
-            </div>
           </div>
         </div>
 
@@ -123,6 +119,16 @@
           <p>正在读取近期变化</p>
         </div>
       </section>
+
+      <footer class="feed-footnote">
+        <div id="dataHealth" class="data-health" aria-label="数据健康" data-state="loading">
+          <span class="health-indicator" aria-hidden="true"></span>
+          <div>
+            <strong>数据载入中</strong>
+            <span>正在汇总 Agent 快照</span>
+          </div>
+        </div>
+      </footer>
     </main>
 
     <section id="compareView" class="compare-view" aria-label="版本比较详情" hidden>
@@ -163,7 +169,7 @@
       </div>
       </section>
 
-      <section class="changelog-band" aria-labelledby="changelogTitle">
+      <section id="changelogBand" class="changelog-band" aria-labelledby="changelogTitle">
       <div class="changelog-heading">
         <div class="changelog-title-block">
           <div class="eyebrow-row">
@@ -192,6 +198,10 @@
           <ul id="implicationsList" class="implications-list"></ul>
         </aside>
       </div>
+
+      <button id="analysisCondenseToggle" class="text-button analysis-condense-toggle" type="button" aria-expanded="false" hidden>
+        <span>展开完整分析与证据</span><i data-lucide="chevron-down" aria-hidden="true"></i>
+      </button>
 
       <section class="source-evidence" aria-labelledby="sourceEvidenceTitle">
         <div class="source-evidence-heading">

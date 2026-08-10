@@ -1,0 +1,485 @@
+{
+  "id": "browser-use",
+  "number": "001",
+  "title": "Browser Use",
+  "product": "Codex Desktop · Browser / Chrome",
+  "subtitle": "从页面工具到像素输入的多后端执行栈",
+  "description": "这份能力拆解把 Browser Use 还原为一条可审计的执行栈：Browser 与 Chrome 插件加载同一份受信 browser-client，客户端发现 IAB、extension 或 CDP 后端，按能力动态投影 API，并在 WebMCP、Playwright、DOM-CUA 与坐标 CUA 之间提供不同语义层级。每条命令在进入浏览器后端前经过 origin、站点状态、企业策略、用户许可与高风险确认等门禁；本地传输还以受信 nativePipe、framed JSON-RPC 和 macOS 对端代码签名检查约束调用者。重点不是列出能点什么，而是标明 tab 所有权、页面代码隔离、秘密凭据通道、策略例外和每层不能外推的事实。",
+  "verifiedAt": "2026-08-10",
+  "status": "active",
+  "scope": [
+    {
+      "label": "Build",
+      "value": "26.730.61639 (6234)",
+      "note": "本机 /Applications/Codex.app 固定安装包"
+    },
+    {
+      "label": "Platform",
+      "value": "macOS · arm64",
+      "note": "Electron shell、Chrome native host 与 peer authorization addon"
+    },
+    {
+      "label": "Plugins",
+      "value": "browser 26.730.61639 · chrome 26.730.61639",
+      "note": "OpenAI bundled · proprietary"
+    },
+    {
+      "label": "Shared client",
+      "value": "browser-client.mjs · SHA256 091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "note": "browser 与 chrome 两份文件逐字节同一 digest"
+    },
+    {
+      "label": "API manifest",
+      "value": "22 interfaces · 136 members",
+      "note": "运行时还会按 backend capability 与 disable 配置裁剪"
+    },
+    {
+      "label": "Backend contracts",
+      "value": "iab · extension · cdp",
+      "note": "静态可见候选类型；不代表本次会话已连接或命中"
+    },
+    {
+      "label": "Native transport",
+      "value": "/tmp/codex-browser-use · JSON-RPC 2.0",
+      "note": "4-byte host-endian length prefix · 8 MiB frame ceiling"
+    },
+    {
+      "label": "Chrome bridge",
+      "value": "ChatGPT for Chrome · SHA256 25cbfcdbaab7e4a0267dfd7290b28bf6466274ac2ae30004926b68027fc5c3f3",
+      "note": "bundled arm64 Native Messaging host"
+    },
+    {
+      "label": "App archive",
+      "value": "app.asar · SHA256 3fea92820c0fb7a69473e7a8308a8e5b8e91524289a84181a33533ec6cb51d45",
+      "note": "桌面 shell 与 IAB 的已编译产物，不是上游源码"
+    },
+    {
+      "label": "Evidence root",
+      "value": "Codex.app/Contents/Resources",
+      "note": "evidence.artifact 均相对此目录定位"
+    }
+  ],
+  "boundary": "核验范围锁定 Codex 26.730.61639 本机安装包中的插件 manifest、skill 合同、文档、已编译 browser-client、Electron ASAR、Mach-O native host 与 N-API addon。observation 表示固定产物可直接读取的声明、分支或静态元数据；inference 表示由二进制字符串、符号职责或相邻产物归纳出的实现判断，并单列限制。所有 evidence.sha256 都是 artifact 对应完整文件的 64 位小写 SHA-256。档案不把已编译 bundle 称为上游源码，不把可见 API、feature flag 或候选 backend 写成当前会话已经命中的路径，也不声称拥有 Chrome 扩展、IAB backend、远端 site-status/guardian 或企业策略服务的完整源码。主研究链是 skill → 受信 Node REPL 中的 setupBrowserRuntime → agent.browsers 后端选择与动态 API → WebMCP / Playwright / DOM-CUA / coordinate CUA → nativePipe / extension 或 IAB 执行；browserAuth 是独立秘密通道。Browser Use 的坐标 CUA 仍以 tab、DOM、CDP Input 与 origin 为边界，不等同于 Computer Use 的 macOS AX tree、窗口截图和系统级输入服务。",
+  "evidence": [
+    {
+      "id": "BU-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Browser 插件固定身份与用途",
+      "statement": "browser manifest 固定版本 26.730.61639、proprietary license、skills 入口及 Interactive/Read/Write 能力，并把 Browser、browser-use 与 in-app browser 声明为同一插件别名。",
+      "artifact": "plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json",
+      "locator": "$.name, $.version, $.description, $.license, $.skills, $.interface.capabilities",
+      "sha256": "8f167c6e45db2841135f72f0010e4033c326634da4f7fd98885bdb0ff500e262",
+      "boundary": "manifest 是产品合同，不证明 IAB feature gate 已开启、浏览器已连接或任一权限已获批。"
+    },
+    {
+      "id": "BU-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Chrome 是独立入口而非独立执行内核",
+      "statement": "chrome manifest 固定同一 build 版本，面向已有 Chrome tab、登录态与扩展环境，并声明自己的 control-chrome skill 与产品界面。",
+      "artifact": "plugins/openai-bundled/plugins/chrome/.codex-plugin/plugin.json",
+      "locator": "$.name, $.version, $.description, $.license, $.skills, $.interface",
+      "sha256": "962cb21058f2e3c412121d8dd3341cafefa66af3d860add9fc7b2a2d195216d7",
+      "boundary": "入口文案描述预期用途；不能据此推断用户 Chrome 当前已安装扩展、已授权站点或存在登录态。"
+    },
+    {
+      "id": "BU-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Browser 打包统一 browser-client",
+      "statement": "Browser 插件的核心是 1,140,632-byte 已编译 ESM bundle，导出 setupBrowserRuntime，并同时包含浏览器发现、API facade、动作适配、策略、transport 与 response metadata 逻辑。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "whole file; setupBrowserRuntime export; packaged release bundle",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "这是 shipped compiled bundle，不是原始 TypeScript 仓库；bundle 中存在实现不代表每条分支都在当前环境启用。"
+    },
+    {
+      "id": "BU-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Chrome 与 Browser 共享逐字节相同客户端",
+      "statement": "Chrome 插件内 browser-client.mjs 的完整 SHA-256 与 Browser 插件完全相同，因此两个入口共享这份客户端执行与策略代码，而不是维护两套 facade。",
+      "artifact": "plugins/openai-bundled/plugins/chrome/scripts/browser-client.mjs",
+      "locator": "whole-file digest compared with plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "客户端相同不表示 IAB、Chrome extension 与 cloud CDP 的服务端实现相同；后端 capability 会改变暴露面。"
+    },
+    {
+      "id": "BU-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Skill 把 Node REPL facade 设为唯一控制入口",
+      "statement": "Browser skill 要求以绝对路径 import bundled browser-client，在持久 Node REPL 中只初始化一次 agent.browsers；浏览器 UI 工作优先 Browser，而不是因 Computer Use 工具可见就改走桌面控制。",
+      "artifact": "plugins/openai-bundled/plugins/browser/skills/control-in-app-browser/SKILL.md",
+      "locator": "Stop: choose the right surface; Bootstrap; Browser selection; After setup",
+      "sha256": "bdec2bfc891a6bd3f0a62d9d872ece4c6c3678f75bef7a5a2916cb1a53cc6910",
+      "boundary": "skill 是模型行为与初始化合同，不是一次真实调用 trace，也不证明 node_repl 工具或任一 browser binding 当时可用。"
+    },
+    {
+      "id": "BU-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "API manifest 定义四种交互层",
+      "statement": "固定 api.json 含 22 个 interface、136 个 member；Tab 同时挂载 PlaywrightAPI、DomCUAAPI、CUAAPI，以及可选 capability collection，形成语义 locator、DOM 节点与坐标动作并存的 surface。",
+      "artifact": "plugins/openai-bundled/plugins/browser/docs/api.json",
+      "locator": "$.root; $.interfaces.Tab; $.interfaces.PlaywrightAPI; $.interfaces.DomCUAAPI; $.interfaces.CUAAPI",
+      "sha256": "f909dbd2f79cf7ae7e254b07725646cc71f44da64bdfa4180eaf06fe858434be",
+      "boundary": "manifest 是最大可表达接口，不证明连接的 backend 支持全部成员，也不证明当前调用选用了其中任何一层。"
+    },
+    {
+      "id": "BU-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "后端发现合同区分 iab、extension 与 cdp",
+      "statement": "browser-client 的 browser info schema 与 agent.browsers.list() 类型把实例标为 iab、extension 或 cdp；family、metadata、apiSupportOverrides 和 browser/tab capabilities 随 getInfo 结果进入 facade。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "Browsers.list declaration; browser info validation; getInfo discovery and client type handling",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "这证明客户端识别三类后端合同，不证明固定 build 当前发现了几个实例，也不把 extension 与某个具体 Chrome 进程等同。"
+    },
+    {
+      "id": "BU-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "默认与 URL 选择规则明确编码",
+      "statement": "getDefault 依次偏向 IAB、首选 extension instance、其他 extension；getForUrl 对 file/localhost 优先 IAB，否则按已开 tab 的 exact URL、origin+pathname、hostname、hostname hierarchy 匹配，再回退到 IAB、extension 或首个实例。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "Browsers.getDefault/getForUrl; aM(), KK(), Yp(), uM() selection helpers",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "这是静态选择算法；显式用户选择、连接可用性、feature flags 与实际 openTabs 结果仍会改变最终实例。"
+    },
+    {
+      "id": "BU-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "API 会按后端能力动态裁剪",
+      "statement": "客户端从 unsupportedByDefaultIn、apiSupportOverrides、禁用成员配置和已广告 capability 计算 disabled member set，再用 Proxy 隐藏不支持的方法，并为所选 backend 生成对应文档。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "tf.disabledMemberIdsFor(); fJ() API Proxy; bM()/gM() generated documentation filtering",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "动态投影说明接口不是固定全集；静态档案无法给出某次连接最终得到的精确 member set。"
+    },
+    {
+      "id": "BU-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "未获受信 nativePipe 时初始化直接失败",
+      "statement": "setupBrowserRuntime 在启动时检查 privileged node_repl capabilities 与 globalThis.nodeRepl.nativePipe.createConnection；缺失时分别报 Browser use requires privileged node_repl capabilities 或 browser-client is not trusted。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "mg(); zu(); kM()/setupBrowserRuntime initialization guards",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "客户端检查证明需要宿主注入的特权桥，不表示模型 root JavaScript 能直接取得或伪造 nativePipe。"
+    },
+    {
+      "id": "BU-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Browser transport 是 framed 双向 JSON-RPC",
+      "statement": "默认 endpoint 在 macOS/Linux 为 /tmp/codex-browser-use；消息使用 JSON-RPC 2.0 request、response、notification，UTF-8 JSON 前置 4-byte 主机端序长度，普通 Browser frame 上限为 8 MiB。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "Ic default pipe; no JSON-RPC router; $i/Hu/md framing; QTe/oAe 8 MiB constants",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "客户端 framing 不公开 IAB/extension/CDP 每条 method 的完整服务端实现，也没有提供副作用 exactly-once 保证。"
+    },
+    {
+      "id": "BU-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "WebMCP 是页面提供的语义工具层",
+      "statement": "客户端处理 webmcp_changed page event，提供 listTools 与 invokeTool 命令，并在 tab 获得或工具列表变化后生成通知；文档要求仅调用页面当前列出的工具。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "webmcp_changed v1; WebMcpListTools/WebMcpInvokeTool; TM()/CJ()/IM() notification flow",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "存在 WebMCP surface 不表示任一页面实际发布工具，也不证明页面工具实现可信、无副作用或已被当前任务调用。"
+    },
+    {
+      "id": "BU-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Playwright facade 提供语义 locator 而非独立浏览器",
+      "statement": "PlaywrightAPI 提供 role、label、placeholder、text、test id、CSS locator、frameLocator、DOM snapshot、evaluate 与导航等待；locator 还封装 click、fill、press、checked、select、文本与可见性读取。",
+      "artifact": "plugins/openai-bundled/plugins/browser/docs/api.json",
+      "locator": "$.interfaces.PlaywrightAPI; $.interfaces.PlaywrightLocator; $.interfaces.PlaywrightFrameLocator",
+      "sha256": "f909dbd2f79cf7ae7e254b07725646cc71f44da64bdfa4180eaf06fe858434be",
+      "boundary": "名称表示 browser-client 内建的 Playwright-like surface，不等于启动了 standalone Playwright server，也不保证 selector 永不失效。"
+    },
+    {
+      "id": "BU-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "DOM-CUA 用 snapshot-local 公共节点 ID",
+      "statement": "可见 DOM snapshot 为节点建立递增 public id，并保存 frameId、loaderId、localRef、target 与 viewportClip；action 查不到映射时明确报 DOM node is stale or missing。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "dom_cua_get_visible_dom; Br state; kI() public id mapping; DI() stale-node guard",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "public node id 只在客户端 snapshot/session 生命周期内有意义，不是稳定 DOM id，也不能跨导航安全复用。"
+    },
+    {
+      "id": "BU-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "坐标 CUA 最终落到 CDP Input",
+      "statement": "coordinate CUA 的 move、click、drag、scroll 与 keypress 经 cursor UI 和 CDP Input.dispatchMouseEvent、Input.synthesizeScrollGesture 等命令执行；DOM-CUA 也会先把节点解析成可操作 point 再复用输入层。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "Pp CUA dispatcher; Input.dispatchMouseEvent; Input.synthesizeScrollGesture; clickDomCuaNode()",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "这里的 CUA 是 browser tab/viewport 内 CDP 输入，不是 Computer Use 的 macOS CGEvent、AX element 或任意桌面窗口控制。"
+    },
+    {
+      "id": "BU-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "跨 frame 动作显式换算几何与 target",
+      "statement": "locator 与 DOM-CUA 路径包含 frame chain、frame element content geometry、scroll/visibility 检查和 point-through-frame 换算；OOPIF 情况通过 targetForFrame/attach 与 child target 发送 CDP 命令。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "frameContentGeometry(); prepareFrameChainForPointerAction(); targetForFrameOrAttach(); OI()/MI() frame mapping",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "静态实现显示跨 frame 设计，不证明所有 cross-origin/OOPIF 页面都成功，也不替代导航与 frame detach 的动态一致性测试。"
+    },
+    {
+      "id": "BU-17",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "playwright.evaluate 运行在专用 isolated world",
+      "statement": "evaluate 为目标 frame 创建名为 browser-use-readonly-js 的 CDP isolated world，设置 grantUniveralAccess: false，并把执行 context 缓存在按 tab、target 与 frame 组成的 key 下；context 销毁后会重建。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "PlaywrightEvaluate; browser-use-readonly-js; Page.createIsolatedWorld; ly()/py()/sD()",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "isolated world 与 universal-access flag 是强静态证据，但不构成沙箱不可逃逸的形式化证明。"
+    },
+    {
+      "id": "BU-18",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "只读 DOM wrapper 与有界序列化收窄页面代码",
+      "statement": "evaluate 注入只读 Node、CSSOM、Range、Selection 等 wrapper，隐藏 constructor、冻结对象并拒绝 mutation；动态 import 先被检测，返回序列化限制为深度 8、数组 2000、对象键 200、字符串 200000。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "fy() readonly evaluator; aD()/vV dynamic-import guard; RESULT_MAX_* constants; Readonly* wrappers",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "这是实现意图与防护面，不证明没有 prototype、host-object、timing 或 browser-version 特定逃逸；需要 adversarial fixture。"
+    },
+    {
+      "id": "BU-19",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "IAB 用户 tab 必须显式 claim",
+      "statement": "IAB tab mention 要按 codexSessionId 选择 browser，再用 providerTabId、title 与 URL 对 openTabs 当前快照做完全匹配后 claim；任一字段变化即停止，不能静默认领相邻 tab。",
+      "artifact": "plugins/openai-bundled/plugins/browser/docs/tab-claiming-iab.md",
+      "locator": "User Tab Claiming; browserId/providerTabId/title/url exact-match procedure",
+      "sha256": "b7efad93e222b6787a8aeb60109f03eec802498ae24dcad42c1c5755a337d8e8",
+      "boundary": "这是 tab ownership 行为合同；文档不公开 IAB backend 如何保存快照或处理所有竞态。"
+    },
+    {
+      "id": "BU-20",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Chrome claim 对 tab id 重用 fail closed",
+      "statement": "外部 tab mention 先按 extensionInstanceId 找 browser，再以 providerTabId、title、URL 对当前 openTabs 结果完全匹配；文档明确用 title/URL 快照防止浏览器重启后数字 tab id 被复用。",
+      "artifact": "plugins/openai-bundled/plugins/browser/docs/tab-claiming-chrome.md",
+      "locator": "External Browser Tab Claiming; exact browser and tab snapshot matching",
+      "sha256": "b4efed67a2de4dead54cacd4ba29494b8323ba07b82e993c661c9ce5d9622ac1",
+      "boundary": "fail-closed 要求来自模型合同；没有动态 trace 证明扩展端在所有重连竞态中都提供同样保证。"
+    },
+    {
+      "id": "BU-21",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "finalize 把 tab 所有权分为 close、deliverable 与 handoff",
+      "statement": "Chrome cleanup 合同要求把 finalize 作为当轮最后一个 browser action：省略的 agent-created tab 被关闭，deliverable 与 handoff 释放控制并保留，claimed user tab 默认释放而不关闭。",
+      "artifact": "plugins/openai-bundled/plugins/browser/docs/tab-cleanup-chrome.md",
+      "locator": "Tab Cleanup; browser.tabs.finalize({ keep }); deliverable/handoff/omitted semantics",
+      "sha256": "e7fb00347823c48acf76e7602a923a96711a548b1ed40e57b4133d25d86a4145",
+      "boundary": "文档规定预期 lifecycle，不提供 crash、强制退出或失联时的完整回收证明；IAB 支持面也可能不同。"
+    },
+    {
+      "id": "BU-22",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "动作后的 response metadata 带受限浏览器状态",
+      "statement": "afterSubmittedCodeHook 可写入 codex/toolSurface 与 codex/browserUse metadata，包括 backend、browserId、openTabIds、Chrome openTabs、sessionEnded、截图和 WebMCP calls；URL 会移除用户名、密码、query 与 hash，openTabs URL 只保留 origin。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "Zp()/Qp()/hM(); codex/toolSurface; codex/browserUse; ef() URL sanitization; xM() response hook",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "本地 metadata shape 不说明宿主后续如何展示、传输、采样或保留；截图生成失败也被单独捕获。"
+    },
+    {
+      "id": "BU-23",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "browserAuth 合同禁止秘密回到模型",
+      "statement": "browserAuth 文档要求通过 secure sign-in handoff 收集用户凭据，明确禁止在 chat、Playwright、视觉或工具输出中读取、记录、打印或重建密码、OTP、recovery code 等秘密。",
+      "artifact": "plugins/openai-bundled/plugins/browser/docs/capabilities/tab/browserAuth.md",
+      "locator": "Secure Browser Authentication; Non-Negotiable Rules; Authentication Lifecycle; Prepare A Credential Request",
+      "sha256": "47a2ce39b62c91eecc0898d7a923be181fb4a4baa423939e1f1d672c06ef9ad5",
+      "boundary": "这是安全合同，不足以证明 UI、broker、页面填充与服务端日志端到端都不会泄漏；本档案未处理真实凭据。"
+    },
+    {
+      "id": "BU-24",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "browserAuth 使用独立秘密 broker socket",
+      "statement": "客户端从 BROWSER_AUTH_BROKER_SOCKET_PATH 建立独立 nativePipe，128 KiB 封顶，协议经历 register、submission、result/completed；模型可见结果只含 submitted、declined、cancelled、unavailable、expired、origin_changed、page_changed、locator_invalid 或 submission_failed 等状态。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "BROWSER_AUTH_BROKER_SOCKET_PATH; yd broker; tab_browser_auth_handoff schemas and status enum",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "客户端闭包与协议 shape 显示分离设计；broker/UI 的实现、内存清理和端到端秘密生命周期不在该 bundle 中。"
+    },
+    {
+      "id": "BU-25",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "每条命令先经过分类式安全门禁",
+      "statement": "executeAgentCommand 在 dispatch 前调用 security.ensureCommandAllowed；policy 依据命令分成 none、targetUrl、currentTab，再叠加 history、upload/download、page asset、raw CDP、browser capability、enterprise、guardian 与持久 origin 决策。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "pd.ensureCommandAllowed(); executeAgentCommand security call; BrowserUseSecurityError reason map; browser/config.toml",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "可见客户端门禁不是全部策略来源；远端服务、企业下发、扩展自身与 browser engine 仍可能另行允许或拒绝。"
+    },
+    {
+      "id": "BU-26",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "site-status 存在局部 fail-open 例外",
+      "statement": "site-status 返回 blocked 时抛出 site_status_blocked；但 fetch、HTTP 或解析失败会记录 outcome=error_fail_open、reason=site_status_unavailable 后直接返回，而不是把该单项检查失败提升为拒绝。",
+      "artifact": "plugins/openai-bundled/plugins/browser/scripts/browser-client.mjs",
+      "locator": "lg.throwIfBlocksUrl()/fetchBlocked(); cg() telemetry outcome error_fail_open",
+      "sha256": "091a81603ff202a16ed56557709bf42d97caf8f0dd2e07ae9e26d7c014d71035",
+      "boundary": "这是 site-status 这一局部检查的错误分支，不表示整个 Browser Use policy fail open；其他 approval、enterprise 与 URL 检查有各自失败语义。"
+    },
+    {
+      "id": "BU-27",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "高风险副作用另有 action-time 确认合同",
+      "statement": "confirmations 文档把删除、账号与权限、CAPTCHA、安装软件、代表性沟通、金融交易及医疗动作列为 action-time 确认，把敏感数据传输、上传与登录等分为可由初始 prompt 具体预批准的类别。",
+      "artifact": "plugins/openai-bundled/plugins/browser/docs/confirmations.md",
+      "locator": "Browser Use Confirmation Modes; Always Confirm at Action-Time; Pre-Approval Works; Confirmation Hygiene",
+      "sha256": "f88d90f433b891622708d67853d864e952074232fe26da68995131068ec244f7",
+      "boundary": "这是模型与产品交互政策，不等同于浏览器后端能自动识别页面中所有业务风险，也不能替代客户端 origin/enterprise 门禁。"
+    },
+    {
+      "id": "BU-28",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Chrome 安装器生成 stdio Native Messaging 边界",
+      "statement": "installManifest 固定 com.openai.codexextension 与扩展 ID hehggadaopoacecdllhhajmbjkdcmajg，生成 type=stdio、allowed_origins=chrome-extension://…/ 的 Native Messaging manifest，并写入 browserClient、Codex CLI、Node 与 node_repl 路径配置。",
+      "artifact": "plugins/openai-bundled/plugins/chrome/scripts/installManifest.mjs",
+      "locator": "extension host constants; P() native manifest writer; B()/V() extension-host-config.json builder; install()",
+      "sha256": "6fc87b060fef3cd7e6545fa71b72c0b4a6a0a5ac9460bef1cbe8b9e764ff6564",
+      "boundary": "安装器证明可生成的注册合同，不包含 Chrome 扩展源码，也不证明本机 manifest 当前有效、扩展已启用或连接已建立。"
+    },
+    {
+      "id": "BU-29",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "Chrome native host 在 stdio 与本地 app-server 间路由",
+      "statement": "bundled arm64 Rust Mach-O 的静态字符串显示 stdin/stdout Native Messaging、RpcRouter、AppServerManager、WebSocket proxy、/tmp/codex-browser-use、tab context asset 与 schemaVersion 2 manifest；代码签名 TeamIdentifier 为 2DC432GLL2。",
+      "artifact": "plugins/openai-bundled/plugins/chrome/extension-host/macos/arm64/ChatGPT for Chrome",
+      "locator": "Mach-O code signature; static strings: src/main.rs, app_server, chrome-extension://, WebSocket, chrome-native-hosts-v2.json, /tmp/codex-browser-use",
+      "sha256": "25cbfcdbaab7e4a0267dfd7290b28bf6466274ac2ae30004926b68027fc5c3f3",
+      "boundary": "这是由签名元数据与静态字符串得到的强推断，不是 Rust 源码或逐跳动态 trace；不能还原全部 wire schema 与重连语义。"
+    },
+    {
+      "id": "BU-30",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "macOS peer addon 核验 socket 对端代码签名链",
+      "statement": "arm64 N-API bundle 导出 authorizeSocketPeer，静态包含 LOCAL_PEERTOKEN、peer/parent/grandparent audit token 路径、Team ID 2DC432GLL2、允许的 Codex/node/node_repl signing identifiers，以及 authorized/teamId/signingIdentifier/reason 结果字段。",
+      "artifact": "native/browser-use-peer-authorization.node",
+      "locator": "Mach-O code signature; N-API export and static strings: authorizeSocketPeer, LOCAL_PEERTOKEN, signing identities",
+      "sha256": "b8c818d79449637c21babc55ebc93db1c0dd15b3c0787c6488a389ac6d61bd9d",
+      "boundary": "原生源码不可见；静态标识不能证明每个 ancestor 分支、entitlement 条件或当前连接的实际授权结果。"
+    },
+    {
+      "id": "BU-31",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Desktop shell 绑定可信 client digest 与 peer authorizer",
+      "statement": "app.asar 的已编译 main bundle 内嵌 browser-client 完整 digest allowlist，把它传给 node_repl 环境；Browser native pipe server 在接收 socket 时调用 peer authorizer，未授权即销毁连接，并在 packaged metadata 缺失时返回 missing-package-build-flavor 拒绝。",
+      "artifact": "app.asar",
+      "locator": ".vite/build/main-i-HoRaar.js: trustedBrowserClientSha256s/Or; Pf/Ff socket server; $f peer authorizer; aZ browser-use native pipe server",
+      "sha256": "3fea92820c0fb7a69473e7a8308a8e5b8e91524289a84181a33533ec6cb51d45",
+      "boundary": "这是发行包中的 minified Electron bundle，不是上游源码；静态构造证明可用链路，不证明当前会话启用了 IAB 或建立了该 socket。"
+    },
+    {
+      "id": "BU-32",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "IAB 可用隐藏 webview 维持浏览器 tab",
+      "statement": "ASAR 内 HiddenBrowserUseWebviewHost 为每个 browser tab 创建 hostKind=hidden-browser-use 的 webview，设置 isVisible=false、shouldBootstrapWhenHidden=true、shouldPaint=false，并以 conversationId/browserTabId 绑定状态。",
+      "artifact": "app.asar",
+      "locator": "webview/assets/hidden-browser-use-webview-host-ViQC8Hvc.js: HiddenBrowserUseWebviewHost and A() webview props",
+      "sha256": "3fea92820c0fb7a69473e7a8308a8e5b8e91524289a84181a33533ec6cb51d45",
+      "boundary": "renderer 产物证明隐藏 host 的存在与 props，不公开 webview preload、Chromium CDP backend 或每个 tab 的完整生命周期实现。"
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "BU-KU-01",
+      "title": "一次真实调用的后端选择",
+      "text": "静态代码给出 iab、extension、cdp 的选择算法与 feature flags，但没有证明某次任务最终连接哪一个实例、何时迁移或为何回退。",
+      "needed": "固定 session 的 discovery/getInfo、选中 browser id、capability snapshot 与每次 fallback 原因 trace"
+    },
+    {
+      "id": "BU-KU-02",
+      "title": "IAB backend 与 preload 实现",
+      "text": "ASAR 可见 session registry、hidden webview host 与 native pipe server，但 webview 内如何接入 CDP、隔离 preload、生成截图和落地 Input 的完整实现未闭合。",
+      "needed": "对应 build 的 IAB preload/backend source snapshot，或 webview IPC、CDP command/result 与 lifecycle 动态 trace"
+    },
+    {
+      "id": "BU-KU-03",
+      "title": "Chrome 扩展逐跳协议",
+      "text": "安装包含 native host 与注册脚本，但不含 Chrome Web Store 扩展的完整源码；extension ↔ stdio host ↔ app-server/socket 的逐跳 schema 不能只靠二进制字符串还原。",
+      "needed": "固定扩展版本源码、Native Messaging frames、host/app-server WebSocket trace 与协议兼容测试"
+    },
+    {
+      "id": "BU-KU-04",
+      "title": "只读 evaluate 的逃逸边界",
+      "text": "isolated world、DOM wrapper、冻结对象与有界 serializer 显示认真加固，但没有形式化证明其对 constructor/prototype、host object、getter side effect 与 browser-version 差异免疫。",
+      "needed": "针对该 digest 的 adversarial corpus、mutation readback、prototype escape、network/side-effect probe 与 Chromium 版本矩阵"
+    },
+    {
+      "id": "BU-KU-05",
+      "title": "跨域 frame 与陈旧节点一致性",
+      "text": "代码处理 OOPIF、frame geometry、loaderId 与 stale node，但导航、frame detach、虚拟列表和 layout shift 竞态下是否始终拒绝错误目标尚未验证。",
+      "needed": "多层 same-origin/cross-origin iframe fixture，注入导航与重排后复用 locator/node id 的 conformance trace"
+    },
+    {
+      "id": "BU-KU-06",
+      "title": "完整策略权威与 fail-open 范围",
+      "text": "客户端显示 origin、site-status、enterprise、guardian、browser capability 与用户许可层，且 site-status error 有局部 fail-open；各权威数据源、合并优先级和生产环境覆盖率仍不可见。",
+      "needed": "策略 schema、远端响应 contract、enterprise override、cache invalidation 与每个错误注入点的 allow/deny matrix"
+    },
+    {
+      "id": "BU-KU-07",
+      "title": "peer authorization 的原生判定细节",
+      "text": "addon 静态显示 audit token、Team ID 与多级进程身份，但缺少原生源码，无法证明全部 code requirement、ancestor 选择和 dev-mode 差异。",
+      "needed": "browser-use-peer-authorization 对应源码、codesign requirement 文本，以及合法/伪造/父进程替换 socket peer 测试"
+    },
+    {
+      "id": "BU-KU-08",
+      "title": "tab finalize 的异常恢复",
+      "text": "合同清楚区分 omitted、deliverable、handoff 与 claimed tab，但进程崩溃、扩展断线、turn 被取消或 finalize response 丢失时的所有权和清理结果未知。",
+      "needed": "在 create/claim/mark/finalize/response 各边界注入断线并核对浏览器 tab、session registry 与下一 turn claim 结果"
+    },
+    {
+      "id": "BU-KU-09",
+      "title": "browserAuth 秘密端到端生命周期",
+      "text": "客户端证明独立 broker socket 和非秘密结果面，但 secure form、broker process、页面注入、内存擦除、日志与崩溃恢复都不在可见 bundle 中。",
+      "needed": "无真实秘密的 instrumented broker trace、内存/日志检查、origin/page-change 注入和 credential-field fill conformance"
+    },
+    {
+      "id": "BU-KU-10",
+      "title": "WebMCP 页面工具信任模型",
+      "text": "可见客户端能发现并调用页面定义工具，但工具注册者身份、schema 净化、权限继承、跨导航失效和与点击确认政策的对应关系未完全公开。",
+      "needed": "WebMCP registration/invocation protocol、恶意页面 fixture、schema/result sanitization 与 side-effect confirmation matrix"
+    },
+    {
+      "id": "BU-KU-11",
+      "title": "response metadata 的下游语义",
+      "text": "client 会附加 tab、screenshot、origin 与 WebMCP call 摘要并做局部 URL 净化，但宿主何时发送、显示、采样、保留或删除这些数据无法由本地 producer 推出。",
+      "needed": "宿主消费代码、network capture、产品 retention contract 与关闭相关功能后的差分验证"
+    }
+  ]
+}

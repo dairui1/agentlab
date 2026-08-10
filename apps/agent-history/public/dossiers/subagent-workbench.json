@@ -19,7 +19,7 @@
   ],
   "operations": [
     {
-      "id": "create", "label": "创建 child", "question": "调用哪个入口，默认怎么运行？", "icon": "plus",
+      "id": "create", "label": "创建 Subagent", "question": "调用哪个入口，默认怎么运行？", "icon": "plus",
       "cells": {
         "claude-code": { "status": "exposed", "surface": "Agent model tool", "primitive": "Agent(description, prompt, subagent_type?, model?, run_in_background?, isolation?)", "contract": "普通 Agent 建 fresh transcript；fork 是显式另一模式。", "edge": "2.1.226 默认 background；isolation=remote 是 gated 且强制 background。", "details": [{ "label": "REQUIRED", "value": "description · prompt" }, { "label": "DEFAULT", "value": "subagent_type=general-purpose · run_in_background=true" }, { "label": "OPTIONAL", "value": "subagent_type · model · run_in_background · isolation=worktree|remote" }, { "label": "CONSTRAINT", "value": "isolation=remote → run_in_background=true" }], "claims": ["CC-02", "CC-03"] },
         "codex": { "status": "exposed", "surface": "collaboration tool", "primitive": "spawn_agent(task_name, message, fork_turns?, model?, reasoning_effort?)", "contract": "返回可递归寻址的 child 节点。", "edge": "fork_turns 默认 all；full-history fork 不能同时覆盖 model/reasoning。", "details": [{ "label": "REQUIRED", "value": "task_name · message" }, { "label": "DEFAULT", "value": "fork_turns=all" }, { "label": "RETURN", "value": "canonical child path" }], "claims": ["CX-01", "CX-02", "CX-03"] },
@@ -51,7 +51,7 @@
       }
     },
     {
-      "id": "wait-child", "label": "等待指定 child", "question": "调用是否阻塞到这个 child 完成？", "icon": "hourglass",
+      "id": "wait-child", "label": "等待指定 Subagent", "question": "调用是否阻塞到这个 child 完成？", "icon": "hourglass",
       "cells": {
         "claude-code": { "status": "exposed", "surface": "Agent foreground", "primitive": "Agent(..., run_in_background=false)", "contract": "foreground 调用阻塞并直接返回 tool result。", "edge": "2.1.226 默认 background；必须显式 false 才是此合同。", "claims": ["CC-03"] },
         "codex": { "status": "not-exposed", "surface": "collaboration tool", "primitive": "no targeted wait", "contract": "wait_agent 没有 target 参数，只等待任一 live Agent 的首个更新。", "edge": "需要调用方按 target 聚合异步事件；不能假装是 join。", "claims": ["CX-08"] },

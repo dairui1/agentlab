@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="AgentLab 能力拆解：持续追踪 Coding Agent 能力如何在具体发行版本中实现。">
+  <title>能力拆解 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/capabilities-index.css">
+</head>
+<body>
+  <div class="app-shell capability-library-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>能力拆解</span></span>
+      </a>
+      <div class="segmented mode-switch" role="group" aria-label="页面视图">
+        <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
+        <a href="/?mode=compare"><i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span></a>
+        <a href="/mechanisms.html"><i data-lucide="network" aria-hidden="true"></i><span>机制档案</span></a>
+        <a href="/capabilities.html" aria-current="page"><i data-lucide="scan-search" aria-hidden="true"></i><span>能力拆解</span></a>
+      </div>
+      <div class="header-links">
+        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
+      </div>
+    </header>
+
+    <main class="capability-library">
+      <header class="library-intro">
+        <div class="library-heading">
+          <span class="library-kicker">CAPABILITY TEARDOWNS</span>
+          <h1>能力拆解</h1>
+        </div>
+        <div class="library-definition">
+          <p>一篇能力，一座持续增高的实现档案。沿着产品表面向下追踪模型接口、宿主桥接、系统权限与真实失败面。</p>
+          <p class="library-method">每次研究锁定具体发行构建；事实、工程推断与未知问题分别标注，并随新版本继续修订。</p>
+        </div>
+      </header>
+
+      <section class="library-catalog" aria-labelledby="catalogTitle">
+        <header class="catalog-heading">
+          <div>
+            <span>THE COLLECTION</span>
+            <h2 id="catalogTitle">深度文章</h2>
+          </div>
+          <p><strong>02</strong> 篇正在维护</p>
+        </header>
+
+        <ol class="article-list">
+          <li class="article-entry article-entry-featured">
+            <a class="article-link" href="/capabilities/browser-use.html" aria-label="阅读 Browser Use 能力拆解">
+              <div class="article-index" aria-hidden="true"><span class="article-number">01</span><img src="/assets/capability-browser.png" alt=""></div>
+              <div class="article-copy">
+                <div class="article-heading-line">
+                  <span class="article-status" data-status="active"><span aria-hidden="true"></span>首篇 · 持续更新</span>
+                  <span class="article-slug">browser-use</span>
+                </div>
+                <h3>Browser Use</h3>
+                <p>从 WebMCP、Playwright 与 DOM 观察层，一路追到 tab 所有权、浏览器宿主和用户登录态。拆开 Codex 如何理解、控制并安全地交还一个真实网页。</p>
+              </div>
+              <dl class="article-meta">
+                <div><dt>研究构建</dt><dd>Codex for macOS · build 6234</dd></div>
+                <div><dt>阅读时间</dt><dd>约 28 分钟</dd></div>
+                <div><dt>发行包证据</dt><dd>32 条</dd></div>
+              </dl>
+              <span class="article-open" aria-hidden="true"><i data-lucide="arrow-up-right"></i></span>
+            </a>
+          </li>
+
+          <li class="article-entry">
+            <a class="article-link" href="/capabilities/computer-use.html" aria-label="阅读 Codex Computer Use 实现拆解">
+              <div class="article-index" aria-hidden="true"><span class="article-number">02</span><img src="/assets/capability-computer-use.svg" alt=""></div>
+              <div class="article-copy">
+                <div class="article-heading-line">
+                  <span class="article-status" data-status="maintained"><span aria-hidden="true"></span>继续追踪</span>
+                  <span class="article-slug">computer-use</span>
+                </div>
+                <h3>Computer Use</h3>
+                <p>沿固定构建拆开 node_repl、@oai/sky、本地 IPC、CUAService 与 macOS 权限，看它们怎样串成 Codex Computer Use 的实现链。</p>
+              </div>
+              <dl class="article-meta">
+                <div><dt>研究构建</dt><dd>Codex for macOS · build 6234</dd></div>
+                <div><dt>阅读时间</dt><dd>约 24 分钟</dd></div>
+                <div><dt>发行包证据</dt><dd>23 条</dd></div>
+              </dl>
+              <span class="article-open" aria-hidden="true"><i data-lucide="arrow-up-right"></i></span>
+            </a>
+          </li>
+        </ol>
+      </section>
+
+      <footer class="library-footer">
+        <span>研究原则</span>
+        <p>不把编译产物写成源码，不把文件存在写成执行路径，也不让未知部分消失在叙事里。</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>window.lucide?.createIcons();</script>
+</body>
+</html>
