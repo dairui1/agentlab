@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 from urllib.error import URLError
+import re
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "sync_official_sources.py"
@@ -115,7 +116,9 @@ class OfficialSourceTests(unittest.TestCase):
         releases = official.github_releases(
             FakeCache(body),
             repository="anomalyco/opencode",
-            tag_pattern=official.STANDARD_TAG_RE,
+            tag_pattern=re.compile(
+                str(official.GITHUB_RELEASE_SOURCES["opencode"]["tagPattern"])
+            ),
             product_name="opencode",
             max_pages=1,
             timeout=1,
@@ -125,6 +128,33 @@ class OfficialSourceTests(unittest.TestCase):
 
         self.assertEqual([item["version"] for item in releases], ["1.18.15"])
         self.assertIn("Chronological", releases[0]["notes"]["text"])
+
+    def test_registered_release_tag_patterns_match_capture_versions(self) -> None:
+        samples = {
+            "antigravity": ("1.1.11", "1.1.11"),
+            "cline": ("cli-v3.0.52", "3.0.52"),
+            "goose": ("v1.45.0", "v1.45.0"),
+            "hermes": ("v2026.7.7.2", "v2026.7.7.2"),
+            "kimi": ("1.49.0", "1.49.0"),
+            "kimi-code": ("@moonshot-ai/kimi-code@0.34.0", "0.34.0"),
+            "mimo": ("v0.1.10", "0.1.10"),
+            "omp": ("v17.2.12", "17.2.12"),
+            "openclaw": ("v2026.7.1-2", "2026.7.1-2"),
+            "opencode": ("v1.18.15", "1.18.15"),
+            "pi": ("v0.84.1", "0.84.1"),
+            "qwen-code": ("v0.21.8", "0.21.8"),
+            "reasonix": ("v1.22.0", "1.22.0"),
+        }
+
+        self.assertEqual(set(samples), set(official.GITHUB_RELEASE_SOURCES))
+        for agent, (tag, version) in samples.items():
+            pattern = re.compile(
+                str(official.GITHUB_RELEASE_SOURCES[agent]["tagPattern"])
+            )
+            match = pattern.fullmatch(tag)
+            self.assertIsNotNone(match, agent)
+            self.assertEqual(match.group(1), version)
+            official.version_key(version)
 
     def test_extracts_bounded_key_files_from_official_compare_diff(self) -> None:
         body = (FIXTURES / "official_codex_compare.diff").read_bytes()
@@ -229,6 +259,21 @@ class OfficialSourceTests(unittest.TestCase):
                 [{"type": "source-unavailable", "reason": "compare-failed"}]
             ),
             "degraded",
+        )
+
+    def test_github_token_falls_back_to_authenticated_cli(self) -> None:
+        completed = mock.Mock(stdout="secret-token\n")
+        with mock.patch.dict(official.os.environ, {}, clear=True), mock.patch.object(
+            official.shutil, "which", return_value="/usr/local/bin/gh"
+        ), mock.patch.object(official.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(official.resolve_github_token(), "secret-token")
+
+        run.assert_called_once_with(
+            ["/usr/local/bin/gh", "auth", "token"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
 
     def test_failed_optional_compare_marks_sync_degraded(self) -> None:

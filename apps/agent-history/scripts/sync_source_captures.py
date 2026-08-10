@@ -6,9 +6,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from official_release_sources import GITHUB_RELEASE_SOURCES
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -17,22 +21,11 @@ DEFAULT_PHISTORY_ROOT = APP_ROOT / ".cache" / "phistory" / "upstream"
 DEFAULT_OVERLAY_ROOT = APP_ROOT / ".cache" / "agentlab-captures"
 
 SOURCE_AGENTS = {
-    "cline": {
-        "label": "Cline",
-        "package": "cline/cline",
-    },
-    "opencode": {
-        "label": "opencode",
-        "package": "anomalyco/opencode",
-    },
-    "qwen-code": {
-        "label": "Qwen Code",
-        "package": "QwenLM/qwen-code",
-    },
-    "reasonix": {
-        "label": "Reasonix",
-        "package": "esengine/DeepSeek-Reasonix",
-    },
+    agent: {
+        "label": str(config["label"]),
+        "package": str(config["repository"]),
+    }
+    for agent, config in GITHUB_RELEASE_SOURCES.items()
 }
 
 

@@ -232,6 +232,16 @@ class BuildFromPhistoryTests(unittest.TestCase):
     def _json(self, path: Path) -> dict[str, object]:
         return json.loads(path.read_text(encoding="utf-8"))
 
+    def test_every_github_backed_agent_has_official_release_intelligence(self) -> None:
+        github_agents = {
+            agent
+            for agent, definition in builder.AGENT_DEFINITIONS.items()
+            if definition.get("projectUrl", "").startswith("https://github.com/")
+        }
+
+        self.assertLessEqual(github_agents, set(builder.OFFICIAL_REPOSITORIES))
+        self.assertIn("pi", builder.OFFICIAL_REPOSITORIES)
+
     def test_builds_two_agents_in_semver_order_with_sections_and_tools(self) -> None:
         manifest = self._build()
 
@@ -289,8 +299,11 @@ class BuildFromPhistoryTests(unittest.TestCase):
         )
         self.assertEqual(openclaw["versions"][-1]["version"], "2026.7.1-2")
         kimi_manifest = next(item for item in manifest["agents"] if item["id"] == "kimi")
-        self.assertEqual(kimi_manifest["officialSourceStatus"], "not-collected")
-        self.assertNotIn("officialSourceUrl", kimi_manifest)
+        self.assertEqual(kimi_manifest["officialSourceStatus"], "not-synced")
+        self.assertEqual(
+            kimi_manifest["officialSourceUrl"],
+            "https://github.com/MoonshotAI/kimi-cli",
+        )
         future = next(item for item in manifest["agents"] if item["id"] == "future-agent")
         self.assertEqual(future["label"], "fixture")
 

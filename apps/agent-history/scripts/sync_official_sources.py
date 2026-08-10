@@ -14,6 +14,9 @@ import json
 import logging
 import os
 import re
+import shutil
+import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -23,6 +26,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from official_release_sources import GITHUB_RELEASE_SOURCES
+
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CACHE_ROOT = APP_ROOT / ".cache" / "official-sources"
@@ -31,10 +37,6 @@ USER_AGENT = "agentlab-agent-history/1.0 (+https://agentlab.dairui1.com)"
 
 CODEX_REPOSITORY = "openai/codex"
 CLAUDE_REPOSITORY = "anthropics/claude-code"
-CLINE_REPOSITORY = "cline/cline"
-OPENCODE_REPOSITORY = "anomalyco/opencode"
-QWEN_CODE_REPOSITORY = "QwenLM/qwen-code"
-REASONIX_REPOSITORY = "esengine/DeepSeek-Reasonix"
 CODEX_RELEASES_URL = f"https://api.github.com/repos/{CODEX_REPOSITORY}/releases"
 CODEX_CHANGELOG_RAW_URL = (
     f"https://raw.githubusercontent.com/{CODEX_REPOSITORY}/main/CHANGELOG.md"
@@ -52,10 +54,10 @@ MAX_NOTES_BYTES = 16 * 1024
 MAX_KEY_FILES = 24
 MAX_NORMALIZED_RELEASE_BYTES = 64 * 1024
 
-VERSION_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+VERSION_RE = re.compile(
+    r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:(?:\.|-)(0|[1-9]\d*))?$"
+)
 CODEX_TAG_RE = re.compile(r"^(?:rust-)?v?(\d+\.\d+\.\d+)$")
-CLINE_TAG_RE = re.compile(r"^cli-v(\d+\.\d+\.\d+)$")
-STANDARD_TAG_RE = re.compile(r"^v(\d+\.\d+\.\d+)$")
 CHANGELOG_HEADING_RE = re.compile(
     r"^##[ \t]+v?(\d+\.\d+\.\d+)(?:[ \t].*)?$", re.MULTILINE
 )
@@ -123,11 +125,12 @@ def bounded_text(value: str, max_bytes: int = MAX_NOTES_BYTES) -> tuple[str, boo
     return "", True
 
 
-def version_key(value: str) -> tuple[int, int, int]:
+def version_key(value: str) -> tuple[int, int, int, int]:
     match = VERSION_RE.fullmatch(value)
     if not match:
         raise OfficialSyncError(f"invalid official release version: {value!r}")
-    return tuple(int(part) for part in match.groups())  # type: ignore[return-value]
+    major, minor, patch, extra = match.groups()
+    return int(major), int(minor), int(patch), int(extra or -1)
 
 
 @dataclass(frozen=True)
@@ -669,6 +672,26 @@ def sync_health_status(warnings: Sequence[Mapping[str, str]]) -> str:
     return "stale" if warnings else "current"
 
 
+def resolve_github_token() -> str | None:
+    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
+    if token:
+        return token
+    gh = shutil.which("gh")
+    if gh is None:
+        return None
+    try:
+        result = subprocess.run(
+            [gh, "auth", "token"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() or None
+
+
 def sync(
     *,
     cache_root: Path,
@@ -747,17 +770,14 @@ def sync(
     )
 
     recent_cutoff = datetime.now(timezone.utc) - timedelta(days=62)
-    recent_configs = {
-        "cline": (CLINE_REPOSITORY, CLINE_TAG_RE, "Cline CLI"),
-        "opencode": (OPENCODE_REPOSITORY, STANDARD_TAG_RE, "opencode"),
-        "qwen-code": (QWEN_CODE_REPOSITORY, STANDARD_TAG_RE, "Qwen Code"),
-        "reasonix": (REASONIX_REPOSITORY, STANDARD_TAG_RE, "Reasonix"),
-    }
     normalized_values: dict[str, dict[str, object]] = {
         "claude-code": claude_value,
         "codex": codex_value,
     }
-    for agent, (repository, tag_pattern, product_name) in recent_configs.items():
+    for agent, config in GITHUB_RELEASE_SOURCES.items():
+        repository = str(config["repository"])
+        tag_pattern = re.compile(str(config["tagPattern"]))
+        product_name = str(config["label"])
         recent = github_releases(
             cache,
             repository=repository,
@@ -840,7 +860,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         max_comparisons=args.max_comparisons,
         timeout=args.timeout,
         allow_stale_on_error=args.allow_stale_on_error,
-        token=os.environ.get("GITHUB_TOKEN"),
+        token=resolve_github_token(),
     )
     counts = manifest["agents"]
     assert isinstance(counts, Mapping)

@@ -809,6 +809,12 @@ class SyncPhistoryTests(unittest.TestCase):
 
 
 class SourceCaptureSyncTests(unittest.TestCase):
+    def test_source_capture_registry_covers_every_github_release_source(self):
+        self.assertEqual(
+            set(source_sync.SOURCE_AGENTS),
+            set(source_sync.GITHUB_RELEASE_SOURCES),
+        )
+
     def test_materializes_only_missing_official_releases(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

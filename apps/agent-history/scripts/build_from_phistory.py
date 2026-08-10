@@ -24,6 +24,9 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import quote
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from official_release_sources import OFFICIAL_REPOSITORIES
+
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 if str(APP_ROOT) not in sys.path:
@@ -54,15 +57,6 @@ MAX_STATIC_PROMPT_EXCERPT_BYTES = 640
 EPOCH = "1970-01-01T00:00:00Z"
 UPSTREAM_REPO = "WEIFENG2333/phistory"
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}"
-OFFICIAL_REPOSITORIES = {
-    "claude-code": "anthropics/claude-code",
-    "cline": "cline/cline",
-    "codex": "openai/codex",
-    "opencode": "anomalyco/opencode",
-    "qwen-code": "QwenLM/qwen-code",
-    "reasonix": "esengine/DeepSeek-Reasonix",
-}
-
 AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
     "claude-code": {
         "label": "Claude Code",
