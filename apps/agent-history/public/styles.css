@@ -780,16 +780,22 @@ ul {
   gap: 17px;
   padding: 17px 10px 17px 0;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-m);
   background: transparent;
   color: inherit;
   cursor: pointer;
   text-align: left;
   text-decoration: none;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .intelligence-item-button:hover {
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.intelligence-item-button:hover .feed-open-label svg {
+  transform: translateX(2px);
 }
 
 .intelligence-rail {
@@ -901,9 +907,9 @@ ul {
 .intelligence-title {
   display: block;
   color: var(--text);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 660;
-  line-height: 1.4;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
@@ -912,8 +918,8 @@ ul {
   display: -webkit-box;
   overflow: hidden;
   color: var(--text-soft);
-  font-size: 11px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.65;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -924,7 +930,7 @@ ul {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 3px;
+  margin-top: 5px;
 }
 
 .feed-facts {
@@ -967,6 +973,7 @@ ul {
 .feed-open-label svg {
   width: 13px;
   height: 13px;
+  transition: transform 0.16s ease;
 }
 
 .feed-load-more {
@@ -2415,6 +2422,11 @@ a.source-layer:hover {
   }
 
   .feed-filter-chevron {
+    transition: none;
+  }
+
+  .intelligence-item-button,
+  .feed-open-label svg {
     transition: none;
   }
 }
