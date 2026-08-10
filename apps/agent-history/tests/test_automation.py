@@ -952,6 +952,7 @@ class SourceCaptureSyncTests(unittest.TestCase):
 
             self.assertEqual(pruned, 1)
             self.assertFalse(placeholder.exists())
+            self.assertFalse(placeholder.parent.exists())
             self.assertEqual((upstream / "prompt.md").read_text(), "real capture")
 
 

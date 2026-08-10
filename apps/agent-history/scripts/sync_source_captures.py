@@ -88,7 +88,15 @@ def prune_superseded_placeholders(
         for child in children:
             child.unlink()
         capture.rmdir()
+        agent_directory = capture.parent
+        if not any(agent_directory.iterdir()):
+            agent_directory.rmdir()
         pruned += 1
+    agent_directory = overlay_root / "captures" / agent
+    if agent_directory.is_dir() and not agent_directory.is_symlink() and not any(
+        agent_directory.iterdir()
+    ):
+        agent_directory.rmdir()
     return pruned
 
 
