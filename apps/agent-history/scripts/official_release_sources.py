@@ -34,3 +34,8 @@ OFFICIAL_REPOSITORIES = {
     **SPECIAL_OFFICIAL_REPOSITORIES,
     **{agent: str(config["repository"]) for agent, config in GITHUB_RELEASE_SOURCES.items()},
 }
+
+# Bootstrap one adjacent comparison per repository. Each future release keeps
+# its eligible comparison, so coverage grows without creating a one-time model
+# backlog across the entire historical corpus.
+SOURCE_CODE_COMPARISON_WINDOW = 1

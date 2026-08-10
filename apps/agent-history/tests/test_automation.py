@@ -838,6 +838,11 @@ class SourceCaptureSyncTests(unittest.TestCase):
                 "sourceUrl": "https://github.com/cline/cline/releases/tag/cli-v0.9.9",
                 "publishedAt": "2026-06-08T23:59:59Z",
             }
+            releases["0.8.0"] = {
+                "version": "0.8.0",
+                "tag": "cli-v0.8.0",
+                "sourceUrl": "https://github.com/cline/cline/tree/cli-v0.8.0",
+            }
             (official / "cline.json").write_text(
                 json.dumps(
                     {
@@ -858,6 +863,7 @@ class SourceCaptureSyncTests(unittest.TestCase):
             self.assertEqual(result, {"cline": 1})
             capture = overlay / "captures/cline/1.0.1"
             self.assertFalse((overlay / "captures/cline/0.9.9").exists())
+            self.assertFalse((overlay / "captures/cline/0.8.0").exists())
             self.assertIn("runtime prompt", (capture / "prompt.md").read_text())
             metadata = json.loads((capture / "meta.json").read_text())
             self.assertEqual(metadata["capture_kind"], "official-source-history")
@@ -949,6 +955,16 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertIn("--allow-stale-on-error", steps[1].command)
         self.assertIn(str(daily.DEFAULT_OFFICIAL_CACHE_ROOT), steps[1].command)
         resolved_overlay = str(overlay.resolve())
+        official_command = steps[1].command
+        capture_roots = [
+            official_command[index + 1]
+            for index, value in enumerate(official_command)
+            if value == "--capture-root"
+        ]
+        self.assertEqual(
+            capture_roots,
+            [str(daily.DEFAULT_CACHE_ROOT.resolve() / "upstream"), resolved_overlay],
+        )
         source_command = steps[2].command
         self.assertEqual(
             source_command[source_command.index("--overlay-root") + 1], resolved_overlay
@@ -984,6 +1000,11 @@ class DailyUpdateTests(unittest.TestCase):
         command = package["scripts"]["build:data"]
         self.assertIn("--capture-overlay-root", command)
         self.assertIn(".cache/agentlab-captures", command)
+
+        official_command = package["scripts"]["sync:official"]
+        self.assertEqual(official_command.count("--capture-root"), 2)
+        self.assertIn(".cache/phistory/upstream", official_command)
+        self.assertIn(".cache/agentlab-captures", official_command)
 
     def test_optional_analyzer_failure_continues_pipeline(self):
         with tempfile.TemporaryDirectory() as raw:

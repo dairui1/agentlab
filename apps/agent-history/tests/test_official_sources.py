@@ -61,6 +61,28 @@ class FailingCompareCache:
         raise official.OfficialSyncError("fixture compare failure")
 
 
+class RouteCache:
+    def __init__(self, routes: dict[str, bytes]) -> None:
+        self.routes = routes
+        self.warnings: list[dict[str, str]] = []
+
+    def fetch(self, url: str, **_: object):
+        body = next(
+            (value for marker, value in self.routes.items() if marker in url), None
+        )
+        if body is None:
+            raise AssertionError(f"unexpected fixture URL: {url}")
+        return official.CachedResponse(
+            url=url,
+            accept="fixture",
+            body=body,
+            sha256=official.sha256_bytes(body),
+            etag='"fixture"',
+            last_modified=None,
+            truncated=False,
+        )
+
+
 class OfficialSourceTests(unittest.TestCase):
     def test_parses_claude_changelog_by_exact_semver_heading(self) -> None:
         text = (FIXTURES / "official_claude_changelog.md").read_text(encoding="utf-8")
@@ -154,6 +176,74 @@ class OfficialSourceTests(unittest.TestCase):
                 timeout=1,
                 allow_stale_on_error=False,
             )
+
+    def test_enriches_captured_versions_with_tags_commits_and_code_diff(self) -> None:
+        tags = json.dumps(
+            [
+                {"name": "v1.0.1", "commit": {"sha": "b" * 40}},
+                {"name": "v1.0.0", "commit": {"sha": "a" * 40}},
+            ]
+        ).encode()
+        diff = (FIXTURES / "official_codex_compare.diff").read_bytes()
+        cache = RouteCache({"/tags?": tags, "/compare/": diff})
+
+        with tempfile.TemporaryDirectory() as directory:
+            releases = official.enrich_repository_history(
+                agent="example",
+                repository="example/agent",
+                product_name="Example Agent",
+                tag_pattern=re.compile(r"^v(\d+\.\d+\.\d+)$"),
+                releases=[],
+                normalized_root=Path(directory),
+                captured_versions=("1.0.0", "1.0.1"),
+                cache=cache,
+                max_tag_pages=1,
+                newest_comparisons=1,
+                timeout=1,
+                allow_stale_on_error=False,
+            )
+
+        self.assertEqual([release["version"] for release in releases], ["1.0.0", "1.0.1"])
+        self.assertEqual(releases[0]["notes"]["sourceKind"], "github-tag")
+        self.assertEqual(releases[0]["commitSha"], "a" * 40)
+        change = releases[1]["codeChange"]
+        self.assertEqual(change["status"], "available")
+        self.assertIs(change["analysisEligible"], True)
+        self.assertEqual(change["baseCommitSha"], "a" * 40)
+        self.assertEqual(change["headCommitSha"], "b" * 40)
+        self.assertGreater(change["filesObserved"], 0)
+
+    def test_comparison_pairs_do_not_jump_over_an_unmatched_capture(self) -> None:
+        releases = [
+            {"version": version, "commitSha": "a" * 40}
+            for version in ("1.0.0", "1.0.2", "1.0.3")
+        ]
+
+        pairs = official.comparison_pairs(
+            releases,
+            ("1.0.0", "1.0.1", "1.0.2"),
+            newest_count=0,
+        )
+
+        self.assertEqual(pairs, [])
+
+    def test_discovers_capture_versions_in_capture_time_order(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for version, published in (
+                ("1.0.1", "2026-01-02T00:00:00Z"),
+                ("1.0.0", "2026-01-01T00:00:00Z"),
+            ):
+                capture = root / "captures/example" / version
+                capture.mkdir(parents=True)
+                (capture / "meta.json").write_text(
+                    json.dumps({"version": version, "published_at": published}),
+                    encoding="utf-8",
+                )
+
+            observed = official.discover_capture_sequences((root,))
+
+        self.assertEqual(observed, {"example": ["1.0.0", "1.0.1"]})
 
     def test_registered_release_tag_patterns_match_capture_versions(self) -> None:
         samples = {
@@ -304,15 +394,24 @@ class OfficialSourceTests(unittest.TestCase):
 
     def test_failed_optional_compare_marks_sync_degraded(self) -> None:
         releases = [
-            {"version": "0.9.0", "tag": "rust-v0.9.0"},
-            {"version": "0.10.0", "tag": "rust-v0.10.0"},
+            {
+                "version": "0.9.0",
+                "tag": "rust-v0.9.0",
+                "commitSha": "a" * 40,
+            },
+            {
+                "version": "0.10.0",
+                "tag": "rust-v0.10.0",
+                "commitSha": "b" * 40,
+            },
         ]
         cache = FailingCompareCache()
 
-        official.attach_codex_compares(
+        official.attach_code_compares(
             releases,
             cache,
-            max_comparisons=1,
+            repository="openai/codex",
+            pairs=(("0.9.0", "0.10.0"),),
             timeout=1,
             allow_stale_on_error=False,
         )

@@ -172,6 +172,10 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         "--cache-root",
         str(official_cache_root),
         "--allow-stale-on-error",
+        "--capture-root",
+        str(upstream),
+        "--capture-root",
+        str(capture_overlay_root),
     ]
     sync_source_captures = [
         python,

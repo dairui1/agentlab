@@ -192,6 +192,10 @@ def sync(
                 continue
             if not isinstance(release, dict) or release.get("version") != version:
                 raise SourceCaptureError(f"official release identity mismatch: {agent} {version}")
+            # Tag-only records enrich code evidence, but without an authoritative
+            # release timestamp they must not invent a source-only history entry.
+            if not isinstance(release.get("publishedAt"), str):
+                continue
             if parse_timestamp(
                 release_timestamp(release), context=f"{agent} {version} release"
             ) < threshold:

@@ -750,6 +750,48 @@ class BuildFromPhistoryTests(unittest.TestCase):
         public = self._json(self.public / "data/agents/claude-code/changelog.json")
         self.assertEqual(public["entries"][-1]["layers"]["official"]["status"], "available")
 
+    def test_exposes_complete_source_code_coverage_only_for_adjacent_captures(self) -> None:
+        official_root = self._official_index()
+        index_path = official_root / "claude-code.json"
+        index = self._json(index_path)
+        release = index["releases"]["1.10.0"]
+        release["commitSha"] = "b" * 40
+        release["codeChange"] = {
+            "status": "available",
+            "analysisEligible": True,
+            "baseVersion": "1.2.0",
+            "headVersion": "1.10.0",
+            "baseTag": "v1.2.0",
+            "headTag": "v1.10.0",
+            "baseCommitSha": "a" * 40,
+            "headCommitSha": "b" * 40,
+            "diffSha256": "c" * 64,
+            "digestScope": "complete",
+            "truncated": False,
+            "bytesInspected": 120,
+            "filesObserved": 2,
+            "additionsObserved": 10,
+            "deletionsObserved": 3,
+            "keyFiles": [{"path": "src/agent.ts", "status": "modified"}],
+            "sourceUrl": "https://github.com/anthropics/claude-code/compare/v1.2.0...v1.10.0",
+        }
+        index.pop("sourceDigest")
+        index["sourceDigest"] = builder.sha256_bytes(builder.canonical_json(index))
+        index_path.write_text(json.dumps(index), encoding="utf-8")
+        self._refresh_official_generation(official_root)
+
+        manifest = self._build(official_root=official_root)
+
+        claude = next(item for item in manifest["agents"] if item["id"] == "claude-code")
+        self.assertEqual(claude["sourceCodeStatus"], "complete")
+        self.assertEqual(claude["sourceCoverage"]["officialCodeExpected"], 1)
+        self.assertEqual(claude["sourceCoverage"]["officialCodeComparisons"], 1)
+        self.assertEqual(claude["sourceCoverage"]["officialCodeUnavailable"], 0)
+        evidence = self._json(self.analysis / "evidence/claude-code/1.10.0.json")
+        self.assertEqual(
+            evidence["official"]["codeChange"]["baseCommitSha"], "a" * 40
+        )
+
     def test_official_provenance_url_does_not_change_semantic_evidence_digest(self) -> None:
         official_root = self._official_index()
         self._build(official_root=official_root)

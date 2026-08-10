@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
@@ -26,7 +27,10 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from official_release_sources import GITHUB_RELEASE_SOURCES
+from official_release_sources import (
+    GITHUB_RELEASE_SOURCES,
+    SOURCE_CODE_COMPARISON_WINDOW,
+)
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -52,11 +56,13 @@ MAX_DIFF_BYTES = 1024 * 1024
 MAX_NOTES_BYTES = 16 * 1024
 MAX_KEY_FILES = 24
 MAX_NORMALIZED_RELEASE_BYTES = 64 * 1024
+MAX_CAPTURE_META_BYTES = 64 * 1024
 
 VERSION_RE = re.compile(
     r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:(?:\.|-)(0|[1-9]\d*))?$"
 )
 CODEX_TAG_RE = re.compile(r"^(?:rust-)?v?(\d+\.\d+\.\d+)$")
+CLAUDE_TAG_RE = re.compile(r"^v(\d+\.\d+\.\d+)$")
 CHANGELOG_HEADING_RE = re.compile(
     r"^##[ \t]+v?(\d+\.\d+\.\d+)(?:[ \t].*)?$", re.MULTILINE
 )
@@ -443,6 +449,71 @@ def minimize_github_releases(body: bytes) -> bytes:
     return canonical_json(minimized)
 
 
+def minimize_github_tags(body: bytes) -> bytes:
+    value = json.loads(body.decode("utf-8"))
+    if not isinstance(value, list):
+        raise ValueError("GitHub tags response is not an array")
+    minimized = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            continue
+        commit = raw.get("commit")
+        minimized.append(
+            {
+                "name": raw.get("name"),
+                "commit": {
+                    "sha": commit.get("sha") if isinstance(commit, dict) else None
+                },
+            }
+        )
+    return canonical_json(minimized)
+
+
+def github_tags(
+    cache: HttpCache,
+    *,
+    repository: str,
+    tag_pattern: re.Pattern[str],
+    max_pages: int,
+    timeout: float,
+    allow_stale_on_error: bool,
+) -> dict[str, dict[str, str]]:
+    tags: dict[str, dict[str, str]] = {}
+    for page in range(1, max_pages + 1):
+        url = f"https://api.github.com/repos/{repository}/tags?per_page=100&page={page}"
+        response = cache.fetch(
+            url,
+            accept="application/vnd.github+json",
+            max_bytes=MAX_JSON_RESPONSE_BYTES,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+            cache_variant="github-tag-minimal-v1",
+            transform=minimize_github_tags,
+        )
+        value = github_json(response, url=url)
+        if not isinstance(value, list):
+            raise OfficialSyncError(f"GitHub tags response is not an array: {url}")
+        if not value:
+            break
+        for raw in value:
+            if not isinstance(raw, dict):
+                continue
+            name = raw.get("name")
+            match = tag_pattern.fullmatch(name) if isinstance(name, str) else None
+            commit = raw.get("commit")
+            sha = commit.get("sha") if isinstance(commit, dict) else None
+            if match is None or not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+                continue
+            tags.setdefault(match.group(1), {"tag": name, "commitSha": sha})
+        if len(value) < 100:
+            break
+        if page == max_pages:
+            raise OfficialSyncError(
+                f"GitHub tag history exceeds --max-tag-pages={max_pages}: {repository}"
+            )
+    return tags
+
+
 def github_releases(
     cache: HttpCache,
     *,
@@ -548,32 +619,172 @@ def retained_release_history(
                 if isinstance(version, str) and isinstance(value, dict)
             )
     for release in releases:
-        retained[str(release["version"])] = release
+        version = str(release["version"])
+        previous = retained.get(version)
+        merged = dict(release)
+        if (
+            isinstance(previous, Mapping)
+            and "codeChange" not in merged
+            and isinstance(previous.get("codeChange"), Mapping)
+        ):
+            merged["codeChange"] = previous["codeChange"]
+        retained[version] = merged
     return [retained[version] for version in sorted(retained, key=version_key)]
 
 
-def attach_codex_compares(
+def merge_tag_history(
+    releases: Sequence[Mapping[str, object]],
+    *,
+    repository: str,
+    product_name: str,
+    tags: Mapping[str, Mapping[str, str]],
+) -> list[dict[str, object]]:
+    merged = {str(release["version"]): dict(release) for release in releases}
+    for version, tag in tags.items():
+        record = merged.get(version)
+        if record is None:
+            source_url = f"https://github.com/{repository}/tree/{quote(tag['tag'], safe='')}"
+            record = {
+                "version": version,
+                "tag": tag["tag"],
+                "title": f"{product_name} {version}",
+                "sourceUrl": source_url,
+                "notes": notes_value(
+                    "", source_kind="github-tag", source_url=source_url
+                ),
+            }
+            merged[version] = record
+        record["commitSha"] = tag["commitSha"]
+        if not isinstance(record.get("tag"), str):
+            record["tag"] = tag["tag"]
+    return [merged[version] for version in sorted(merged, key=version_key)]
+
+
+def parse_capture_timestamp(value: str) -> float:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise OfficialSyncError(f"invalid capture timestamp: {value!r}") from error
+    if parsed.tzinfo is None:
+        raise OfficialSyncError(f"capture timestamp has no timezone: {value!r}")
+    return parsed.timestamp()
+
+
+def discover_capture_sequences(roots: Sequence[Path]) -> dict[str, list[str]]:
+    observed: dict[str, dict[str, float]] = {}
+    for raw_root in roots:
+        root = raw_root.expanduser().resolve()
+        captures = root / "captures"
+        if not captures.is_dir() or captures.is_symlink():
+            continue
+        for agent_dir in captures.iterdir():
+            if not agent_dir.is_dir() or agent_dir.is_symlink():
+                continue
+            for capture_dir in agent_dir.iterdir():
+                metadata_path = capture_dir / "meta.json"
+                if (
+                    not capture_dir.is_dir()
+                    or capture_dir.is_symlink()
+                    or not metadata_path.is_file()
+                    or metadata_path.is_symlink()
+                    or metadata_path.stat().st_size > MAX_CAPTURE_META_BYTES
+                ):
+                    continue
+                try:
+                    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+                except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                if not isinstance(metadata, dict):
+                    continue
+                version = metadata.get("version", capture_dir.name)
+                timestamp = metadata.get("published_at", metadata.get("captured_at"))
+                if not isinstance(version, str) or not isinstance(timestamp, str):
+                    continue
+                try:
+                    parsed = parse_capture_timestamp(timestamp)
+                    version_key(version)
+                except OfficialSyncError:
+                    continue
+                observed.setdefault(agent_dir.name, {}).setdefault(version, parsed)
+    return {
+        agent: [
+            version
+            for version, _ in sorted(
+                versions.items(), key=lambda item: (item[1], version_key(item[0]))
+            )
+        ]
+        for agent, versions in observed.items()
+    }
+
+
+def comparison_pairs(
+    releases: Sequence[Mapping[str, object]],
+    captured_versions: Sequence[str],
+    *,
+    newest_count: int,
+) -> list[tuple[str, str]]:
+    release_versions = [
+        str(release["version"])
+        for release in releases
+        if isinstance(release.get("commitSha"), str)
+    ]
+    available = set(release_versions)
+    captured_window = (
+        captured_versions[-(newest_count + 1) :] if newest_count > 0 else ()
+    )
+    pairs = [
+        (base, head)
+        for base, head in zip(captured_window, captured_window[1:])
+        if base in available and head in available
+    ]
+    if newest_count > 0:
+        start = max(1, len(release_versions) - newest_count)
+        pairs.extend(
+            (release_versions[index - 1], release_versions[index])
+            for index in range(start, len(release_versions))
+        )
+    by_head: dict[str, tuple[str, str]] = {}
+    for pair in pairs:
+        by_head.setdefault(pair[1], pair)
+    return list(by_head.values())
+
+
+def attach_code_compares(
     releases: list[dict[str, object]],
     cache: HttpCache,
     *,
-    max_comparisons: int,
+    repository: str,
+    pairs: Sequence[tuple[str, str]],
     timeout: float,
     allow_stale_on_error: bool,
 ) -> None:
-    if max_comparisons <= 0:
-        return
-    start = max(1, len(releases) - max_comparisons)
-    for index in range(start, len(releases)):
-        previous = releases[index - 1]
-        current = releases[index]
-        base_tag = str(previous["tag"])
-        head_tag = str(current["tag"])
+    by_version = {str(release["version"]): release for release in releases}
+    for base_version, head_version in pairs:
+        previous = by_version.get(base_version)
+        current = by_version.get(head_version)
+        if previous is None or current is None:
+            continue
+        base_tag = previous.get("tag")
+        head_tag = current.get("tag")
+        if not isinstance(base_tag, str) or not isinstance(head_tag, str):
+            continue
+        base_sha = previous.get("commitSha")
+        head_sha = current.get("commitSha")
+        existing = current.get("codeChange")
+        if (
+            isinstance(existing, Mapping)
+            and existing.get("status") == "available"
+            and existing.get("baseTag") == base_tag
+            and existing.get("headTag") == head_tag
+        ):
+            existing["analysisEligible"] = True
+            continue
         api_url = (
-            f"https://api.github.com/repos/{CODEX_REPOSITORY}/compare/"
+            f"https://api.github.com/repos/{repository}/compare/"
             f"{quote(base_tag, safe='')}...{quote(head_tag, safe='')}"
         )
         compare_url = (
-            f"https://github.com/{CODEX_REPOSITORY}/compare/"
+            f"https://github.com/{repository}/compare/"
             f"{quote(base_tag, safe='')}...{quote(head_tag, safe='')}"
         )
         try:
@@ -587,20 +798,26 @@ def attach_codex_compares(
             )
         except OfficialSyncError as error:
             LOG.warning(
-                "skipping Codex code overview %s..%s: %s",
-                previous["version"],
-                current["version"],
+                "skipping %s code overview %s..%s: %s",
+                repository,
+                base_version,
+                head_version,
                 error,
             )
             current["codeChange"] = {
                 "status": "unavailable",
                 "reason": "official-compare-fetch-failed",
-                "baseVersion": str(previous["version"]),
-                "headVersion": str(current["version"]),
+                "baseVersion": base_version,
+                "headVersion": head_version,
                 "baseTag": base_tag,
                 "headTag": head_tag,
                 "sourceUrl": compare_url,
+                "analysisEligible": True,
             }
+            if isinstance(base_sha, str):
+                current["codeChange"]["baseCommitSha"] = base_sha
+            if isinstance(head_sha, str):
+                current["codeChange"]["headCommitSha"] = head_sha
             cache.warnings.append(
                 {
                     "type": "source-unavailable",
@@ -611,13 +828,65 @@ def attach_codex_compares(
             continue
         current["codeChange"] = parse_compare_diff(
             response.body,
-            base_version=str(previous["version"]),
-            head_version=str(current["version"]),
+            base_version=base_version,
+            head_version=head_version,
             base_tag=base_tag,
             head_tag=head_tag,
             compare_url=compare_url,
             truncated=response.truncated,
         )
+        current["codeChange"]["analysisEligible"] = True
+        if isinstance(base_sha, str):
+            current["codeChange"]["baseCommitSha"] = base_sha
+        if isinstance(head_sha, str):
+            current["codeChange"]["headCommitSha"] = head_sha
+
+
+def enrich_repository_history(
+    *,
+    agent: str,
+    repository: str,
+    product_name: str,
+    tag_pattern: re.Pattern[str],
+    releases: Sequence[Mapping[str, object]],
+    normalized_root: Path,
+    captured_versions: Sequence[str],
+    cache: HttpCache,
+    max_tag_pages: int,
+    newest_comparisons: int,
+    timeout: float,
+    allow_stale_on_error: bool,
+) -> list[dict[str, object]]:
+    tags = github_tags(
+        cache,
+        repository=repository,
+        tag_pattern=tag_pattern,
+        max_pages=max_tag_pages,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+    )
+    tagged = merge_tag_history(
+        releases,
+        repository=repository,
+        product_name=product_name,
+        tags=tags,
+    )
+    retained = [
+        dict(release)
+        for release in retained_release_history(normalized_root, agent, tagged)
+    ]
+    pairs = comparison_pairs(
+        retained, captured_versions, newest_count=newest_comparisons
+    )
+    attach_code_compares(
+        retained,
+        cache,
+        repository=repository,
+        pairs=pairs,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+    )
+    return retained
 
 
 def changelog_document(
@@ -688,14 +957,17 @@ def sync(
     *,
     cache_root: Path,
     max_release_pages: int = 10,
-    max_comparisons: int = 20,
+    max_tag_pages: int = 50,
+    max_comparisons: int = SOURCE_CODE_COMPARISON_WINDOW,
     timeout: float = 45.0,
     allow_stale_on_error: bool = False,
     token: str | None = None,
+    capture_roots: Sequence[Path] = (),
 ) -> dict[str, object]:
     root = cache_root.expanduser().resolve()
     cache = HttpCache(root / "http", token=token)
     normalized_root = root / "normalized"
+    captured = discover_capture_sequences(capture_roots)
 
     codex_changelog = cache.fetch(
         CODEX_CHANGELOG_RAW_URL,
@@ -704,16 +976,23 @@ def sync(
         timeout=timeout,
         allow_stale_on_error=allow_stale_on_error,
     )
-    codex = codex_releases(
+    codex_releases_raw = codex_releases(
         cache,
         max_pages=max_release_pages,
         timeout=timeout,
         allow_stale_on_error=allow_stale_on_error,
     )
-    attach_codex_compares(
-        codex,
-        cache,
-        max_comparisons=max_comparisons,
+    codex = enrich_repository_history(
+        agent="codex",
+        repository=CODEX_REPOSITORY,
+        product_name="Codex",
+        tag_pattern=CODEX_TAG_RE,
+        releases=codex_releases_raw,
+        normalized_root=normalized_root,
+        captured_versions=captured.get("codex", ()),
+        cache=cache,
+        max_tag_pages=max_tag_pages,
+        newest_comparisons=max_comparisons,
         timeout=timeout,
         allow_stale_on_error=allow_stale_on_error,
     )
@@ -752,6 +1031,20 @@ def sync(
         }
         for version, notes in sorted(claude_entries.items(), key=lambda item: version_key(item[0]))
     ]
+    claude_releases = enrich_repository_history(
+        agent="claude-code",
+        repository=CLAUDE_REPOSITORY,
+        product_name="Claude Code",
+        tag_pattern=CLAUDE_TAG_RE,
+        releases=claude_releases,
+        normalized_root=normalized_root,
+        captured_versions=captured.get("claude-code", ()),
+        cache=cache,
+        max_tag_pages=max_tag_pages,
+        newest_comparisons=max_comparisons,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+    )
     claude_value = normalized_agent(
         agent="claude-code",
         repository=CLAUDE_REPOSITORY,
@@ -778,7 +1071,20 @@ def sync(
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
         )
-        retained = retained_release_history(normalized_root, agent, complete)
+        retained = enrich_repository_history(
+            agent=agent,
+            repository=repository,
+            product_name=product_name,
+            tag_pattern=tag_pattern,
+            releases=complete,
+            normalized_root=normalized_root,
+            captured_versions=captured.get(agent, ()),
+            cache=cache,
+            max_tag_pages=max_tag_pages,
+            newest_comparisons=max_comparisons,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
         normalized_values[agent] = normalized_agent(
             agent=agent,
             repository=repository,
@@ -794,6 +1100,27 @@ def sync(
             agent: {
                 "url": f"{agent}.json",
                 "releaseCount": len(value["releases"]),
+                "tagCommitCount": sum(
+                    1
+                    for release in value["releases"].values()
+                    if isinstance(release, Mapping)
+                    and isinstance(release.get("commitSha"), str)
+                ),
+                "codeComparisonCount": sum(
+                    1
+                    for release in value["releases"].values()
+                    if isinstance(release, Mapping)
+                    and isinstance(release.get("codeChange"), Mapping)
+                    and release["codeChange"].get("status") == "available"
+                ),
+                "analysisCodeComparisonCount": sum(
+                    1
+                    for release in value["releases"].values()
+                    if isinstance(release, Mapping)
+                    and isinstance(release.get("codeChange"), Mapping)
+                    and release["codeChange"].get("status") == "available"
+                    and release["codeChange"].get("analysisEligible") is True
+                ),
                 "sourceDigest": value["sourceDigest"],
             }
             for agent, value in sorted(normalized_values.items())
@@ -820,7 +1147,22 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=10,
         help="GitHub release pages to inspect; 10 covers the complete captured Codex range",
     )
-    parser.add_argument("--max-comparisons", type=int, default=20)
+    parser.add_argument(
+        "--max-tag-pages",
+        type=int,
+        default=50,
+        help="GitHub tag pages to inspect; failure is explicit if the history is larger",
+    )
+    parser.add_argument(
+        "--max-comparisons", type=int, default=SOURCE_CODE_COMPARISON_WINDOW
+    )
+    parser.add_argument(
+        "--capture-root",
+        action="append",
+        type=Path,
+        default=[],
+        help="Phistory-format root whose adjacent versions require source comparisons",
+    )
     parser.add_argument("--timeout", type=float, default=45.0)
     parser.add_argument(
         "--allow-stale-on-error",
@@ -831,6 +1173,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.max_release_pages < 1:
         parser.error("--max-release-pages must be at least 1")
+    if args.max_tag_pages < 1:
+        parser.error("--max-tag-pages must be at least 1")
     if args.max_comparisons < 0:
         parser.error("--max-comparisons must be non-negative")
     if args.timeout <= 0:
@@ -847,10 +1191,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     manifest = sync(
         cache_root=args.cache_root,
         max_release_pages=args.max_release_pages,
+        max_tag_pages=args.max_tag_pages,
         max_comparisons=args.max_comparisons,
         timeout=args.timeout,
         allow_stale_on_error=args.allow_stale_on_error,
         token=resolve_github_token(),
+        capture_roots=args.capture_root,
     )
     counts = manifest["agents"]
     assert isinstance(counts, Mapping)

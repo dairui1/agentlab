@@ -25,7 +25,10 @@ from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from official_release_sources import OFFICIAL_REPOSITORIES
+from official_release_sources import (
+    OFFICIAL_REPOSITORIES,
+    SOURCE_CODE_COMPARISON_WINDOW,
+)
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -1839,7 +1842,10 @@ def official_evidence(
         "release": release,
     }
     code_change = raw.get("codeChange")
-    if isinstance(code_change, Mapping):
+    if (
+        isinstance(code_change, Mapping)
+        and code_change.get("analysisEligible") is True
+    ):
         semantic_code = {
             key: code_change[key]
             for key in (
@@ -1849,6 +1855,8 @@ def official_evidence(
                 "headVersion",
                 "baseTag",
                 "headTag",
+                "baseCommitSha",
+                "headCommitSha",
                 "diffSha256",
                 "digestScope",
                 "truncated",
@@ -2598,7 +2606,13 @@ def build(
             if packet_official.get("status") == "available":
                 official_available += 1
                 code_change = packet_official.get("codeChange")
-                if isinstance(code_change, Mapping) and code_change.get("status") == "available":
+                if (
+                    previous is not None
+                    and isinstance(code_change, Mapping)
+                    and code_change.get("status") == "available"
+                    and code_change.get("baseVersion") == previous.version
+                    and code_change.get("headVersion") == capture.version
+                ):
                     official_code_available += 1
             if packet_static.get("status") == "available":
                 static_prompt_available += 1
@@ -2676,6 +2690,11 @@ def build(
         definition = agent_definition(agent, captures)
         official_index = official_by_agent.get(agent)
         official_repository = OFFICIAL_REPOSITORIES.get(agent)
+        official_code_expected = (
+            min(max(0, len(captures) - 1), SOURCE_CODE_COMPARISON_WINDOW)
+            if official_repository
+            else 0
+        )
         agent_source_url = (
             captures[-1].source_url
             or definition.get("projectUrl")
@@ -2689,6 +2708,13 @@ def build(
             ),
             "officialNotIntegrated": 0 if official_repository else len(captures),
             "officialCodeComparisons": official_code_available,
+            "officialCodeExpected": official_code_expected,
+            "officialCodeUnavailable": (
+                max(0, official_code_expected - official_code_available)
+                if official_repository
+                else 0
+            ),
+            "officialCodeWindow": SOURCE_CODE_COMPARISON_WINDOW,
             "staticPromptSnapshots": static_prompt_available,
             "staticPromptComparisons": static_prompt_comparable,
         }
@@ -2706,6 +2732,15 @@ def build(
                     official_index.get("sourceDigest")
                     if isinstance(official_index, Mapping)
                     else None
+                ),
+                "sourceCodeStatus": (
+                    "not-public"
+                    if not official_repository
+                    else "complete"
+                    if official_code_available >= official_code_expected
+                    else "partial"
+                    if official_code_available > 0
+                    else "missing"
                 ),
                 "latestVersion": captures[-1].version,
                 "releaseCount": len(captures),
