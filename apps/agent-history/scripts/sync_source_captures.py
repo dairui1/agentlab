@@ -8,11 +8,12 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from official_release_sources import GITHUB_RELEASE_SOURCES
+from official_release_sources import GITHUB_RELEASE_SOURCES, SOURCE_CAPTURE_SINCE
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +68,35 @@ def release_timestamp(release: Mapping[str, Any]) -> str:
     raise SourceCaptureError(
         f"official release {release.get('version')} has no publishedAt timestamp"
     )
+
+
+def parse_timestamp(value: str, *, context: str) -> datetime:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise SourceCaptureError(f"invalid timestamp for {context}: {value}") from error
+    if parsed.tzinfo is None:
+        raise SourceCaptureError(f"timestamp for {context} must include a timezone")
+    return parsed
+
+
+def earliest_capture_timestamp(roots: Sequence[Path], agent: str) -> datetime | None:
+    timestamps: list[datetime] = []
+    for root in roots:
+        directory = root / "captures" / agent
+        if not directory.is_dir() or directory.is_symlink():
+            continue
+        for capture in directory.iterdir():
+            metadata_path = capture / "meta.json"
+            if not capture.is_dir() or capture.is_symlink() or not metadata_path.is_file():
+                continue
+            metadata = read_json_object(metadata_path)
+            value = metadata.get("published_at", metadata.get("captured_at"))
+            if isinstance(value, str) and value:
+                timestamps.append(
+                    parse_timestamp(value, context=f"{agent} {capture.name} capture")
+                )
+    return min(timestamps) if timestamps else None
 
 
 def render_placeholder(agent: str, label: str) -> bytes:
@@ -148,12 +178,24 @@ def sync(
         present = existing_versions(phistory_root, agent) | existing_versions(
             overlay_root, agent
         )
+        threshold = parse_timestamp(
+            SOURCE_CAPTURE_SINCE, context="source capture rollout"
+        )
+        coverage_start = earliest_capture_timestamp(
+            (phistory_root, overlay_root), agent
+        )
+        if coverage_start is not None:
+            threshold = min(threshold, coverage_start)
         written = 0
         for version, release in releases.items():
             if version in present:
                 continue
             if not isinstance(release, dict) or release.get("version") != version:
                 raise SourceCaptureError(f"official release identity mismatch: {agent} {version}")
+            if parse_timestamp(
+                release_timestamp(release), context=f"{agent} {version} release"
+            ) < threshold:
+                continue
             write_capture(
                 overlay_root=overlay_root,
                 agent=agent,

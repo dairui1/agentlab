@@ -19,7 +19,6 @@ import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
@@ -453,7 +452,6 @@ def github_releases(
     max_pages: int,
     timeout: float,
     allow_stale_on_error: bool,
-    published_since: datetime | None = None,
 ) -> list[dict[str, object]]:
     releases: dict[str, dict[str, object]] = {}
     for page in range(1, max_pages + 1):
@@ -483,17 +481,6 @@ def github_releases(
             if raw.get("prerelease") is True:
                 continue
             published = raw.get("published_at")
-            if published_since is not None:
-                if not isinstance(published, str) or not published:
-                    continue
-                try:
-                    published_at = datetime.fromisoformat(
-                        published.replace("Z", "+00:00")
-                    )
-                except ValueError:
-                    continue
-                if published_at < published_since:
-                    continue
             body = raw.get("body") if isinstance(raw.get("body"), str) else ""
             title = raw.get("name") if isinstance(raw.get("name"), str) else ""
             url_value = raw.get("html_url")
@@ -515,6 +502,11 @@ def github_releases(
             releases.setdefault(version, record)
         if len(value) < 100:
             break
+        if page == max_pages:
+            raise OfficialSyncError(
+                f"GitHub release history exceeds --max-release-pages={max_pages}: "
+                f"{repository}"
+            )
     return sorted(releases.values(), key=lambda item: version_key(str(item["version"])))
 
 
@@ -769,7 +761,6 @@ def sync(
         ],
     )
 
-    recent_cutoff = datetime.now(timezone.utc) - timedelta(days=62)
     normalized_values: dict[str, dict[str, object]] = {
         "claude-code": claude_value,
         "codex": codex_value,
@@ -778,17 +769,16 @@ def sync(
         repository = str(config["repository"])
         tag_pattern = re.compile(str(config["tagPattern"]))
         product_name = str(config["label"])
-        recent = github_releases(
+        complete = github_releases(
             cache,
             repository=repository,
             tag_pattern=tag_pattern,
             product_name=product_name,
-            max_pages=min(max_release_pages, 3),
+            max_pages=max_release_pages,
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
-            published_since=recent_cutoff,
         )
-        retained = retained_release_history(normalized_root, agent, recent)
+        retained = retained_release_history(normalized_root, agent, complete)
         normalized_values[agent] = normalized_agent(
             agent=agent,
             repository=repository,

@@ -832,6 +832,12 @@ class SourceCaptureSyncTests(unittest.TestCase):
                 }
                 for index, version in enumerate(("1.0.0", "1.0.1"), start=1)
             }
+            releases["0.9.9"] = {
+                "version": "0.9.9",
+                "tag": "cli-v0.9.9",
+                "sourceUrl": "https://github.com/cline/cline/releases/tag/cli-v0.9.9",
+                "publishedAt": "2026-06-08T23:59:59Z",
+            }
             (official / "cline.json").write_text(
                 json.dumps(
                     {
@@ -851,6 +857,7 @@ class SourceCaptureSyncTests(unittest.TestCase):
 
             self.assertEqual(result, {"cline": 1})
             capture = overlay / "captures/cline/1.0.1"
+            self.assertFalse((overlay / "captures/cline/0.9.9").exists())
             self.assertIn("runtime prompt", (capture / "prompt.md").read_text())
             metadata = json.loads((capture / "meta.json").read_text())
             self.assertEqual(metadata["capture_kind"], "official-source-history")
@@ -864,6 +871,51 @@ class SourceCaptureSyncTests(unittest.TestCase):
                 ),
                 {"cline": 0},
             )
+
+    def test_backfills_official_gaps_within_existing_capture_history(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            capture = phistory / "captures/hermes/v2026.3.23"
+            capture.mkdir(parents=True)
+            (capture / "meta.json").write_text(
+                json.dumps({"published_at": "2026-03-24T05:34:23Z"}),
+                encoding="utf-8",
+            )
+            official.mkdir()
+            releases = {
+                "v2026.3.17": {
+                    "version": "v2026.3.17",
+                    "tag": "v2026.3.17",
+                    "sourceUrl": "https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.17",
+                    "publishedAt": "2026-03-17T07:56:07Z",
+                },
+                "v2026.3.28": {
+                    "version": "v2026.3.28",
+                    "tag": "v2026.3.28",
+                    "sourceUrl": "https://github.com/NousResearch/hermes-agent/releases/tag/v2026.3.28",
+                    "publishedAt": "2026-03-28T20:12:05Z",
+                },
+            }
+            (official / "hermes.json").write_text(
+                json.dumps(
+                    {"repository": "NousResearch/hermes-agent", "releases": releases}
+                ),
+                encoding="utf-8",
+            )
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("hermes",),
+            )
+
+            self.assertEqual(result, {"hermes": 1})
+            self.assertFalse((overlay / "captures/hermes/v2026.3.17").exists())
+            self.assertTrue((overlay / "captures/hermes/v2026.3.28").is_dir())
 
 
 class DailyUpdateTests(unittest.TestCase):
