@@ -128,16 +128,29 @@
     }
   }
 
+  function setMechanismMenu(open) {
+    const trigger = document.getElementById("mechanismMenuTrigger");
+    const menu = document.getElementById("mechanismMenu");
+    trigger.setAttribute("aria-expanded", String(open));
+    menu.hidden = !open;
+  }
+
   function renderHeader() {
-    document.getElementById("contractEyebrow").textContent = workbench.eyebrow || "MECHANISM / CONTROL CONTRACT";
     document.getElementById("contractTitle").textContent = workbench.title;
     document.getElementById("contractSubtitle").textContent = workbench.subtitle;
     document.getElementById("contractDate").textContent = `AUDIT ${workbench.verifiedAt}`;
     document.title = `${workbench.title} · AgentLab`;
     const description = document.querySelector('meta[name="description"]');
     if (description) description.content = workbench.description || workbench.subtitle;
-    const picker = document.getElementById("mechanismPicker");
-    picker.value = dossierId;
+    const mechanismItems = [...document.querySelectorAll("[data-mechanism]")];
+    const currentMechanism = mechanismItems.find((item) => item.dataset.mechanism === dossierId);
+    mechanismItems.forEach((item) => {
+      if (item === currentMechanism) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
+    const mechanismLabel = currentMechanism?.querySelector("strong")?.textContent || workbench.title;
+    document.getElementById("mechanismMenuLabel").textContent = mechanismLabel;
+    document.getElementById("mechanismMenuTrigger").setAttribute("aria-label", `切换机制档案，当前：${mechanismLabel}`);
     if (workbench.views) {
       document.querySelectorAll("[data-view]").forEach((button) => {
         const label = workbench.views[button.dataset.view]?.label;
@@ -515,13 +528,36 @@
       clear(document.getElementById("inspectorContent")).append(el("p", "inspector-empty", "点击任意“证据”按钮，在不离开当前比较位置的情况下检查版本、来源和边界。"));
       updateUrl();
     });
-    document.getElementById("mechanismPicker").addEventListener("change", (event) => {
-      const url = new URL(location.href);
-      if (event.target.value === "subagent-orchestration") url.searchParams.delete("mechanism");
-      else url.searchParams.set("mechanism", event.target.value);
-      ["view", "operation", "claim"].forEach((key) => url.searchParams.delete(key));
-      url.hash = "";
-      location.href = url;
+    const mechanismSwitcher = document.getElementById("mechanismSwitcher");
+    const mechanismTrigger = document.getElementById("mechanismMenuTrigger");
+    const mechanismMenu = document.getElementById("mechanismMenu");
+    mechanismTrigger.addEventListener("click", () => {
+      setMechanismMenu(mechanismTrigger.getAttribute("aria-expanded") !== "true");
+    });
+    mechanismTrigger.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && mechanismTrigger.getAttribute("aria-expanded") === "true") {
+        event.preventDefault();
+        setMechanismMenu(false);
+      }
+    });
+    mechanismMenu.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setMechanismMenu(false);
+      mechanismTrigger.focus();
+    });
+    mechanismMenu.addEventListener("click", (event) => {
+      const item = event.target.closest("[data-mechanism]");
+      if (item?.dataset.mechanism !== dossierId) return;
+      event.preventDefault();
+      setMechanismMenu(false);
+      mechanismTrigger.focus();
+    });
+    document.addEventListener("focusin", (event) => {
+      if (!mechanismSwitcher.contains(event.target)) setMechanismMenu(false);
+    });
+    document.addEventListener("click", (event) => {
+      if (!mechanismSwitcher.contains(event.target)) setMechanismMenu(false);
     });
   }
 

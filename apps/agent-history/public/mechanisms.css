@@ -66,16 +66,168 @@
   min-width: 0;
 }
 
-.contract-context-row {
-  min-width: 0;
-  display: flex;
+.mechanism-switcher {
+  position: relative;
+  z-index: 70;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 28px;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 7px;
+  gap: 7px;
+  margin-bottom: 5px;
 }
 
-.contract-eyebrow,
+.mechanism-switcher-label {
+  color: var(--muted);
+  font: 700 9px/1 var(--mono);
+  text-transform: uppercase;
+}
+
+.mechanism-switcher-separator {
+  color: var(--border-strong);
+  font: 11px/1 var(--mono);
+}
+
+.mechanism-menu-trigger {
+  min-width: 0;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: 700 12px/1.2 var(--sans);
+  text-align: left;
+}
+
+.mechanism-menu-trigger:hover,
+.mechanism-menu-trigger[aria-expanded="true"] {
+  color: var(--accent);
+}
+
+.mechanism-menu-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 2px;
+}
+
+.mechanism-menu-trigger svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  transition: transform 140ms ease;
+}
+
+.mechanism-menu-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.mechanism-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 80;
+  width: min(330px, calc(100vw - 32px));
+  padding: 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.mechanism-menu[hidden] {
+  display: none;
+}
+
+.mechanism-menu > a {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 9px;
+  min-height: 58px;
+  padding: 8px 9px;
+  border-radius: 4px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.mechanism-menu > a + a {
+  border-top: 1px solid var(--border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.mechanism-menu > a:hover {
+  background: var(--surface-muted);
+}
+
+.mechanism-menu > a[aria-current="page"] {
+  background: color-mix(in srgb, var(--accent-soft) 62%, var(--surface));
+}
+
+.mechanism-menu > a:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+  outline-offset: -2px;
+}
+
+.mechanism-menu-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-raised);
+  color: var(--text-soft);
+}
+
+.mechanism-menu-icon svg,
+.mechanism-menu-check {
+  width: 15px;
+  height: 15px;
+}
+
+.mechanism-menu-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.mechanism-menu-copy strong {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.mechanism-menu-copy small {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.mechanism-menu-check {
+  display: none;
+  color: var(--accent);
+}
+
+.mechanism-menu > a[aria-current="page"] .mechanism-menu-icon {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  color: var(--accent);
+}
+
+.mechanism-menu > a[aria-current="page"] .mechanism-menu-copy strong {
+  color: var(--accent);
+}
+
+.mechanism-menu > a[aria-current="page"] .mechanism-menu-check {
+  display: block;
+}
+
 .contract-date,
 .canvas-heading > div > span,
 .evidence-inspector > header span,
@@ -83,39 +235,6 @@
 .sharp-edge-title {
   font-family: var(--mono);
   text-transform: uppercase;
-}
-
-.contract-eyebrow {
-  min-width: 0;
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 750;
-}
-
-.mechanism-picker {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font: 9px/1 var(--mono);
-  text-transform: uppercase;
-}
-
-.mechanism-picker select {
-  width: 142px;
-  min-height: 30px;
-  padding: 0 28px 0 9px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--surface);
-  color: var(--text);
-  font: 11px/1 var(--sans);
-}
-
-.mechanism-picker select:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
-  outline-offset: 1px;
 }
 
 .contract-title-row {
@@ -1394,10 +1513,6 @@
     gap: 5px;
   }
 
-  .contract-context-row {
-    align-items: flex-start;
-  }
-
   .contract-title-row h1 {
     font-size: 21px;
   }
@@ -1674,21 +1789,24 @@
 }
 
 @media (max-width: 520px) {
-  .contract-context-row {
-    display: grid;
-    gap: 8px;
+  .mechanism-switcher {
+    width: 100%;
   }
 
-  .mechanism-picker {
-    justify-content: space-between;
+  .mechanism-menu-trigger {
+    min-height: 40px;
+    max-width: calc(100vw - 116px);
+    padding-block: 8px;
   }
 
-  .mechanism-picker select {
-    width: min(190px, 62vw);
+  .mechanism-menu-trigger span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .contract-eyebrow {
-    font-size: 9px;
+  .mechanism-menu {
+    width: calc(100vw - 24px);
   }
 
   .contract-title-row h1 {

@@ -153,15 +153,21 @@ test("Claude percentage override is quarantined as tag-unverified, not a 2.1.226
   assert.ok(configureClaude.details.some((item) => item.label === "TAG-UNVERIFIED" && item.value === "PCT_OVERRIDE"));
 });
 
-test("renderer selects dossiers by query and supports claims without compare links", () => {
-  assert.match(html, /id="mechanismPicker"/);
-  assert.match(html, /option value="subagent-orchestration"/);
-  assert.match(html, /option value="context-compaction"/);
+test("renderer selects dossiers through a mechanism menu and supports claims without compare links", () => {
+  assert.match(html, /id="mechanismMenuTrigger"[^>]*aria-expanded="false"[^>]*aria-controls="mechanismMenu"/);
+  assert.match(html, /<nav id="mechanismMenu"[^>]*aria-label="选择机制档案"/);
+  assert.match(html, /href="\/mechanisms"[^>]*data-mechanism="subagent-orchestration"/);
+  assert.match(html, /href="\/mechanisms\?mechanism=context-compaction"[^>]*data-mechanism="context-compaction"/);
+  assert.doesNotMatch(html, /role="menu(item)?"|aria-haspopup="menu"/);
+  assert.doesNotMatch(html, /<select/);
   assert.match(script, /"context-compaction": \{[\s\S]*context-compaction-evidence\.json[\s\S]*context-compaction-summary\.json[\s\S]*context-compaction-workbench\.json/);
   assert.match(script, /new URL\(location\.href\)\.searchParams\.get\("mechanism"\)/);
   assert.match(script, /dossierRegistry\[requestedDossier\] \? requestedDossier : "subagent-orchestration"/);
   assert.match(script, /fetch\(dossierConfig\.workbench/);
-  assert.match(script, /searchParams\.set\("mechanism", event\.target\.value\)/);
+  assert.match(script, /querySelectorAll\("\[data-mechanism\]"\)/);
+  assert.match(script, /item\.setAttribute\("aria-current", "page"\)/);
+  assert.match(script, /event\.key === "Escape"/);
+  assert.match(script, /document\.addEventListener\("focusin"[\s\S]*mechanismSwitcher\.contains\(event\.target\)/);
   assert.match(script, /if \(claim\.compare\) links\.append\(safeLink\(claim\.compare, "compare"\)\)/);
   assert.match(script, /\^\[A-Z\]\[A-Z0-9-\]\*-\\d\+\$/);
 });
@@ -171,5 +177,5 @@ test("the original sub-agent mechanism remains the default registered dossier", 
   assert.doesNotThrow(() => JSON.parse(read("dossiers/subagent-evidence.json")));
   assert.doesNotThrow(() => JSON.parse(read("dossiers/subagent-orchestration.json")));
   assert.match(script, /"subagent-orchestration": \{[\s\S]*subagent-evidence\.json[\s\S]*subagent-orchestration\.json[\s\S]*subagent-workbench\.json/);
-  assert.match(script, /event\.target\.value === "subagent-orchestration"[\s\S]*searchParams\.delete\("mechanism"\)/);
+  assert.match(html, /href="\/mechanisms"[^>]*data-mechanism="subagent-orchestration"/);
 });
