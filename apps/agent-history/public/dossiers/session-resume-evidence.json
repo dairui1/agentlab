@@ -1,0 +1,472 @@
+{
+  "claims": [
+    {
+      "id": "SES-CC-01", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "session_id 是机器寻址键，标题不是",
+      "statement": "新 session 使用 UUID；system/init 与每个 ResultMessage 都携 session_id。显式 name 可作为人类 resume handle，但自动标题不是稳定寻址键。",
+      "layer": "Docs-aligned SDK/session contract + exact-history", "confidence": "High",
+      "signals": ["system/init.session_id", "result.session_id", "hook session_id", "transcript filename"],
+      "boundary": "Harness 应先持久化 UUID 再渲染标题；不能用 AI title 作为 resume/fork foreign key。",
+      "source": {"label": "Claude SDK session ID", "url": "https://code.claude.com/docs/en/agent-sdk/sessions#capture-the-session-id"},
+      "compare": {"label": "Claude session naming", "url": "https://code.claude.com/docs/en/sessions#name-your-sessions"}
+    },
+    {
+      "id": "SES-CC-02", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "默认持续写入 project-scoped JSONL",
+      "statement": "prompt、assistant、tool use/result 与 metadata 持续写入 ~/.claude/projects/<encoded-project>/<session-id>.jsonl；配置根可迁移，持久化也可全局或单次关闭。",
+      "layer": "Docs-aligned sessions contract + exact-build guard", "confidence": "High",
+      "signals": ["transcript_path", "CLAUDE_CONFIG_DIR", "persistSession", "no-session-persistence"],
+      "boundary": "JSONL entry shape 是内部格式；支持的集成面是 SDK messages、hooks、export 与结构化输出。",
+      "source": {"label": "Claude transcript storage", "url": "https://code.claude.com/docs/en/sessions#export-and-locate-session-data"},
+      "compare": {"label": "Claude Code 2.1.226 persistence diagnostic", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L2060"}
+    },
+    {
+      "id": "SES-CC-03", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "创建成功与 picker 可见性是两回事",
+      "statement": "interactive、-p 与 Agent SDK 都创建 session ID，但 -p/SDK session 不出现在 interactive /resume picker，仍可按显式 ID resume。",
+      "layer": "Docs-aligned CLI/SDK contract; exact-build picker fixture pending", "confidence": "High",
+      "signals": ["created session_id", "picker membership", "listSessions", "explicit resume result"],
+      "boundary": "picker 缺席不能证明 session 未持久；persistSession=false 的 run 才没有 durable entry。",
+      "source": {"label": "Claude resume picker boundary", "url": "https://code.claude.com/docs/en/sessions#resume-a-session"},
+      "compare": {"label": "Claude SDK list/read sessions", "url": "https://code.claude.com/docs/en/agent-sdk/sessions#resume-across-hosts"}
+    },
+    {
+      "id": "SES-CC-04", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "continue 是 cwd-latest resolver，resume 是 identity lookup",
+      "statement": "--continue/continue:true 选择当前 working directory 最近持久 session；--resume/resume 选择显式 ID 或 name。2.1.223 起跨 project 重名副本会拒绝歧义选择。",
+      "layer": "Docs-aligned contract + exact-history", "confidence": "High",
+      "signals": ["cwd", "requested session ID", "SessionStart.source=resume", "returned session_id"],
+      "boundary": "多租户或并发 Harness 不应使用 continue；必须保存显式 ID 与 resolver receipt。",
+      "source": {"label": "Claude continue and resume", "url": "https://code.claude.com/docs/en/agent-sdk/sessions#continue-resume-and-fork"},
+      "compare": {"label": "Claude 2.1.223 resume fixes", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L58-L76"}
+    },
+    {
+      "id": "SES-CC-05", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "resume 恢复 conversation，不恢复旧进程",
+      "statement": "resume hydrate 已保存 message/tool chain；background process、MCP socket、launch-only flags、部分目录与当前 filesystem 状态不会被 transcript 自动恢复。",
+      "layer": "Docs-aligned sessions/SDK contract", "confidence": "High",
+      "signals": ["new system/init", "launch manifest", "effective cwd/model/mode", "workspace revision"],
+      "boundary": "conversation continuity 不能证明 runtime、authority、plugin/MCP 或 workspace 等价；host 要重建并 diff manifest。",
+      "source": {"label": "Claude resumed state", "url": "https://code.claude.com/docs/en/sessions#what-a-resumed-session-restores"},
+      "compare": {"label": "Claude SDK persistence boundary", "url": "https://code.claude.com/docs/en/agent-sdk/sessions"}
+    },
+    {
+      "id": "SES-CC-06", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "permission mode 恢复存在 exact-build 冲突",
+      "statement": "live docs 描述普通 resume 可条件恢复 mode；2.1.226 deferred diagnostic 却明确要求 resume 时重新传 --permission-mode。安全 Harness 应显式传 mode 并重新核验。",
+      "layer": "Docs-aligned vs exact-build conflict", "confidence": "High",
+      "signals": ["requested permission mode", "system/init mode", "hook permission_mode", "deferred resume path"],
+      "boundary": "冲突很可能 path-dependent；不能外推成所有 resume 都恢复或都不恢复，也不能静默恢复 bypass。",
+      "source": {"label": "Claude current resume mode contract", "url": "https://code.claude.com/docs/en/sessions#what-a-resumed-session-restores"},
+      "compare": {"label": "Claude Code 2.1.226 deferred resume diagnostic", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L12119-L12127"}
+    },
+    {
+      "id": "SES-CC-07", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "/branch 与 transcript fork 都建新 ID，但不能推断 authority",
+      "statement": "SDK forkSession 与 CLI --fork-session 复制 history 到新 session ID；interactive /branch 也建立新 branch。当前 docs 明确 session-scoped approvals 不携带，但固定 2.1.226 的完整进程状态继承仍需 fixture。",
+      "layer": "Docs-aligned CLI/SDK contract; exact-build authority fixture pending", "confidence": "High",
+      "signals": ["source session_id", "new session_id", "branch/fork surface", "effective permission mode", "workspace identity"],
+      "boundary": "这些 conversation branches 默认不 clone filesystem；不能从 surface 名称推断 process、background output 或 authority 是否继承。",
+      "source": {"label": "Claude branch semantics", "url": "https://code.claude.com/docs/en/sessions#branch-a-session"},
+      "compare": {"label": "Claude SDK fork semantics", "url": "https://code.claude.com/docs/en/agent-sdk/sessions#fork-to-explore-alternatives"}
+    },
+    {
+      "id": "SES-CC-08", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "conversation rewind 与 file rewind 是独立合同",
+      "statement": "interactive checkpoint 可分别恢复 conversation、tracked files 或两者；SDK rewindFiles 只改文件。Bash/外部/subagent/remote 改动与超限文件不在完整恢复保证内。",
+      "layer": "Docs-aligned checkpointing + exact-history", "confidence": "High",
+      "signals": ["user-message checkpoint UUID", "conversation lineage", "file snapshot coverage", "worktree readback"],
+      "boundary": "HTTP/SDK success 不能冒充完整 filesystem rollback；必须展示 covered/uncovered side effects。",
+      "source": {"label": "Claude checkpoint choices", "url": "https://code.claude.com/docs/en/checkpointing#how-checkpoints-work"},
+      "compare": {"label": "Claude checkpoint limitations", "url": "https://code.claude.com/docs/en/checkpointing#limitations"}
+    },
+    {
+      "id": "SES-CC-09", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "replay 指三种不同机制",
+      "statement": "--replay-user-messages 是 streamed input acknowledgement；resume 是 historical hydration；persisted hook context 在 resume 时 replay，而 SessionStart 会重新运行。",
+      "layer": "Docs-aligned CLI/hooks + exact-history", "confidence": "High",
+      "signals": ["SDKUserMessageReplay.isReplay", "message UUID", "SessionStart.source", "pre/post init frame"],
+      "boundary": "三者都不是完整 transcript event replay；去重应使用 UUID 与 event kind，而不是文本。",
+      "source": {"label": "Claude CLI replay flag", "url": "https://code.claude.com/docs/en/cli-usage#cli-flags"},
+      "compare": {"label": "Claude hook replay contract", "url": "https://code.claude.com/docs/en/hooks#hook-input-and-output"}
+    },
+    {
+      "id": "SES-CC-10", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "ResultMessage 是 agent loop 终态，但流可能还有尾事件",
+      "statement": "result.subtype 区分 success 与多类 error；assistant text、process exit 与 SessionEnd 不能替代它。SDK 可在 result 后输出少量 system events，consumer 应读到 stream end。",
+      "layer": "Docs-aligned Agent SDK + exact-build stream behavior", "confidence": "High",
+      "signals": ["result.subtype", "result.session_id", "assistant stop_reason", "stream EOF", "process exit"],
+      "boundary": "transport/process failure 可没有 result；这时应以 init ID 记录 indeterminate，而不是推断 success/error。",
+      "source": {"label": "Claude Agent SDK result", "url": "https://code.claude.com/docs/en/agent-sdk/agent-loop#handle-the-result"},
+      "compare": {"label": "Claude headless stream terminal", "url": "https://code.claude.com/docs/en/headless#stream-responses"}
+    },
+    {
+      "id": "SES-CC-11", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "SessionStart/End 是 lifecycle，不是 task success",
+      "statement": "SessionStart 区分 startup/resume/fork/clear/compact 并在 resume/fork 重跑；SessionEnd 只报告结束原因且不能阻止终止。",
+      "layer": "Docs-aligned hooks contract + exact-history", "confidence": "High",
+      "signals": ["SessionStart.source", "SessionEnd.reason", "hook timeout", "independent result.subtype"],
+      "boundary": "SessionEnd(other) 不证明任务成功；result 完成也不一定结束一个长驻 session process。",
+      "source": {"label": "Claude SessionStart hook", "url": "https://code.claude.com/docs/en/hooks#sessionstart"},
+      "compare": {"label": "Claude SessionEnd hook", "url": "https://code.claude.com/docs/en/hooks#sessionend"}
+    },
+    {
+      "id": "SES-CC-12", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "SessionStore 是 dual-write mirror，不是替代事务",
+      "statement": "CLI subprocess 先写本地 transcript，SDK 再 mirror 到 external SessionStore；重试耗尽发 system/mirror_error 并继续，remote store 可落后或缺批次。",
+      "layer": "Docs-aligned SessionStore contract + exact-build guard", "confidence": "High",
+      "signals": ["local append", "store append", "system/mirror_error", "last mirrored sequence"],
+      "boundary": "sessionStore 不能与 persistSession=false 组合；store-backed fork 还必须重写 session/message IDs，不能 byte-copy。",
+      "source": {"label": "Claude SessionStore behavior", "url": "https://code.claude.com/docs/en/agent-sdk/session-storage#behavior-notes"},
+      "compare": {"label": "Claude SessionStore fork rewrite", "url": "https://code.claude.com/docs/en/agent-sdk/session-storage#forksession-is-not-a-byte-copy"}
+    },
+    {
+      "id": "SES-CC-13", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "cleanup 是 retention policy，不是 picker 行为",
+      "statement": "local transcript/checkpoint 默认 30 天清理，minimum 1；settings 无法解析时 2.1.226 会跳过清理。external store retention 与 local sweep 独立。",
+      "layer": "Docs-aligned retention contract + exact-build fail-safe", "confidence": "High",
+      "signals": ["cleanupPeriodDays", "last sweep", "transcript existence", "file-history existence", "store receipt"],
+      "boundary": "not in picker 不等于 deleted；transcript 与 file-history 删除也要分别出 receipt。",
+      "source": {"label": "Claude local retention", "url": "https://code.claude.com/docs/en/sessions#where-transcripts-are-stored"},
+      "compare": {"label": "Claude Code 2.1.226 cleanup fail-safe", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L22532"}
+    },
+    {
+      "id": "SES-CC-14", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "跨版本 resume 是 best effort，不是 schema migration 合同",
+      "statement": "官方明确 JSONL 内部且不稳定；多个版本持续修复 orphan tool result、路径 bucket、attachments、fork lineage 与 compacted resume。",
+      "layer": "Docs-aligned schema warning + exact-history", "confidence": "High",
+      "signals": ["writer version", "reader version", "hydration error", "last valid UUID", "fallback lineage"],
+      "boundary": "不能承诺任意前向/后向兼容；失败时保留原 transcript，并优先 fresh-session handoff 而非原地改未知 record。",
+      "source": {"label": "Claude internal transcript warning", "url": "https://code.claude.com/docs/en/sessions#where-transcripts-are-stored"},
+      "compare": {"label": "Claude 2.1.223 history fixes", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L58-L76"}
+    },
+    {
+      "id": "SES-CC-15", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "background /fork 是独立的 worktree Session surface",
+      "statement": "2.1.221 起，/fork 创建新 background session 并为它建立自己的 worktree；它不是 interactive /branch，也不是 CLI/SDK --fork-session 的同义入口。",
+      "layer": "Exact-history within pinned 2.1.226", "confidence": "High",
+      "signals": ["invoked surface", "background session ID", "worktree path", "attached/unattended status"],
+      "boundary": "独立 worktree 不自动证明外部副作用、process、credential 或 authority 完全隔离；仍要保存 effective runtime receipt。",
+      "source": {"label": "Claude 2.1.221 /fork worktree change", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L104-L140"}
+    },
+
+    {
+      "id": "SES-CX-01", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "thread、session 与 turn 是三层 identity",
+      "statement": "thread.id 寻址 conversation API；thread.sessionId 表示 lineage/tree；turn.id 与 item.id 标识执行单元。forkedFromId 与 parentThreadId 分别表示 branch 和 subagent 关系。",
+      "layer": "Exact-tag app-server protocol", "confidence": "High",
+      "signals": ["thread.id", "sessionId", "forkedFromId", "parentThreadId", "turn.id", "item.id"],
+      "boundary": "resume/fork/turn correlation 必须用 threadId，不能以 sessionId 替代。",
+      "source": {"label": "Codex thread/session/turn model", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L70-L83"},
+      "compare": {"label": "Codex Thread protocol", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs#L184-L250"}
+    },
+    {
+      "id": "SES-CX-02", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "ephemeral 是真正 in-memory thread",
+      "statement": "ephemeral thread 跳过 LiveThread 与 state DB persistence，path=null；可在 loaded list 出现，却没有 cold resume、archive、rollback 或跨进程发现介质。",
+      "layer": "Exact-tag core implementation", "confidence": "High",
+      "signals": ["thread.ephemeral", "thread.path=null", "loaded list", "stored list absence"],
+      "boundary": "ephemeral 不只是列表隐藏；进程退出后 conversation identity 也无法从 local store 恢复。",
+      "source": {"label": "Codex ephemeral thread", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/session.rs#L631-L727"}
+    },
+    {
+      "id": "SES-CX-03", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "thread/start 先分配 path，rollout lazy materialize",
+      "statement": "非 ephemeral start 预计算 rollout path 与 SessionMeta，但直到 persist 才创建/打开 JSONL。response 可先携非空 path。",
+      "layer": "Exact-tag rollout recorder", "confidence": "High",
+      "signals": ["thread/start response", "thread/started", "thread.path", "file/list readback"],
+      "boundary": "path != null 只证明目标位置，不证明文件存在、已 flush 或已被 thread/list 发现。",
+      "source": {"label": "Codex lazy rollout recorder", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/rollout/src/recorder.rs#L787-L919"},
+      "compare": {"label": "Codex thread/start response path", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/src/request_processors/thread_processor.rs#L1333-L1419"}
+    },
+    {
+      "id": "SES-CX-04", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "ThreadStore 可替换，local files 不是通用协议",
+      "statement": "ThreadStore 支持 remote/custom 实现；JSONL history + SQLite metadata 只是 local store，active session 通过 LiveThread 操作。",
+      "layer": "Exact-tag thread-store abstraction", "confidence": "High",
+      "signals": ["optional path", "store capability", "history mode", "API error"],
+      "boundary": "扫描 ~/.codex/sessions 只能做 local diagnostics，不能成为产品级 resume 协议。",
+      "source": {"label": "Codex ThreadStore abstraction", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/thread-store/README.md#L1-L30"}
+    },
+    {
+      "id": "SES-CX-05", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "local paginated history 中 JSONL canonical，SQLite 可落后",
+      "statement": "write path 先完成 rollout durability barrier，再 materialize SQLite projection；projection failure 只 warning，list/read 可 scan、repair 或 fallback。",
+      "layer": "Exact-tag local writer", "confidence": "High",
+      "signals": ["historyMode=paginated", "rollout updated", "SQLite lag", "fallback/repair logs"],
+      "boundary": "query projection 不是 canonical append log；按实现顺序不应领先 rollout，但可暂时落后。",
+      "source": {"label": "Codex paginated live writer", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/thread-store/src/local/live_writer.rs#L280-L323"},
+      "compare": {"label": "Codex projection repair", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/rollout/src/recorder.rs#L547-L695"}
+    },
+    {
+      "id": "SES-CX-06", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "rollout 是选择性 history，不是完整 event log",
+      "statement": "rollout 保留模型重建所需 response items 与 semantic markers，却丢弃大量 delta、Error/Warning、approval、exec begin/end 与 terminal interaction。",
+      "layer": "Exact-tag rollout policy", "confidence": "High",
+      "signals": ["itemsView", "turn markers", "missing historical deltas", "separate telemetry journal"],
+      "boundary": "model resume、UI history 与 forensic audit 必须分成三个数据面；ThreadItem resume view 也是 lossy。",
+      "source": {"label": "Codex rollout persistence policy", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/rollout/src/policy.rs#L85-L181"},
+      "compare": {"label": "Codex lossy resumed ThreadItem view", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L1094-L1116"}
+    },
+    {
+      "id": "SES-CX-07", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "turn/completed 是 live terminal，不是 durability receipt",
+      "statement": "turn terminal 状态为 completed/interrupted/failed；persistence append 出错只记录日志，随后 turn/completed 仍可发送。",
+      "layer": "Exact-tag core lifecycle", "confidence": "High",
+      "signals": ["turn/completed.status", "persistence error log", "thread readback", "completedAt"],
+      "boundary": "用它结束 runtime spinner 是正确的，但声明已落盘必须有 readback 或 host durability receipt。",
+      "source": {"label": "Codex terminal persistence ordering", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/mod.rs#L2046-L2083"},
+      "compare": {"label": "Codex persistence error handling", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/mod.rs#L3603-L3609"}
+    },
+    {
+      "id": "SES-CX-08", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "stored、loaded、read 与 resume 是四个 surface",
+      "statement": "thread/list 列 stored；thread/loaded/list 列 resident；thread/read/turns/items 被动 hydrate；thread/resume 取得 live append ownership。notLoaded 是正常状态。",
+      "layer": "Exact-tag app-server contract", "confidence": "High",
+      "signals": ["thread.status.type", "stored list", "loaded list", "turn/item cursors"],
+      "boundary": "turns=[] 或 notLoaded 不代表没有 history；多数 API 会有意省略或分页 items。",
+      "source": {"label": "Codex thread read/list surfaces", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L167-L175"}
+    },
+    {
+      "id": "SES-CX-09", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "cold resume 寻址优先级为 history > path > threadId",
+      "statement": "supplied history 会忽略 threadId 并创建 fresh identity；non-empty path 优先于 ID。history/path 是 unstable escape hatch，标准 resume 应只传 threadId。",
+      "layer": "Exact-tag app-server protocol and implementation", "confidence": "High",
+      "signals": ["request history/path/threadId", "response thread.id", "response path", "new lineage"],
+      "boundary": "caller-supplied history 不是 resume 原 thread；UI 必须显示实际 response identity。",
+      "source": {"label": "Codex resume request precedence", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L315-L345"},
+      "compare": {"label": "Codex resume implementation", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/src/request_processors/thread_processor.rs#L3737-L3751"}
+    },
+    {
+      "id": "SES-CX-10", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "hot resume 是 rejoin，override 可能忽略",
+      "statement": "loaded thread resume 重新接入 live instance；有 subscriber 或 active turn 时 mismatched overrides 保留旧 effective config 并 warning，而不是重建。",
+      "layer": "Exact-tag app-server lifecycle", "confidence": "High",
+      "signals": ["thread.status", "active turn snapshot", "overrides ignored warning", "effective settings"],
+      "boundary": "request intent 不是 runtime truth；Harness 必须展示 resume response 与 settings，而非假定 override 已生效。",
+      "source": {"label": "Codex hot resume logic", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/src/request_processors/thread_processor.rs#L3480-L3589"}
+    },
+    {
+      "id": "SES-CX-11", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "resume 是 snapshot + tail，不是历史通知 replay",
+      "statement": "resume 先返回 thread snapshot/page，再补 token/goal snapshot与仍 pending requests；过去 item/delta/warning/terminal notifications 不会完整重发。",
+      "layer": "Exact-tag app-server response and subscription", "confidence": "High",
+      "signals": ["resume response", "initialTurnsPage", "pending server requests", "new live notifications"],
+      "boundary": "客户端要 snapshot/page hydrate 历史，再接 live tail；不能用 notification reducer 重建全部过去。",
+      "source": {"label": "Codex resume response shape", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L388-L452"},
+      "compare": {"label": "Codex resume subscription", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/src/request_processors/thread_lifecycle.rs#L636-L755"}
+    },
+    {
+      "id": "SES-CX-12", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "fork 新建 thread identity，并显式定义切点",
+      "statement": "thread/fork 创建新 thread，forkedFromId 指向 source；lastTurnId inclusive 且拒绝 in-progress，beforeTurnId exclusive，可在 active turn 前切。",
+      "layer": "Exact-tag fork protocol", "confidence": "High",
+      "signals": ["new thread.id/sessionId", "forkedFromId", "lastTurnId", "beforeTurnId", "interruption marker"],
+      "boundary": "fork lineage 看 forkedFromId，不能假设 sessionId 相等；source 不被改写，partial suffix 需 boundary/marker。",
+      "source": {"label": "Codex fork boundaries", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L501-L590"},
+      "compare": {"label": "Codex fork partial-history marker", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/session.rs#L569-L595"}
+    },
+    {
+      "id": "SES-CX-13", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "rollback 是 append-only semantic marker",
+      "statement": "deprecated thread/rollback 只支持 legacy history；它先用 ThreadRolledBack marker 重建 live context，再尝试 append marker。写入失败只 warning，可能让 cold resume 与当前 live context 分叉；旧 JSONL suffix 和 workspace 都不回退。",
+      "layer": "Exact-tag rollback implementation", "confidence": "High",
+      "signals": ["ThreadRolledBack marker", "rebuilt turns", "marker save warning", "paginated rejection"],
+      "boundary": "live conversation rewrite、durable marker append、raw log mutation 与 filesystem restore 是四个不同成功面。",
+      "source": {"label": "Codex rollback handler", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/handlers.rs#L451-L552"},
+      "compare": {"label": "Codex rollback reconstruction", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/rollout_reconstruction.rs#L340-L371"}
+    },
+    {
+      "id": "SES-CX-14", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "archive、unarchive、delete 是不同清理语义",
+      "statement": "archive 移动 rollout 并可逆，archived 必须先 unarchive 才 resume；delete hard-delete rollout/projection 并受 descendants/reference-backed fork 约束。",
+      "layer": "Exact-tag thread store", "confidence": "High",
+      "signals": ["thread/archived", "thread/unarchived", "thread/deleted", "reference conflict"],
+      "boundary": "descendant archive 是 best effort，不是 tree transaction；删除 ancestor 可因 child reference 被拒绝。",
+      "source": {"label": "Codex archive contract", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L188-L193"},
+      "compare": {"label": "Codex delete lineage guard", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/thread-store/src/local/delete_thread.rs#L27-L110"}
+    },
+    {
+      "id": "SES-CX-15", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "loader 可跳坏行，却对未知 canonical history_mode fail closed",
+      "statement": "单行 parse failure 会计数并跳过，空文件失败；在识别自己的 SessionMeta 前遇到未知 history_mode 会让整个 resume error。",
+      "layer": "Exact-tag rollout loader", "confidence": "High",
+      "signals": ["parse warning/count", "empty session file", "invalid history_mode", "resume error"],
+      "boundary": "record-level corruption tolerance 不能外推为 future schema 或 downgrade compatibility。",
+      "source": {"label": "Codex rollout load tolerance", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/rollout/src/recorder.rs#L982-L1045"},
+      "compare": {"label": "Codex history mode validation", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/rollout/src/recorder.rs#L1092-L1104"}
+    },
+
+    {
+      "id": "SES-OC-01", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "channel 与 OPENCODE_DB 决定 Session collection",
+      "statement": "default SQLite filename 随 installation channel 变化；OPENCODE_DB 可选绝对/相对/:memory:，数据库启用 WAL、NORMAL synchronous、busy timeout 与 FK。",
+      "layer": "Exact-tag V1 database config", "confidence": "High",
+      "signals": ["installation channel", "resolved DB path", "OPENCODE_DB", "WAL/SHM", "migration error"],
+      "boundary": "同机同 data root 不保证同 collection；:memory: 明确不能跨进程 resume。",
+      "source": {"label": "OpenCode V1 database selection", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/database/database.ts#L22-L57"}
+    },
+    {
+      "id": "SES-OC-02", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "单个 durable event 与 SQLite projection 原子提交",
+      "statement": "V1 在 IMMEDIATE transaction 中运行 projector、更新 aggregate sequence、插入 versioned event，commit 后才通知 listener。",
+      "layer": "Exact-tag V1 durable event system", "confidence": "High",
+      "signals": ["aggregateID", "seq/version", "projected row", "event row", "post-commit notification"],
+      "boundary": "原子性仅覆盖一个 event 的 DB commit，不覆盖整个 assistant turn、provider/tool side effects、snapshot 或 import。",
+      "source": {"label": "OpenCode V1 durable event transaction", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/event.ts#L205-L395"}
+    },
+    {
+      "id": "SES-OC-03", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "Session/message/part 边界与顺序不同",
+      "statement": "message/part 使用不同 FK 关系；分页 cursor 编码 {id,time}，确定顺序按 (time_created,id)，默认 API 分页不能视作完整 transcript。",
+      "layer": "Exact-tag V1 schema and pagination", "confidence": "High",
+      "signals": ["session/message/part IDs", "time.created", "cursor", "X-Next-Cursor", "orphan part"],
+      "boundary": "ID 只在时间相同时 tie-break；全量 replay 必须遍历 cursor 并按时间/id 排序。",
+      "source": {"label": "OpenCode V1 session SQL schema", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/session/sql.ts#L22-L98"},
+      "compare": {"label": "OpenCode V1 message pagination", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/message-v2.ts#L425-L467"}
+    },
+    {
+      "id": "SES-OC-04", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "resume 只是选中同一 ID 后继续 append",
+      "statement": "--session 精确 get ID；--continue 从 scoped session list 选择第一个 root，找不到才 create，随后 prompt 直接写入该 ID，没有独立 restore transaction。",
+      "layer": "Exact-tag V1 CLI/session implementation", "confidence": "High",
+      "signals": ["selected sessionID", "list scope", "create fallback", "first new user message"],
+      "boundary": "不恢复旧 process、shell、MCP socket、memory status、pending permission 或 tool process。",
+      "source": {"label": "OpenCode V1 continue resolver", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/cli/cmd/run.ts#L456-L533"}
+    },
+    {
+      "id": "SES-OC-05", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "list 有 scope、limit 与 archived surface 差异",
+      "statement": "project list 可按 workspace/path/directory/roots 过滤，默认 100、updated DESC，且不自动排 archived；global list 默认排 archived。",
+      "layer": "Exact-tag V1 session query", "confidence": "High",
+      "signals": ["project/directory/workspace", "roots", "limit", "archived timestamp", "selected first ID"],
+      "boundary": "list all 不是跨 project/无上限扫描；CLI continue 甚至可能从 project list 选中 archived root。",
+      "source": {"label": "OpenCode V1 project session list", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/session.ts#L957-L1009"},
+      "compare": {"label": "OpenCode V1 global session list", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/session.ts#L528-L566"}
+    },
+    {
+      "id": "SES-OC-06", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "parentID 表示 subagent，不表示 fork",
+      "statement": "Task child 设置 parentID，children query 按它检索；fork createNext 不设置 parentID，因此 fork 是新 root，V1 row 也没有 forkedFromID。",
+      "layer": "Exact-tag V1 lineage implementation", "confidence": "High",
+      "signals": ["child parentID", "Task session IDs", "fork new ID", "fork parentID=null"],
+      "boundary": "children endpoint 找不到 fork；Harness 必须单独持久 sourceSessionID → forkSessionID receipt。",
+      "source": {"label": "OpenCode V1 task child lineage", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L136-L213"},
+      "compare": {"label": "OpenCode V1 fork creation", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/session.ts#L655-L693"}
+    },
+    {
+      "id": "SES-OC-07", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "fork 是有损 transcript clone，missing cut 退化 full clone",
+      "statement": "fork 复制 cut message 之前的 messages 并重映射 IDs；target 找不到时复制全部。它不复制 permission、agent/model、share、summary、revert 等 session metadata。",
+      "layer": "Exact-tag V1 fork implementation", "confidence": "High",
+      "signals": ["source/target ID", "cut message ID", "cloned count", "ID map", "new metadata"],
+      "boundary": "必须先验证 cut ID；fork 不是 filesystem/runtime/authority/session-row byte clone。",
+      "source": {"label": "OpenCode V1 fork clone", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/session.ts#L655-L693"}
+    },
+    {
+      "id": "SES-OC-08", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "revert 只建立暂存边界，不立即删除 transcript",
+      "statement": "revert 要求 non-busy，设置 session.revert、snapshot/diff 并尝试回退 patch；函数本身不删除任何 message/part。",
+      "layer": "Exact-tag V1 revert implementation", "confidence": "High",
+      "signals": ["revert.messageID/partID", "snapshot", "diff event", "unchanged transcript count"],
+      "boundary": "success 只证明 staged boundary 与尝试文件 restore，不证明 transcript 截断或所有副作用回退。",
+      "source": {"label": "OpenCode V1 staged revert", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/revert.ts#L34-L82"}
+    },
+    {
+      "id": "SES-OC-09", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "unrevert 与 cleanup 是互斥出口",
+      "statement": "unrevert restore snapshot 并清 revert；下一 prompt、shell 或 summarize 先 cleanup，durably 删除 boundary 后 messages/parts 并清 revert。",
+      "layer": "Exact-tag V1 revert lifecycle", "confidence": "High",
+      "signals": ["revert set/clear", "message/part removed events", "next operation", "readback"],
+      "boundary": "发下一条消息是 destructive commit point；cleanup 后已没有 unrevert 入口。",
+      "source": {"label": "OpenCode V1 unrevert and cleanup", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/revert.ts#L83-L115"},
+      "compare": {"label": "OpenCode V1 prompt cleanup", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/prompt.ts#L1052-L1070"}
+    },
+    {
+      "id": "SES-OC-10", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "文件 undo 依赖 Git snapshot，restore failure 不上抛",
+      "statement": "snapshot 仅 Git/config eligible，单文件上限 2 MiB、store prune 7 天；restore 遇错只 log 后正常返回。",
+      "layer": "Exact-tag V1 snapshot store", "confidence": "High",
+      "signals": ["snapshot hash", "VCS/config", "restore log", "coverage list", "worktree diff"],
+      "boundary": "session revert HTTP 200 不能证明文件完整恢复；非 Git、超限、外部副作用与 prune 对象不在保证内。",
+      "source": {"label": "OpenCode V1 snapshot eligibility", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/snapshot/index.ts#L23-L75"},
+      "compare": {"label": "OpenCode V1 snapshot restore", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/snapshot/index.ts#L408-L524"}
+    },
+    {
+      "id": "SES-OC-11", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "full transcript 与 compaction 后 model context 不同",
+      "statement": "compaction 不删旧 messages；每次 loop 从 DB 派生 latest successful summary boundary、marker、summary、tail 与后续 active context。",
+      "layer": "Exact-tag V1 context projection", "confidence": "High",
+      "signals": ["compaction marker", "summary finish/error", "tail_start_id", "full count", "active IDs"],
+      "boundary": "旧消息仍可检索不代表模型 resume 时可见；durable transcript、model projection、UI events 是三面。",
+      "source": {"label": "OpenCode V1 compacted projection", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/message-v2.ts#L521-L604"}
+    },
+    {
+      "id": "SES-OC-12", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "CLI replay 是 UI hydration，不重跑模型或工具",
+      "statement": "run --replay 读取 persisted messages/children/pending blockers，合成 UI commits 并在 resize 重建；不调用 LLM/tool，也不生成新 durable transcript。",
+      "layer": "Exact-tag V1 CLI replay", "confidence": "High",
+      "signals": ["replay flag/limit", "replayed message IDs", "UI commit source", "resize replay trace"],
+      "boundary": "replay-limit 只限显示，不能当 model context 或 durable event aggregate 上限。",
+      "source": {"label": "OpenCode V1 session replay", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/cli/cmd/run/session-replay.ts#L153-L261"}
+    },
+    {
+      "id": "SES-OC-13", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "ACP loadSession 与 resumeSession hydration 不同",
+      "statement": "loadSession 读取全部 messages 并 replay；resumeSession 只读最近 20 条恢复 model/variant/mode，不 replay 历史。ACP registry 是内存态，SQLite session 才 durable。",
+      "layer": "Exact-tag V1 ACP implementation", "confidence": "High",
+      "signals": ["ACP method", "backing sessionID", "fetch count", "replay frames", "runtime registration"],
+      "boundary": "同一恢复按钮若混 CLI/HTTP/ACP，会把 integration surface 差异误报为数据缺失。",
+      "source": {"label": "OpenCode V1 ACP session lifecycle", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/acp/service.ts#L211-L328"}
+    },
+    {
+      "id": "SES-OC-14", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "live status 与 durable terminal 必须分开",
+      "statement": "runtime status busy/retry/idle 仅存 instance map，缺失也读 idle；任务结果必须回读 assistant completion/finish/error 与 tool terminal parts。",
+      "layer": "Exact-tag V1 runtime and durable schema", "confidence": "High",
+      "signals": ["session.status", "assistant time.completed", "finish/error", "tool state"],
+      "boundary": "进程重启后的 idle 不证明旧 turn 完成；无 durable terminal 时应记 indeterminate。",
+      "source": {"label": "OpenCode V1 assistant terminal fields", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/v1/session.ts#L453-L500"},
+      "compare": {"label": "OpenCode V1 runtime status", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/status.ts#L21-L48"}
+    },
+    {
+      "id": "SES-OC-18", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "prompt_async 的 204 只确认后台执行已被接纳",
+      "statement": "prompt_async 验证 session 后把 prompt effect fork 到 scope 并立即返回 NoContent；后台错误稍后只经 log 与 session error event 发布。",
+      "layer": "Exact-tag V1 async handler", "confidence": "High",
+      "signals": ["HTTP 204", "session.status", "session.error", "assistant/tool durable terminal"],
+      "boundary": "204 不是 turn completion 或 durability receipt；transport 断开后必须用 status/event + transcript readback 收口。",
+      "source": {"label": "OpenCode V1 prompt_async admission", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts#L311-L329"}
+    },
+    {
+      "id": "SES-OC-15", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "delete 内部失败仍可返回 true",
+      "statement": "delete 递归 children、发布 deleted event 并移除 event aggregate，但整个 remove 被 catch；内部失败只 log，HTTP handler 随后仍返回 true。",
+      "layer": "Exact-tag V1 delete receipt", "confidence": "High",
+      "signals": ["child IDs", "delete logs", "HTTP true", "parent/child/event readback"],
+      "boundary": "boolean 只证明 handler 返回，不能证明 parent、children、projection 与 aggregate 全部消失。",
+      "source": {"label": "OpenCode V1 session delete", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/session.ts#L576-L595"},
+      "compare": {"label": "OpenCode V1 delete HTTP receipt", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts#L178-L181"}
+    },
+    {
+      "id": "SES-OC-16", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "export/import 只是非事务性的 conversation projection transport",
+      "statement": "export 只写 session info + messages；import 解码当前 schema 后直接 upsert session，并逐条写 message/part。冲突 do nothing，整个文件没有单一 transaction，也不携 snapshot objects 或 durable event aggregate。",
+      "layer": "Exact-tag V1 export/import", "confidence": "High",
+      "signals": ["export item counts/hash", "import conflicts", "writer version", "snapshot existence", "event aggregate existence"],
+      "boundary": "它不是可恢复 undo、event audit、live state 的完整 bundle；import 后必须核对 count、hash 与冲突。",
+      "source": {"label": "OpenCode V1 export bundle", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/cli/cmd/export.ts#L230-L276"},
+      "compare": {"label": "OpenCode V1 projection import", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/cli/cmd/import.ts#L179-L225"}
+    },
+    {
+      "id": "SES-OC-17", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "SQLite migration 是前向启动机制，不是双向兼容保证",
+      "statement": "启动时按已应用 migration 集合执行尚未完成的 generated SQLite migrations；固定 tag 没有 down-migration 或任意旧 reader 可打开新 DB 的合同。",
+      "layer": "Exact-tag V1 migration machinery", "confidence": "High",
+      "signals": ["installation channel", "resolved DB path", "applied migration names", "writer/reader version", "migration failure"],
+      "boundary": "存在 forward migration machinery 不等于 downgrade、export envelope 或 provider-specific part schema 无损兼容。",
+      "source": {"label": "OpenCode V1 migration runner", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/database/migration.ts#L18-L80"},
+      "compare": {"label": "OpenCode V1 generated migrations", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/database/migration.gen.ts#L3-L43"}
+    }
+  ]
+}

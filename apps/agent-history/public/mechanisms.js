@@ -45,6 +45,15 @@
       summary: "/dossiers/permission-sandbox-summary.json",
       workbench: "/dossiers/permission-sandbox-workbench.json",
     },
+    "session-resume": {
+      label: "Session 持久化与恢复",
+      description: "寻址、落盘、恢复、分叉、回退与重放",
+      icon: "history",
+      href: "/mechanisms?mechanism=session-resume",
+      evidence: "/dossiers/session-resume-evidence.json",
+      summary: "/dossiers/session-resume-summary.json",
+      workbench: "/dossiers/session-resume-workbench.json",
+    },
   };
   const requestedDossier = new URL(location.href).searchParams.get("mechanism");
   const dossierId = dossierRegistry[requestedDossier] ? requestedDossier : "subagent-orchestration";

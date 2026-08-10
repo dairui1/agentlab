@@ -1,0 +1,27 @@
+{
+  "id": "session-resume",
+  "number": "004",
+  "title": "Session 持久化、恢复与回放",
+  "verifiedAt": "2026-08-10",
+  "scope": "运行时快照锁定 Claude Code 2.1.226、Codex 0.147.0 与 opencode V1 1.18.15；Claude 的 live-doc、exact-history 与 exact-build 证据逐条标识。产品明确分开 conversation identity、durable transcript、live runtime、model context、filesystem state 与 UI replay。",
+  "unknowns": [
+    {"id": "SES-KU-01", "title": "Claude permission mode 恢复路径冲突", "text": "live docs 与 2.1.226 deferred-resume diagnostic 对 mode 是否恢复的表述不一致。", "needed": "对 interactive、headless、SDK 与 deferred 四个入口做端到端 fixture，并始终显式传入期望 mode。"},
+    {"id": "SES-KU-02", "title": "Claude picker 的精确过滤仍需 binary fixture", "text": "文档说明 -p/SDK session 不出现在 interactive picker，但 exact-build 的过滤与迁移边界未逐项实测。", "needed": "固定 2.1.226 创建 interactive、-p、SDK、named 与 copied transcript，再对 picker、list 与 explicit resume 取样。"},
+    {"id": "SES-KU-03", "title": "Claude SessionStore 跨 host 一致性没有事务保证", "text": "mirror error 已知可让 external store 落后，但 retry、重复批次与多 host 冲突的完整矩阵未公开。", "needed": "记录 sequence、idempotency key 与 last mirrored receipt，模拟 timeout、retry 与双 host append。"},
+    {"id": "SES-KU-04", "title": "Claude checkpoint coverage 会随版本漂移", "text": "当前限制与固定 build 的大小、留存和 subagent 覆盖并非稳定 schema 合同。", "needed": "按 writer version 保存 coverage manifest，并用超限、Bash、remote 与 subagent 改动做恢复 readback。"},
+    {"id": "SES-KU-05", "title": "Codex 外部 durability receipt 未标准化", "text": "turn/completed 不证明 rollout 已安全落盘，remote/custom ThreadStore 也可能没有本地 readback。", "needed": "为 ThreadStore 暴露 commit sequence 或 durable watermark，并做进程中止与断电测试。"},
+    {"id": "SES-KU-06", "title": "Codex JSONL 与 SQLite crash repair 窗口未量化", "text": "实现允许 SQLite projection 落后并 repair/fallback，但没有公开恢复时间和重复扫描上界。", "needed": "在每个 append/barrier/projection 阶段注入 crash，统计 discover/read 恢复与 repair receipt。"},
+    {"id": "SES-KU-07", "title": "Codex custom ThreadStore 的一致性能力未知", "text": "protocol 允许替换 store，但 path、pagination、fork、archive 与 readback 的 capability 不一定等价。", "needed": "发布 store capability handshake，并对 local、remote 与 custom backend 跑同一 conformance suite。"},
+    {"id": "SES-KU-08", "title": "Codex 跨版本 history mode 矩阵未承诺", "text": "loader 对坏行与未知 canonical history_mode 采取不同策略，任意前后向兼容不能从当前源码推出。", "needed": "建立 writer×reader canary corpus，失败时只读保留原 rollout 并走 fresh handoff。"},
+    {"id": "SES-KU-09", "title": "OpenCode continue 选择 archived root 的端到端行为未验证", "text": "list surface 默认包含 archived，而 continue 依赖 scoped latest；组合后可能选到用户以为已收起的 session。", "needed": "在相同 directory/worktree 下构造 archived 与 active roots，记录 continue resolver receipt。"},
+    {"id": "SES-KU-10", "title": "OpenCode 并发 writer 可隐式提交他人 revert", "text": "下一条 prompt、shell 或 summarize 会 cleanup，缺少已验证的跨客户端 compare-and-set 边界。", "needed": "两个客户端并发 revert/unrevert/prompt，要求 boundary version 或 lease 冲突可见。"},
+    {"id": "SES-KU-11", "title": "OpenCode snapshot restore failure coverage 未知", "text": "restore 失败只写日志；非 Git、超限、prune 与 patch 部分覆盖组合没有结构化 receipt。", "needed": "为每个文件和副作用输出 covered、restored、failed、out-of-scope，并做 filesystem readback。"},
+    {"id": "SES-KU-12", "title": "OpenCode delete 与 import 的部分成功边界未量化", "text": "delete 内部错误可被吞掉，import 也不是全文件事务且 conflict 会跳过。", "needed": "删除后回读 parent、children、events；导入先 staging 校验 count/hash，冲突必须显式失败或换新 ID。"},
+    {"id": "SES-KU-13", "title": "Claude local append 与同 ID 多 writer 的崩溃语义未知", "text": "连续 JSONL persistence 不等于每条 record 都有公开 atomicity/flush receipt；两个进程向同一 session lineage append 的所有权合同也未公开。", "needed": "在 write/flush/rename 边界注入 kill，并用同 ID 双 writer 验证拒绝、序列与恢复结果。"},
+    {"id": "SES-KU-14", "title": "Codex pending request 重连的幂等边界未公开", "text": "resume 会重发仍 pending 的 server requests，但 duplicate decision、旧 connection reply 与 active-turn ownership 的完整竞态矩阵未公开。", "needed": "断线后双 connection 同时 reply approval/question，按 request ID 验证 exactly-once resolution 与最终 tool state。"},
+    {"id": "SES-KU-15", "title": "Codex rollback live/durable 分叉恢复未闭合", "text": "live context 可先应用 rollback marker，而 marker persistence failure 只 warning；进程随后崩溃时 cold resume 可能恢复未回退历史。", "needed": "在 marker append 前后注入失败，要求 rollback response 带 durable watermark 或回读不一致状态。"},
+    {"id": "SES-KU-16", "title": "OpenCode 同 Session 多进程 writer ownership 未定义", "text": "单个 durable event 在 SQLite 内原子，却不等于两个 process 对同一 session 的 turn、revert 与 tool side effects 有单 writer lease。", "needed": "双进程同时 prompt/revert/delete，验证 lease、turn ordering、provider call 与副作用去重。"},
+    {"id": "SES-KU-17", "title": "OpenCode incomplete assistant 的跨进程恢复策略未知", "text": "进程可在 part update、assistant completion 与 status notification 之间退出；新进程读取到 incomplete assistant 时的完整终结/重试合同未闭合。", "needed": "逐写点 crash injection，记录 next prompt 是否修复、终止、重试或重复 tool side effect。"},
+    {"id": "SES-KU-18", "title": "Claude /branch 的 exact-build Runtime 继承需复核", "text": "当前官方 docs 明确 session-scoped approvals 不携带；早期静态研究对同进程 background state 的描述与此不一致，不能外推到 2.1.226。", "needed": "固定 2.1.226 对 /branch、--fork-session 与 /fork 分别记录 process、grant、background output、cwd 与 worktree diff。"}
+  ]
+}
