@@ -11,6 +11,7 @@
     opencode: { label: "opencode", icon: "/agent-icons/opencode.png" },
     "cross-agent": { label: "跨 Agent", icon: "/assets/agentlab-mark.png" },
   };
+  const productAgents = ["claude-code", "codex", "opencode"];
   const defaultViewCopy = {
     compare: ["CONTROL REFERENCE", "操作速查", "primitive、默认行为、返回通道与危险边界放在同一个比较行。"],
     flows: ["OBSERVABLE LIFECYCLE", "生命周期", "图中只画公开合同可观测的状态与控制，不冒充内部 scheduler 实现。"],
@@ -175,11 +176,21 @@
     }
   }
 
-  function setMechanismMenu(open) {
+  function focusMechanismItem(position = "current") {
+    const items = [...document.querySelectorAll("#mechanismMenu [data-mechanism]")];
+    if (!items.length) return;
+    const target = position === "first" ? items[0]
+      : position === "last" ? items.at(-1)
+        : items.find((item) => item.getAttribute("aria-current") === "page") || items[0];
+    target.focus();
+  }
+
+  function setMechanismMenu(open, focusPosition) {
     const trigger = document.getElementById("mechanismMenuTrigger");
     const menu = document.getElementById("mechanismMenu");
     trigger.setAttribute("aria-expanded", String(open));
     menu.hidden = !open;
+    if (open && focusPosition) requestAnimationFrame(() => focusMechanismItem(focusPosition));
   }
 
   function renderMechanismMenu() {
@@ -268,6 +279,7 @@
       button.dataset.operation = operation.id;
       button.append(icon(operation.icon), el("span", "", operation.label));
       button.addEventListener("click", () => {
+        resetInspectorSelection();
         state.view = "compare";
         state.operation = operation.id;
         renderWorkspace();
@@ -275,6 +287,7 @@
       list.append(button);
     });
     document.getElementById("showAllOperations").addEventListener("click", () => {
+      resetInspectorSelection();
       state.view = "compare";
       state.operation = "all";
       renderWorkspace();
@@ -286,7 +299,7 @@
     const table = el("div", "operation-table");
     table.setAttribute("role", "table");
     const head = el("div", "operation-row operation-head");
-    ["操作合同", ...Object.keys(agentMeta).map((agent) => agentMeta[agent].label)].forEach((label) => {
+    ["操作合同", ...productAgents.map((agent) => agentMeta[agent].label)].forEach((label) => {
       const cell = el("div", "", label);
       cell.setAttribute("role", "columnheader");
       head.append(cell);
@@ -298,7 +311,7 @@
       const name = el("header", "operation-name");
       name.append(icon(operation.icon), el("strong", "", operation.label), el("p", "", operation.question));
       row.append(name);
-      Object.keys(agentMeta).forEach((agent) => {
+      productAgents.forEach((agent) => {
         const data = operation.cells[agent];
         const cell = el("div", "operation-cell");
         cell.dataset.agent = agent;
@@ -385,13 +398,13 @@
   function comparisonTable(rows, className) {
     const table = el("div", className);
     const head = el("div", "resource-row resource-head");
-    ["合同维度", ...Object.keys(agentMeta).map((id) => agentMeta[id].label)].forEach((label) => head.append(el("div", "", label)));
+    ["合同维度", ...productAgents.map((id) => agentMeta[id].label), "证据"].forEach((label) => head.append(el("div", "", label)));
     table.append(head);
     rows.forEach((row) => {
       const line = el("article", "resource-row");
       const label = el("strong", "resource-label", row.label || row.metric);
       line.append(label);
-      Object.keys(agentMeta).forEach((agent) => {
+      productAgents.forEach((agent) => {
         const value = row.cells ? row.cells[agent] : row[agent];
         const cell = el("div", "resource-cell");
         cell.append(el("span", "mobile-agent-label", agentMeta[agent].label), el("p", "", value));
@@ -530,7 +543,9 @@
       changes: ["OC-04", "版本变化 / capability gate"],
     };
     const configured = workbench.viewDefaults?.[state.view];
-    const [claim, label] = configured ? [configured.claim, configured.label] : fallbackDefaults[state.view];
+    const [claim, label] = state.view === "compare" && selectedOperation
+      ? compareDefault
+      : configured ? [configured.claim, configured.label] : fallbackDefaults[state.view];
     document.getElementById("inspectorContext").textContent = `DEFAULT EVIDENCE · ${label}`;
     renderInspectorRecord(claim);
   }
@@ -554,11 +569,35 @@
     if (update) updateUrl();
   }
 
+  function resetInspectorSelection() {
+    state.claim = null;
+    state.contextClaims = [];
+    state.inspectorContext = "";
+    inspector.classList.remove("is-open");
+    document.getElementById("inspectorContext").textContent = "EVIDENCE INSPECTOR";
+    document.querySelectorAll(".inspect-evidence.is-active").forEach((button) => {
+      button.classList.remove("is-active");
+      button.removeAttribute("aria-pressed");
+    });
+  }
+
   function positionInspector() {
     const workspace = document.getElementById("contractWorkspace");
     if (!workspace.hidden) {
       inspector.style.setProperty("--inspector-top", `${Math.max(8, workspace.getBoundingClientRect().top)}px`);
     }
+  }
+
+  function revealSelection(container, selected) {
+    if (!container || !selected) return;
+    const left = selected.offsetLeft;
+    const right = left + selected.offsetWidth;
+    const top = selected.offsetTop;
+    const bottom = top + selected.offsetHeight;
+    if (left < container.scrollLeft) container.scrollLeft = Math.max(0, left - 12);
+    else if (right > container.scrollLeft + container.clientWidth) container.scrollLeft = right - container.clientWidth + 12;
+    if (top < container.scrollTop) container.scrollTop = Math.max(0, top - 8);
+    else if (bottom > container.scrollTop + container.clientHeight) container.scrollTop = bottom - container.clientHeight + 8;
   }
 
   function updateUrl() {
@@ -592,6 +631,10 @@
     });
     document.querySelectorAll("[data-operation]").forEach((button) => button.setAttribute("aria-pressed", String(state.view === "compare" && button.dataset.operation === state.operation)));
     document.getElementById("showAllOperations").setAttribute("aria-pressed", String(state.view === "compare" && state.operation === "all"));
+    requestAnimationFrame(() => {
+      revealSelection(document.getElementById("viewTabs"), document.querySelector("[data-view][aria-selected=\"true\"]"));
+      revealSelection(document.querySelector(".operation-rail"), document.querySelector(".operation-button[aria-pressed=\"true\"]"));
+    });
     ({ compare: renderCompare, flows: renderFlows, failures: renderFailures, resources: renderResources, changes: renderChanges })[state.view]();
     renderDefaultInspector();
     if (update) updateUrl();
@@ -602,6 +645,7 @@
     const tabs = [...document.querySelectorAll("[data-view]")];
     tabs.forEach((button) => {
       button.addEventListener("click", () => {
+        if (state.view !== button.dataset.view) resetInspectorSelection();
         state.view = button.dataset.view;
         renderWorkspace();
       });
@@ -618,15 +662,7 @@
       });
     });
     document.getElementById("closeInspector").addEventListener("click", () => {
-      inspector.classList.remove("is-open");
-      state.claim = null;
-      state.contextClaims = [];
-      state.inspectorContext = "";
-      document.getElementById("inspectorContext").textContent = "EVIDENCE INSPECTOR";
-      document.querySelectorAll(".inspect-evidence.is-active").forEach((button) => {
-        button.classList.remove("is-active");
-        button.removeAttribute("aria-pressed");
-      });
+      resetInspectorSelection();
       document.getElementById("inspectorTitle").textContent = "选择一条合同";
       clear(document.getElementById("inspectorContent")).append(el("p", "inspector-empty", "点击任意“证据”按钮，在不离开当前比较位置的情况下检查版本、来源和边界。"));
       updateUrl();
@@ -635,24 +671,45 @@
     const mechanismTrigger = document.getElementById("mechanismMenuTrigger");
     const mechanismMenu = document.getElementById("mechanismMenu");
     mechanismTrigger.addEventListener("click", () => {
-      setMechanismMenu(mechanismTrigger.getAttribute("aria-expanded") !== "true");
+      const open = mechanismTrigger.getAttribute("aria-expanded") !== "true";
+      setMechanismMenu(open, open ? "current" : null);
     });
     mechanismTrigger.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && mechanismTrigger.getAttribute("aria-expanded") === "true") {
         event.preventDefault();
         setMechanismMenu(false);
+      } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        setMechanismMenu(true, event.key === "ArrowUp" || event.key === "End" ? "last" : "first");
       }
     });
     mechanismMenu.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
+      const items = [...mechanismMenu.querySelectorAll("[data-mechanism]")];
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMechanismMenu(false);
+        mechanismTrigger.focus();
+        return;
+      }
+      const current = items.indexOf(document.activeElement);
+      const next = event.key === "ArrowDown" ? (current + 1) % items.length
+        : event.key === "ArrowUp" ? (current - 1 + items.length) % items.length
+          : event.key === "Home" ? 0
+            : event.key === "End" ? items.length - 1 : -1;
+      if (next < 0) return;
       event.preventDefault();
-      setMechanismMenu(false);
-      mechanismTrigger.focus();
+      items[next].focus();
     });
     mechanismMenu.addEventListener("click", (event) => {
       const item = event.target.closest("[data-mechanism]");
-      if (item?.dataset.mechanism !== dossierId) return;
+      if (!item) return;
       event.preventDefault();
+      if (item.dataset.mechanism !== dossierId) {
+        const next = new URL(item.href, location.origin);
+        next.searchParams.set("view", state.view);
+        location.href = next;
+        return;
+      }
       setMechanismMenu(false);
       mechanismTrigger.focus();
     });

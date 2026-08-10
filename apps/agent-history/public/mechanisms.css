@@ -342,8 +342,7 @@
 
 .sharp-edge-strip {
   min-height: 66px;
-  display: grid;
-  grid-template-columns: 184px repeat(5, minmax(205px, 1fr));
+  display: flex;
   align-items: stretch;
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
@@ -352,16 +351,22 @@
 }
 
 .sharp-edge-title {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex: 0 0 184px;
   display: flex;
   align-items: center;
   padding: 0 13px 0 4px;
   color: var(--text-soft);
   font-size: 9px;
   font-weight: 740;
+  background: var(--surface-raised);
 }
 
 .sharp-edge {
   min-width: 0;
+  flex: 0 0 clamp(205px, 18vw, 260px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1154,7 +1159,7 @@
 }
 
 .resource-head {
-  grid-template-columns: 142px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 142px repeat(3, minmax(0, 1fr)) 64px;
   background: var(--surface-muted);
   color: var(--muted);
   font-size: 9px;
@@ -1503,7 +1508,15 @@
   }
 
   .sharp-edge-strip {
-    grid-template-columns: 168px repeat(5, 220px);
+    display: flex;
+  }
+
+  .sharp-edge-title {
+    flex-basis: 168px;
+  }
+
+  .sharp-edge {
+    flex-basis: 220px;
   }
 
   .operation-row {
@@ -1544,7 +1557,9 @@
   }
 
   .sharp-edge-strip {
-    display: none;
+    display: flex;
+    margin-inline: -12px;
+    padding-left: 12px;
   }
 
   .contract-view-tabs {

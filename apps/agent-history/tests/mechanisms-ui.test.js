@@ -177,6 +177,14 @@ test("renderer keeps evidence in place, handles deep links, and avoids unsafe HT
   assert.match(script, /inspector\.classList\.add\("is-open"\)/);
   assert.match(script, /event\.key === "ArrowRight"/);
   assert.match(script, /aria-labelledby/);
+  assert.match(script, /const productAgents = \["claude-code", "codex", "opencode"\]/);
+  assert.doesNotMatch(script, /Object\.keys\(agentMeta\)/);
+  assert.match(script, /function resetInspectorSelection\(\)/);
+  assert.match(script, /state\.view === "compare" && selectedOperation\s*\? compareDefault/);
+  assert.match(script, /function revealSelection\(container, selected\)/);
+  assert.doesNotMatch(script, /scrollIntoView/);
+  assert.match(script, /function focusMechanismItem\(position = "current"\)/);
+  assert.match(script, /next\.searchParams\.set\("view", state\.view\)/);
 });
 
 test("layout is three-pane on wide screens and row-first on mobile", () => {
@@ -186,7 +194,10 @@ test("layout is three-pane on wide screens and row-first on mobile", () => {
   assert.match(styles, /\.operation-row \{\s*display: block;/);
   assert.match(styles, /\.operation-rail \{[\s\S]*overflow-x: auto/);
   assert.match(styles, /\.evidence-inspector \{\s*inset: auto 8px 8px/);
+  assert.match(styles, /\.resource-head \{\s*grid-template-columns: 142px repeat\(3, minmax\(0, 1fr\)\) 64px/);
   assert.match(styles, /\.contract-workspace:not\(\[data-view="compare"\]\) \.operation-rail \{\s*display: none/);
-  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.sharp-edge-strip \{\s*display: none/);
+  assert.match(styles, /\.sharp-edge-strip \{[\s\S]*display: flex/);
+  assert.match(styles, /\.sharp-edge-title \{[\s\S]*position: sticky[\s\S]*flex: 0 0 184px/);
+  assert.doesNotMatch(styles, /grid-template-columns: 184px repeat\(5/);
   assert.doesNotMatch(styles, /\.operation-table[^}]*overflow-x:\s*auto/);
 });
