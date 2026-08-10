@@ -97,7 +97,7 @@
   gap: 5px;
   padding: 3px 2px;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   background: transparent;
   color: var(--text);
   cursor: pointer;
@@ -137,7 +137,7 @@
   overscroll-behavior: contain;
   padding: 5px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-m);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -154,7 +154,7 @@
   gap: 9px;
   min-height: 58px;
   padding: 8px 9px;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   color: var(--text);
   text-decoration: none;
 }
@@ -184,7 +184,7 @@
   display: grid;
   place-items: center;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-m);
   background: var(--surface-raised);
   color: var(--text-soft);
 }
@@ -274,7 +274,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-m);
   background: var(--surface);
 }
 
@@ -322,7 +322,7 @@
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   object-fit: contain;
 }
 
@@ -516,7 +516,7 @@
   padding: 0 9px;
   border: 0;
   border-left: 2px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   background: transparent;
   color: var(--text-soft);
   font-size: 11px;
@@ -538,7 +538,7 @@
 .operation-button.rail-all {
   margin-bottom: 4px;
   border-bottom: 1px solid var(--border);
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--radius-s) var(--radius-s) 0 0;
 }
 
 .operation-button svg {
@@ -626,7 +626,7 @@
   align-items: center;
   padding: 2px 7px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   font-size: 9px;
   font-weight: 700;
 }
@@ -703,7 +703,7 @@
   align-items: stretch;
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-m);
   background: var(--surface);
   scrollbar-width: none;
 }
@@ -748,7 +748,7 @@
   margin-left: auto;
   padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-m);
   background: var(--surface);
 }
 
@@ -961,7 +961,7 @@
   display: block;
   padding: 6px 7px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   background: var(--surface-muted);
   color: var(--text);
   font-size: 10px;
@@ -1097,7 +1097,7 @@
   gap: 4px;
   padding: 8px 9px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   background: var(--surface-raised);
 }
 
@@ -1613,7 +1613,7 @@
   max-width: 100%;
   padding: 4px 5px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   background: var(--surface-muted);
   font-size: 8px;
   overflow-wrap: anywhere;
@@ -1632,7 +1632,7 @@
   gap: 7px;
   padding: 7px 8px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: var(--radius-m);
   background: var(--surface);
   color: var(--text-soft);
   font-size: 9px;
@@ -1713,7 +1713,7 @@
     display: none;
     overflow-y: auto;
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: var(--radius-m);
     box-shadow: var(--shadow);
   }
 
@@ -1850,7 +1850,7 @@
   .operation-button.rail-all {
     margin: 0;
     border-bottom: 2px solid transparent;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
   }
 
   .operation-button.rail-all[aria-pressed="true"] {
@@ -2072,7 +2072,7 @@
     inset: auto 8px 8px;
     width: auto;
     max-height: min(78vh, 660px);
-    border-radius: 6px;
+    border-radius: var(--radius-m);
   }
 }
 
