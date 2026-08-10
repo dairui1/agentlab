@@ -156,11 +156,11 @@ test("Claude percentage override is quarantined as tag-unverified, not a 2.1.226
 test("renderer selects dossiers through a mechanism menu and supports claims without compare links", () => {
   assert.match(html, /id="mechanismMenuTrigger"[^>]*aria-expanded="false"[^>]*aria-controls="mechanismMenu"/);
   assert.match(html, /<nav id="mechanismMenu"[^>]*aria-label="选择机制档案"/);
-  assert.match(html, /href="\/mechanisms"[^>]*data-mechanism="subagent-orchestration"/);
-  assert.match(html, /href="\/mechanisms\?mechanism=context-compaction"[^>]*data-mechanism="context-compaction"/);
+  assert.match(html, /<nav id="mechanismMenu"[^>]*hidden><\/nav>/);
   assert.doesNotMatch(html, /role="menu(item)?"|aria-haspopup="menu"/);
   assert.doesNotMatch(html, /<select/);
   assert.match(script, /"context-compaction": \{[\s\S]*context-compaction-evidence\.json[\s\S]*context-compaction-summary\.json[\s\S]*context-compaction-workbench\.json/);
+  assert.match(script, /function renderMechanismMenu\(\)[\s\S]*Object\.entries\(dossierRegistry\)[\s\S]*link\.dataset\.mechanism = id/);
   assert.match(script, /new URL\(location\.href\)\.searchParams\.get\("mechanism"\)/);
   assert.match(script, /dossierRegistry\[requestedDossier\] \? requestedDossier : "subagent-orchestration"/);
   assert.match(script, /fetch\(dossierConfig\.workbench/);
@@ -177,5 +177,5 @@ test("the original sub-agent mechanism remains the default registered dossier", 
   assert.doesNotThrow(() => JSON.parse(read("dossiers/subagent-evidence.json")));
   assert.doesNotThrow(() => JSON.parse(read("dossiers/subagent-orchestration.json")));
   assert.match(script, /"subagent-orchestration": \{[\s\S]*subagent-evidence\.json[\s\S]*subagent-orchestration\.json[\s\S]*subagent-workbench\.json/);
-  assert.match(html, /href="\/mechanisms"[^>]*data-mechanism="subagent-orchestration"/);
+  assert.match(script, /"subagent-orchestration": \{[\s\S]*href: "\/mechanisms"/);
 });

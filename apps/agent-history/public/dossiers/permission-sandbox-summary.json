@@ -1,0 +1,19 @@
+{
+  "id": "permission-sandbox",
+  "number": "003",
+  "title": "权限、审批与沙箱",
+  "verifiedAt": "2026-08-10",
+  "scope": "Claude Code 2.1.226、Codex 0.147.0 与 opencode V1 1.18.15 的固定版本合同；产品明确分开 tool visibility、policy decision、human approval 与 OS enforcement。",
+  "unknowns": [
+    {"id": "PERM-KU-01", "title": "Claude defer 恢复 mode 存在文档冲突", "text": "当前 hooks 文档与 2.1.226 binary diagnostic 对 --resume 是否恢复 permission mode 的说法不同。", "needed": "按入口做 2.1.226 端到端 resume fixture；host 在此之前显式保存并重传 mode。"},
+    {"id": "PERM-KU-02", "title": "Claude auto classifier 不是本地确定算法", "text": "模型/provider eligibility、阈值与 reason taxonomy 可服务端变化。", "needed": "记录 classifier outcome 和 fallback，不把当前分支写成可复刻本地 policy。"},
+    {"id": "PERM-KU-03", "title": "Codex auto-review timeout taxonomy 未完全公开", "text": "Guardian verdict、timeout 与不同 tool family 的 terminal mapping 仍有实现细节。", "needed": "补 command、network 与 patch 三类超时 conformance trace。"},
+    {"id": "PERM-KU-04", "title": "Codex 跨平台等价性需要系统测试", "text": "同一 profile 在 Seatbelt、Linux sandbox 与 Windows restricted token 下的 enforcement coverage 不完全等价。", "needed": "发布 backend capability matrix 与固定攻击样例。"},
+    {"id": "PERM-KU-05", "title": "Codex unsandboxed host API 的产品边界", "text": "thread/shellCommand 与 process/spawn 等 host API 的调用者身份、部署隔离与审计责任不属于 tool sandbox。", "needed": "为每个 host API 标注 trust tier 并做独立 ACL 审计。"},
+    {"id": "PERM-KU-06", "title": "OpenCode symlink 与 TOCTOU 实测面", "text": "V1 admission 使用 lexical containment，最终影响随 filesystem API 与平台变化。", "needed": "覆盖 symlink、junction、rename race 与 nested interpreter 的对抗矩阵。"},
+    {"id": "PERM-KU-07", "title": "OpenCode plugin permission coverage 未知", "text": "没有 exact-tag 全生态 inventory，可证明 registry 不自动 gate，却不能量化多少插件主动 ctx.ask。", "needed": "plugin manifest 增加 enforcement declaration，并运行调用探针。"},
+    {"id": "PERM-KU-08", "title": "OpenCode 多客户端 reply race", "text": "首个 reply 删除 pending，后续 NotFound；真实多 UI 体验与 actor attribution 未实测。", "needed": "构建两个客户端并发 once/reject fixture，保存 ingress actor。"},
+    {"id": "PERM-KU-09", "title": "远程 workspace 的外层隔离不在应用合同内", "text": "OpenCode 与其他 Harness 可把执行路由到 remote workspace，但其容器/VM policy 不由 permission event 证明。", "needed": "把 remote runtime attestation 与应用级 approval 记录分层关联。"},
+    {"id": "PERM-KU-10", "title": "MCP readOnlyHint 不能替代行为证明", "text": "不同 Harness 都可能依赖 server/tool annotation，但 annotation 不是 syscall 或 side-effect attestation。", "needed": "对高风险 MCP 引入 provenance、side-effect audit 与隔离级别。"}
+  ]
+}

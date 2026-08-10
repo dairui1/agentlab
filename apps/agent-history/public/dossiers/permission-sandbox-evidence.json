@@ -1,0 +1,410 @@
+{
+  "claims": [
+    {
+      "id": "PERM-CC-01", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "权限决策按阶段短路，不是规则投票",
+      "statement": "PreToolUse 先运行；声明式规则按 deny、ask、allow 分层解析，再由 mode 与 canUseTool 处理尚未决议的调用。后面的 allow 不能救回前面的 deny。",
+      "layer": "Official SDK and hooks contract", "confidence": "High",
+      "signals": ["PreToolUse decision", "matched rule source", "permission mode", "execute | prompt | deny"],
+      "boundary": "Harness 必须保留 winning stage 和 rule provenance；只记录最终布尔值无法解释为何 canUseTool 没被调用。",
+      "source": {"label": "Claude Agent SDK permission order", "url": "https://code.claude.com/docs/en/agent-sdk/permissions#how-permissions-are-evaluated"},
+      "compare": {"label": "Claude permission rule precedence", "url": "https://code.claude.com/docs/en/permissions#manage-permissions"}
+    },
+    {
+      "id": "PERM-CC-02", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "allowedTools 是预批准，不是 capability allowlist",
+      "statement": "未列入 allowedTools 的工具仍可见并继续走 mode 或 callback；真正移除能力要用 --tools、agent tools，或 bare deny。",
+      "layer": "Official SDK + exact-build diagnostic", "confidence": "High",
+      "signals": ["advertised tool schema", "allowedTools", "--tools", "canUseTool shadow warning"],
+      "boundary": "allowedTools=[Read] 与 bypassPermissions 组合时，Bash、Write、Edit 仍可执行；不能把它展示成唯一允许列表。",
+      "source": {"label": "Claude SDK allow and deny rules", "url": "https://code.claude.com/docs/en/agent-sdk/permissions#allow-and-deny-rules"},
+      "compare": {"label": "Claude Code 2.1.226 callback diagnostics", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L20855-L20868"}
+    },
+    {
+      "id": "PERM-CC-03", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "六种 mode 是基线，不是相同强度的开关",
+      "statement": "default、acceptEdits、plan、auto、dontAsk 与 bypassPermissions 对未决调用分别执行提示、静态批准、分类、拒绝或近乎自动运行；显式 deny、ask、hooks 与安全 breaker 仍可能覆盖。",
+      "layer": "Official mode contract + exact-build guard", "confidence": "High",
+      "signals": ["permissionMode", "classifier decision", "prompt fallback", "bypass enable guard"],
+      "boundary": "bypassPermissions 应描述为跳过大多数提示，而不是不可拦截；auto 还依赖服务端分类器。",
+      "source": {"label": "Claude permission modes", "url": "https://code.claude.com/docs/en/permission-modes#available-modes"},
+      "compare": {"label": "Claude Code 2.1.226 bypass guard", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L21115-L21122"}
+    },
+    {
+      "id": "PERM-CC-04", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "持久批准的范围随动作变化",
+      "statement": "Bash 的 don't ask again 会写入 repo-local .claude/settings.local.json；edit 批准只在 session 内有效。managed policy、CLI、project 与 user settings 还存在 precedence。",
+      "layer": "Official permission contract", "confidence": "High",
+      "signals": ["settings.local.json", "compound Bash subcommand rules", "session edit grant", "settings precedence"],
+      "boundary": "不能把所有“总是允许”按钮映射为同一种持久性；Bash 通配符还能跨越空格与参数。",
+      "source": {"label": "Claude permission prompts and persistence", "url": "https://code.claude.com/docs/en/permissions#how-permissions-work"}
+    },
+    {
+      "id": "PERM-CC-05", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "hooks 是独立 policy 层，HTTP 失败会放行",
+      "statement": "PreToolUse 可 allow、deny、ask、defer；PermissionRequest 可修改输入与权限。HTTP hook 的非 2xx、连接失败与超时默认非阻断，只有 2xx 携结构化 deny 才能 fail closed。",
+      "layer": "Official hooks contract", "confidence": "High",
+      "signals": ["hook event", "permissionDecision", "updatedInput", "HTTP status and timeout"],
+      "boundary": "updatedInput 替换完整对象并重新过规则；把外部 policy service 的 500 当 deny 会和运行时合同相反。",
+      "source": {"label": "Claude PreToolUse decision control", "url": "https://code.claude.com/docs/en/hooks#pretooluse-decision-control"},
+      "compare": {"label": "Claude HTTP hook handling", "url": "https://code.claude.com/docs/en/hooks#http-response-handling"}
+    },
+    {
+      "id": "PERM-CC-06", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "canUseTool 只是最后一公里 dialog adapter",
+      "statement": "SDK callback 仅处理此前尚未被 hook、rule 或 mode 决议的调用；bypass、bare allow 与 dontAsk 都可让它完全不运行。",
+      "layer": "Official SDK contract + exact-build diagnostic", "confidence": "High",
+      "signals": ["canUseTool invocation", "AskUserQuestion", "updatedInput", "model-visible deny reason"],
+      "boundary": "不能把 callback 当 invariant enforcement；需要看见所有尝试时应使用 PreToolUse 或进程外隔离。",
+      "source": {"label": "Claude SDK canUseTool", "url": "https://code.claude.com/docs/en/agent-sdk/user-input#canusetool-callback"},
+      "compare": {"label": "Claude Code 2.1.226 callback shadow warning", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L20855-L20868"}
+    },
+    {
+      "id": "PERM-CC-07", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "headless 审批必须由 host 完成往返",
+      "statement": "claude -p 无法打开普通人类对话框；需要 PermissionRequest、SDK canUseTool 或 permission prompt tool 承接，否则需要提示的动作被拒绝或 run 中止。",
+      "layer": "Official headless contract + exact-build behavior", "confidence": "High",
+      "signals": ["stream-json", "permission callback", "denied or aborted result", "workspace trust skipped"],
+      "boundary": "非 TTY 模式会跳过 workspace trust UI，2.1.226 还可能静默忽略无效 settings；host 必须自行校验。",
+      "source": {"label": "Claude headless structured output", "url": "https://code.claude.com/docs/en/headless#get-structured-output"},
+      "compare": {"label": "Claude Code 2.1.226 non-TTY diagnostics", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L28765-L28773"}
+    },
+    {
+      "id": "PERM-CC-08", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "defer 是可恢复的 headless 人审边界",
+      "statement": "单个 -p tool call 可返回 stop_reason=tool_deferred、session_id 与 deferred_tool_use；resume 后同一 PreToolUse 再次运行，host 决定 allow 或 deny。",
+      "layer": "Official hooks contract", "confidence": "High",
+      "signals": ["tool_deferred", "deferred_tool_use.id", "session_id", "tool_deferred_unavailable"],
+      "boundary": "interactive 或批量调用忽略 defer；工具/MCP 已不存在时会在 hook 前以 unavailable 结束。",
+      "source": {"label": "Claude deferred tool flow", "url": "https://code.claude.com/docs/en/hooks#defer-a-tool-call-for-later"}
+    },
+    {
+      "id": "PERM-CC-09", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "Bash sandbox 与 permission 是两层",
+      "statement": "OS sandbox 只包住 Bash 及其子进程，不包含内建 Read/Edit/Write、MCP、hooks 或 computer use；macOS 用 Seatbelt，Linux/WSL2 用 bubblewrap，native Windows 不支持该 Bash sandbox。",
+      "layer": "Official sandbox contract", "confidence": "High",
+      "signals": ["sandbox enabled", "platform backend", "native Windows unsupported", "network proxy", "sandbox setup error"],
+      "boundary": "native Windows Harness 不能宣称获得同一 containment；其他平台初始化失败也默认警告后无沙箱执行，只有 failIfUnavailable=true 才会启动失败。",
+      "source": {"label": "Claude sandbox boundaries", "url": "https://code.claude.com/docs/en/sandboxing#what-sandboxing-does-not-cover"},
+      "compare": {"label": "Claude sandbox operation", "url": "https://code.claude.com/docs/en/sandboxing#how-it-works"}
+    },
+    {
+      "id": "PERM-CC-10", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "Read/Edit path rules 不是 Bash 的 OS 边界",
+      "statement": "Read(path) 与 Edit(path) 只调解内建文件工具；Bash 子进程仍能访问同一路径，除非同时启用 sandbox filesystem deny。",
+      "layer": "Official permissions and sandbox contract", "confidence": "High",
+      "signals": ["Read/Edit rule", "sandbox denyRead", "symlink path and target", "filesystem.disabled"],
+      "boundary": "Write(path)、Glob(path) 等规则在该版本不是等价文件隔离；filesystem.disabled 会刻意取消 Bash 文件系统保护。",
+      "source": {"label": "Claude Read and Edit rule scope", "url": "https://code.claude.com/docs/en/permissions#read-and-edit"},
+      "compare": {"label": "Claude 2.1.216 sandbox change", "url": "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md"}
+    },
+    {
+      "id": "PERM-CC-11", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "sandbox auto-allow 与单次逃逸是两条审批路径",
+      "statement": "autoAllowBashIfSandboxed 可让受约束命令跳过普通 Bash 提示；dangerouslyDisableSandbox 则在单次失败后回到普通 permission 流程请求无沙箱重试。",
+      "layer": "Official sandbox contract + exact-build schema", "confidence": "High",
+      "signals": ["autoAllowBashIfSandboxed", "dangerouslyDisableSandbox", "allowUnsandboxedCommands", "excludedCommands"],
+      "boundary": "allowUnsandboxedCommands=false 会让逃逸参数无效，但不会自动扩大 sandbox 能力。",
+      "source": {"label": "Claude sandbox modes", "url": "https://code.claude.com/docs/en/sandboxing#sandbox-modes"},
+      "compare": {"label": "Claude Code 2.1.226 sandbox schema", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L974-L982"}
+    },
+    {
+      "id": "PERM-CC-12", "agent": "claude-code", "type": "fact", "version": "2.1.226",
+      "title": "subagent 继承 authority，后台 Agent 失去提示通道",
+      "statement": "subagent 默认继承 parent 工具与 permission context；foreground 可转发提示，background 会自动拒绝所有需要提示的动作。worktree isolation 仍是另一层执行边界。",
+      "layer": "Official subagent contract + fixed-build guard", "confidence": "High",
+      "signals": ["parent permission mode", "foreground/background", "auto-denied prompt", "worktree isolation"],
+      "boundary": "更宽的 parent mode 会放大 child blast radius；background 失败不能和 policy deny 合并。",
+      "source": {"label": "Claude subagent permissions", "url": "https://code.claude.com/docs/en/sub-agents#control-subagent-capabilities"},
+      "compare": {"label": "Claude Code 2.1.226 subagent bypass guard", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/claude-code/2.1.226/static-candidates.json#L12260-L12268"}
+    },
+
+    {
+      "id": "PERM-CX-01", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "approval policy 与 runtime sandbox 是正交轴",
+      "statement": "approvalPolicy 决定是否需要 host 决策，sandboxPolicy 决定已获准动作的实际执行边界；同一 approval policy 可配不同 sandbox。",
+      "layer": "Exact-tag core protocol", "confidence": "High",
+      "signals": ["approvalPolicy", "sandboxPolicy", "commandExecution.status", "sandbox outcome"],
+      "boundary": "批准不代表无沙箱执行，沙箱拒绝也不等于用户拒绝。",
+      "source": {"label": "Codex approval and sandbox protocol", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/protocol.rs#L899-L940"},
+      "compare": {"label": "Codex tool orchestrator", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/orchestrator.rs#L217-L242"}
+    },
+    {
+      "id": "PERM-CX-02", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "四个有效 approval 策略中没有 on-failure 状态",
+      "statement": "runtime 策略为 untrusted、on-request、granular 与 never；on-failure 仅是输入兼容别名并归一到 on-request。",
+      "layer": "Exact-tag protocol and SDK", "confidence": "High",
+      "signals": ["AskForApproval", "untrusted", "on-request", "granular", "never"],
+      "boundary": "Harness 不应持久化一个虚构的 on-failure runtime branch。",
+      "source": {"label": "Codex AskForApproval", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/protocol.rs#L917-L958"}
+    },
+    {
+      "id": "PERM-CX-03", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "三档 UI mode 只是 permission profile 的 legacy projection",
+      "statement": "activePermissionProfile 能表达 deny-read glob、额外 roots、managed network 与 external sandbox 等能力；legacy sandbox 字段不足以表达完整 effective policy。",
+      "layer": "Exact-tag protocol and app-server contract", "confidence": "High",
+      "signals": ["activePermissionProfile.id", "permissions", "sandboxPolicy", "legacy sandbox"],
+      "boundary": "permissions 与 sandboxPolicy 在 turn/start 互斥；不能把 profile 强行压回三档枚举。",
+      "source": {"label": "Codex permission profile models", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/models.rs#L303-L330"},
+      "compare": {"label": "Codex turn permission fields", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/turn.rs#L114-L121"}
+    },
+    {
+      "id": "PERM-CX-04", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "workspace-write 是全盘可读加多 writable roots",
+      "statement": "默认可读范围广，写入范围由 cwd、runtimeWorkspaceRoots、environment roots、/tmp 与 TMPDIR 等来源合成；并非只等于当前目录。",
+      "layer": "Exact-tag protocol and turn context", "confidence": "High",
+      "signals": ["runtimeWorkspaceRoots", "writableRoots", "excludeTmpdirEnvVar", "excludeSlashTmp"],
+      "boundary": "cwd、workspace root、environment root 与 legacy additional roots 必须分别记录；默认 /tmp 扩张也要可见。",
+      "source": {"label": "Codex workspace-write policy", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/protocol.rs#L1188-L1243"},
+      "compare": {"label": "Codex turn roots", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/session/turn_context.rs#L80-L101"}
+    },
+    {
+      "id": "PERM-CX-05", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "writable root 内仍有 protected metadata carve-out",
+      "statement": ".git、.agents 与 .codex 等元数据目录在可写根内仍受更具体规则保护；effective filesystem entries 不是单层 prefix allow。",
+      "layer": "Exact-tag permission implementation", "confidence": "High",
+      "signals": ["protected metadata", "deny entry", "requested path", "sandbox denial"],
+      "boundary": "授予 workspace root 不等于其中每个子路径都可写。",
+      "source": {"label": "Codex protected metadata entries", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/permissions.rs#L574-L626"}
+    },
+    {
+      "id": "PERM-CX-06", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "单命令 sandbox override 有三态",
+      "statement": "tool call 可选择 use_default、require_escalated 或 with_additional_permissions；额外 permissions、justification 与 prefix_rule 属于该次调用提案。",
+      "layer": "Exact-tag tool protocol", "confidence": "High",
+      "signals": ["sandbox_permissions", "additional_permissions", "justification", "prefix_rule"],
+      "boundary": "单次 override 不会自动改写 thread 基线；persistent prefix 仍需 host 明确选择。",
+      "source": {"label": "Codex sandbox permission args", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/models.rs#L40-L73"},
+      "compare": {"label": "Codex shell escalation parsing", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/shell_spec.rs#L298-L340"}
+    },
+    {
+      "id": "PERM-CX-07", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "require_escalated 也可能仍在 sandbox 内",
+      "statement": "当 effective policy 含不可丢失的 denied-read 约束时，escalated execution 仍会选择保留 read-deny 的 sandbox backend。",
+      "layer": "Exact-tag sandbox selection", "confidence": "High",
+      "signals": ["denied reads", "selected SandboxType", "escalation approval", "final sandbox outcome"],
+      "boundary": "escalated 表示请求更高权限，不是 unsandboxed 的同义词。",
+      "source": {"label": "Codex escalation sandbox selection", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/sandboxing.rs#L236-L293"}
+    },
+    {
+      "id": "PERM-CX-08", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "network 是独立能力轴",
+      "statement": "filesystem grant 不授予 network；被阻断的 host 可形成 networkApprovalContext 与 proposedNetworkPolicyAmendments，再由 host 选择是否应用。",
+      "layer": "Exact-tag protocol + release contract", "confidence": "High",
+      "signals": ["networkAccess", "networkApprovalContext", "proposedNetworkPolicyAmendments", "applyNetworkPolicyAmendment"],
+      "boundary": "shell network、native web search 与 MCP transport 还可能走不同 host/tool policy，不能由单一开关推断。",
+      "source": {"label": "Codex network sandbox policy", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/protocol.rs#L982-L998"},
+      "compare": {"label": "Codex 0.147.0 release", "url": "https://github.com/openai/codex/releases/tag/rust-v0.147.0"}
+    },
+    {
+      "id": "PERM-CX-09", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "turn/start permission override 是 sticky",
+      "statement": "turn/start 提交的 permissions 或 sandboxPolicy 会更新 session configured state，后续 turn 省略字段时继承，而不是复位到初始值。",
+      "layer": "Exact-tag app-server protocol", "confidence": "High",
+      "signals": ["turn/start ACK", "thread/settings/updated", "threadSettings", "next turn effective profile"],
+      "boundary": "host 不能把 turn 级字段在 UI 中标成一次性；省略意味着继承。",
+      "source": {"label": "Codex turn permission override", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/turn.rs#L90-L121"},
+      "compare": {"label": "Codex thread settings update", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L279-L304"}
+    },
+    {
+      "id": "PERM-CX-10", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "approval resolution 不是 execution completion",
+      "statement": "command approval 经 item started、request、client decision、serverRequest/resolved 再进入执行；只有 terminal commandExecution item 与 turn 状态能收口结果。",
+      "layer": "Exact-tag app-server lifecycle", "confidence": "High",
+      "signals": ["item/started", "requestId", "serverRequest/resolved", "item/completed", "turn/completed"],
+      "boundary": "decision=accept 或 resolved 只清 pending UI，不能记作命令成功。",
+      "source": {"label": "Codex approval lifecycle", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L1613-L1628"},
+      "compare": {"label": "Codex command execution item", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/item.rs#L1442-L1516"}
+    },
+    {
+      "id": "PERM-CX-11", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "decline、cancel 与 auto-review timeout 是不同终态",
+      "statement": "协议把用户 decline、turn cancel 与 automatic reviewer 的 timedOut 建模为不同 decision/status；三者不能落到同一个 denied 终态。",
+      "layer": "Exact-tag protocol and app-server implementation", "confidence": "High",
+      "signals": ["decision", "turn/completed.status", "commandExecution.status", "auto-review timedOut"],
+      "boundary": "统一记成 denied 会破坏 retry、审计与 UI 清理策略。",
+      "source": {"label": "Codex approval decision types", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server-protocol/src/protocol/v2/item.rs#L56-L99"},
+      "compare": {"label": "Codex automatic review status", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/protocol/src/protocol.rs#L4120-L4154"}
+    },
+    {
+      "id": "PERM-CX-12", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "MCP tool approval 使用独立 engine",
+      "statement": "MCP call 依据 server/tool approval mode 与 elicitation meta 决议，persistent approval 还受 server 类型限制；不复用 shell sandbox escalation。",
+      "layer": "Exact-tag MCP implementation", "confidence": "High",
+      "signals": ["mcpToolCall.status", "readOnlyHint", "codex_approval_kind", "persist"],
+      "boundary": "MCP annotations 是能力提示，不证明 read-only 或执行成功；selected plugin server 不能持久批准。",
+      "source": {"label": "Codex MCP approval", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/mcp_tool_call.rs#L1017-L1044"},
+      "compare": {"label": "Codex app-server MCP approval", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L1656-L1678"}
+    },
+    {
+      "id": "PERM-CX-13", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "child 继承 live effective profile，审批回送 parent",
+      "statement": "delegated child 从当前 live turn 继承有效 permission state；需要审批时由 parent 的 thread/turn 决策面承接，而不是 child 独立提权。",
+      "layer": "Exact-tag multi-agent implementation", "confidence": "High",
+      "signals": ["parentThreadId", "delegated approval", "parent threadId/turnId", "child item correlation"],
+      "boundary": "environment profile 可能优先于 thread profile；不能仅复制创建时静态 config。",
+      "source": {"label": "Codex child permission inheritance", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/tools/handlers/multi_agents_common.rs#L237-L267"},
+      "compare": {"label": "Codex delegated approval routing", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/core/src/codex_delegate.rs#L496-L593"}
+    },
+    {
+      "id": "PERM-CX-14", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "同一 policy 在三平台使用不同 enforcement backend",
+      "statement": "macOS、Linux 与 Windows 分别依赖 Seatbelt、seccomp/bubblewrap 与 restricted-token 系列实现；具体可执行边界受 host backend 能力影响。",
+      "layer": "Exact-tag sandbox manager", "confidence": "High",
+      "signals": ["platform family", "selected sandbox backend", "Windows sandbox level", "preparation error"],
+      "boundary": "policy intent 相同不代表跨平台 enforcement 等价；需要记录 backend 与 setup result。",
+      "source": {"label": "Codex sandbox manager", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/sandboxing/src/manager.rs#L34-L73"},
+      "compare": {"label": "Codex Linux sandbox", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/linux-sandbox/src/lib.rs#L1-L5"}
+    },
+    {
+      "id": "PERM-CX-15", "agent": "codex", "type": "fact", "version": "0.147.0",
+      "title": "app-server 暴露两条明确的 unsandboxed host execution API",
+      "statement": "thread/shellCommand 与 process/spawn 在 app-server 合同中明确无沙箱运行，且不继承 thread permission/sandbox policy；它们属于 host authority surface。",
+      "layer": "Exact-tag app-server contract", "confidence": "High",
+      "signals": ["thread/shellCommand", "process/spawn", "host caller identity", "process terminal state"],
+      "boundary": "这些 API 不能伪装成普通 Agent shell tool，也不能由 thread approval history 推断获准；需要独立 ACL、审计与外层隔离。",
+      "source": {"label": "Codex unsandboxed host command warning", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L194-L196"},
+      "compare": {"label": "Codex process spawn contract", "url": "https://github.com/openai/codex/blob/rust-v0.147.0/codex-rs/app-server/README.md#L1326-L1393"}
+    },
+
+    {
+      "id": "PERM-OC-01", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "规则是 ordered last-match-wins",
+      "statement": "V1 按 ruleset 传入顺序展开，取最后一个同时匹配 permission 与 pattern 的 rule；没有命中时合成 ask，而不是 deny 固有优先。",
+      "layer": "Exact-tag V1 permission evaluator", "confidence": "High",
+      "signals": ["ordered ruleset", "winning rule index", "permission", "pattern"],
+      "boundary": "pattern 只是字符串 wildcard；没有 path canonicalization、command semantics 或 capability reasoning。",
+      "source": {"label": "OpenCode V1 permission evaluator", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/permission/index.ts#L178-L202"},
+      "compare": {"label": "OpenCode V1 wildcard matcher", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/util/wildcard.ts#L3-L13"}
+    },
+    {
+      "id": "PERM-OC-02", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "多 pattern request 中 deny 会在 asked 前短路",
+      "statement": "每个 pattern 分别求值；任一个 deny 立即抛 PermissionDeniedError，不进入 pending，也不发 permission.asked。只有至少一项 ask 且没有 deny 才暂停。",
+      "layer": "Exact-tag V1 permission service", "confidence": "High",
+      "signals": ["patterns[]", "permission.asked", "pending request", "PermissionDeniedError"],
+      "boundary": "没有 asked 既可能是全 allow，也可能是 policy deny；一个 request 不支持逐 pattern 批准。",
+      "source": {"label": "OpenCode V1 permission ask", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/permission/index.ts#L67-L107"}
+    },
+    {
+      "id": "PERM-OC-03", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "默认 agent rules permissive，不是默认 OS sandbox",
+      "statement": "shared defaults 以 *:allow 起步，只对少数能力 ask/deny；global config 与 per-agent config 后置并可覆盖内建规则。",
+      "layer": "Exact-tag V1 agent runtime", "confidence": "High",
+      "signals": ["agent.permission", "default rules", "build/plan overlay", "effective ordered rules"],
+      "boundary": "exact-tag runtime 对 .env read 是 ask，而同 tag docs 写 deny；产品以 runtime 为主并标出漂移。",
+      "source": {"label": "OpenCode V1 agent permissions", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/agent/agent.ts#L108-L178"},
+      "compare": {"label": "OpenCode V1 permissions docs", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/web/src/content/docs/permissions.mdx#L168-L187"}
+    },
+    {
+      "id": "PERM-OC-04", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "工具可见性与 execution gating 是两套算法",
+      "statement": "只有最后一条 permission-level * deny 会从 LLM schema 隐藏工具；granular deny/ask 仍让模型看见工具，执行时再由 ctx.ask 决议。",
+      "layer": "Exact-tag V1 tool projection", "confidence": "High",
+      "signals": ["advertised tool schema", "permission-level deny", "ctx.ask", "tool execution error"],
+      "boundary": "hidden 只减少误调用面，不是执行安全边界；edit 还统一映射 edit/write/apply_patch。",
+      "source": {"label": "OpenCode V1 tool visibility", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/permission/index.ts#L204-L219"},
+      "compare": {"label": "OpenCode V1 LLM tool request", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/llm/request.ts#L208-L214"}
+    },
+    {
+      "id": "PERM-OC-05", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "外部文件通常经过 external_directory 与 read/edit 两道门",
+      "statement": "boundary 外目标先请求 external_directory，再按实际动作请求 read 或 edit；允许越界不自动允许读取或修改。",
+      "layer": "Exact-tag V1 built-in tools", "confidence": "High",
+      "signals": ["external_directory request", "filepath metadata", "messageID/callID", "read/edit request"],
+      "boundary": "contains 是 lexical relative containment，不是 realpath；symlink 与 TOCTOU 不在这层合同内。",
+      "source": {"label": "OpenCode external directory gate", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/external-directory.ts#L15-L45"},
+      "compare": {"label": "OpenCode V1 read gate", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/read.ts#L229-L260"}
+    },
+    {
+      "id": "PERM-OC-06", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "shell 按 AST 命令片段审批，Always 授予更宽前缀",
+      "statement": "shell parser 把复合命令拆成多个 permission patterns；Always 建议由 arity 词典归一成命令前缀，未知程序通常扩大为首 token 加 *。",
+      "layer": "Exact-tag V1 shell permission", "confidence": "High",
+      "signals": ["asked.patterns", "asked.always", "metadata.command", "bash permission key"],
+      "boundary": "UI 必须并列显示本次完整 patterns 与未来 always prefixes；arity 词典不是 capability 模型。",
+      "source": {"label": "OpenCode V1 shell permission", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/shell.ts#L257-L290"},
+      "compare": {"label": "OpenCode V1 command arity", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/permission/arity.ts#L24-L49"}
+    },
+    {
+      "id": "PERM-OC-07", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "permission 是应用 gate，不是 OS sandbox",
+      "statement": "外部路径扫描仅覆盖有限静态命令与参数；通过 admission 后直接以完整 process.env 启动宿主 shell，没有在该执行点装配 seccomp、container 或 Seatbelt。",
+      "layer": "Exact-tag V1 shell execution", "confidence": "High",
+      "signals": ["static external paths", "child process", "process.env", "timeout/abort kill"],
+      "boundary": "动态变量、解释器脚本与未知程序可绕过 external_directory 检测；permission event 不能证明 syscall/file/network footprint。",
+      "source": {"label": "OpenCode V1 shell external-path scanner", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/shell.ts#L174-L217"},
+      "compare": {"label": "OpenCode V1 shell execution", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/shell.ts#L481-L559"}
+    },
+    {
+      "id": "PERM-OC-08", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "plugin tool permission enforcement 是协作式的",
+      "statement": "registry 只把 ctx.ask 暴露给 plugin，wrapper 不会自动执行同名 permission gate；plugin 不主动 ask 时 granular deny/ask 不会拦 execution。",
+      "layer": "Exact-tag V1 plugin registry", "confidence": "High",
+      "signals": ["tool provenance", "ctx.ask invocation", "permission.asked absence", "MCP wrapper"],
+      "boundary": "MCP wrapper 会主动 ask，不属于这个缺口；没有 asked 也可能代表 tool 根本没接 gate。",
+      "source": {"label": "OpenCode V1 plugin tool registry", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/registry.ts#L116-L175"},
+      "compare": {"label": "OpenCode V1 MCP tool wrapper", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/tools.ts#L390-L419"}
+    },
+    {
+      "id": "PERM-OC-09", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "once、always 与 reject 的真实作用域不同",
+      "statement": "once 只恢复当前 Deferred；always 追加到 directory InstanceState 并跨 session 生效直到 reload；reject 会同时拒绝同 session 所有 pending requests。",
+      "layer": "Exact-tag V1 permission state", "confidence": "High",
+      "signals": ["permission.replied", "approved rules", "directory instance", "same-session pending fan-out"],
+      "boundary": "approved 后置于 agent/session rules，旧 approval 可能覆盖后来的匹配 deny；always 不是 SQLite 或全机器持久。",
+      "source": {"label": "OpenCode V1 reply semantics", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/permission/index.ts#L109-L167"},
+      "compare": {"label": "OpenCode V1 instance state", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/effect/instance-state.ts#L26-L50"}
+    },
+    {
+      "id": "PERM-OC-10", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "policy deny、reject、feedback 与 abort 是不同控制流",
+      "statement": "policy deny 无 asked；普通 reject 通常让 processor stop；带 message 的 reject 形成 CorrectedError 可让 Agent 继续；abort 删除 pending 但可能没有 replied event。",
+      "layer": "Exact-tag V1 processor and permission service", "confidence": "High",
+      "signals": ["PermissionDeniedError", "PermissionRejectedError", "PermissionCorrectedError", "pending disappears"],
+      "boundary": "permission.replied 不含 feedback text；只靠 asked/replied reducer 会在 abort 后留下陈旧 UI。",
+      "source": {"label": "OpenCode V1 permission errors", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/v1/permission.ts#L7-L33"},
+      "compare": {"label": "OpenCode V1 processor denial paths", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/processor.ts#L627-L681"}
+    },
+    {
+      "id": "PERM-OC-11", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "session.permission 是 durable overlay，Always 不是",
+      "statement": "Session Create/PATCH 接受 ordered ruleset 并写入 SQLite；effective rules 为 agent.permission 后接 session.permission，再叠 instance-memory approved。",
+      "layer": "Exact-tag V1 session schema and storage", "confidence": "High",
+      "signals": ["GET session.permission", "session.updated", "SQLite permission JSON", "instance approved"],
+      "boundary": "legacy prompt tools 会替换而不是 merge session tool rules；session rule 不是审批因果记录。",
+      "source": {"label": "OpenCode V1 session permissions", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/session/session.ts#L230-L268"},
+      "compare": {"label": "OpenCode V1 session SQL", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/core/src/session/sql.ts#L22-L60"}
+    },
+    {
+      "id": "PERM-OC-12", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "重连靠 pending snapshot，asked/replied 不是 durable log",
+      "statement": "GET /permission 返回当前全部 pending；asked 携完整 request，replied 只有 sessionID、requestID、reply。已结束 requestID 回复返回 NotFound，reply 不是幂等 ACK。",
+      "layer": "Exact-tag V1 HTTP and event contract", "confidence": "High",
+      "signals": ["GET /permission", "permission.asked", "permission.replied", "NotFound"],
+      "boundary": "客户端启动/重连要 snapshot 再接事件；NotFound 要解释为已结束或 instance 已换代，而不是盲目重试。",
+      "source": {"label": "OpenCode V1 permission routes", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/server/routes/instance/httpapi/groups/permission.ts#L11-L54"},
+      "compare": {"label": "OpenCode V1 permission schema", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/schema/src/v1/permission.ts#L61-L66"}
+    },
+    {
+      "id": "PERM-OC-13", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "auto 是 client reply policy，不是 server mode",
+      "statement": "TUI auto 监听 permission.asked 后自动回复 once；CLI run 默认 reject，--auto/--yolo 则回复 once。server replied event 本身不携 actor provenance。",
+      "layer": "Exact-tag V1 client behavior", "confidence": "High",
+      "signals": ["permission.asked", "reply=once | reject", "client mode", "reply actor"],
+      "boundary": "explicit deny 不发 asked 因而不受 auto 改写；Harness 必须在 client ingress 自行记录 human/auto actor。",
+      "source": {"label": "OpenCode V1 auto reply", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/tui/src/context/sync.tsx#L176-L220"},
+      "compare": {"label": "OpenCode V1 headless responder", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/cli/cmd/run.ts#L788-L816"}
+    },
+    {
+      "id": "PERM-OC-14", "agent": "opencode", "type": "fact", "version": "1.18.15",
+      "title": "child policy 是派生结果，不是 parent clone",
+      "statement": "task tool 先 gate subagent_type；child 使用自己的 agent rules，并只继承 parent session 中 action=deny 与 external_directory rules。",
+      "layer": "Exact-tag V1 subagent policy", "confidence": "High",
+      "signals": ["task permission", "subagent_type", "child session.permission", "inherited rule provenance"],
+      "boundary": "parent agent-specific allow/ask 不作为 inheritance layer 复制；缺省时 child 还追加 task/todowrite deny。",
+      "source": {"label": "OpenCode V1 subagent permission derivation", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/agent/subagent-permissions.ts#L4-L27"},
+      "compare": {"label": "OpenCode V1 task gate and child session", "url": "https://github.com/anomalyco/opencode/blob/v1.18.15/packages/opencode/src/tool/task.ts#L92-L172"}
+    }
+  ]
+}

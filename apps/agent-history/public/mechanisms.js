@@ -19,14 +19,31 @@
   };
   const dossierRegistry = {
     "subagent-orchestration": {
+      label: "Sub-agent 编排",
+      description: "创建、寻址、等待与结果回收",
+      icon: "network",
+      href: "/mechanisms",
       evidence: "/dossiers/subagent-evidence.json",
       summary: "/dossiers/subagent-orchestration.json",
       workbench: "/dossiers/subagent-workbench.json",
     },
     "context-compaction": {
+      label: "上下文压缩",
+      description: "触发、摘要、重注入与持久化",
+      icon: "fold-vertical",
+      href: "/mechanisms?mechanism=context-compaction",
       evidence: "/dossiers/context-compaction-evidence.json",
       summary: "/dossiers/context-compaction-summary.json",
       workbench: "/dossiers/context-compaction-workbench.json",
+    },
+    "permission-sandbox": {
+      label: "权限、审批与沙箱",
+      description: "规则、授权作用域、执行隔离与拒绝恢复",
+      icon: "shield-check",
+      href: "/mechanisms?mechanism=permission-sandbox",
+      evidence: "/dossiers/permission-sandbox-evidence.json",
+      summary: "/dossiers/permission-sandbox-summary.json",
+      workbench: "/dossiers/permission-sandbox-workbench.json",
     },
   };
   const requestedDossier = new URL(location.href).searchParams.get("mechanism");
@@ -135,6 +152,23 @@
     menu.hidden = !open;
   }
 
+  function renderMechanismMenu() {
+    const menu = clear(document.getElementById("mechanismMenu"));
+    Object.entries(dossierRegistry).forEach(([id, config]) => {
+      const link = el("a");
+      link.href = config.href;
+      link.dataset.mechanism = id;
+      const iconBox = el("span", "mechanism-menu-icon");
+      iconBox.setAttribute("aria-hidden", "true");
+      iconBox.append(icon(config.icon));
+      const copy = el("span", "mechanism-menu-copy");
+      copy.append(el("strong", "", config.label), el("small", "", config.description));
+      link.append(iconBox, copy, icon("check"));
+      link.lastElementChild.classList.add("mechanism-menu-check");
+      menu.append(link);
+    });
+  }
+
   function renderHeader() {
     document.getElementById("contractTitle").textContent = workbench.title;
     document.getElementById("contractSubtitle").textContent = workbench.subtitle;
@@ -142,6 +176,7 @@
     document.title = `${workbench.title} · AgentLab`;
     const description = document.querySelector('meta[name="description"]');
     if (description) description.content = workbench.description || workbench.subtitle;
+    renderMechanismMenu();
     const mechanismItems = [...document.querySelectorAll("[data-mechanism]")];
     const currentMechanism = mechanismItems.find((item) => item.dataset.mechanism === dossierId);
     mechanismItems.forEach((item) => {
@@ -303,7 +338,7 @@
       contract.append(diagnostics);
       const assumption = el("div", "hazard-assumption");
       assumption.append(icon("x"), el("span", "", hazard.doNotAssume));
-      row.append(title, contract, assumption, evidenceButton(hazard.claims, null, `失败面 / ${hazard.title}`));
+      row.append(title, contract, assumption, evidenceButton(hazard.claims, hazard.unknown, `失败面 / ${hazard.title}`));
       table.append(row);
     });
     canvas.append(table);
