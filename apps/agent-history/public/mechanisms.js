@@ -9,6 +9,7 @@
     "claude-code": { label: "Claude Code", icon: "/agent-icons/claude-code.png" },
     codex: { label: "Codex", icon: "/agent-icons/codex.png" },
     opencode: { label: "opencode", icon: "/agent-icons/opencode.png" },
+    "cross-agent": { label: "跨 Agent", icon: "/assets/agentlab-mark.png" },
   };
   const defaultViewCopy = {
     compare: ["CONTROL REFERENCE", "操作速查", "primitive、默认行为、返回通道与危险边界放在同一个比较行。"],
@@ -63,6 +64,15 @@
       summary: "/dossiers/tool-contract-summary.json",
       workbench: "/dossiers/tool-contract-workbench.json",
     },
+    "model-routing": {
+      label: "模型路由与回退",
+      description: "模型解析、Reasoning、重试与回退边界",
+      icon: "route",
+      href: "/mechanisms?mechanism=model-routing",
+      evidence: "/dossiers/model-routing-evidence.json",
+      summary: "/dossiers/model-routing-summary.json",
+      workbench: "/dossiers/model-routing-workbench.json",
+    },
   };
   const requestedDossier = new URL(location.href).searchParams.get("mechanism");
   const dossierId = dossierRegistry[requestedDossier] ? requestedDossier : "subagent-orchestration";
@@ -110,11 +120,13 @@
   }
 
   function evidenceButton(ids, unknown, contextLabel) {
-    const all = [...new Set([...(ids || []), ...(unknown ? [unknown] : [])])];
-    const button = el("button", "inspect-evidence", unknown && !ids?.length ? "未知合同" : `证据 ${ids?.length || 0}`);
+    const validUnknown = unknown && unknownById?.has(unknown) ? unknown : null;
+    const all = [...new Set([...(ids || []), ...(validUnknown ? [validUnknown] : [])])];
+    if (!all.length) return el("span", "inspect-evidence-note", unknown || "暂无证据");
+    const button = el("button", "inspect-evidence", validUnknown && !ids?.length ? "未知合同" : `证据 ${ids?.length || 0}`);
     button.type = "button";
-    button.setAttribute("aria-label", unknown && !ids?.length ? "检查未知合同" : `检查 ${ids?.length || 0} 条证据`);
-    button.append(icon(unknown && !ids?.length ? "circle-help" : "scan-search"));
+    button.setAttribute("aria-label", validUnknown && !ids?.length ? `检查未知合同：${contextLabel}` : `检查 ${ids?.length || 0} 条证据：${contextLabel}`);
+    button.append(icon(validUnknown && !ids?.length ? "circle-help" : "scan-search"));
     button.addEventListener("click", () => openInspector(all[0], all, true, contextLabel, button));
     return button;
   }
@@ -242,7 +254,15 @@
   function renderOperationRail() {
     document.getElementById("operationRailTitle").textContent = workbench.operationRailLabel || "开发者要做什么";
     const list = document.getElementById("operationList");
+    const groupById = new Map((workbench.operationGroups || []).map((group) => [group.id, group]));
+    let currentGroup = null;
     workbench.operations.forEach((operation) => {
+      if (operation.group && operation.group !== currentGroup && groupById.has(operation.group)) {
+        currentGroup = operation.group;
+        const heading = el("div", "rail-heading");
+        heading.append(el("span", "", groupById.get(operation.group).label));
+        list.append(heading);
+      }
       const button = el("button", "operation-button");
       button.type = "button";
       button.dataset.operation = operation.id;
@@ -411,6 +431,7 @@
       who.append(agentLabel(change.agent), el("time", "", change.date));
       const contract = el("div", "change-contract");
       contract.append(el("code", "", change.version), el("strong", "", change.impact), el("span", "", change.path));
+      if (change.claims?.length) contract.append(evidenceButton(change.claims, change.unknown, `版本变化 / ${change.version}`));
       const link = safeLink({ label: change.url.startsWith("/") ? "打开 diff" : "打开来源", url: change.url }, change.url.startsWith("/") ? "compare" : "source");
       row.append(who, contract, link);
       list.append(row);
@@ -435,14 +456,29 @@
       const needed = el("section", "inspector-boundary");
       needed.append(el("span", "", "需要补充"), el("p", "", unknown.needed));
       container.append(needed);
+      if (unknown.experiment) {
+        const experiment = el("section", "inspector-guarantee");
+        experiment.append(el("span", "", "验证实验"), el("p", "", unknown.experiment));
+        container.append(experiment);
+      }
+      if (unknown.observable) {
+        const observable = el("section", "inspector-boundary");
+        observable.append(el("span", "", "观察信号"), el("p", "", unknown.observable));
+        container.append(observable);
+      }
     } else {
       document.getElementById("inspectorTitle").textContent = claim.title;
       const meta = el("div", "inspector-meta");
       meta.append(agentLabel(claim.agent, claim.version), el("span", "", claim.layer));
-      const badge = el("span", "inspector-type", "事实");
-      badge.dataset.type = "fact";
+      if (claim.grade) meta.append(el("span", "", claim.grade));
+      if (claim.confidence) meta.append(el("span", "", `置信度 ${claim.confidence}`));
+      const evidenceType = claim.type === "inference" ? "inference" : claim.grade === "DOCS-FORWARD" ? "docs-forward" : "fact";
+      const evidenceLabels = { fact: "固定证据", inference: "机制推断", "docs-forward": "当前文档" };
+      const statementLabels = { fact: "可核验合同", inference: "证据支持的推断", "docs-forward": "当前文档合同" };
+      const badge = el("span", "inspector-type", evidenceLabels[evidenceType]);
+      badge.dataset.type = evidenceType;
       const statement = el("section", "inspector-guarantee");
-      statement.append(el("span", "", "可核验合同"), el("p", "", claim.statement));
+      statement.append(el("span", "", statementLabels[evidenceType]), el("p", "", claim.statement));
       const boundary = el("section", "inspector-boundary");
       boundary.append(el("span", "", "不能外推"), el("p", "", claim.boundary));
       const signals = el("div", "inspector-signals");
@@ -451,15 +487,29 @@
       links.append(safeLink(claim.source, "source"));
       if (claim.compare) links.append(safeLink(claim.compare, "compare"));
       container.append(badge, el("code", "inspector-id", claim.id), meta, statement, boundary, signals, links);
+      if (claim.disproof) {
+        const disproof = el("section", "inspector-boundary");
+        disproof.append(el("span", "", "推翻实验"), el("p", "", claim.disproof));
+        container.append(disproof);
+      }
     }
-    if (state.contextClaims.length > 1) {
+    const reverseRelationIds = [...claimById.values()]
+      .filter((candidate) => candidate.id !== id
+        && ([...(candidate.dependsOn || []), ...(candidate.unknowns || []), ...(candidate.supports || [])].includes(id)))
+      .map((candidate) => candidate.id);
+    const relationIds = claim
+      ? [...(claim.dependsOn || []), ...(claim.unknowns || []), ...(claim.supports || [])]
+      : [...(unknown?.relatedClaims || [])];
+    const relatedIds = [...new Set([...state.contextClaims, ...relationIds, ...reverseRelationIds])].filter((relatedId) => claimById.has(relatedId) || unknownById.has(relatedId));
+    if (relatedIds.length > 1 || relationIds.length) {
       const related = el("div", "inspector-related");
-      related.append(el("span", "", "同一合同中的证据"));
-      state.contextClaims.forEach((relatedId) => {
-        const button = el("button", "", relatedId);
+      related.append(el("span", "", relationIds.length ? "支持证据与验证项" : "同一合同中的证据"));
+      relatedIds.forEach((relatedId) => {
+        const record = claimById.get(relatedId) || unknownById.get(relatedId);
+        const button = el("button", "", `${relatedId} · ${record?.title || "证据"}`);
         button.type = "button";
         button.setAttribute("aria-pressed", String(relatedId === id));
-        button.addEventListener("click", () => openInspector(relatedId, state.contextClaims, true, state.inspectorContext));
+        button.addEventListener("click", () => openInspector(relatedId, relatedIds, true, state.inspectorContext));
         related.append(button);
       });
       container.append(related);

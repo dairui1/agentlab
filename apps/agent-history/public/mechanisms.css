@@ -1310,9 +1310,27 @@
   color: var(--accent);
 }
 
+.inspector-type[data-type="docs-forward"] {
+  border-color: var(--contract-high);
+  background: color-mix(in srgb, var(--contract-high) 12%, var(--surface));
+  color: var(--contract-high);
+}
+
+.inspector-type[data-type="inference"] {
+  border-color: var(--codex);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--codex-soft) 64%, var(--surface));
+  color: var(--codex);
+}
+
 .inspector-type[data-type="unknown"] {
   border-style: dashed;
   color: var(--muted);
+}
+
+.inspect-evidence-note {
+  color: var(--muted);
+  font: 700 9px/1.35 var(--mono);
 }
 
 .inspector-id {

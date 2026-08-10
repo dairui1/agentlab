@@ -1,0 +1,44 @@
+{
+  "id": "model-routing",
+  "number": "006",
+  "title": "模型路由、Reasoning 与回退",
+  "verifiedAt": "2026-08-10",
+  "snapshots": [
+    { "agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "captures": 16 },
+    { "agent": "codex", "label": "Codex", "version": "0.147.0", "captures": 18 },
+    { "agent": "opencode", "label": "opencode", "version": "1.18.15", "captures": 16 }
+  ],
+  "thesis": "模型选择不是一次字符串赋值：alias、组织约束、reasoning capability、subagent inheritance、retry 与四种 fallback 会共同决定实际模型、工具能力和账单归因。",
+  "scope": "Claude Code 以 2.1.226 exact changelog history 与显式标注的 current docs-forward 为证；Codex 与 opencode 使用固定 commit 源码。选择回退、模型回退、元数据回退和传输回退始终分开。",
+  "models": [
+    { "agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "archetype": "alias + organization policy + fallback chain", "summary": "公开合同最丰富，但 exact build 状态机只能由 pinned history 与 docs-forward 分层拼接。", "claims": ["MR-CC-01", "MR-CC-04", "MR-CC-12", "MR-CC-15"] },
+    { "agent": "codex", "label": "Codex", "version": "0.147.0", "archetype": "catalog + sticky turn override", "summary": "启动替换、fallback metadata、transport fallback 与 safety reroute 是四条不同路径，没有证据表明存在通用容量模型链。", "claims": ["MR-CX-05", "MR-CX-07", "MR-CX-09", "MR-CX-15", "MR-CX-17"] },
+    { "agent": "opencode", "label": "opencode", "version": "1.18.15", "archetype": "provider/model + variant option blob", "summary": "主路径显式模型失败、variant 分层合并；retry 固定在同一 input.model，schedule 没有内建 max attempt。", "claims": ["MR-OC-02", "MR-OC-08", "MR-OC-14", "MR-OC-15"] }
+  ],
+  "matrix": [
+    { "group": "Fallback", "label": "模型是否改变", "cells": { "claude-code": { "text": "fallback chain 可改变模型。", "claims": ["MR-CC-04", "MR-CC-15"] }, "codex": { "text": "启动替换会变；metadata 与 transport 不变；safety reroute 另算。", "claims": ["MR-CX-05", "MR-CX-07", "MR-CX-15", "MR-CX-17"] }, "opencode": { "text": "精确 main retry path 固定 input.model。", "claims": ["MR-OC-15"] } } },
+    { "group": "Reasoning", "label": "不支持档位", "cells": { "claude-code": { "text": "当前 docs 描述为 clip。", "claims": ["MR-CC-05"] }, "codex": { "text": "主 turn 切模时选中位或默认。", "claims": ["MR-CX-10"] }, "opencode": { "text": "agent variant miss 时静默丢弃。", "claims": ["MR-OC-06"] } } },
+    { "group": "Retry", "label": "终止预算", "cells": { "claude-code": { "text": "当前 headless 有 retry event，2.1.226 完整预算未知。", "claims": ["MR-CC-09"] }, "codex": { "text": "request 与 stream 配置分离。", "claims": ["MR-CX-14", "MR-CX-16"] }, "opencode": { "text": "retryable error 没有内建 max attempt。", "claims": ["MR-OC-14"] } } }
+  ],
+  "unknowns": [
+    { "id": "MR-KU-01", "title": "2.1.226 effort clipping 未实测", "text": "当前文档的 unsupported-effort 裁剪规则是否与 Claude Code 2.1.226 wire behavior 完全一致仍未知。", "needed": "以自定义 gateway 捕获 2.1.226 对多个非法/不支持档位的请求。", "experiment": "逐模型请求不支持档位并记录实际 effort。", "observable": "wire payload、warning 与 effective model response。" },
+    { "id": "MR-KU-02", "title": "Claude fallback error matrix 不完整", "text": "2.1.226 对每一种 4xx、5xx、gateway 与断流错误是否推进模型链仍未知。", "needed": "对 primary 注入结构化错误与不同断流阶段。", "experiment": "故障代理遍历 status、body、Retry-After 与 stream phase。", "observable": "retry event、fallback notice、最终模型。" },
+    { "id": "MR-KU-03", "title": "Claude fallback 是否重新协商 capability", "text": "异构 fallback hop 是否重新计算 tool schema、context 与 reasoning capability 未公开。", "needed": "primary 与 fallback 配置能力不同的模型。", "experiment": "记录 fallback 前后 init、tools 与 provider payload。", "observable": "工具集、schema、context 与 effective effort diff。" },
+    { "id": "MR-KU-04", "title": "Claude 失败尝试成本归因未知", "text": "断流或 fallback 前的失败 attempt 是否完整进入 per-model cost 未核验。", "needed": "将 headless、OTEL 与 provider invoice 对账。", "experiment": "固定 token 请求后在不同阶段故障。", "observable": "每 attempt usage、total_cost_usd 与账单差额。" },
+    { "id": "MR-KU-05", "title": "Claude restriction 入口一致性未知", "text": "organization restriction 在 background、resume、fork、command 与 fallback 上是否完全一致未知。", "needed": "入口与 allowlist 的笛卡尔积测试。", "experiment": "每入口请求同一受限 alias/full ID。", "observable": "allowed、step-down、parent fallback 或 reject。" },
+    { "id": "MR-KU-06", "title": "Codex 服务端是否另做容量 reroute", "text": "开源 core 将 ServerOverloaded 判为不可重试，但上游服务是否会先发送模型 reroute 未知。", "needed": "真实容量错误或可控 mock service。", "experiment": "注入 overload 并订阅 app-server 全部 model events。", "observable": "model/rerouted、terminal error 与实际 request model。" },
+    { "id": "MR-KU-07", "title": "Codex 最坏总请求数未知", "text": "request retry、stream retry 与 transport fallback 组合后的最坏总请求数未实测。", "needed": "逐层可控失败的 mock Responses server。", "experiment": "在 handshake、首 delta、中段与完成前分别断开。", "observable": "唯一 request ID 数量与 retry counters。" },
+    { "id": "MR-KU-08", "title": "Codex retry 的工具去重未验证", "text": "tool call 已产生效果后断流，重试路径能否避免重复执行未知。", "needed": "带幂等计数器的故障工具。", "experiment": "工具完成后、response.completed 前断流。", "observable": "tool call ID、effect count 与 transcript projection。" },
+    { "id": "MR-KU-09", "title": "Codex provider cache 错配可触发性未知", "text": "源码 TODO 指出 cache 未绑定 provider identity，但真实切换是否导致能力错配未实验。", "needed": "两个返回不同 catalog 的 provider。", "experiment": "缓存仍新鲜时快速切 provider。", "observable": "加载的 slug、capability 与 provider identity。" },
+    { "id": "MR-KU-10", "title": "Codex fallback metadata 的真实兼容性未知", "text": "272k context 与默认工具能力用于未知 slug 时会在哪些自定义 provider 上失败未知。", "needed": "最小能力自定义 provider 与未知 slug。", "experiment": "逐项启用 parallel tools、image、search 与长上下文。", "observable": "400、tool registration 与 context errors。" },
+    { "id": "MR-KU-11", "title": "Codex Custom effort provider 支持未知", "text": "ReasoningEffort::Custom 能前向序列化，但 provider 是否接受新值未知。", "needed": "mock 与真实 provider 对未知 effort 的响应。", "experiment": "分别发送未来值、非法值与 catalog 声明值。", "observable": "wire value、provider acceptance 与 client warning。" },
+    { "id": "MR-KU-12", "title": "OpenCode provider SDK 内部 retry 未计入", "text": "provider SDK 是否在 SessionRetry 外再次重试未知。", "needed": "adapter 层抓包与 request ID 统计。", "experiment": "对同一 5xx 比较 SDK 配置与外层 attempt。", "observable": "网络请求数与 session.status attempt 差异。" },
+    { "id": "MR-KU-13", "title": "OpenCode usage-limit 的实际等待终态未知", "text": "无 max schedule 在 Free/Go limit 上最终由何种用户动作或取消终止未实测。", "needed": "固定 usage-limit body 与 Retry-After。", "experiment": "运行到外部 workflow deadline 并尝试 action/cancel。", "observable": "status transitions、资源占用与 terminal event。" },
+    { "id": "MR-KU-14", "title": "OpenCode partial state 是否重复未知", "text": "stream retry 后 partial tool/text parts 是否重复持久化未故障验证。", "needed": "在 text/tool delta 完成后断流的 provider stub。", "experiment": "比较 retry 前后 message parts 与副作用计数。", "observable": "重复 part、tool effect 与 assistant finish。" },
+    { "id": "MR-KU-15", "title": "OpenCode variant wire payload 未全量核验", "text": "同名 variant 在各 provider adapter 上的最终参数与语义未逐一验证。", "needed": "跨 provider payload snapshot。", "experiment": "对同名 low/high 记录 wire request。", "observable": "reasoning、thinking 与 budget 参数 diff。" },
+    { "id": "MR-KU-16", "title": "models.dev 与 deployment 漂移未知", "text": "catalog 显示模型但 provider deployment 已删除或重命名时的完整错误路径未知。", "needed": "可控的 stale catalog/deployment。", "experiment": "让 catalog 与 provider 可用模型故意不一致。", "observable": "getLanguage、APIError 与 retry behavior。" },
+    { "id": "MR-KU-17", "title": "Fallback 后 schema compatibility 未验证", "text": "三者在 fallback 或切模后 structured-output/tool schema 不兼容时是否 fail-fast 未统一验证。", "needed": "能力不同的 primary/fallback 或 turn models。", "experiment": "保持同一 output schema 与 tools 执行切换。", "observable": "preflight、400、tool registration 与 terminal class。" },
+    { "id": "MR-KU-18", "title": "跨尝试与子任务账单完整性未知", "text": "失败请求、cache token、reasoning token、subagent 与 auxiliary 的最终账单归因在三者间均未完成对账。", "needed": "同一故障脚本与 provider invoice。", "experiment": "运行 primary、retry、fallback、subagent、aux 组合。", "observable": "attempt ledger、message cost、OTEL 与 invoice。" },
+    { "id": "MR-KU-19", "title": "错误正文 regex 的永久错误误判率未知", "text": "OpenCode 的正文关键词 classifier 是否会把现实 provider 的永久 4xx 判成 transient 尚未做故障实验。", "needed": "可控 400 响应与包含 retry 关键词的 message/body 组合。", "experiment": "固定 isRetryable=false，遍历 overloaded、timeout、resource exhausted 等正文。", "observable": "session.status.retry、attempt、next 与最终 terminal class。" }
+  ]
+}

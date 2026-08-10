@@ -1,0 +1,373 @@
+{
+  "claims": [
+    {
+      "id": "MR-CC-01", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "模型来源与别名解析", "statement": "当前官方合同允许从 setting、--model 与 ANTHROPIC_MODEL 选择模型，并接受 default、family alias 与完整模型 ID。", "layer": "Current official docs, not exact-build code", "confidence": "Medium",
+      "signals": ["--model", "ANTHROPIC_MODEL", "default", "sonnet", "opus", "haiku"], "boundary": "该页面晚于 2.1.226；只能作为当前公开合同，不能证明该 build 支持后来新增的 alias。",
+      "source": { "label": "Claude Code model configuration", "url": "https://code.claude.com/docs/en/model-config" }
+    },
+    {
+      "id": "MR-CC-02", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "Alias 可漂移也可按家族钉住", "statement": "当前官方文档说明 family alias 的目标会随发布更新，ANTHROPIC_DEFAULT_*_MODEL 可覆盖家族默认目标。", "layer": "Current official docs, not exact-build code", "confidence": "Medium",
+      "signals": ["ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "alias"], "boundary": "钉住家族目标不等于绕过组织 allowlist，也不保证 provider 端 deployment 存在。",
+      "source": { "label": "Claude Code model aliases", "url": "https://code.claude.com/docs/en/model-config" }
+    },
+    {
+      "id": "MR-CC-03", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "自定义模型需声明 capability", "statement": "当前官方合同允许用 *_SUPPORTED_CAPABILITIES 为自定义或 provider-prefixed ID 声明 effort、thinking、adaptive/interleaved thinking 等能力。", "layer": "Current official docs, not exact-build code", "confidence": "Medium",
+      "signals": ["effort", "xhigh_effort", "max_effort", "thinking", "adaptive_thinking"], "boundary": "模型 ID 的命名模式不足以证明能力；该声明机制在 2.1.226 的精确支持面未核验。",
+      "source": { "label": "Claude custom model capabilities", "url": "https://code.claude.com/docs/en/model-config" }
+    },
+    {
+      "id": "MR-CC-04", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "当前 fallbackModel 运行合同", "statement": "当前官方文档把 fallbackModel 描述为 primary 过载或不可用时推进最多三跳的模型链，并向用户显示模型切换。", "layer": "Current official docs; chain length separately pinned by history", "confidence": "Medium",
+      "signals": ["fallbackModel", "overloaded", "unavailable", "fallback notice"], "boundary": "具体错误分类、切换持续范围与 2.1.226 行为不能只由当前文档反推；精确链长另见 MR-CC-15。",
+      "source": { "label": "Claude fallback models", "url": "https://code.claude.com/docs/en/model-config" }
+    },
+    {
+      "id": "MR-CC-05", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "不支持的 effort 会被裁剪", "statement": "当前官方合同称不支持的 effort 请求会裁剪到不高于请求值的最高支持档。", "layer": "Current official docs, not exact-build wire behavior", "confidence": "Medium",
+      "signals": ["low", "medium", "high", "xhigh", "max"], "boundary": "2.1.226 的真实 wire payload 未核验；不能把该裁剪规则套到 Codex 或 OpenCode。",
+      "source": { "label": "Claude effort levels", "url": "https://code.claude.com/docs/en/model-config" }
+    },
+    {
+      "id": "MR-CC-06", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "ultrathink 不是 API effort", "statement": "当前官方文档把 ultrathink 定义为 in-context instruction，而非改变 API effort 参数。", "layer": "Current official docs", "confidence": "Medium",
+      "signals": ["ultrathink", "in-context instruction", "effort"], "boundary": "提示词可能影响行为，但不能据此声称 provider 计费或 thinking budget 被切到某一档。",
+      "source": { "label": "Claude ultrathink behavior", "url": "https://code.claude.com/docs/en/model-config" }
+    },
+    {
+      "id": "MR-CC-07", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "当前 subagent model resolution 顺序", "statement": "当前官方合同给出 CLAUDE_CODE_SUBAGENT_MODEL、invocation model、frontmatter model、parent model 的覆盖顺序，并要求通过 availableModels。", "layer": "Current official docs, version-sensitive", "confidence": "Medium",
+      "signals": ["CLAUDE_CODE_SUBAGENT_MODEL", "frontmatter model", "inherit", "availableModels"], "boundary": "2.1.196 后 inherit 语义已变化；该顺序不能无条件归属于 2.1.226。",
+      "source": { "label": "Claude Code subagents", "url": "https://code.claude.com/docs/en/sub-agents" }
+    },
+    {
+      "id": "MR-CC-08", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "Non-streaming fallback 有重复工具风险", "statement": "当前官方环境变量文档明确说明，禁用 streaming 到 non-streaming fallback 可避免某些 proxy/gateway 场景下的 duplicate tool execution。", "layer": "Current official docs with explicit failure warning", "confidence": "High",
+      "signals": ["CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK", "duplicate tool execution", "proxy", "gateway"], "boundary": "这是传输回退风险，不代表每次 fallback 都会重复，也不等于模型发生切换。",
+      "source": { "label": "Claude Code environment variables", "url": "https://code.claude.com/docs/en/env-vars" }
+    },
+    {
+      "id": "MR-CC-09", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "Headless 暴露结构化 retry 事件", "statement": "当前 headless stream-json 合同包含 system/api_retry，带 attempt、max_retries、retry_delay_ms、error_status、error category 与 session 标识。", "layer": "Current official headless contract", "confidence": "Medium",
+      "signals": ["system/api_retry", "attempt", "max_retries", "retry_delay_ms", "error_status"], "boundary": "字段可能晚于 2.1.226；不能据此证明该 build 的完整重试预算。",
+      "source": { "label": "Claude Code headless mode", "url": "https://code.claude.com/docs/en/headless" }
+    },
+    {
+      "id": "MR-CC-10", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "Headless 提供总成本与 per-model breakdown", "statement": "当前官方 headless JSON 合同包含 total_cost_usd 与按模型拆分的成本信息。", "layer": "Current official headless contract", "confidence": "Medium",
+      "signals": ["total_cost_usd", "per-model cost"], "boundary": "该指标是客户端可见口径；失败尝试是否完整计入仍需与 provider invoice 对账。",
+      "source": { "label": "Claude Code headless cost", "url": "https://code.claude.com/docs/en/headless" }
+    },
+    {
+      "id": "MR-CC-11", "agent": "claude-code", "type": "fact", "grade": "DOCS-FORWARD", "version": "2.1.226",
+      "title": "OTEL 可按模型、effort 与 query source 观测", "statement": "当前 monitoring 合同允许按 model、effort、query_source、agent/skill 归因请求，并记录 attempts、status 与 request ID。", "layer": "Current official telemetry contract", "confidence": "Medium",
+      "signals": ["model", "effort", "query_source", "attempts", "request_id"], "boundary": "官方同时说明成本指标是估算；中间重试不一定作为独立 terminal error event。",
+      "source": { "label": "Claude Code monitoring", "url": "https://code.claude.com/docs/en/monitoring-usage" }
+    },
+    {
+      "id": "MR-CC-12", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "受限 subagent model 改由 parent 运行时出现 warning", "statement": "2.1.223 changelog 记录 workflow、forked skill、slash command 与 resumed background 请求受限 subagent model 时由 parent 运行并显示警告。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["restricted subagent model", "parent model", "warning"], "boundary": "Changelog 证明修复存在，不公开完整 restriction state machine 或所有入口的最终模型字段。",
+      "source": { "label": "Claude Code changelog L61", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L61" }
+    },
+    {
+      "id": "MR-CC-13", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "受限 family alias 会在家族内 step-down", "statement": "2.1.222 changelog 记录受组织限制的 family alias 会选择家族内最新 allowed model，而不是直接使用 parent model。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["family alias", "organization allowed", "step down"], "boundary": "只证明该修复时点；不保证 full ID、自定义 gateway ID 或未来家族具有同样策略。",
+      "source": { "label": "Claude Code changelog L89", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L89" }
+    },
+    {
+      "id": "MR-CC-14", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "Partial response 与 subagent failure 终态被收紧", "statement": "2.1.199 changelog 记录过载/服务端错误时保留 partial response，并修复 subagent rate-limit、server error 与 usage-limit 被误判为成功。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["partial response", "incomplete", "subagent failure", "rate limit"], "boundary": "Partial 保留不代表可以无痕拼接 fallback 输出，也不证明失败尝试的工具副作用已回滚。",
+      "source": { "label": "Claude Code changelog L692-L694", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L692-L694" }
+    },
+    {
+      "id": "MR-CC-15", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "Fallback chain 最多三跳且错误边界分层", "statement": "2.1.166 changelog 记录 fallbackModel 最多三个，并对 unexpected nonretryable 做一次 fallback retry；auth、rate、request-size 与 transport 等错误直接暴露。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["fallbackModel", "up to three", "nonretryable", "auth", "rate limit"], "boundary": "后续版本继续修改 model-not-found、429 与断流行为；不能把 2.1.166 一行当成 2.1.226 完整状态机。",
+      "source": { "label": "Claude Code changelog L1141-L1145", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L1141-L1145" }
+    },
+    {
+      "id": "MR-CC-16", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "Non-streaming fallback 可显式禁用", "statement": "2.1.83 changelog 记录 CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK 环境变量，用于关闭 streaming 到 non-streaming 的降级。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["CLAUDE_CODE_DISABLE_NONSTREAMING_FALLBACK", "non-streaming fallback"], "boundary": "该开关只改变 transport 路径，不是关闭模型 fallback chain。",
+      "source": { "label": "Claude Code changelog L2925-L2932", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L2925-L2932" }
+    },
+    {
+      "id": "MR-CC-17", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "SDK 与 headless 可在下一次模型往返切模", "statement": "2.1.212 的精确 changelog 记录 SDK/headless set_model 支持：更新在下一次 model roundtrip 生效。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["set_model", "SDK", "headless", "next model roundtrip"], "boundary": "Changelog 不给出所有并发、恢复与 fallback 交错时的状态机；只证明该版本节点的生效边界。",
+      "source": { "label": "Claude Code changelog L381-L382", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L381-L382" }
+    },
+    {
+      "id": "MR-CC-18", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "Vertex 与 Bedrock 的显式模型不再误试默认 Opus", "statement": "2.1.211 修复 Vertex/Bedrock 显式 model 路径，避免在目标不可用时错误尝试默认 Opus。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["Vertex", "Bedrock", "explicit model", "default Opus"], "boundary": "这是已修复的 provider-specific 历史边界，不代表所有 gateway 或未来 provider 都采用同一失败策略。",
+      "source": { "label": "Claude Code changelog L394-L395", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L394-L395" }
+    },
+    {
+      "id": "MR-CC-19", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "Gateway model-not-found 会推进 failover chain", "statement": "2.1.198 的精确 changelog 记录 gateway 返回 model-not-found 时推进 failover chain。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["gateway", "model-not-found", "failover chain"], "boundary": "只证明该错误类在此版本节点进入链；其他 4xx/5xx 与断流阶段仍需按 MR-KU-02 验证。",
+      "source": { "label": "Claude Code changelog L721-L725", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L721-L725" }
+    },
+    {
+      "id": "MR-CC-20", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "Compaction 请求遵守 fallback chain", "statement": "2.1.178 的精确 changelog 记录 compaction 使用与主路径一致的 fallback chain。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["compaction", "fallback chain", "auxiliary request"], "boundary": "这不证明 title、summary、Explore 与所有辅助请求都采用相同模型来源或成本归因。",
+      "source": { "label": "Claude Code changelog L1000", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L1000" }
+    },
+    {
+      "id": "MR-CC-21", "agent": "claude-code", "type": "fact", "grade": "PINNED-HISTORY", "version": "2.1.226",
+      "title": "Subscriber transient 429 开始自动重试", "statement": "2.1.199 的精确 changelog 记录 subscriber transient 429 自动重试，并扩大 retry watchdog。", "layer": "Exact 2.1.226-tag changelog history", "confidence": "High",
+      "signals": ["subscriber", "transient 429", "retry watchdog"], "boundary": "只覆盖 changelog 指明的订阅通道与 transient 429；不能外推所有 429、API key 或 gateway 行为。",
+      "source": { "label": "Claude Code retry changelog L692-L699", "url": "https://github.com/anthropics/claude-code/blob/2bb60696142b493eafaeacfe00eac51d16c50c4f/CHANGELOG.md#L692-L699" }
+    },
+
+    {
+      "id": "MR-CX-01", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "ReasoningEffort 保留前向兼容值", "statement": "0.147.0 定义 none、minimal、low、medium、high、xhigh、max、ultra，并用 Custom(String) 透传客户端未知的新值。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["ReasoningEffort", "Ultra", "Custom(String)"], "boundary": "客户端能序列化不等于 provider 一定接受该值；实际 wire 支持仍由 model metadata/provider 决定。",
+      "source": { "label": "Codex reasoning enum", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/protocol/src/openai_models.rs#L37-L68" }
+    },
+    {
+      "id": "MR-CX-02", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Model preset 是 picker 与运行默认的合同", "statement": "ModelPreset 同时给出 model slug、默认和支持的 reasoning efforts、service tiers、picker 可见性及 input modalities。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["default_reasoning_effort", "supported_reasoning_efforts", "service_tiers", "show_in_picker"], "boundary": "picker 可见不等于 provider 调用一定成功；auth 与远程 catalog 仍会过滤。",
+      "source": { "label": "Codex model preset", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/protocol/src/openai_models.rs#L202-L249" }
+    },
+    {
+      "id": "MR-CX-03", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Model metadata 控制工具与上下文能力", "statement": "ModelInfo 包含 reasoning summary、verbosity、apply_patch/web search tool type、parallel tool calls、context window、input modalities 与 multi-agent version。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["supports_parallel_tool_calls", "context_window", "tool_mode", "input_modalities"], "boundary": "换模型可能改变的不只是质量和价格；必须重新验证工具与 schema 能力。",
+      "source": { "label": "Codex model info", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/protocol/src/openai_models.rs#L370-L458" }
+    },
+    {
+      "id": "MR-CX-04", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Dynamic manager 保留显式模型", "statement": "OpenAI-compatible ModelsManager 在 model 已提供时原样返回，不执行 provider default substitution。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["get_default_model", "model.provided", "return model"], "boundary": "这不证明模型存在；后续 metadata lookup 或 provider request 仍可能失败。",
+      "source": { "label": "Codex dynamic model manager", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/models-manager/src/manager.rs#L153-L183" }
+    },
+    {
+      "id": "MR-CX-05", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Static provider 可在启动时替换不可用模型", "statement": "StaticModelsManager 在 allow_provider_model_fallback=true 且请求模型不在权威 catalog 时返回 provider default。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["StaticModelsManager", "allow_provider_model_fallback", "default_model_from_available"], "boundary": "这是 thread startup selection，不是运行期 overload 模型链。",
+      "source": { "label": "Codex static model manager", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/models-manager/src/manager.rs#L519-L553" }
+    },
+    {
+      "id": "MR-CX-06", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "模型 cache 尚未绑定 provider identity", "statement": "0.147.0 源码 TODO 明确指出 cache eligibility 应包含 provider identity，以免切换 provider 时复用另一 provider 的新鲜 models_cache。", "layer": "Exact-tag source TODO", "confidence": "High",
+      "signals": ["models_cache.json", "provider identity", "cache eligibility"], "boundary": "这是已知实现缺口，不等于已证明每次 provider switch 都发生错配。",
+      "source": { "label": "Codex model cache eligibility", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/models-manager/src/manager.rs#L477-L515" }
+    },
+    {
+      "id": "MR-CX-07", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "未知 slug 继续使用 fallback metadata", "statement": "model_info_from_slug 保留请求 slug，但构造标记 used_fallback_model_metadata 的默认能力描述，包括 272k context 与关闭 parallel tool calls。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["used_fallback_model_metadata", "272000", "supports_parallel_tool_calls=false"], "boundary": "这些值是 harness 猜测，不代表未知 provider model 的真实能力，也不是换模。",
+      "source": { "label": "Codex fallback metadata", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/models-manager/src/model_info.rs#L137-L182" }
+    },
+    {
+      "id": "MR-CX-08", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "allowProviderModelFallback 只面向权威静态 catalog", "statement": "App Server 协议把 allowProviderModelFallback 定义为允许具有 authoritative static catalog 的 provider 用默认模型替换不可用请求。", "layer": "Exact-tag public protocol", "confidence": "High",
+      "signals": ["thread/start", "allowProviderModelFallback", "authoritative static model catalog"], "boundary": "不能把该 flag 描述成容量故障后的跨模型 failover。",
+      "source": { "label": "Codex thread start model fallback", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L57-L66" }
+    },
+    {
+      "id": "MR-CX-09", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Turn 可粘性覆盖模型与 effort", "statement": "turn/start 的 model、serviceTier、effort 与 summary 字段都声明为覆盖当前 turn 及后续 turns。", "layer": "Exact-tag public App Server contract", "confidence": "High",
+      "signals": ["turn/start.model", "serviceTier", "effort", "current and subsequent turns"], "boundary": "collaboration mode 可拥有更高优先级；调用端必须回读实际 turn context。",
+      "source": { "label": "Codex turn model overrides", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server-protocol/src/protocol/v2/turn.rs#L122-L155" }
+    },
+    {
+      "id": "MR-CX-10", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "切模时不支持 effort 会选中位或默认", "statement": "with_model 保留仍受支持的当前 effort；否则取目标模型支持列表中位项，再回落 default_reasoning_level。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["supported_reasoning_levels", "middle", "default_reasoning_level"], "boundary": "这是主 turn 切模路径；subagent 显式换模采用另一条默认逻辑。",
+      "source": { "label": "Codex model switch effort", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/session/turn_context.rs#L258-L289" }
+    },
+    {
+      "id": "MR-CX-11", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Fallback metadata 会发 degradation warning", "statement": "每 turn 若 used_fallback_model_metadata=true，core 会发 WarningEvent，明确说明可能降低性能并产生问题。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["WarningEvent", "fallback metadata", "degrade performance"], "boundary": "Warning 不阻止请求；自动化需要决定继续还是 fail-closed。",
+      "source": { "label": "Codex fallback metadata warning", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/session/turn_context.rs#L842-L853" }
+    },
+    {
+      "id": "MR-CX-12", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Subagent 默认继承 parent 路由状态", "statement": "child shared config 复制 parent 的 model slug、provider、reasoning effort/summary 与 developer instructions。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["turn.model_info.slug", "model_provider", "model_reasoning_effort"], "boundary": "runtime permission/cwd 也会覆盖，但不属于模型路由合同。",
+      "source": { "label": "Codex child shared config", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/tools/handlers/multi_agents_common.rs#L198-L223" }
+    },
+    {
+      "id": "MR-CX-13", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Subagent override 经离线 catalog 校验", "statement": "requested subagent model 在 offline available models 中解析；显式 effort 校验支持集合，换模未显式 effort 时采用新模型默认。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["RefreshStrategy::Offline", "validate_spawn_agent_reasoning_effort", "default_reasoning_level"], "boundary": "离线 catalog 通过不等于 provider 当前可用，也不会触发通用 capacity fallback。",
+      "source": { "label": "Codex subagent model override", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/tools/handlers/multi_agents_common.rs#L270-L325" }
+    },
+    {
+      "id": "MR-CX-14", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Request 与 stream 有分离的默认重试配置", "statement": "provider config 默认 request_max_retries=4、stream_max_retries=5；request adapter 默认重试 5xx/transport，但 retry_429=false。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["DEFAULT_REQUEST_MAX_RETRIES=4", "DEFAULT_STREAM_MAX_RETRIES=5", "retry_429=false"], "boundary": "这些是配置字段，不等于用户看到的总 HTTP 请求数；request 与 stream 层可能叠加。",
+      "source": { "label": "Codex provider retry defaults", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/model-provider-info/src/lib.rs#L25-L32" },
+      "compare": { "label": "Request retry flags", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/model-provider-info/src/lib.rs#L263-L270" }
+    },
+    {
+      "id": "MR-CX-15", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Stream budget 耗尽后可切 WS 到 HTTPS", "statement": "retryable stream error 在重试耗尽时可调用 try_switch_fallback_transport，从 WebSocket 切 HTTPS、重置 retry 计数并发 WarningEvent。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["try_switch_fallback_transport", "WebSockets", "HTTPS", "Reconnecting"], "boundary": "这是 transport fallback，模型不变；切换后的 full-request replay 边界未由该函数证明。",
+      "source": { "label": "Codex response stream retry", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/responses_retry.rs#L20-L73" }
+    },
+    {
+      "id": "MR-CX-16", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "语义错误分类决定是否重试", "statement": "usage limit、quota、server overloaded、invalid request 与 context overflow 被判不可重试；stream、timeout、connection 与 internal server 被判可重试。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["is_retryable", "ServerOverloaded=false", "Stream=true", "ConnectionFailed=true"], "boundary": "这是 core retry classification，不排除上游服务另发 policy reroute。",
+      "source": { "label": "Codex retryable errors", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/protocol/src/error.rs#L362-L400" }
+    },
+    {
+      "id": "MR-CX-17", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Model reroute 当前是独立安全事件", "statement": "0.147.0 App Server 的 ModelRerouteReason 公开枚举只有 HighRiskCyberActivity，并在 notification 中带 from_model 与 to_model。", "layer": "Exact-tag public protocol", "confidence": "High",
+      "signals": ["model/rerouted", "HighRiskCyberActivity", "from_model", "to_model"], "boundary": "该事件不是容量 fallback；exec renderer 虽显示 error item，状态仍可继续运行。",
+      "source": { "label": "Codex model reroute protocol", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/app-server-protocol/src/protocol/v2/model.rs#L14-L24" }
+    },
+    {
+      "id": "MR-CX-18", "agent": "codex", "type": "fact", "grade": "PINNED-CODE", "version": "0.147.0",
+      "title": "Exec 将 model reroute 显示为非终态 error item", "statement": "exec JSONL renderer 把 ModelRerouted notification 映射为包含 from、to、reason 的 ErrorItem，同时返回 CodexStatus::Running。", "layer": "Exact-tag renderer source", "confidence": "High",
+      "signals": ["ModelRerouted", "ErrorItem", "CodexStatus::Running"], "boundary": "该显示形态不是 terminal failure，也不应与容量 fallback 或 retry error 合并。",
+      "source": { "label": "Codex JSONL reroute rendering", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/exec/src/event_processor_with_jsonl_output.rs#L482-L495" }
+    },
+
+    {
+      "id": "MR-OC-01", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Model schema 同时承载能力、价格与 variants", "statement": "OpenCode Model 包含 provider/API/family、capabilities、cost、limits、status、options、headers、release date 与 variants。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["capabilities", "cost", "limit", "variants", "options"], "boundary": "catalog 描述不保证 provider deployment 当前存在，也不保证同名 variant 跨 provider 同义。",
+      "source": { "label": "OpenCode model schema", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/provider/provider.ts#L1030-L1050" }
+    },
+    {
+      "id": "MR-OC-02", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "显式主模型不存在时失败并给 suggestion", "statement": "getModel 在 provider 或 model 不存在时抛 ModelNotFoundError 并生成 suggestions，不静默替换主模型。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["ProviderModelNotFoundError", "suggestions", "Model not found"], "boundary": "auxiliary small model 有不同降级路径；不能据此宣称所有模型入口都 fail-closed。",
+      "source": { "label": "OpenCode getModel", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/provider/provider.ts#L1811-L1833" }
+    },
+    {
+      "id": "MR-OC-03", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "显式 small_model miss 被吞并返回 undefined", "statement": "配置 small_model 不存在时 getSmallModel 捕获 ModelNotFoundError 并返回 undefined；已审计 callers 随后回退到 primary/default model。", "layer": "Exact-tag source and caller", "confidence": "High",
+      "signals": ["small_model", "catchTag", "undefined", "?? primary model"], "boundary": "函数内部不会继续 family heuristic；该降级只应按已审计 caller 陈述。",
+      "source": { "label": "OpenCode getSmallModel", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/provider/provider.ts#L1878-L1885" },
+      "compare": { "label": "Title caller fallback", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/prompt.ts#L216-L221" }
+    },
+    {
+      "id": "MR-OC-04", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Default model 受 recent state 影响", "statement": "defaultModel 依次使用显式 config.model、model.json recent 中仍有效项，再取配置/已连接 provider 的排序首项。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["config.model", "model.json", "recent", "sort"], "boundary": "recent 是机器本地状态；同一仓库在不同机器可能解析到不同默认模型。",
+      "source": { "label": "OpenCode default model", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/provider/provider.ts#L1947-L1980" }
+    },
+    {
+      "id": "MR-OC-05", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "消息模型覆盖顺序是 input、agent、current", "statement": "createUserMessage 先取 input.model，再取 agent.model，最后使用 session current/default model。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["input.model", "ag.model", "currentModel"], "boundary": "command/task 入口还有自身优先级；不要把该顺序推广到所有调用面。",
+      "source": { "label": "OpenCode message model resolution", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/prompt.ts#L614-L654" }
+    },
+    {
+      "id": "MR-OC-06", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "不存在的 agent variant 静默丢弃", "statement": "agent.variant 只有在目标模型相同且 model.variants 存在同名 key 时才写入 user message，否则变成 undefined。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["ag.variant", "full?.variants", "undefined"], "boundary": "这是 agent default variant 路径；显式 input variant 的验证与展示应单独测试。",
+      "source": { "label": "OpenCode agent variant", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/prompt.ts#L646-L654" }
+    },
+    {
+      "id": "MR-OC-07", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "选择结果持久化回 session", "statement": "当 agent/model/variant 变化时，setAgentModel 把最终选择写回 session，后续 currentModel 优先读取它。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["setAgentModel", "providerID", "modelID", "variant"], "boundary": "持久化的是选择，不是当次 provider 实际接受的 reasoning options 或 fallback receipt。",
+      "source": { "label": "OpenCode session model persistence", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/prompt.ts#L656-L688" }
+    },
+    {
+      "id": "MR-OC-08", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Variant 最后覆盖 request options", "statement": "LLM request options 的 merge 顺序是 base、model.options、agent.options、selected variant，后者优先。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["base", "model.options", "agent.options", "variant", "mergeOptions"], "boundary": "同名字段被覆盖可能改变 reasoning 与 provider 行为；UI label 不能替代最终 options receipt。",
+      "source": { "label": "OpenCode request option merge", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/llm/request.ts#L80-L92" }
+    },
+    {
+      "id": "MR-OC-09", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Provider/model 会改变 tool schema 策略", "statement": "OpenAI Responses-family provider 在工具注册时统一强制 strict:false，以兼容不满足 structured-output 约束的 MCP 与动态 schema。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["strict:false", "@ai-sdk/openai", "MCP", "dynamic schemas"], "boundary": "这说明换 provider 不只是换模型质量；不能推断所有 provider 都采用同样 schema 策略。",
+      "source": { "label": "OpenCode tool schema compatibility", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/llm/request.ts#L148-L158" }
+    },
+    {
+      "id": "MR-OC-10", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Task subagent 由 agent model 或 parent 决定", "statement": "TaskTool schema 不接收 model；next agent 配置 model 时覆盖，否则继承 parent assistant 的 provider/model，并在继承路径带上 variant。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["next.model", "msg.info.modelID", "msg.info.providerID", "variant"], "boundary": "调用方不能通过 TaskTool 每次临时指定模型；需要预先配置 agent。",
+      "source": { "label": "OpenCode TaskTool routing", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/tool/task.ts#L174-L212" }
+    },
+    {
+      "id": "MR-OC-11", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Retry delay 尊重 header 但总次数不由 delay 限制", "statement": "delay 优先解析 retry-after-ms、retry-after 秒数或 HTTP date；无 header 时单次指数退避封顶 30 秒。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["retry-after-ms", "retry-after", "30_000", "exponential backoff"], "boundary": "单次 delay cap 不等于总 deadline；带 header 的等待可远大于 30 秒。",
+      "source": { "label": "OpenCode retry delay", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/retry.ts#L25-L75" }
+    },
+    {
+      "id": "MR-OC-12", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "所有 5xx 与宽泛错误文本可触发 retry", "statement": "retryable 强制接受 5xx，即使 SDK 未标 retryable；message 或 responseBody 命中 rate-limit、overloaded、network 等 regex 也可进入重试。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["status >= 500", "RETRYABLE_MESSAGE_PATTERNS", "responseBody"], "boundary": "文本匹配可能误判永久错误；应由外层 deadline 与结构化分类约束。",
+      "source": { "label": "OpenCode retry classification", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/retry.ts#L77-L90" }
+    },
+    {
+      "id": "MR-OC-13", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Free/Go usage limit 仍返回 retryable 状态", "statement": "FreeUsageLimitError 与 GoUsageLimitError 会返回 message/action，随后由同一 retry schedule 处理。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["FreeUsageLimitError", "GoUsageLimitError", "action", "retry-after"], "boundary": "action 可提示订阅或设置，但代码没有在此把 account limit 转 terminal。",
+      "source": { "label": "OpenCode usage-limit retry", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/retry.ts#L91-L137" }
+    },
+    {
+      "id": "MR-OC-14", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Retry schedule 没有 max attempt 分支", "statement": "SessionRetry.policy 对 retryable error 返回下一次 Duration，没有按 attempt 终止的内建条件。", "layer": "Exact-tag source", "confidence": "High",
+      "signals": ["Schedule.fromStepWithMetadata", "meta.attempt", "Duration.millis", "no max"], "boundary": "这不等于每个请求必然无限运行；取消或 non-retryable error 仍会终止。",
+      "source": { "label": "OpenCode retry schedule", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/retry.ts#L175-L197" }
+    },
+    {
+      "id": "MR-OC-15", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "整个 stream effect 在同一 input.model 上重试", "statement": "SessionProcessor 对 llm.stream(streamInput) 应用 SessionRetry.policy，并发布 attempt/message/action/next；policy 使用 input.model.providerID，没有跨模型切换。", "layer": "Exact-tag main-session source", "confidence": "High",
+      "signals": ["Effect.retry", "input.model.providerID", "session.status.retry", "attempt"], "boundary": "否定性结论只覆盖精确 main stream path；provider SDK 或插件内部行为未计入。",
+      "source": { "label": "OpenCode stream retry processor", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/processor.ts#L627-L677" }
+    },
+    {
+      "id": "MR-OC-16", "agent": "opencode", "type": "fact", "grade": "PINNED-CODE", "version": "1.18.15",
+      "title": "Main retry path 不执行跨模型切换", "statement": "精确 main stream processor 在 retry schedule 中继续复用 streamInput 与 input.model.providerID，没有修改 providerID/modelID 的分支。", "layer": "Exact-tag main-session source", "confidence": "High",
+      "signals": ["streamInput", "input.model.providerID", "Effect.retry"], "boundary": "结论只覆盖审计的 main session processor；provider SDK、插件和其他调用面可能有独立行为。",
+      "source": { "label": "OpenCode main retry path", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/processor.ts#L627-L677" }
+    },
+    {
+      "id": "MR-INF-01", "agent": "codex", "type": "inference", "grade": "INFERENCE", "version": "0.147.0",
+      "title": "Codex stream retry 可能重放工具副作用", "statement": "sampling stream 在 retryable failure 后重建 live history 并重试请求，因此若断点跨过已提交工具效果，存在重复执行或重复投影风险。", "layer": "Exact-code control-flow inference", "confidence": "Medium",
+      "signals": ["sampling retry loop", "live history", "pending executed tool calls"], "boundary": "尚未用 tool-call 后断流故障注入证明；不能写成已发生事故或 exactly-once 缺失的绝对结论。",
+      "dependsOn": ["MR-CX-15", "MR-CX-16"], "unknowns": ["MR-KU-08"], "disproof": "在 tool effect 提交后、response.completed 前断流；若所有重试只关联原 call 且 effect count 始终为 1，则该风险在该路径被推翻。",
+      "source": { "label": "Codex sampling retry loop", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/core/src/session/turn.rs#L1308-L1410" }
+    },
+    {
+      "id": "MR-INF-02", "agent": "opencode", "type": "inference", "grade": "INFERENCE", "version": "1.18.15",
+      "title": "OpenCode stream retry 可能重复 partial state", "statement": "processor 在 stream 期间持续处理 text/tool events，再对整个 effect retry，因此断流跨过 partial tool/text 后可能产生重复投影或副作用。", "layer": "Exact-code control-flow inference", "confidence": "Medium",
+      "signals": ["Stream.tap(handleEvent)", "Effect.retry", "tool/text parts", "cleanup"], "boundary": "尚未做 tool-call delta 后断流实验；不能写成已证实的重复执行事故。",
+      "dependsOn": ["MR-OC-14", "MR-OC-15"], "unknowns": ["MR-KU-14"], "disproof": "在 text/tool part 持久化后断流；若 retry 通过稳定 part/call ID 去重且 transcript 与 effect count 无重复，则该风险在该路径被推翻。",
+      "source": { "label": "OpenCode stream processor", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/processor.ts#L627-L677" }
+    },
+    {
+      "id": "MR-INF-03", "agent": "cross-agent", "type": "inference", "grade": "INFERENCE", "version": "snapshots",
+      "title": "异构 fallback 可能改变 capability contract", "statement": "模型 metadata、reasoning、tool schema 与 context 能力均随目标模型变化，因此异构 fallback 若不重新协商，可能继续使用 primary 的错误合同。", "layer": "Cross-product inference from pinned capabilities", "confidence": "Medium",
+      "signals": ["model changed", "capability hash changed", "tool/schema diff", "context limit diff"], "boundary": "这是由三家能力表推导的 harness 风险，不是三款产品都已观测到的事故。",
+      "dependsOn": ["MR-CC-03", "MR-CC-04", "MR-CX-03", "MR-CX-07", "MR-OC-01", "MR-OC-09"], "unknowns": ["MR-KU-03", "MR-KU-17"], "disproof": "用 capability 不同的 primary/fallback 执行同一 tools 与 structured-output 请求；若每 hop 都重新协商且不兼容时 fail-fast，则该风险在该路径被推翻。",
+      "source": { "label": "Codex model capability contract", "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/protocol/src/openai_models.rs#L370-L458" }
+    },
+    {
+      "id": "MR-INF-04", "agent": "opencode", "type": "inference", "grade": "INFERENCE", "version": "1.18.15",
+      "title": "正文 regex 可能把永久错误误判为 transient", "statement": "OpenCode 在结构化 retryable 信号之外匹配 message/responseBody；永久 4xx 若含 overloaded、timeout 等词，可能进入 retry schedule。", "layer": "Exact-code classifier inference", "confidence": "Medium",
+      "signals": ["status=400", "isRetryable=false", "body keyword", "session.status.retry"], "boundary": "源码证明 matcher 存在，但实际 provider body 的误判频率尚未测量。",
+      "dependsOn": ["MR-OC-12", "MR-OC-14"], "unknowns": ["MR-KU-19"], "disproof": "构造包含 retry 关键词的永久 400；若分类器仍 terminal 或仅在有界低置信通道重试，则该风险在该路径被推翻。",
+      "source": { "label": "OpenCode retry text classifier", "url": "https://github.com/anomalyco/opencode/blob/d7b115f623760e68a4749d16508a9eca350f246f/packages/opencode/src/session/retry.ts#L77-L90" }
+    },
+    {
+      "id": "MR-INF-05", "agent": "cross-agent", "type": "inference", "grade": "INFERENCE", "version": "snapshots",
+      "title": "只按 final model 汇总可能漏记请求成本", "statement": "一次用户 turn 可包含 retry、fallback、subagent 与 auxiliary 请求；若只按最终 assistant model 汇总，失败 attempts 与其他 query_source 的 usage 可能被漏记或错归。", "layer": "Cross-product accounting inference", "confidence": "Medium",
+      "signals": ["attempt ledger", "query_source", "per-model usage", "invoice delta"], "boundary": "各 provider 是否对失败 attempt 计费取决于 usage 返回时点；不能直接把差额当成客户端漏记。",
+      "dependsOn": ["MR-CC-10", "MR-CC-11", "MR-CX-09", "MR-OC-07"], "unknowns": ["MR-KU-04", "MR-KU-18"], "disproof": "运行 primary、retry、fallback、subagent 与 auxiliary 组合并逐 request 对账；若 final 汇总与 attempt ledger、invoice 始终一致，则该风险在该路径被推翻。",
+      "source": { "label": "Claude current cost observability", "url": "https://code.claude.com/docs/en/headless" }
+    }
+  ]
+}
