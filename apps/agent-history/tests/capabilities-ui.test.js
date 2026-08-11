@@ -15,14 +15,20 @@ const computerUseLabStyles = read("computer-use-lab.css");
 const computerUseLabScript = read("computer-use-lab.js");
 const computerUseLabCoreSource = read("computer-use-lab-core.js");
 const computerUseLabCore = require("../public/computer-use-lab-core.js");
+const goalModeLabStyles = read("goal-mode-lab.css");
+const goalModeLabScript = read("goal-mode-lab.js");
+const goalModeLabCoreSource = read("goal-mode-lab-core.js");
+const goalModeLabCore = require("../public/goal-mode-lab-core.js");
 const deAiSkill = fs.readFileSync(path.resolve(__dirname, "../../../.codex/skills/de-ai-ify/SKILL.md"), "utf8");
 const articles = {
   "browser-use": read("capabilities/browser-use.html"),
   "computer-use": read("capabilities/computer-use.html"),
+  "goal-mode": read("capabilities/goal-mode.html"),
 };
 const studies = {
   "browser-use": JSON.parse(read("capabilities/browser-use.json")),
   "computer-use": JSON.parse(read("capabilities/computer-use.json")),
+  "goal-mode": JSON.parse(read("capabilities/goal-mode.json")),
 };
 
 function navFragment(html) {
@@ -128,7 +134,7 @@ function assertEvidence(study, prefix) {
   }
 }
 
-test("the index, mechanism archive, library, and both articles expose four top-level sections", () => {
+test("the index, mechanism archive, library, and all three articles expose four top-level sections", () => {
   const labels = ["更新情报", "版本比较", "机制档案", "能力拆解"];
   const pages = [
     ["index", indexHtml],
@@ -153,25 +159,26 @@ test("the index, mechanism archive, library, and both articles expose four top-l
   }
 });
 
-test("the capability landing page is an ordered two-article library, not the old workbench", () => {
+test("the capability landing page is an ordered three-article library, not the old workbench", () => {
   assert.ok(elements(capabilitiesHtml, "main").some((element) => hasClass(element, "capability-library")));
   assert.ok(elements(capabilitiesHtml, "header").some((element) => hasClass(element, "library-intro")));
   assert.ok(elements(capabilitiesHtml, "ol").some((element) => hasClass(element, "article-list")));
 
   const entries = elements(capabilitiesHtml, "li").filter((element) => hasClass(element, "article-entry"));
   const links = elements(capabilitiesHtml, "a").filter((element) => hasClass(element, "article-link"));
-  assert.equal(entries.length, 2);
+  assert.equal(entries.length, 3);
   assert.deepEqual(links.map((link) => link.attributes.href), [
     "/capabilities/browser-use.html",
     "/capabilities/computer-use.html",
+    "/capabilities/goal-mode.html",
   ]);
   assert.equal(new Set(links.map((link) => link.attributes.href)).size, links.length);
-  assert.equal(elements(capabilitiesHtml, "dl").filter((element) => hasClass(element, "article-meta")).length, 2);
+  assert.equal(elements(capabilitiesHtml, "dl").filter((element) => hasClass(element, "article-meta")).length, 3);
   assert.deepEqual(
     elements(capabilitiesHtml, "span")
       .filter((element) => hasClass(element, "article-status"))
       .map((element) => element.attributes["data-status"]),
-    ["active", "maintained"],
+    ["active", "maintained", "active"],
   );
 
   assert.match(capabilitiesHtml, /href="\/capabilities-index\.css"/);
@@ -179,7 +186,7 @@ test("the capability landing page is an ordered two-article library, not the old
   assert.doesNotMatch(capabilitiesHtml, /capabilities-(?:core\.)?js|capabilities\.js|capabilities\.css/);
 });
 
-test("both capability pages are long semantic articles with complete sticky-table-of-contents targets", () => {
+test("all three capability pages are long semantic articles with complete sticky-table-of-contents targets", () => {
   for (const [id, html] of Object.entries(articles)) {
     const body = elements(html, "body")[0];
     assert.equal(body.attributes["data-evidence-source"], `/capabilities/${id}.json`);
@@ -289,6 +296,46 @@ test("Browser Use headings form the same kind of implementation map", () => {
   ]);
 });
 
+test("Goal Mode headings keep the Codex and Claude Code comparison on one control-loop map", () => {
+  const html = articles["goal-mode"];
+  const toc = html.match(/<aside\b[^>]*id="articleToc"[^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
+  const tocTitles = [...toc.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => plainText(match[1]));
+  const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
+    .map((match) => plainText(match[1]));
+
+  assert.match(html, /<span class="article-series">对比拆解 · 能力档案 003<\/span>/);
+  assert.match(html, /<h1>Goal Mode<\/h1>/);
+  assert.deepEqual(articleSectionIds(html), [
+    "overall-model",
+    "product-entry",
+    "state-location",
+    "codex-stack",
+    "codex-continuation",
+    "lifecycle-budget",
+    "claude-stop-hook",
+    "evaluator-vision",
+    "resume-semantics",
+    "control-loop-lab",
+    "completion-authority",
+    "conclusion-boundary",
+  ]);
+  assert.deepEqual(tocTitles, sectionTitles, "Goal Mode TOC and section headings should use the same comparison labels");
+  assert.deepEqual(sectionTitles.map((title) => title.split("：")[0]), [
+    "整体模型",
+    "产品入口",
+    "目标状态",
+    "Codex 控制面",
+    "Codex 续跑",
+    "状态与预算",
+    "Claude 出口闸",
+    "评估视野",
+    "恢复语义",
+    "控制回路实验",
+    "完成权限",
+    "结论与边界",
+  ]);
+});
+
 test("capability pages do not expose internal editorial backlog or maintenance notes", () => {
   const readerFacingCopy = [capabilitiesHtml, ...Object.values(articles)].join("\n");
   assert.doesNotMatch(
@@ -353,6 +400,42 @@ test("Browser Use uses the new compact evidence-only schema", () => {
   assert.doesNotMatch(JSON.stringify(Object.keys(study)), /architecture|loop|guardrails|failures|artifacts|defaultView|defaultItem/);
   assertEvidence(study, "BU");
   assertUnknowns(study, "BU");
+});
+
+test("Goal Mode uses the compact evidence-only schema with pinned Codex and Claude sources", () => {
+  const study = studies["goal-mode"];
+  assert.deepEqual(Object.keys(study).sort(), [
+    "boundary",
+    "description",
+    "evidence",
+    "id",
+    "number",
+    "product",
+    "scope",
+    "status",
+    "subtitle",
+    "title",
+    "unknowns",
+    "verifiedAt",
+  ]);
+  assert.equal(study.id, "goal-mode");
+  assert.equal(study.number, "003");
+  for (const field of ["title", "product", "subtitle", "description", "status", "boundary"]) {
+    assert.ok(typeof study[field] === "string" && study[field].trim(), `goal-mode lacks ${field}`);
+  }
+  assert.match(study.verifiedAt, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(Array.isArray(study.scope) && study.scope.length >= 5);
+  assert.doesNotMatch(JSON.stringify(Object.keys(study)), /architecture|loop|guardrails|failures|artifacts|defaultView|defaultItem/);
+  assertEvidence(study, "GM");
+  assertUnknowns(study, "GM");
+
+  for (const claim of study.evidence) {
+    assert.ok(claim.source && typeof claim.source === "object", `${claim.id} lacks a public source`);
+    assert.ok(typeof claim.source.label === "string" && claim.source.label.trim(), `${claim.id} lacks a source label`);
+    assert.match(claim.source.url, /^https:\/\//, `${claim.id} source must use HTTPS`);
+    const sourceUrl = new URL(claim.source.url);
+    assert.ok(["github.com", "code.claude.com"].includes(sourceUrl.hostname), `${claim.id} uses an unexpected source host`);
+  }
 });
 
 test("Computer Use retains its existing research schema without driving a five-view UI", () => {
@@ -465,7 +548,113 @@ test("Computer Use trace renders safely, supports keyboard traversal, and deep-l
   assert.doesNotMatch(computerUseLabStyles, /font-size:\s*clamp\([^;]*(?:vw|vmin|vmax)/);
 });
 
-test("Computer Use copy is covered by the project de-ai-ify writing contract", () => {
+test("Goal Mode embeds an accessible two-lane control-loop lab", () => {
+  const html = articles["goal-mode"];
+  const lab = elements(html, "div").find((element) => Object.hasOwn(element.attributes, "data-goal-mode-lab"));
+  const selector = elements(html, "select").find((element) => Object.hasOwn(element.attributes, "data-goal-case-select"));
+  const summary = elements(html, "p").find((element) => Object.hasOwn(element.attributes, "data-goal-case-summary"));
+  const tabs = elements(html, "div").find((element) => Object.hasOwn(element.attributes, "data-goal-stage-tabs"));
+  const lanes = elements(html, "div").find((element) => Object.hasOwn(element.attributes, "data-goal-lanes"));
+  const loading = elements(html, "p").find((element) => Object.hasOwn(element.attributes, "data-goal-loading"));
+
+  assert.ok(lab, "goal-mode lacks the control-loop lab");
+  assert.equal(lab.attributes["aria-busy"], "true");
+  assert.ok(selector?.attributes["aria-label"]);
+  assert.ok(summary, "goal-mode lab lacks scenario context");
+  assert.equal(tabs?.attributes.role, "tablist");
+  assert.ok(tabs?.attributes["aria-label"]);
+  assert.equal(lanes?.attributes.role, "tabpanel");
+  assert.equal(lanes?.attributes["aria-live"], "polite");
+  assert.equal(loading?.attributes.role, "status");
+  assert.match(html, /href="\/goal-mode-lab\.css"/);
+  assert.match(html, /src="\/goal-mode-lab-core\.js"[\s\S]*src="\/goal-mode-lab\.js"[\s\S]*src="\/capability-article\.js"/);
+});
+
+test("Goal Mode lab models four scenarios through four evidence-backed Codex and Claude stages", () => {
+  const study = studies["goal-mode"];
+  const evidenceIds = new Set(study.evidence.map((claim) => claim.id));
+  assert.deepEqual(goalModeLabCore.stages.map((stage) => stage.id), ["set", "turn-end", "boundary", "next"]);
+  assert.equal(goalModeLabCore.scenarios.length, 4);
+  assert.deepEqual(goalModeLabCore.scenarios.map((scenario) => scenario.id), [
+    "evidence-missing",
+    "same-blocker",
+    "budget-edge",
+    "resume",
+  ]);
+
+  for (const source of goalModeLabCore.scenarios) {
+    const scenario = goalModeLabCore.resolveScenario(study, source.id);
+    assert.ok(scenario.title && scenario.label && scenario.summary, `${scenario.id} lacks reader-facing context`);
+    assert.equal(scenario.stages.length, 4, `${scenario.id} must cover the whole turn boundary`);
+    for (const [index, stage] of scenario.stages.entries()) {
+      assert.deepEqual(Object.keys(stage).sort(), ["claude", "codex"], `${scenario.id}/${index} must retain two lanes`);
+      for (const product of ["codex", "claude"]) {
+        const lane = stage[product];
+        for (const field of ["status", "title", "known", "consequence", "boundary"]) {
+          assert.ok(typeof lane[field] === "string" && lane[field].trim(), `${scenario.id}/${index}/${product} lacks ${field}`);
+        }
+        assert.ok(Array.isArray(lane.evidence) && lane.evidence.length > 0, `${scenario.id}/${index}/${product} lacks evidence`);
+        for (const claim of lane.evidence) {
+          assert.ok(evidenceIds.has(claim), `${scenario.id}/${index}/${product} links unknown ${claim}`);
+        }
+      }
+    }
+  }
+  assert.throws(() => goalModeLabCore.resolveScenario(studies["browser-use"], "resume"), /不是 Goal Mode/);
+});
+
+test("Goal Mode lab clamps deep links and preserves the selected comparison state", () => {
+  assert.deepEqual(
+    goalModeLabCore.resolveSelection("https://agentlab.local/?goalCase=resume&goalStep=99"),
+    { scenarioId: "resume", step: 3 },
+  );
+  assert.deepEqual(
+    goalModeLabCore.resolveSelection("https://agentlab.local/?goalCase=same-blocker&goalStep=-7"),
+    { scenarioId: "same-blocker", step: 0 },
+  );
+  assert.deepEqual(
+    goalModeLabCore.resolveSelection("https://agentlab.local/?goalCase=missing&goalStep=2"),
+    { scenarioId: "evidence-missing", step: 2 },
+  );
+  assert.deepEqual(
+    goalModeLabCore.resolveSelection("https://agentlab.local/", "budget-edge", 1),
+    { scenarioId: "budget-edge", step: 1 },
+  );
+  assert.equal(goalModeLabCore.clampStep("not-a-step"), 0);
+});
+
+test("Goal Mode lab renders with safe DOM APIs, keyboard traversal, URL state, and explicit failures", () => {
+  assert.doesNotMatch(goalModeLabScript, /\.innerHTML\s*=|\.outerHTML\s*=|insertAdjacentHTML\s*\(|document\.write\s*\(/);
+  assert.match(goalModeLabScript, /\.textContent\s*=/);
+  assert.match(goalModeLabScript, /\.replaceChildren\s*\(/);
+  assert.match(goalModeLabScript, /agentlab:study-loaded/);
+  assert.match(goalModeLabScript, /agentlab:study-error/);
+  assert.match(goalModeLabScript, /searchParams\.set\("goalCase"/);
+  assert.match(goalModeLabScript, /searchParams\.set\("goalStep"/);
+  for (const key of ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"]) {
+    assert.match(goalModeLabScript, new RegExp(`event\\.key === "${key}"`), `goal-mode lab ignores ${key}`);
+  }
+  assert.match(goalModeLabScript, /setAttribute\("role", "tab"\)/);
+  assert.match(goalModeLabScript, /setAttribute\("aria-selected"/);
+  assert.match(goalModeLabScript, /setAttribute\("aria-controls"/);
+  assert.match(goalModeLabScript, /setAttribute\("aria-labelledby"/);
+  assert.match(goalModeLabScript, /setAttribute\("aria-busy", "false"\)/);
+  assert.match(goalModeLabScript, /dataset\.evidence/);
+  assert.match(goalModeLabScript, /data-evidence-trigger/);
+  assert.match(goalModeLabScript, /study\?\.id !== "goal-mode"\) throw new Error/);
+  assert.match(goalModeLabScript, /dataset\.state = "error"/);
+  assert.match(goalModeLabScript, /刷新页面后再试/);
+
+  assert.match(goalModeLabStyles, /\.goal-mode-lanes\s*\{/);
+  assert.match(goalModeLabStyles, /grid-template-columns:\s*repeat\(2,/);
+  assert.match(goalModeLabStyles, /@media\s*\(max-width:\s*720px\)/);
+  assert.match(goalModeLabStyles, /overflow-wrap:\s*anywhere/);
+  assert.match(goalModeLabStyles, /\[aria-busy="true"\]/);
+  assert.match(goalModeLabStyles, /\[data-state="error"\]/);
+  assert.doesNotMatch(goalModeLabStyles, /font-size:\s*clamp\([^;]*(?:vw|vmin|vmax)/);
+});
+
+test("Computer Use and Goal Mode copy are covered by the project de-ai-ify writing contract", () => {
   assert.match(deAiSkill, /^name: de-ai-ify$/m);
   assert.match(deAiSkill, /不要编/);
   assert.match(deAiSkill, /HTML[\s\S]*JavaScript[\s\S]*JSON/);
@@ -477,6 +666,10 @@ test("Computer Use copy is covered by the project de-ai-ify writing contract", (
     JSON.stringify(studies["computer-use"]),
     computerUseLabCoreSource,
     computerUseLabScript,
+    articles["goal-mode"],
+    JSON.stringify(studies["goal-mode"]),
+    goalModeLabCoreSource,
+    goalModeLabScript,
     articleScript,
   ].join("\n");
 
@@ -527,6 +720,11 @@ test("shared article JavaScript handles safe rendering, deep links, keyboard use
   assert.match(articleScript, /setAttribute\(["']role["'],\s*["']alert["']\)/);
   assert.match(articleScript, /刷新页面后再试/);
   assert.doesNotMatch(articleScript, /missing evidence array/);
+  assert.match(articleScript, /claim\.source\?\.url/);
+  assert.match(articleScript, /\["https:", "http:"\]\.includes\(sourceUrl\.protocol\)/);
+  assert.match(articleScript, /"article-evidence-source"/);
+  assert.match(articleScript, /source\.target = "_blank"/);
+  assert.match(articleScript, /source\.rel = "noopener noreferrer"/);
   assert.match(articleScript, /setAttribute\(["']aria-modal["'],\s*["']true["']\)/);
   assert.match(articleScript, /aria-hidden/);
   assert.match(articleScript, /\.inert\s*=/);

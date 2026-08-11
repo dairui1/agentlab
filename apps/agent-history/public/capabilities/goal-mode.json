@@ -1,0 +1,287 @@
+{
+  "id": "goal-mode",
+  "number": "003",
+  "title": "Goal Mode",
+  "product": "Codex 0.147.0 · Claude Code 2.1.170",
+  "subtitle": "同一句 /goal，背后是两套完全不同的续跑控制",
+  "description": "这份能力拆解不比较谁能连续跑更久，而是追问更具体的四件事：目标存在哪里，一轮结束后谁发起下一轮，卡住时谁能停，最后谁有资格说完成。Codex 把 goal 做成 thread 上的持久状态，由 runtime 负责计量和续跑，再让 worker 用受限工具申报 complete 或 blocked；Claude Code 把 goal 放在每轮出口，由 session-scoped Stop hook 调用独立 evaluator，根据对话里出现的证据决定放行还是继续。两种设计都能跨 turn，却把控制权、恢复语义和误判风险放在不同位置。",
+  "verifiedAt": "2026-08-11",
+  "status": "active",
+  "scope": [
+    {
+      "label": "Codex source",
+      "value": "rust-v0.147.0 · be6e8eac029b",
+      "note": "OpenAI codex 仓库固定提交；Goal extension 为可读 Rust 源码"
+    },
+    {
+      "label": "Codex release",
+      "value": "CLI 0.147.0-alpha.1.2 · app build 6234",
+      "note": "本机 /Applications/Codex.app；二进制 SHA256 9f6748b4ab10ffc92c28b9ccedae89e61a302bbc011df7d276ee38f55906e481"
+    },
+    {
+      "label": "Claude Code",
+      "value": "2.1.170 · macOS arm64",
+      "note": "本机已发布二进制；SHA256 e903646d8b7a31882a80ecd27569a27d8ac57b3708745f349709632c84117fdf"
+    },
+    {
+      "label": "Claude evidence",
+      "value": "官方 /goal 文档 + 发布包字符串",
+      "note": "没有把闭源二进制写成源码；实现细节只说到文档与静态产物共同支持的位置"
+    },
+    {
+      "label": "Comparison date",
+      "value": "2026-08-11",
+      "note": "产品版本与在线文档均在同日复核"
+    },
+    {
+      "label": "Question",
+      "value": "store · continue · stop · complete",
+      "note": "比较控制权的位置，不给两款产品做功能总分"
+    }
+  ],
+  "boundary": "Codex 一侧锁定 OpenAI 仓库 rust-v0.147.0 标签对应的提交 be6e8eac029b183056b7e4402879f15d2c85f61b，并用本机 0.147.0-alpha.1.2 CLI 与 build 6234 安装包核对发行身份。Claude Code 一侧锁定本机 2.1.170 发布二进制，并对照 Anthropic 在线 /goal 文档；二进制 SHA-256 只能固定本地发布物，不能固定会继续更新的网页。observation 表示源码、产品文档或发布包里可以直接读到的合同；inference 表示把这些合同组合后得到的架构判断。文章不声称拥有 Claude Code 的完整源码，不把 Codex 的提示词约束当成独立验证器，也不把自动续轮等同于绕过权限、离线后台执行或无限资源。",
+  "unknowns": [
+    {
+      "id": "GM-KU-01",
+      "title": "真实完成率差多少",
+      "text": "源码和产品合同能说明控制权放在哪里，不能直接回答哪套设计在真实长任务里更少误判。",
+      "needed": "同任务、同工具权限、同模型预算下的公开成功率与误判率评测。"
+    },
+    {
+      "id": "GM-KU-02",
+      "title": "Claude evaluator 的完整上下文裁剪",
+      "text": "官方文档确认 evaluator 只看对话且没有工具，但 2.1.170 如何裁剪很长 transcript，公开材料没有给出完整算法。",
+      "needed": "可读实现、运行 trace，或官方对 transcript 截断与摘要策略的精确说明。"
+    },
+    {
+      "id": "GM-KU-03",
+      "title": "崩溃边缘的最后一笔计量",
+      "text": "Codex 会持续持久化 goal 使用量，但进程突然退出时，最后一小段 wall time 与 token 是否完整落盘仍需动态验证。",
+      "needed": "在工具完成、turn 结束和进程被杀等边界上的故障注入 trace。"
+    },
+    {
+      "id": "GM-KU-04",
+      "title": "长时间运行的外部上限",
+      "text": "两套 goal loop 都仍受会话、供应商、权限、机器在线状态和组织策略约束，固定源码与本地二进制无法枚举所有部署上限。",
+      "needed": "按产品表面、账号计划和托管环境区分的运行时限制文档与实测。"
+    },
+    {
+      "id": "GM-KU-05",
+      "title": "Codex 完成申报的误差",
+      "text": "Codex continuation prompt 要求逐项审计，但 runtime 仍接收 worker 的 complete 调用；提示词约束在不同模型和任务上的可靠性未知。",
+      "needed": "针对虚假完成、遗漏验收项和错误测试覆盖的对抗评测。"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "GM-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Codex Goal 已进入稳定默认能力",
+      "statement": "rust-v0.147.0 的 feature registry 把 Goals 标成 Stable 且默认开启；相邻的 TokenBudget feature 仍标成 UnderDevelopment 且默认关闭。",
+      "artifact": "codex-0.147.0/codex-rs/features/src/lib.rs",
+      "locator": "FeatureSpec entries for Feature::Goals and Feature::TokenBudget, lines 1352-1363",
+      "sha256": "8437206e83806c546f9c8cf7002384c8d9be1740c1f4c78f44ef9417d7e61344",
+      "boundary": "feature registry 说明这份源码的默认配置，不证明每个组织策略、旧客户端或定制构建都把入口展示出来。",
+      "source": {
+        "label": "OpenAI Codex source · features",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/features/src/lib.rs"
+      }
+    },
+    {
+      "id": "GM-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Goal 是 thread 上的持久结构",
+      "statement": "公开 protocol 定义一个 ThreadGoal：绑定 thread_id，保存 objective、status、可选 token_budget、tokens_used、time_used_seconds 与时间戳；状态共有 active、paused、blocked、usageLimited、budgetLimited、complete 六种，目标正文上限 4,000 字符。",
+      "artifact": "codex-0.147.0/codex-rs/protocol/src/protocol.rs",
+      "locator": "ThreadGoalStatus, MAX_THREAD_GOAL_OBJECTIVE_CHARS, ThreadGoal, lines 4070-4110",
+      "sha256": "6de87633a0a2aa55377d073917e18cda5834fa0841be6bae2c0846d8e7739cec",
+      "boundary": "protocol 字段不是完整项目管理数据库；里面没有 first-class 里程碑、验收项列表或 blocker 日志。",
+      "source": {
+        "label": "OpenAI Codex source · protocol",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/protocol/src/protocol.rs"
+      }
+    },
+    {
+      "id": "GM-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "用户控制 goal 的生命周期",
+      "statement": "TUI 动作会拒绝临时 session，并为已保存 task 提供查看、创建、替换确认、编辑、暂停、恢复与清除流程；paused、blocked 和 usage-limited 都可以由用户选择恢复。",
+      "artifact": "codex-0.147.0/codex-rs/tui/src/app/thread_goal_actions.rs",
+      "locator": "temporary-session guard; resume_existing_goal; set/edit/pause/resume/clear actions, lines 17-233",
+      "sha256": "d5fa562351576a48c88ba52faab18466aa138d5e5c2646feba8ca4d6f0912614",
+      "boundary": "这是 TUI 与状态 API 的控制面，不意味着目标在 App 或机器退出后仍会离线执行。",
+      "source": {
+        "label": "OpenAI Codex source · TUI goal actions",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/tui/src/app/thread_goal_actions.rs"
+      }
+    },
+    {
+      "id": "GM-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Worker 只拿到窄化的状态工具",
+      "statement": "Codex 给模型 get_goal、create_goal、update_goal 三个工具；update_goal 只接受 complete 或 blocked，并明确把 pause、resume、budget-limit 与 usage-limit 留给用户或系统。blocked 还要求同一阻塞连续出现至少三个 goal turn。",
+      "artifact": "codex-0.147.0/codex-rs/ext/goal/src/spec.rs",
+      "locator": "GET_GOAL_TOOL_NAME through create_update_goal_tool, lines 8-105",
+      "sha256": "fdfc7aa6eeb6ce62f904e5e76246f7d7debf3ce93fbce75eaa9eba9dff6b4990",
+      "boundary": "工具描述能约束模型行为，handler 也限制可提交状态；它不构成一个独立于 worker 的完成判定模型。",
+      "source": {
+        "label": "OpenAI Codex source · goal tool specs",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/ext/goal/src/spec.rs"
+      }
+    },
+    {
+      "id": "GM-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Codex 在 idle 边界发起新 turn",
+      "statement": "Goal runtime 读取当前 thread 的持久 goal；只有状态仍为 active 时，才把 continuation steering item 作为内部输入交给 try_start_turn_if_idle。读状态与启动之间还持有 goal-state permit，避免外部修改和续跑竞态。",
+      "artifact": "codex-0.147.0/codex-rs/ext/goal/src/runtime.rs",
+      "locator": "continue_if_idle, lines 360-430",
+      "sha256": "a6a7feab033134baebe911863374d499fad7e0e75b32a158e3f7a2a631684036",
+      "boundary": "idle scheduler 是进程内续轮机制；不证明关机、退出 App 或网络断开后还能在后台推进。",
+      "source": {
+        "label": "OpenAI Codex source · goal runtime",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/ext/goal/src/runtime.rs"
+      }
+    },
+    {
+      "id": "GM-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "隐藏接力保留完整目标并要求自证",
+      "statement": "continuation 模板把 objective、预算与剩余量重新送入后续 turn，要求以当前 worktree 和外部状态为准、逐项检查目标中的验收条件，并在证据不足时继续工作而不是缩小成功定义。",
+      "artifact": "codex-0.147.0/codex-rs/ext/goal/templates/goals/continuation.md",
+      "locator": "Continuation behavior; Work from evidence; Completion audit; Blocked audit",
+      "sha256": "bcb77b27cac86d4973c34b075a1b32ed4c16e825771a16b7a86117b00c05e817",
+      "boundary": "这是给 worker 的强约束提示，不证明每次审计都正确，也不能替代实际测试、文件状态或外部系统证据。",
+      "source": {
+        "label": "OpenAI Codex source · continuation prompt",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/ext/goal/templates/goals/continuation.md"
+      }
+    },
+    {
+      "id": "GM-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "预算是 runtime 状态，不是一句提醒",
+      "statement": "Goal accounting 会串行记录 turn 与工具结束时的进展，并按非缓存 input 加 output 计算 goal token；触线后状态转为 budget-limited，当前 turn 收到收尾 steering，后续不再开启新的 substantive work。",
+      "artifact": "codex-0.147.0/codex-rs/ext/goal/src/accounting.rs",
+      "locator": "GoalProgressAccounting and budget-limited handling, lines 130-300; token accounting helpers, lines 404-446",
+      "sha256": "7f7397466e10774f9e5528953caa7edfead1351a3757e2079199a79223e9d9a0",
+      "boundary": "检查发生在进展边界而非每个 token 上，因而可能超过设定值；time_used_seconds 是计量字段，不是同等的时间预算。",
+      "source": {
+        "label": "OpenAI Codex source · goal accounting",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/ext/goal/src/accounting.rs"
+      }
+    },
+    {
+      "id": "GM-08",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "Codex 把 goal 放进控制面",
+      "statement": "把 thread 数据结构、状态工具、idle scheduler 与 accounting 放在一起看，Codex 的 goal 不只是反复提醒模型的 prompt，而是会影响下一轮能否启动、使用量如何累计、哪些 actor 能改状态的 runtime 对象。",
+      "artifact": "codex-0.147.0/codex-rs/ext/goal/src/runtime.rs",
+      "locator": "runtime lifecycle as a whole; read persisted status before scheduling and accounting",
+      "sha256": "a6a7feab033134baebe911863374d499fad7e0e75b32a158e3f7a2a631684036",
+      "boundary": "这是对多个源码合同的架构归纳，不证明控制面能防止 worker 做错事，也不等于独立验证器。",
+      "source": {
+        "label": "OpenAI Codex source · goal runtime",
+        "url": "https://github.com/openai/codex/blob/be6e8eac029b183056b7e4402879f15d2c85f61b/codex-rs/ext/goal/src/runtime.rs"
+      }
+    },
+    {
+      "id": "GM-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Claude /goal 是 session 的 Stop hook 包装",
+      "statement": "Anthropic 文档把 /goal 明确定义为 session-scoped、prompt-based Stop hook 的包装：一轮结束后，小型快速模型检查 condition；回答 no 就带着理由再开一轮，回答 yes 就清除 goal。2.1.170 发布包保留 goal、Stop、goal_status 与 restore 相关字符串簇。",
+      "artifact": "claude-code-2.1.170/bin/claude",
+      "locator": "published binary string cluster: goal, Stop, goal_status, findGoalToRestore; official docs: Compare ways and How evaluation works",
+      "sha256": "e903646d8b7a31882a80ecd27569a27d8ac57b3708745f349709632c84117fdf",
+      "boundary": "SHA-256 固定的是本地闭源发布包，不是在线文档；静态字符串与官方合同不能还原 2.1.170 的全部内部控制流。",
+      "source": {
+        "label": "Claude Code docs · Goals",
+        "url": "https://code.claude.com/docs/en/goal"
+      }
+    },
+    {
+      "id": "GM-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Claude evaluator 只看对话，没有工具",
+      "statement": "官方文档明确说 evaluator 不会独立运行命令或读取文件，只能根据 Claude 已经放进 conversation 的材料判断 condition；缺少可见证据时，一个独立裁判仍可能判错。",
+      "artifact": "claude-code-2.1.170/bin/claude",
+      "locator": "official docs: Write an effective condition and How evaluation works; binary evaluator/goal strings",
+      "sha256": "e903646d8b7a31882a80ecd27569a27d8ac57b3708745f349709632c84117fdf",
+      "boundary": "这不证明 evaluator 永远看见完整 transcript，也不能据此推断具体模型版本；第三方 provider 的默认小模型可能不同。",
+      "source": {
+        "label": "Claude Code docs · evaluator visibility",
+        "url": "https://code.claude.com/docs/en/goal#how-evaluation-works"
+      }
+    },
+    {
+      "id": "GM-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Claude 的时间与 turn 上限写进 condition",
+      "statement": "Claude /goal 状态会显示运行时长、已评估 turn、token spend 和最近理由；若要限制运行多久，官方做法是在 condition 里写“20 turns 后停止”之类的条款，再让 evaluator 从对话判断，而不是设置 first-class runtime token budget。",
+      "artifact": "claude-code-2.1.170/bin/claude",
+      "locator": "official docs: Write an effective condition and Check status; binary activeGoal/goal status strings",
+      "sha256": "e903646d8b7a31882a80ecd27569a27d8ac57b3708745f349709632c84117fdf",
+      "boundary": "发布包可能还有防循环或供应商级硬限制；这条只比较公开的 /goal 用户合同，不能声称 Claude Code 没有任何外部上限。",
+      "source": {
+        "label": "Claude Code docs · condition bounds",
+        "url": "https://code.claude.com/docs/en/goal#write-an-effective-condition"
+      }
+    },
+    {
+      "id": "GM-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Claude 从 transcript 恢复 condition，但重置计数",
+      "statement": "恢复仍处于 active 的 session 时，Claude Code 会带回 condition；turn count、timer 与 token-spend baseline 全部重置。已经 achieved 或 cleared 的 goal 不会恢复。发布包中的 findGoalToRestore 与 goal_status 字符串与这份合同一致。",
+      "artifact": "claude-code-2.1.170/bin/claude",
+      "locator": "official docs: Resume with an active goal; binary strings findGoalToRestore and goal_status",
+      "sha256": "e903646d8b7a31882a80ecd27569a27d8ac57b3708745f349709632c84117fdf",
+      "boundary": "静态产物和文档不证明 session 文件损坏、强制崩溃或跨机器恢复时的所有边界行为。",
+      "source": {
+        "label": "Claude Code docs · resume",
+        "url": "https://code.claude.com/docs/en/goal#resume-with-an-active-goal"
+      }
+    },
+    {
+      "id": "GM-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "自动续轮不会自动放大权限",
+      "statement": "Claude 文档明确说 goal 不改变权限，默认模式仍会在未获准的 tool call 前询问；/goal 还要求 trusted workspace 与 hooks 可用。Codex 的 goal 也只负责目标状态与调度，工具审批仍走原有 permission profile。",
+      "artifact": "claude-code-2.1.170/bin/claude",
+      "locator": "official docs: Set a goal and Requirements; binary trust/hooks-disabled messages",
+      "sha256": "e903646d8b7a31882a80ecd27569a27d8ac57b3708745f349709632c84117fdf",
+      "boundary": "这条说明 goal 与授权是两层合同，不证明 auto mode、组织策略或用户配置在两款产品里完全相同。",
+      "source": {
+        "label": "Claude Code docs · permissions and requirements",
+        "url": "https://code.claude.com/docs/en/goal#requirements"
+      }
+    },
+    {
+      "id": "GM-14",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "差别在完成权，不在能不能多跑一轮",
+      "statement": "两套实现都会跨 turn 继续工作，但 Claude 把“现在能不能停”交给 transcript-only evaluator，Codex 把“goal 是否仍 active”交给持久 runtime，再由同一个 worker 申报 complete。前者有角色分离却缺工作区视野，后者有工作区视野却保留自证风险。",
+      "artifact": "codex-0.147.0/codex-rs/ext/goal/src/spec.rs",
+      "locator": "update_goal authority compared with Claude Code official evaluation contract",
+      "sha256": "fdfc7aa6eeb6ce62f904e5e76246f7d7debf3ce93fbce75eaa9eba9dff6b4990",
+      "boundary": "这是控制权位置的对照推断，不等于哪款产品整体更可靠；实际结果还取决于目标写法、模型、工具、权限和验证材料。",
+      "source": {
+        "label": "Claude Code docs · separate evaluator",
+        "url": "https://code.claude.com/docs/en/goal#how-evaluation-works"
+      }
+    }
+  ]
+}

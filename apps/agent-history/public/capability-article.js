@@ -118,6 +118,21 @@
       row.append(el("dt", "", label), el("dd", "", String(value)));
       meta.append(row);
     }
+    let source = null;
+    if (claim.source?.url) {
+      try {
+        const sourceUrl = new URL(claim.source.url);
+        if (["https:", "http:"].includes(sourceUrl.protocol)) {
+          source = el("a", "article-evidence-source");
+          source.href = sourceUrl.href;
+          source.target = "_blank";
+          source.rel = "noopener noreferrer";
+          source.append(icon("external-link"), el("span", "", claim.source.label || "打开公开来源"));
+        }
+      } catch {
+        source = null;
+      }
+    }
     const boundary = el("div", "article-callout");
     boundary.append(el("strong", "", "这份证据还说不了什么"), el("p", "", claim.boundary));
     const copy = el("button", "article-evidence-copy");
@@ -132,7 +147,9 @@
         copy.querySelector("span").textContent = "没复制上，请手动选取";
       }
     });
-    evidenceContent.append(kind, statement, meta, boundary, copy);
+    evidenceContent.append(kind, statement, meta);
+    if (source) evidenceContent.append(source);
+    evidenceContent.append(boundary, copy);
 
     const pager = document.getElementById("articleEvidencePager");
     if (pager) {

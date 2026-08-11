@@ -46,6 +46,10 @@ node "$SKILL_DIR/scripts/query-feed.mjs" \
 | `limit` | 正整数，最大 200 | 最终返回条数，默认 20 |
 | `format` | `markdown` 或 `md` | 明确要求 Markdown 输出 |
 
+`priority=high` 是稀缺等级：只表示明确改变 Agent 能力边界、主控制流、安全/信任边界、
+Context 持久化与恢复语义，或通用 Tool 权限与生命周期的更新。普通 Bug 修复、性能、
+兼容性、Provider/配置/UI 与局部可靠性改进默认不高于 `medium`。
+
 `feedAgent`、`signal`、`priority` 与网站 URL 使用同一组参数。`since`、`until`、`version`、`analysisStatus`、`limit` 和 `format` 是查询脚本提供的 Agent 侧过滤器，不要假设网站首页会处理它们。
 
 示例：Codex 或 Claude Code 中涉及 Prompt 或 Tools 的高价值更新：

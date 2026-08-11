@@ -177,6 +177,33 @@ test("high-value feed honors explicit importance before score fallback", () => {
   assert.deepEqual(items.map((item) => item.importance), ["high", "high"]);
 });
 
+test("importance fallback reserves high for stronger combined evidence", () => {
+  const versions = ["1.0.0", "1.1.0", "1.2.0"].map((version, index) => ({
+    version,
+    publishedAt: `2026-07-0${index + 1}T08:00:00Z`,
+  }));
+  const entries = [
+    {
+      version: "1.1.0",
+      previousVersion: "1.0.0",
+      stats: { additions: 1, deletions: 0, changedSections: ["System Prompt"], toolsAdded: [], toolsRemoved: [], toolsModified: [] },
+    },
+    {
+      version: "1.2.0",
+      previousVersion: "1.1.0",
+      stats: { additions: 20, deletions: 5, changedSections: ["System Prompt"], toolsAdded: ["a", "b", "c", "d"], toolsRemoved: [], toolsModified: [] },
+    },
+  ];
+  const items = core.buildIntelligenceItems([{
+    agent: { id: "codex", label: "Codex" },
+    history: { versions },
+    changelog: { entries },
+  }], { limit: 20 });
+
+  assert.equal(items.find((item) => item.entry.version === "1.1.0").importance, "low");
+  assert.equal(items.find((item) => item.entry.version === "1.2.0").importance, "high");
+});
+
 test("high-value filter runs before the feed limit", () => {
   const versions = [{ version: "1.0.0", publishedAt: "2026-01-01T08:00:00Z" }];
   const entries = [];

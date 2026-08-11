@@ -807,6 +807,27 @@
   height: 13px;
 }
 
+.article-evidence-source {
+  width: fit-content;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--article-signal);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.article-evidence-source:hover {
+  text-decoration: underline;
+}
+
+.article-evidence-source svg {
+  width: 13px;
+  height: 13px;
+}
+
 .article-evidence-pager {
   display: inline-flex;
   flex: 0 0 auto;

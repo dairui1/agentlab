@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="对比拆解 Codex Goal Mode 与 Claude Code /goal：目标如何保存、每轮如何续跑、谁判断完成，以及两套控制回路各自会在哪里失手。">
+  <title>Goal Mode：谁有权说“做完了”？Codex 与 Claude Code 的两种答案 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/capability-article.css">
+  <link rel="stylesheet" href="/goal-mode-lab.css">
+</head>
+<body class="article-page goal-mode-page" data-evidence-source="/capabilities/goal-mode.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>能力拆解</span></span>
+      </a>
+      <div class="segmented mode-switch" role="group" aria-label="页面视图">
+        <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
+        <a href="/?mode=compare"><i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span></a>
+        <a href="/mechanisms.html"><i data-lucide="network" aria-hidden="true"></i><span>机制档案</span></a>
+        <a href="/capabilities.html" aria-current="page"><i data-lucide="scan-search" aria-hidden="true"></i><span>能力拆解</span></a>
+      </div>
+      <div class="header-links">
+        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
+      </div>
+    </header>
+
+    <main>
+      <header class="article-hero">
+        <div class="article-hero-inner">
+          <div>
+            <nav class="article-breadcrumb" aria-label="面包屑">
+              <a href="/capabilities.html">能力拆解</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Goal Mode</span>
+            </nav>
+            <span class="article-series">对比拆解 · 能力档案 003</span>
+            <h1>Goal Mode</h1>
+            <p class="article-dek">模型说“做完了”，和系统允许它停下来，是两回事。Codex 与 Claude Code 都有 <code>/goal</code>，却把目标、续跑和完成权放在了不同地方。</p>
+            <div class="article-byline">
+              <span>Codex 0.147.0 · Claude Code 2.1.170</span>
+              <span>2026-08-11 核验</span>
+              <span>源码、发布包与产品合同对照</span>
+            </div>
+          </div>
+          <div class="article-product-mark" aria-hidden="true"><img src="/assets/capability-goal-mode.png" alt=""></div>
+        </div>
+      </header>
+
+      <section class="article-scope-band" aria-label="文章核验范围">
+        <div class="article-scope-grid">
+          <div><span>Codex source</span><strong>rust-v0.147.0 · be6e8eac</strong><small>Goal extension 可读源码</small></div>
+          <div><span>Codex release</span><strong>CLI 0.147.0-alpha.1.2</strong><small>macOS app build 6234</small></div>
+          <div><span>Claude Code</span><strong>2.1.170 · macOS arm64</strong><small>官方文档 + 发布二进制</small></div>
+          <div><span>Evidence</span><strong>14 条判断 · 5 个未知</strong><small>两侧证据强度不对称</small></div>
+        </div>
+      </section>
+
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
+          <span>从目标到停机</span>
+          <ol>
+            <li><a href="#overall-model" data-index="01">整体模型：同一句 /goal，两条控制回路</a></li>
+            <li><a href="#product-entry" data-index="02">产品入口：一个保存目标，一个设置条件</a></li>
+            <li><a href="#state-location" data-index="03">目标状态：系统到底记住了什么</a></li>
+            <li><a href="#codex-stack" data-index="04">Codex 控制面：一个 goal 横跨六层</a></li>
+            <li><a href="#codex-continuation" data-index="05">Codex 续跑：thread 空闲以后，runtime 再开一轮</a></li>
+            <li><a href="#lifecycle-budget" data-index="06">状态与预算：暂停、阻塞和没额度不是一回事</a></li>
+            <li><a href="#claude-stop-hook" data-index="07">Claude 出口闸：每轮结束都先问 evaluator</a></li>
+            <li><a href="#evaluator-vision" data-index="08">评估视野：独立裁判也会看漏现场</a></li>
+            <li><a href="#resume-semantics" data-index="09">恢复语义：续用一行状态，还是重建一枚钩子</a></li>
+            <li><a href="#control-loop-lab" data-index="10">控制回路实验：同一个岔路，两套系统怎么走</a></li>
+            <li><a href="#completion-authority" data-index="11">完成权限：自证与外审，各自会在哪里失手</a></li>
+            <li><a href="#conclusion-boundary" data-index="12">结论与边界：Goal Mode 不是更长的 prompt</a></li>
+          </ol>
+          <div class="article-toc-note"><strong>先说明证据差异</strong>Codex 侧能读到 Rust 源码和 prompt 模板；Claude Code 侧只有官方文档与签名发布包。下文不会把闭源二进制里的字符串写成完整源码，也不会为了左右对称，把两边说成同一种东西。</div>
+        </aside>
+
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">假设任务是“把认证模块迁完，相关测试全绿，lint 干净，别碰无关文件”。普通 turn 结束时，模型很可能已经改了一部分，也可能刚跑完一轮失败测试。Goal Mode 真正要解决的，不是如何把这句话再念一遍，而是：现在该不该开下一轮，谁来决定，以及“完成”这个结论要凭什么成立。</p>
+
+          <section id="overall-model" data-article-section>
+            <span class="section-number">01 / 整体模型</span>
+            <h2>整体模型：同一句 /goal，两条控制回路</h2>
+            <p>表面上，两边的使用动作几乎一样：敲下 <code>/goal</code>，给一个可验证的终点，然后让 agent 自己往前走。可只要追到一轮结束的地方，分叉就出现了。</p>
+            <p>Codex 先在 thread 上保存一条 goal。每轮结束后，runtime 看这条记录是不是仍为 <code>active</code>；是，就给同一个 worker 塞进隐藏的目标上下文，再开一个正常 turn。最后还是这个 worker 调 <code>update_goal</code>，申报 <code>complete</code> 或真正的 <code>blocked</code>。Claude Code 则把 condition 挂在 session 的 Stop hook 上。worker 想结束一轮时，另一只小模型只看对话，判断条件是否已经成立：<code>no</code> 就把理由带回下一轮，<code>yes</code> 才拆掉 hook、把控制权还给用户。<button class="evidence-ref" type="button" data-evidence="GM-05 GM-09 GM-14" data-evidence-trigger>GM-05,09,14</button></p>
+            <figure class="article-figure">
+              <div class="article-flow" style="--flow-count: 5">
+                <div><span>CODEX 01</span><strong>持久 goal</strong><small>thread 上的 runtime 状态</small></div>
+                <div><span>CODEX 02</span><strong>worker 执行</strong><small>读取真实 worktree</small></div>
+                <div><span>边界</span><strong>idle scheduler</strong><small>active 才续开 turn</small></div>
+                <div><span>CLAUDE 01</span><strong>worker 执行</strong><small>condition 驱动本轮</small></div>
+                <div><span>CLAUDE 02</span><strong>Stop evaluator</strong><small>yes 放行 / no 续跑</small></div>
+              </div>
+              <figcaption>两边都会多跑一轮。区别不在“会不会循环”，而在循环开关属于持久 runtime，还是每轮出口的 evaluator。</figcaption>
+            </figure>
+            <blockquote class="article-pullquote">Claude 把 goal 放在出口；Codex 把 goal 放进控制面。<small>这是整篇最值得记住的一句话</small></blockquote>
+          </section>
+
+          <section id="product-entry" data-article-section>
+            <span class="section-number">02 / 产品入口</span>
+            <h2>产品入口：一个保存目标，一个设置条件</h2>
+            <p>OpenAI 在 2026 年 5 月把 Goal Mode 标为 Codex 的正式能力；当前源码里的 <code>Goals</code> feature 也已经是 stable、默认开启。Codex 把命令写作 <code>/goal &lt;objective&gt;</code>，空参数用来查看，另有 <code>pause</code>、<code>resume</code>、<code>clear</code> 和编辑路径。临时 session 不让建 goal，因为没有持久 thread 可挂。<button class="evidence-ref" type="button" data-evidence="GM-01 GM-03" data-evidence-trigger>GM-01,03</button></p>
+            <p>Claude Code 从 2.1.139 起也提供原生 <code>/goal</code>。官方叫它 completion condition：一个 session 同时只有一个，重新设置会直接替换，<code>clear</code>、<code>stop</code>、<code>off</code> 等别名会把它拆掉。设置以后立刻开工，不用再补发一条 prompt。两边的正文上限恰好都是 4,000 字符，但“字数一样”并不代表状态模型一样。<button class="evidence-ref" type="button" data-evidence="GM-02 GM-09" data-evidence-trigger>GM-02,09</button></p>
+            <div class="article-table-wrap"><table class="article-table">
+              <thead><tr><th>入口看起来像什么</th><th>Codex</th><th>Claude Code</th></tr></thead>
+              <tbody>
+                <tr><td>你写进去的东西</td><td>要持续追求的 objective</td><td>每轮出口要检查的 condition</td></tr>
+                <tr><td>挂在哪</td><td>一个已保存的 thread</td><td>当前 session</td></tr>
+                <tr><td>同时几个</td><td>每个 thread 一个</td><td>每个 session 一个</td></tr>
+                <tr><td>中途控制</td><td>查看、编辑、暂停、恢复、清除</td><td>查看、替换、清除；resume session 时恢复 active condition</td></tr>
+                <tr><td>会不会放大权限</td><td>不会，原 permission profile 仍在</td><td>不会，未许可 tool call 仍要确认</td></tr>
+              </tbody>
+            </table></div>
+            <p>这也是写目标时最容易忽略的一点。Codex 的 objective 可以把“要做什么、别动什么、怎么验收”揉在一起；Claude 的 condition 尤其需要把证据怎么进入对话写明白，因为出口处那位 evaluator 没有第二套 shell。两边都不适合“把 backlog 都清了”这种边界松散的愿望。它不是许愿池，是停止合同。</p>
+          </section>
+
+          <section id="state-location" data-article-section>
+            <span class="section-number">03 / 目标状态</span>
+            <h2>目标状态：系统到底记住了什么</h2>
+            <p>Codex 的 <code>ThreadGoal</code> 很朴素：<code>thread_id</code>、目标正文、状态、可选 token budget、已用 token、已用秒数和时间戳。它没有把计划、当前 checkpoint、失败原因、验收清单全都塞进数据库。那些细节仍可能留在 plan、对话、文件或外部系统里。goal row 负责的是更窄的一件事：这张工单是否还活着，以及 runtime 应不应该继续为它记账和开 turn。<button class="evidence-ref" type="button" data-evidence="GM-02" data-evidence-trigger>GM-02</button></p>
+            <p>Claude 的公开合同更轻。当前 session 里有 active goal，transcript 里会留下 <code>goal_status</code> 记录；真正决定“还活着吗”的，是 Stop hook 还在不在。状态页展示 condition、运行时间、已评估 turn、token spend 和最近一条 evaluator 理由。这些数字有用，却不是一套和 Codex 六状态对等的生命周期 enum。<button class="evidence-ref" type="button" data-evidence="GM-09 GM-11 GM-12" data-evidence-trigger>GM-09,11,12</button></p>
+            <div class="article-callout"><strong>Goal 不是 Plan，也不是 Memory</strong><p>Plan 回答“打算分几步走”，memory 帮模型记住背景，goal 则在 turn 边界上决定工作是否还要继续。三者可以互相喂材料，但谁也不能替代谁。计划全勾完了，不自动证明目标达成；对话被压缩了，也不应该顺手把 goal 的生死抹掉。</p></div>
+            <p>这层分离很重要。长任务真正怕的往往不是忘了一个文件名，而是聊天看起来告一段落以后，系统把“一轮结束”误认成“目标结束”。Codex 用 thread 状态把两件事拆开；Claude 用 Stop hook 把正常停机拦在门口。它们都承认了同一个事实：只靠模型记得“我还没做完”，不够。</p>
+          </section>
+
+          <section id="codex-stack" data-article-section>
+            <span class="section-number">04 / Codex 控制面</span>
+            <h2>Codex 控制面：一个 goal 横跨六层</h2>
+            <p>Codex 这套实现不轻。<code>/goal</code> 只是露在水面上的开关，下面至少串了六层：TUI 解析用户动作，protocol 定义跨组件的数据，state DB 持久化一条 thread goal，模型工具约束 worker 能做什么，accounting 记录使用量，runtime 再处理续跑和停机。一个功能横跨这么多层，维护成本不小；换来的好处是，暂停、阻塞、用量限制和完成不会只剩 prompt 里的几个词。<button class="evidence-ref" type="button" data-evidence="GM-02 GM-03 GM-04 GM-05 GM-07 GM-08" data-evidence-trigger>GM-02–05,07–08</button></p>
+            <figure class="article-figure">
+              <div class="article-flow" style="--flow-count: 6">
+                <div><span>01</span><strong>/goal</strong><small>用户创建或控制</small></div>
+                <div><span>02</span><strong>protocol</strong><small>字段与六种状态</small></div>
+                <div><span>03</span><strong>state DB</strong><small>每个 thread 一条记录</small></div>
+                <div><span>04</span><strong>goal tools</strong><small>worker 的窄权限</small></div>
+                <div><span>05</span><strong>accounting</strong><small>token 与 wall time</small></div>
+                <div><span>06</span><strong>runtime</strong><small>idle 续轮与状态转移</small></div>
+              </div>
+              <figcaption>“控制面”不是营销词。它指的是 goal 会进入协议、持久状态、工具权限、计量与调度，而不是只作为一段文字混在 conversation 里。</figcaption>
+            </figure>
+            <p>模型能看见三个工具：<code>get_goal</code>、<code>create_goal</code>、<code>update_goal</code>。其中最值得看的不是数量，而是缺了什么。worker 不能自己 pause、resume、把 goal 标成 budget-limited 或 usage-limited；<code>update_goal</code> 只收 <code>complete</code> 与 <code>blocked</code>。人负责改意图和恢复，runtime 负责资源边界，worker 负责对工作结果表态。这个分工不是万无一失，但至少没有把所有状态按钮都塞给同一个模型。<button class="evidence-ref" type="button" data-evidence="GM-04" data-evidence-trigger>GM-04</button></p>
+          </section>
+
+          <section id="codex-continuation" data-article-section>
+            <span class="section-number">05 / Codex 续跑</span>
+            <h2>Codex 续跑：thread 空闲以后，runtime 再开一轮</h2>
+            <p>普通 turn 收尾时，Codex 的 runtime 不会直接照着上一条回答再发一遍。它先拿一把 goal-state permit，读取 thread 上当前那条 goal，再确认状态仍为 <code>active</code>。只有这些条件都成立，才构造一条内部 continuation item，交给 <code>try_start_turn_if_idle</code>。这把锁解决的是一个很现实的竞态：用户刚按 pause，旧状态不能在同一瞬间又偷偷启动一轮。<button class="evidence-ref" type="button" data-evidence="GM-05" data-evidence-trigger>GM-05</button></p>
+            <p>新 turn 收到的隐藏上下文会重新带上完整 objective、已用与剩余 token，并提醒 worker：当前 worktree 和外部状态才是事实；上一轮的记忆只能帮忙定位，不能替代检查。模板还把完成审计写得很重：目标里每一项明确要求、命令、产物和 gate，都要找到能证明它的当前证据；证据弱、缺失或只“看起来没问题”，就继续做，不许把成功定义缩到现有成果刚好够得着的位置。<button class="evidence-ref" type="button" data-evidence="GM-06" data-evidence-trigger>GM-06</button></p>
+            <div class="article-code-block">thread becomes idle
+  → read persisted goal
+  → status == active ?
+      yes: inject internal goal context → start a regular turn
+      no:  clear active accounting → stay stopped</div>
+            <p>这里有两个边界。第一，所谓“自动”只是省掉用户逐轮催促，不是越过工具权限；高风险动作照样要走原审批。第二，它是活着的进程里触发的新 turn，不是机器关了还会在暗处跑。Plan turn 也不会仅凭隐藏 goal input 被悄悄启动。把“跨 turn”写成“永远后台运行”，就超出源码了。</p>
+          </section>
+
+          <section id="lifecycle-budget" data-article-section>
+            <span class="section-number">06 / 状态与预算</span>
+            <h2>状态与预算：暂停、阻塞和没额度不是一回事</h2>
+            <p>Codex 现在有六个 goal 状态。<code>active</code> 表示可以继续；<code>paused</code> 是用户暂时按住；<code>blocked</code> 是 worker 在严格条件下确认当前真的走不动；<code>usage_limited</code> 来自供应商或会话级用量边界；<code>budget_limited</code> 是这条 goal 自己的 token budget 到线；<code>complete</code> 才是目标达成。状态多不是为了显得专业，而是为了让恢复动作不犯傻：额度耗尽时猛点 resume，和用户暂停后继续，根本不是同一个问题。<button class="evidence-ref" type="button" data-evidence="GM-02 GM-04 GM-07" data-evidence-trigger>GM-02,04,07</button></p>
+
+            <div class="article-tabs" data-article-tabs style="--tab-count: 4">
+              <div role="tablist" aria-label="按角色查看 Goal Mode 的状态权限">
+                <button id="goalActorUser" type="button" role="tab" aria-selected="true" aria-controls="goalActorUserPanel">用户</button>
+                <button id="goalActorWorker" type="button" role="tab" aria-selected="false" aria-controls="goalActorWorkerPanel">worker</button>
+                <button id="goalActorRuntime" type="button" role="tab" aria-selected="false" aria-controls="goalActorRuntimePanel">runtime</button>
+                <button id="goalActorEvaluator" type="button" role="tab" aria-selected="false" aria-controls="goalActorEvaluatorPanel">evaluator</button>
+              </div>
+              <section id="goalActorUserPanel" class="article-tab-panel" role="tabpanel" aria-labelledby="goalActorUser">
+                <span>改意图的人</span><h3>用户能暂停、恢复、编辑、替换或清除</h3><p>Codex 把中途改方向留在控制面；Claude Code 的公开 /goal 入口则是查看、替换和清除 condition。两边都没有因为 goal 在跑，就拿走用户的接管权。</p>
+                <div class="article-tab-spec"><div><small>Codex</small><strong>pause / resume / edit / clear</strong></div><div><small>Claude Code</small><strong>replace / clear / resume session</strong></div><div><small>不能混淆</small><strong>清除 goal 不等于撤销已发生的改动</strong></div></div>
+              </section>
+              <section id="goalActorWorkerPanel" class="article-tab-panel" role="tabpanel" aria-labelledby="goalActorWorker" hidden>
+                <span>做事并申报的人</span><h3>Codex worker 只能报 complete 或严格的 blocked</h3><p>同一个 blocker 第一次出现不能立刻躺平。工具合同要求它连续三个 goal turn 都遇到同一阻断，而且确实无法在没有用户或外部变化的情况下继续，才可以标 blocked。</p>
+                <div class="article-tab-spec"><div><small>可以</small><strong>get / create / complete / blocked</strong></div><div><small>不可以</small><strong>pause / resume / budget-limit</strong></div><div><small>残余风险</small><strong>complete 仍是 worker 自己申报</strong></div></div>
+              </section>
+              <section id="goalActorRuntimePanel" class="article-tab-panel" role="tabpanel" aria-labelledby="goalActorRuntime" hidden>
+                <span>管循环和资源的人</span><h3>Codex runtime 计量、触线、续开，也会在错误时停住</h3><p>goal token 按非缓存 input 加 output 累计，检查点落在工具与 turn 的进展边界，所以 900 / 1000 后再用 180，可能直接记成 1080，而不是神奇地卡在整齐的 1000。</p>
+                <div class="article-tab-spec"><div><small>计什么</small><strong>tokens used / time used</strong></div><div><small>触线以后</small><strong>budget-limited + 收尾提示</strong></div><div><small>不是</small><strong>每 token 精确刹车</strong></div></div>
+              </section>
+              <section id="goalActorEvaluatorPanel" class="article-tab-panel" role="tabpanel" aria-labelledby="goalActorEvaluator" hidden>
+                <span>Claude 的出口裁判</span><h3>evaluator 回答 yes 或 no，不接管工具</h3><p>它不做迁移，也不跑测试。它只拿 condition 和 conversation 来判：证据够不够让这轮停。no 的理由会成为下一轮提示，yes 才清掉 active goal。</p>
+                <div class="article-tab-spec"><div><small>能看</small><strong>condition + conversation</strong></div><div><small>不能做</small><strong>run command / read file</strong></div><div><small>额外成本</small><strong>每次评估一次小模型调用</strong></div></div>
+              </section>
+            </div>
+
+            <p>Claude 的状态页也会显示时间、turn 与 token，但这三项主要用于观察。想加“最多 20 轮”时，官方建议把它写进 condition，让 evaluator 从对话判断；它不是 Codex 那种 goal row 上的 token budget。别拿两个都会显示数字，就把“显示用量”和“runtime 以用量转状态”画成同一个功能。<button class="evidence-ref" type="button" data-evidence="GM-07 GM-11" data-evidence-trigger>GM-07,11</button></p>
+          </section>
+
+          <section id="claude-stop-hook" data-article-section>
+            <span class="section-number">07 / Claude 出口闸</span>
+            <h2>Claude 出口闸：每轮结束都先问 evaluator</h2>
+            <p>Claude Code 的实现要轻得多，因为它没有为 goal 新造一整套 thread state machine。<code>/goal</code> 是一个 session-scoped prompt Stop hook 的快捷包装。worker 跑完当前 turn，准备停下；hook 把 condition 和到目前为止的 conversation 送给配置的小型快速模型。默认 Claude API 上是 Haiku，但第三方 provider 的默认值可能不同，所以不能硬写一个固定模型版本。<button class="evidence-ref" type="button" data-evidence="GM-09 GM-10" data-evidence-trigger>GM-09,10</button></p>
+            <figure class="article-figure">
+              <div class="article-flow" style="--flow-count: 6">
+                <div><span>01</span><strong>worker 开工</strong><small>condition 直接驱动本轮</small></div>
+                <div><span>02</span><strong>worker 想停</strong><small>来到 turn boundary</small></div>
+                <div><span>03</span><strong>Stop hook</strong><small>收集 condition 与对话</small></div>
+                <div><span>04</span><strong>evaluator</strong><small>无工具，只判 yes / no</small></div>
+                <div><span>05A</span><strong>no + reason</strong><small>理由送回下一轮</small></div>
+                <div><span>05B</span><strong>yes + clear</strong><small>记录 achieved 并放行</small></div>
+              </div>
+              <figcaption>这是“出口闸”而不是第二个 coding agent。evaluator 不替 worker 修代码，只判断眼前对话能否证明 condition 已经成立。</figcaption>
+            </figure>
+            <p>角色分离是这套设计最漂亮的地方。做事的人说“差不多了”，不等于闸门就开；新模型会从零看一遍 condition 和已经公开的证据。它还会给出简短理由，于是下一轮不只是机械重复原 prompt，而是知道“认证测试还没贴结果”“lint 仍报两处错误”。代价也很直白：每个被评估的 turn 多一次小模型调用，而且裁判能看的材料有边界。</p>
+          </section>
+
+          <section id="evaluator-vision" data-article-section>
+            <span class="section-number">08 / 评估视野</span>
+            <h2>评估视野：独立裁判也会看漏现场</h2>
+            <p>这可能是 Claude <code>/goal</code> 最容易被误会的一点：独立 evaluator 不等于独立验收环境。官方写得很清楚，它不能跑命令，也不能读文件；它只能判断 worker 已经放进 conversation 的东西。测试确实全绿，但 worker 没贴结果，裁判可能给出 false negative；测试还红着，worker 却写了一段很像完成报告的话，裁判也可能被带向 false positive。角色独立解决了“自己给自己盖章”的问题，却没有自动解决“证据和现实一致”的问题。<button class="evidence-ref" type="button" data-evidence="GM-10 GM-14" data-evidence-trigger>GM-10,14</button></p>
+            <div class="article-table-wrap"><table class="article-table">
+              <thead><tr><th>工作区现实</th><th>对话里出现的证据</th><th>Claude evaluator 可能怎么看</th><th>真正该修什么</th></tr></thead>
+              <tbody>
+                <tr><td>测试已通过</td><td>贴了命令与 exit 0</td><td>有条件判 yes</td><td>再核对约束项，不只看一条绿灯</td></tr>
+                <tr><td>测试已通过</td><td>没有结果</td><td>可能判 no</td><td>让 worker 把验收证据写进 transcript</td></tr>
+                <tr><td>测试仍失败</td><td>如实贴出失败</td><td>应判 no，并说明缺口</td><td>继续修，不要改写 condition</td></tr>
+                <tr><td>测试仍失败</td><td>只写“应该好了”</td><td>存在误判 yes 的风险</td><td>condition 明确要求命令、退出码与约束证据</td></tr>
+              </tbody>
+            </table></div>
+            <p>因此，Claude 的好 condition 不只是“所有测试通过”，而是“运行哪条命令、结果如何进入对话、哪些文件不能改、什么情况算到时间上限”。Codex 也需要同样清楚的验收合同，只是它的 continuation prompt 会主动要求 worker 回到 worktree 逐项审计。那让它更靠近现场，却仍然不是独立裁判。<button class="evidence-ref" type="button" data-evidence="GM-06 GM-10" data-evidence-trigger>GM-06,10</button></p>
+          </section>
+
+          <section id="resume-semantics" data-article-section>
+            <span class="section-number">09 / 恢复语义</span>
+            <h2>恢复语义：续用一行状态，还是重建一枚钩子</h2>
+            <p>关闭再回来以后，最能看出两边把 source of truth 放在哪。Codex 重新读取 thread 的持久 goal：objective、状态、tokens used 和 time used 都是那条记录的一部分。active 的 goal 可以重新进入续跑；paused、blocked 或 usage-limited 则先把状态摆给用户，由用户决定是否恢复。对话压缩不该删除这条独立记录，但这仍不是“离线工作”：机器和宿主不运行时，没有 runtime 帮它开新 turn。<button class="evidence-ref" type="button" data-evidence="GM-02 GM-03 GM-05" data-evidence-trigger>GM-02,03,05</button></p>
+            <p>Claude Code 在恢复 session 时，从 transcript 里的 goal 状态重建 active condition 与 Stop hook。condition 会回来，但 turn count、timer 和 token-spend baseline 会从零开始；已经 achieved 或 cleared 的 goal 不恢复。换句话说，它保住的是“出口还要检查什么”，不是跨 session 连续的一份计量账本。<button class="evidence-ref" type="button" data-evidence="GM-12" data-evidence-trigger>GM-12</button></p>
+            <div class="article-callout"><strong>两个“恢复”都是真的，只是恢复的对象不同</strong><p>Codex 续用持久 goal 状态与累计用量；Claude 续用 condition，再重建 session hook。前者更像拿回同一张工单，后者更像从会话记录里重新挂上验收闸门。别因为计数归零，就说 Claude 忘了目标；也别因为 Codex 留着 row，就说它离线期间一直在干活。</p></div>
+          </section>
+
+          <section id="control-loop-lab" data-article-section>
+            <span class="section-number">10 / 控制回路实验</span>
+            <h2>控制回路实验：同一个岔路，两套系统怎么走</h2>
+            <p>下面不再看静态功能表。选一个长任务常见的岔路，再沿四个阶段往前走：目标设下以后，两边各自保存了什么；本轮结束时谁接手；来到边界怎样判断；最后是继续、停住，还是等人。每个结论都能从右下角打开对应证据。</p>
+
+            <div class="goal-mode-lab" data-goal-mode-lab aria-busy="true">
+              <header class="goal-mode-lab-header">
+                <div>
+                  <span>CONTROL LOOP LAB</span>
+                  <h3>一轮结束之后，谁握着开关？</h3>
+                  <p data-goal-case-summary>正在装入两套 goal loop 的状态。</p>
+                </div>
+                <label><span>换一个岔路</span><select data-goal-case-select aria-label="选择 Goal Mode 对照场景"></select></label>
+              </header>
+              <div class="goal-mode-stage-tabs" data-goal-stage-tabs role="tablist" aria-label="Goal Mode 控制回路阶段"></div>
+              <div id="goalModeLanes" class="goal-mode-lanes" data-goal-lanes role="tabpanel" aria-live="polite"></div>
+              <p class="goal-mode-loading" data-goal-loading role="status">正在读取研究资料。</p>
+            </div>
+
+            <p>实验里最值得来回切的是“证据缺失”和“预算到线”。前者把 workspace reality 与 transcript evidence 拆开，你会立刻看见独立 evaluator 为什么仍可能判错；后者则把 Codex 的状态转移和 Claude 的 condition 条款区分开。两者都能限制循环，但限制是由 runtime 执行，还是由模型读一句话来判断，后果不一样。</p>
+          </section>
+
+          <section id="completion-authority" data-article-section>
+            <span class="section-number">11 / 完成权限</span>
+            <h2>完成权限：自证与外审，各自会在哪里失手</h2>
+            <p>Codex 的 worker 最接近真实现场。它能读文件、跑测试、看 git diff，再按 continuation prompt 做 requirement-by-requirement audit。可最终的 <code>complete</code> 仍由它自己调用，runtime 不会再派一个独立模型重验。这套方案容易出现的错误，是 worker 把一组看似覆盖目标的检查当成全部证据，或者被自己刚写完的结果说服。工具权限被窄化了，完成判断没有彻底外包。<button class="evidence-ref" type="button" data-evidence="GM-04 GM-06 GM-08" data-evidence-trigger>GM-04,06,08</button></p>
+            <p>Claude 恰好反过来。worker 不能自己打开闸门，独立 evaluator 会再看一次 condition，因此不容易因为一段自信的收尾话就直接停。但它没有工具，也看不到未被 surfaced 的文件与命令结果。它的典型错误不是“没有第二双眼睛”，而是第二双眼睛站在控制室里，只能看 worker 递出来的监控画面。<button class="evidence-ref" type="button" data-evidence="GM-09 GM-10 GM-14" data-evidence-trigger>GM-09,10,14</button></p>
+            <div class="article-table-wrap"><table class="article-table">
+              <thead><tr><th>问题</th><th>Codex 的答案</th><th>Claude Code 的答案</th></tr></thead>
+              <tbody>
+                <tr><td>谁接触工作区</td><td>worker</td><td>worker</td></tr>
+                <tr><td>谁说完成</td><td>worker 调受限工具</td><td>独立 evaluator 放行 Stop hook</td></tr>
+                <tr><td>完成前的主要 guard</td><td>强 completion-audit prompt + 当前状态检查</td><td>角色分离 + condition 对 transcript 的复核</td></tr>
+                <tr><td>最危险的盲点</td><td>自证，检查面可能比目标窄</td><td>裁判无工具，证据可能与现场脱节</td></tr>
+                <tr><td>怎么补</td><td>把验收项写成可执行 gate，保留独立 CI/人审</td><td>要求 worker 把命令、退出码和约束证据显式放进对话</td></tr>
+              </tbody>
+            </table></div>
+            <p>所以这里没有一个诚实的“谁赢了”。若任务的权威证据主要在工作区，Codex 的自证链更直接；若最担心 worker 过早收工，Claude 的出口裁判更有价值。真正稳的系统还会把两者都没完全解决的事补上：可执行验收、外部 CI、人工审批、资源上限，以及对“现在说不清”的明确状态。</p>
+          </section>
+
+          <section id="conclusion-boundary" data-article-section>
+            <span class="section-number">12 / 结论与边界</span>
+            <h2>结论与边界：Goal Mode 不是更长的 prompt</h2>
+            <p>把主线收回来：Codex 把 goal 变成 thread 上的持久控制面对象，runtime 管状态、计量与续轮，worker 用窄工具申报完成或真正阻塞；Claude Code 把 condition 变成 session 出口的 Stop hook，独立 evaluator 每轮读 conversation，决定继续还是放行。一个把控制权铺进系统内部，一个把控制权集中在 turn boundary。</p>
+            <p>这两种设计真正共同的地方，是都不再把“assistant 发了一条 final”当作任务自然结束。长任务需要一个独立于普通回答的停止合同。合同至少要写清四样东西：想要的最终状态，不能破坏的约束，用哪条命令或哪份产物证明，以及何时因为资源或外部依赖停下。目标越含糊，循环越久只会把含糊放大。</p>
+            <div class="article-callout"><strong>能确认到这里，也只能确认到这里</strong><p>Codex 的源码足以确认六状态、持久目标、受限工具、idle continuation 与 token accounting；它不能证明 worker 的完成审计在真实任务里总是可靠。Claude 的官方文档足以确认 session Stop hook、独立 transcript-only evaluator、恢复和权限合同；闭源发布包不能让我们还原所有内部裁剪、失败恢复与防循环分支。至于哪套设计在同等任务上更少误判，还需要真正的对照 eval，而不是架构图替它作答。</p></div>
+            <p>最后还有一条很实际的安全边界：<code>/goal</code> 负责让任务跨 turn，不负责替你授权。Claude 明确要求 trusted workspace 且 hooks 可用，未获批工具仍会询问；Codex 也沿用原 permission profile。能连续工作，只代表循环的开关换了位置，不代表机器拿到了更多权力。<button class="evidence-ref" type="button" data-evidence="GM-13" data-evidence-trigger>GM-13</button></p>
+          </section>
+        </article>
+
+        <aside class="article-margin" aria-label="读到这里可以随时回看的侧注">
+          <div class="article-margin-block"><span>一句话模型</span><strong>Codex 把 goal 放进控制面；Claude 把 goal 放在出口。</strong><small>两边都会续轮，开关不在同一层。</small></div>
+          <div class="article-margin-block"><span>别混淆</span><strong>独立 evaluator 不等于独立验收环境。</strong><small>它只看 transcript，没有 shell 和文件视野。</small></div>
+          <div class="article-margin-block"><span>残余风险</span><strong>Codex 贴近真实 worktree，却仍由 worker 自己申报 complete。</strong><small>强提示词不是第二个裁判。</small></div>
+          <div class="article-margin-block"><span>共同边界</span><strong>自动续 turn，不会自动扩大工具权限。</strong><small>Goal loop 和授权系统仍是两层。</small></div>
+        </aside>
+      </div>
+
+      <nav class="article-next" aria-label="回到能力拆解索引">
+        <a href="/capabilities.html"><span>读到这里了</span><strong>回去看看还有哪些能力被拆开过</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+      </nav>
+    </main>
+  </div>
+
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header>
+      <div><span id="articleEvidenceKicker">回到原文件</span><h2 id="articleEvidenceTitle">这句话凭什么这么说</h2></div>
+      <div id="articleEvidencePager" class="article-evidence-pager" hidden></div>
+      <button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button>
+    </header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/goal-mode-lab-core.js"></script>
+  <script src="/goal-mode-lab.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>

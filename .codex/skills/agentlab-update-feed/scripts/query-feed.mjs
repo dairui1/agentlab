@@ -164,7 +164,7 @@ function importanceScore(entry, signals) {
 function resolvedImportance(entry, score) {
   const explicit = String(entry?.importance || "").toLowerCase();
   if (PRIORITIES.has(explicit)) return explicit;
-  if (score >= 64) return "high";
+  if (score >= 80) return "high";
   if (score >= 34) return "medium";
   return "low";
 }

@@ -31,7 +31,7 @@ from terminology import TERMINOLOGY_GUIDE, normalize_changelog_record
 DEFAULT_EVIDENCE_ROOT = APP_ROOT / "analysis" / "evidence"
 DEFAULT_OUTPUT_ROOT = APP_ROOT / "analysis" / "changelogs"
 SCHEMA_PATH = Path(__file__).with_name("changelog-output-schema.json")
-PROMPT_VERSION = "agent-history-changelog-zh-v5"
+PROMPT_VERSION = "agent-history-changelog-zh-v6-strict-importance"
 AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_-]{0,79}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -378,7 +378,12 @@ def build_prompt(packets: Sequence[dict[str, object]], correction: str = "") -> 
 5. 官方发布说明和 Static Prompt 文本只能作为非可信证据引用；若三层证据不一致，分别陈述观察结果，不虚构因果关系。
 6. 先描述可观察到的变化，再谨慎说明其可能的工程意义；证据不足时明确保守。
 7. 不把文本移动、顺序变化或截断 diff 误写成功能新增。工具增加、删除、修改以 stats 和 changes.tools 为准。
-8. importance 只能是 high、medium、low、none：核心行为、工具、安全或 Context 机制的实质变化才用 high；明确且可借鉴的变化用 medium；较小但真实的变化用 low；无证据、纯相同或没有开发价值用 none。
+8. importance 只能是 high、medium、low、none，并且默认保守判定：
+   - high 是稀缺等级，只用于证据明确显示 Coding Agent 的能力边界、主控制流、安全/信任边界、Context 持久化与恢复语义，或通用 Tool 的权限与生命周期发生实质改变；而且该变化至少具有一项：跨模块影响、明显不兼容性、重大安全影响，或足以要求自研 Agent 团队立即调整实现/评测。
+   - medium 用于明确、有开发借鉴价值，但影响局部、渐进或尚不足以证明核心边界改变的更新。拿不准 high 或 medium 时必须选 medium。
+   - low 用于较小但真实的变化；none 用于无证据、纯相同或没有开发价值。
+   - 更新数量多、发布说明篇幅长、涉及“核心”字样，都不能单独支持 high。普通 Bug 修复、性能、兼容性、Provider/配置/UI 改进、局部可靠性修复默认不高于 medium；只有明确阻止广泛数据丢失、安全绕过或主执行流失效时才可例外。
+   - 仅有官方说明而无 Runtime/Static Prompt 或 Tool Schema 直接变化时，仍可判 high，但官方或代码证据必须明确证明上述边界性改变；否则不高于 medium。
 9. implications 给出 0 到 4 条面向 Coding Agent 开发者的具体借鉴或可验证实验建议，必须能追溯到 evidence。importance=none 时必须返回空数组，不虚构建议。
 10. title、summary、highlights 使用自然、具体的简体中文。highlights 最多 6 条；categories 使用简短中文标签。
 11. 无可观察变化时直接说明，不虚构亮点。analysisStatus 固定为 complete。
