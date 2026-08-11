@@ -84,6 +84,15 @@ class RouteCache:
 
 
 class OfficialSourceTests(unittest.TestCase):
+    def test_focused_sync_parses_only_requested_official_agents(self) -> None:
+        focused = official.parse_args(["--agents", "codex"])
+        complete = official.parse_args(["--agents", "all"])
+
+        self.assertEqual(focused.agents, ("codex",))
+        self.assertIn("codex", complete.agents)
+        self.assertIn("claude-code", complete.agents)
+        self.assertGreater(len(complete.agents), len(focused.agents))
+
     def test_parses_claude_changelog_by_exact_semver_heading(self) -> None:
         text = (FIXTURES / "official_claude_changelog.md").read_text(encoding="utf-8")
         parsed = official.parse_markdown_changelog(text)
