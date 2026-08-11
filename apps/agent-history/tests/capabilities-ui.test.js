@@ -402,7 +402,7 @@ test("Browser Use uses the new compact evidence-only schema", () => {
   assertUnknowns(study, "BU");
 });
 
-test("Goal Mode uses the compact evidence-only schema with pinned Codex and Claude sources", () => {
+test("Goal Mode uses the compact evidence-only schema with current Codex and Claude sources", () => {
   const study = studies["goal-mode"];
   assert.deepEqual(Object.keys(study).sort(), [
     "boundary",
@@ -436,6 +436,20 @@ test("Goal Mode uses the compact evidence-only schema with pinned Codex and Clau
     const sourceUrl = new URL(claim.source.url);
     assert.ok(["github.com", "code.claude.com", "www.npmjs.com"].includes(sourceUrl.hostname), `${claim.id} uses an unexpected source host`);
   }
+});
+
+test("Goal Mode publishes product conclusions without exposing the local research trail", () => {
+  const publicCopy = [
+    articles["goal-mode"],
+    JSON.stringify(studies["goal-mode"]),
+    goalModeLabCoreSource,
+    goalModeLabScript,
+  ].join("\n");
+
+  assert.doesNotMatch(publicCopy, /本地缓存|泄露|leaked snapshot|claude-code-leak|发布包逆向|5a774a2|PPT|token target/);
+  assert.match(publicCopy, /2\.1\.227/);
+  assert.match(publicCopy, /ProposeGoal/);
+  assert.match(publicCopy, /task budget|task-budget/);
 });
 
 test("Computer Use retains its existing research schema without driving a five-view UI", () => {

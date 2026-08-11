@@ -67,9 +67,9 @@
     },
     {
       id: "budget-edge",
-      label: "预算、target 与 maxTurns",
-      title: "看起来都在限制循环，其实三个开关方向不同",
-      summary: "Codex token budget 是 goal 自己的消耗上限；Claude token target 是独立的最低消耗目标；maxTurns 又是非交互 --print 的通用轮数上限。名字挨得近，所有权并不在一起。",
+      label: "三种预算边界",
+      title: "看起来都在限制循环，其实分属三层",
+      summary: "Codex token budget 属于 goal；Claude /goal 只拥有 condition；task budget 和 maxTurns 则是 agentic loop 的外层控制。名字挨得近，状态并不相通。",
       stages: [
         {
           codex: lane("budgeted", "创建目标时显式带了 token budget", "只有用户明确要求，goal 才记录 token budget。", "运行时从目标开始累计非缓存输入和输出 token。", "预算不是完成标准，碰线也不能假装任务已完成。", ["GM-04", "GM-06"]),
@@ -77,15 +77,15 @@
         },
         {
           codex: lane("accounting", "本轮结束，运行时结算用量", "goal runtime 会串行更新 tokens_used 与 time_used。", "并发进度不会各算各的，预算判断有统一账本。", "计数口径是实现定义的 token 用量，不等于费用账单。", ["GM-02", "GM-06"]),
-          claude: lane("independent", "另外两个通用开关各走各的", "token target 要求至少消耗到目标附近，防的是早停；--max-turns 只管非交互 --print 的总轮数。", "它们可能影响同一次运行，但不会写进 activeGoal。", "token target 是 feature-gated 能力，不能当作所有用户都有的 /goal 配置。", ["GM-11"]),
+          claude: lane("independent", "两个外层开关各管一件事", "task budget 是模型可感知的建议性 token 预算；--max-turns 是非交互 --print 的硬回合上限。", "它们可能影响同一次运行，但不会写进 activeGoal。", "建议性预算不等于精确硬停，maxTurns 也不替 goal 判断完成。", ["GM-11"]),
         },
         {
           codex: lane("budget-limited", "运行时先判 budget_limited", "累计 token 到线后，状态转为 budget_limited，并向当前轮注入收尾提示。", "系统要求停止实质工作、交代进度，且不许仅因预算到线调用 complete。", "硬停能控制消耗，但不会替用户完成剩余验收。", ["GM-06", "GM-07"]),
-          claude: lane("semantic", "goal 只判断 condition 到没到", "evaluator 依据 condition 和对话决定 met、unmet 或 impossible。", "写进 condition 的轮数边界可以被语义判断；通用 maxTurns 则可能从外层结束非交互调用。", "两条路都不会生成与 Codex budget_limited 同构的持久状态。", ["GM-10", "GM-11", "GM-14"]),
+          claude: lane("semantic", "goal 只判断 condition 到没到", "evaluator 依据 condition 和对话决定 met、unmet 或 impossible。", "写进 condition 的轮数边界可以被语义判断；task budget 或 maxTurns 则可能从外层影响这次 agentic loop。", "这些路径都不会生成与 Codex budget_limited 同构的持久状态。", ["GM-10", "GM-11", "GM-14"]),
         },
         {
           codex: lane("stopped", "收尾后停在 budget_limited", "运行时不会再自动续跑 substantive work。", "用户能看到目标没完成、用量到哪、还剩什么。", "之后如何继续由用户决定，不能由模型私自扩大预算。", ["GM-06", "GM-07"]),
-          claude: lane("condition-led", "goal 与外层限制分别收场", "unmet 会续 goal；met 或 impossible 会清 goal；外层 maxTurns 到线则结束那次非交互运行。", "用户看到的“停了”可能来自不同开关，排障时先认清是谁停的。", "不能把 token target、maxTurns 和 /goal condition 合称一套 goal budget。", ["GM-10", "GM-11", "GM-14"]),
+          claude: lane("condition-led", "goal 与外层限制分别收场", "unmet 会续 goal；met 或 impossible 会清 goal；外层 task budget / maxTurns 则按各自合同影响运行。", "用户看到的“停了”可能来自不同开关，排障时先认清是谁停的。", "不能把 task budget、maxTurns 和 /goal condition 合称一套 goal budget。", ["GM-10", "GM-11", "GM-14"]),
         },
       ],
     },
@@ -151,7 +151,7 @@
 
   function resolveScenario(study, requestedId) {
     if (study?.id && study.id !== "goal-mode") {
-      throw new Error("拿到的不是 Goal Mode 研究资料");
+      throw new Error("拿到的不是 Goal Mode 对照数据");
     }
     return findScenario(requestedId) || scenarios[0];
   }

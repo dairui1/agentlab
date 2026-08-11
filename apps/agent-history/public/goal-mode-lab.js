@@ -153,7 +153,7 @@
   }
 
   function init(study) {
-    if (study?.id !== "goal-mode") throw new Error("拿到的不是 Goal Mode 研究资料");
+    if (study?.id !== "goal-mode") throw new Error("拿到的不是 Goal Mode 对照数据");
     required(caseSelect, "场景选择器");
     required(summary, "场景说明");
     required(tabs, "阶段切换");
@@ -195,6 +195,6 @@
   }, { once: true });
 
   document.addEventListener("agentlab:study-error", (event) => {
-    showError(event.detail?.message || "研究资料暂时拿不到");
+    showError(event.detail?.message || "对照数据暂时拿不到");
   }, { once: true });
 })();

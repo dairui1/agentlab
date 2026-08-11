@@ -2,49 +2,39 @@
   "id": "goal-mode",
   "number": "003",
   "title": "Goal Mode",
-  "product": "Codex 0.147.0 · Claude Code 2.1.172",
+  "product": "Codex 0.147.0 · Claude Code 2.1.227",
   "subtitle": "同一句 /goal，背后是两套完全不同的续跑控制",
   "description": "这份能力拆解不比较谁能连续跑更久，而是追问更具体的四件事：目标存在哪里，一轮结束后谁发起下一轮，卡住时谁能停，最后谁有资格说完成。Codex 把 goal 做成 thread 上的持久状态，由 runtime 负责计量和续跑，再让 worker 用受限工具申报 complete 或 blocked；Claude Code 把 goal 放在每轮出口，由 session-scoped Stop hook 调用独立 evaluator，根据对话里出现的证据决定放行还是继续。两种设计都能跨 turn，却把控制权、恢复语义和误判风险放在不同位置。",
   "verifiedAt": "2026-08-11",
   "status": "active",
   "scope": [
     {
-      "label": "Codex source",
-      "value": "rust-v0.147.0 · be6e8eac029b",
-      "note": "OpenAI codex 仓库固定提交；Goal extension 为可读 Rust 源码"
+      "label": "Codex 0.147.0",
+      "value": "thread 级持久 goal",
+      "note": "runtime 负责状态、计量与 idle 续轮"
     },
     {
-      "label": "Codex release",
-      "value": "CLI 0.147.0-alpha.1.2 · app build 6234",
-      "note": "本机 /Applications/Codex.app；二进制 SHA256 9f6748b4ab10ffc92c28b9ccedae89e61a302bbc011df7d276ee38f55906e481"
+      "label": "Claude Code 2.1.227",
+      "value": "session 级 Stop hook",
+      "note": "独立 evaluator 负责判断 met、unmet 或 impossible"
     },
     {
-      "label": "Claude Code",
-      "value": "2.1.172 · macOS arm64",
-      "note": "npm 本地缓存中的官方发布包；SHA256 3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce"
+      "label": "Goal 入口",
+      "value": "command + model tool",
+      "note": "Codex 只响应明确请求；Claude 还允许模型通过 ProposeGoal 发起"
     },
     {
-      "label": "Claude evidence",
-      "value": "官方 /goal 文档 + 发布包逆向",
-      "note": "编译产物能复核控制流与状态字段，但不等于官方开源源码"
-    },
-    {
-      "label": "Claude leaked snapshot",
-      "value": "2026-03-31 · commit 5a774a2",
-      "note": "可读 TypeScript 归档，具体产品版本未知；该快照没有原生 /goal，不能替 2.1.172 背书"
+      "label": "完成权限",
+      "value": "worker 申报 vs evaluator 判定",
+      "note": "前者贴近工作区，后者把执行与放行分开"
     },
     {
       "label": "Comparison date",
       "value": "2026-08-11",
-      "note": "产品版本与在线文档均在同日复核"
-    },
-    {
-      "label": "Question",
-      "value": "store · continue · stop · complete",
-      "note": "比较控制权的位置，不给两款产品做功能总分"
+      "note": "结论只适用于这里列出的产品版本"
     }
   ],
-  "boundary": "Codex 一侧锁定 OpenAI 仓库 rust-v0.147.0 标签对应的提交 be6e8eac029b183056b7e4402879f15d2c85f61b，并用本机 0.147.0-alpha.1.2 CLI 与 build 6234 安装包核对发行身份。Claude Code 一侧锁定 npm 本地缓存中的 2.1.172 官方发布二进制，并对照 Anthropic 在线 /goal 文档；二进制 SHA-256 只能固定发布物，不能固定会继续更新的网页。另有一份标注为 2026-03-31 泄露的 TypeScript 归档，但仓内没有具体版本元数据，也没有 /goal、activeGoal 或 goal_status，因此只把它当作历史底座材料，不用它证明 2.1.172 的 Goal 实现。observation 表示源码、产品文档或发布包里可以直接读到的合同；inference 表示把这些合同组合后得到的架构判断。文章不把逆向后的编译产物写成官方源码，不把 Codex 的提示词约束当成独立验证器，也不把自动续轮等同于绕过权限、离线后台执行或无限资源。",
+  "boundary": "这份对比回答的是控制权放在哪里，不给两款产品做总分。Codex 的持久 goal 与完成审计不能保证 worker 每次都验收正确；Claude 的独立 evaluator 也看不到 conversation 之外的工作区现实。两边的自动续轮都不扩大工具权限，不代表机器离线后仍会执行，也不承诺无限时长或无限资源。",
   "unknowns": [
     {
       "id": "GM-KU-01",
@@ -55,7 +45,7 @@
     {
       "id": "GM-KU-02",
       "title": "Claude evaluator 的完整上下文裁剪",
-      "text": "官方文档确认 evaluator 只看对话且没有工具，但 2.1.172 如何裁剪很长 transcript，公开材料没有给出完整算法。",
+      "text": "evaluator 只看对话且没有工具，但很长 transcript 如何裁剪，当前产品合同没有给出完整算法。",
       "needed": "可读实现、运行 trace，或官方对 transcript 截断与摘要策略的精确说明。"
     },
     {
@@ -67,7 +57,7 @@
     {
       "id": "GM-KU-04",
       "title": "长时间运行的外部上限",
-      "text": "两套 goal loop 都仍受会话、供应商、权限、机器在线状态和组织策略约束，固定源码与本地二进制无法枚举所有部署上限。",
+      "text": "两套 goal loop 都仍受会话、供应商、权限、机器在线状态和组织策略约束，不同部署的实际上限可能不同。",
       "needed": "按产品表面、账号计划和托管环境区分的运行时限制文档与实测。"
     },
     {
@@ -203,11 +193,11 @@
       "kind": "observation",
       "confidence": "high",
       "title": "Claude /goal 是 session 的 Stop hook 包装",
-      "statement": "Anthropic 文档把 /goal 定义为 session-scoped、prompt-based Stop hook 的包装。2.1.172 发布产物中，设置命令会注册当前 session 的 Stop prompt hook，保存 condition、iterations、setAt、tokensAtStart 与 lastReason，并把 goal_status 写进 transcript。",
-      "artifact": "claude-code-2.1.172/bin/claude",
-      "locator": "compiled goal command/state cluster around byte offsets 0xc8c4332-0xc8c43b1; official docs: Compare ways and How evaluation works",
-      "sha256": "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce",
-      "boundary": "SHA-256 固定的是官方发布的编译产物，不是在线文档；反向定位到的 bundle 控制流仍不等于有构建上下文、类型信息与测试的官方源码。",
+      "statement": "Claude Code 2.1.227 仍把 /goal 做成 session-scoped、prompt-based Stop hook。设置命令会注册当前 session 的 condition，初始化 iterations、setAt 与 tokensAtStart；第一次判定 unmet 后才写入 lastReason，并持续把 goal_status 留在 transcript。",
+      "artifact": "claude-code-2.1.227/macos-arm64/claude",
+      "locator": "goal command registration; activeGoal initialization; goal_status transcript records",
+      "sha256": "7432511ba3be818e01f23f6eef8630d214a8b618451e188c3c7d61a987eef6c7",
+      "boundary": "它是 session 级完成条件，不是独立的 thread 数据表；同一 session 同时只保留一条 active goal。",
       "source": {
         "label": "Claude Code docs · Goals",
         "url": "https://code.claude.com/docs/en/goal"
@@ -218,11 +208,11 @@
       "kind": "observation",
       "confidence": "high",
       "title": "Claude evaluator 有三种结果，但仍只看对话",
-      "statement": "官方文档明确说 evaluator 不会独立运行命令或读取文件。2.1.172 的评估结果除了 met 与 unmet，还可返回 impossible：unmet 会带 reason 继续；met 与 impossible 都会卸下 hook 并清掉 activeGoal，后者另记 failed goal_status。",
-      "artifact": "claude-code-2.1.172/bin/claude",
-      "locator": "compiled Stop handler around 0xc8d3a4b-0xc8d4069, including tengu_goal_failed, impossible and tengu_goal_achieved; official docs: How evaluation works",
-      "sha256": "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce",
-      "boundary": "impossible 是 evaluator 的终止判决，不是 Codex 式可恢复 blocked 状态；这些材料也不证明 evaluator 永远看见完整 transcript，或固定使用某个模型版本。",
+      "statement": "evaluator 不会独立运行命令或读取文件，只根据 condition 与 transcript 返回 met、unmet 或 impossible。unmet 会携带 reason 继续；met 与 impossible 都会卸下 hook 并清掉 activeGoal，后者另记 failed goal_status。",
+      "artifact": "claude-code-2.1.227/macos-arm64/claude",
+      "locator": "Stop handler branches for hook_success, blockingError and impossible",
+      "sha256": "7432511ba3be818e01f23f6eef8630d214a8b618451e188c3c7d61a987eef6c7",
+      "boundary": "impossible 是 evaluator 的失败终态，不是 Codex 式可恢复 blocked 状态；裁判也不保证看见 conversation 之外的真实工作区。",
       "source": {
         "label": "Claude Code docs · evaluator visibility",
         "url": "https://code.claude.com/docs/en/goal#how-evaluation-works"
@@ -232,12 +222,12 @@
       "id": "GM-11",
       "kind": "observation",
       "confidence": "high",
-      "title": "Claude 的 goal 计量与通用上限不是一套东西",
-      "statement": "Claude /goal 会显示运行时长、已评估 turn 与 token spend，但 activeGoal 没有 token budget 或 maxTurns 字段。官方给 goal 加边界的方式仍是把“20 turns 后停止”写进 condition。源码快照里的 token target 是独立且 feature-gated 的最低消耗目标；CLI 的 maxTurns 是非交互 --print 通用上限，都不是交互式 /goal 自己的预算状态。",
-      "artifact": "claude-code-2.1.172/bin/claude",
-      "locator": "activeGoal/tokensAtStart near 0xc8c4332; --max-turns help near 0xce9cbab says non-interactive and --print; official docs: Write an effective condition and Check status",
-      "sha256": "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce",
-      "boundary": "通用 token target 受构建 feature gate 控制，不能写成所有用户都有的公开能力；外部供应商、会话与组织策略也仍可能施加其他硬限制。",
+      "title": "Goal condition、task budget 与 maxTurns 分属不同层",
+      "statement": "Claude /goal 会显示运行时长、已评估 turn 与 token spend，但 activeGoal 没有 token budget 或 maxTurns 字段。交互式轮数边界要写进 condition。最新版的 --task-budget / taskBudget 是 agentic loop 外层、模型可感知的建议性 token 预算；--max-turns 是非交互 --print 的通用硬上限。它们都不会生成 goal 自己的 budget_limited 状态。",
+      "artifact": "claude-code-2.1.227/macos-arm64/claude",
+      "locator": "activeGoal fields; --task-budget and --max-turns options; output_config.task_budget request path",
+      "sha256": "7432511ba3be818e01f23f6eef8630d214a8b618451e188c3c7d61a987eef6c7",
+      "boundary": "task budget 是建议性外层预算，不承诺像硬 token 闸门一样精确停止；供应商、会话与组织策略仍可能施加其他限制。",
       "source": {
         "label": "Claude Code docs · condition bounds",
         "url": "https://code.claude.com/docs/en/goal#write-an-effective-condition"
@@ -249,10 +239,10 @@
       "confidence": "high",
       "title": "Claude 从 transcript 恢复 condition，但重置计数",
       "statement": "恢复仍处于 active 的 session 时，Claude Code 会带回 condition；turn count、timer 与 token-spend baseline 全部重置。已经 achieved、failed 或 cleared 的 goal 不会恢复。发布产物会反向扫描最新 goal_status，再决定是否重挂 Stop hook。",
-      "artifact": "claude-code-2.1.172/bin/claude",
-      "locator": "findGoalToRestore and restoreGoalFromTranscript around 0xcc7e137-0xcc7e397; official docs: Resume with an active goal",
-      "sha256": "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce",
-      "boundary": "静态产物和文档不证明 session 文件损坏、强制崩溃或跨机器恢复时的所有边界行为。",
+      "artifact": "claude-code-2.1.227/macos-arm64/claude",
+      "locator": "findGoalToRestore and restoreGoalFromTranscript",
+      "sha256": "7432511ba3be818e01f23f6eef8630d214a8b618451e188c3c7d61a987eef6c7",
+      "boundary": "session 文件损坏、强制崩溃或跨机器恢复仍可能有额外边界；恢复 condition 也不等于恢复一份跨 session 的累计预算。",
       "source": {
         "label": "Claude Code docs · resume",
         "url": "https://code.claude.com/docs/en/goal#resume-with-an-active-goal"
@@ -264,9 +254,9 @@
       "confidence": "high",
       "title": "自动续轮不会自动放大权限",
       "statement": "Claude 文档明确说 goal 不改变权限，默认模式仍会在未获准的 tool call 前询问；/goal 还要求 trusted workspace 与 hooks 可用。Codex 的 goal 也只负责目标状态与调度，工具审批仍走原有 permission profile。",
-      "artifact": "claude-code-2.1.172/bin/claude",
-      "locator": "official docs: Set a goal and Requirements; binary trust/hooks-disabled messages",
-      "sha256": "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce",
+      "artifact": "claude-code-2.1.227/macos-arm64/claude",
+      "locator": "trusted workspace and hooks gates; permission requirements",
+      "sha256": "7432511ba3be818e01f23f6eef8630d214a8b618451e188c3c7d61a987eef6c7",
       "boundary": "这条说明 goal 与授权是两层合同，不证明 auto mode、组织策略或用户配置在两款产品里完全相同。",
       "source": {
         "label": "Claude Code docs · permissions and requirements",
@@ -293,29 +283,29 @@
       "kind": "observation",
       "confidence": "high",
       "title": "后台工作没结束时，Claude 会暂缓 goal 评估",
-      "statement": "2.1.172 的 Stop handler 会先检查仍在运行的后台工作。若还有后台 agent 或 task，它会临时移除匹配的 goal Stop hook，跳过这次 evaluator，最后再把 hook 挂回去，避免主线程先停下来就把尚未回传的工作误判成完成或失败。",
-      "artifact": "claude-code-2.1.172/bin/claude",
-      "locator": "compiled Stop handler around 0xc8d3a4b; literal '[goal] evaluation deferred - background work still running' at 0xc8d3a4b",
-      "sha256": "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce",
+      "statement": "2.1.227 的 Stop handler 会先检查仍在运行的后台工作。若还有后台 agent 或 task，它会临时移除匹配的 goal Stop hook，跳过这次 evaluator，最后再把 hook 挂回去，避免主线程先停下来就把尚未回传的工作误判成完成或失败。",
+      "artifact": "claude-code-2.1.227/macos-arm64/claude",
+      "locator": "background-work guard; deferred evaluation; hook restoration in finally",
+      "sha256": "7432511ba3be818e01f23f6eef8630d214a8b618451e188c3c7d61a987eef6c7",
       "boundary": "暂缓评估只说明这个 turn boundary 不下判决；它不证明后台任务一定成功、能在机器离线时继续，或之后无需再次验收。",
       "source": {
-        "label": "Claude Code 2.1.172 published package",
-        "url": "https://www.npmjs.com/package/@anthropic-ai/claude-code-darwin-arm64/v/2.1.172"
+        "label": "Claude Code 2.1.227 published package",
+        "url": "https://www.npmjs.com/package/@anthropic-ai/claude-code-darwin-arm64/v/2.1.227"
       }
     },
     {
       "id": "GM-16",
       "kind": "observation",
       "confidence": "high",
-      "title": "泄露源码归档存在，但它不是 /goal 的实现快照",
-      "statement": "本地镜像把自己标为 2026-03-31 泄露的 TypeScript src.zip；固定提交 5a774a2 的内建命令表没有 goal，全树也找不到 activeGoal、goal_status、findGoalToRestore 或 restoreGoalFromTranscript，仓内还没有可还原具体产品版本的 package metadata。",
-      "artifact": "claude-code-leak-2026-03-31/src/commands.ts",
-      "locator": "builtin command registry lines 258-330; zero-match full-tree search for goal runtime symbols; provenance recorded in README",
-      "sha256": "3bfd54c3cfcaed9f10d5dc15334cc49e42d0c9374e92d9a7058897701d95df64",
-      "boundary": "这是对固定泄露快照的负面发现，只说明它不能替 2.1.172 的 /goal 背书；不能据此推断后续 Claude Code 没有该实现，也不能给快照强行贴上 2.1.172 版本号。",
+      "title": "ProposeGoal 让模型能提出完成条件，但默认仍由用户批准",
+      "statement": "Claude Code 2.1.227 出现受条件开放的 ProposeGoal 工具。它只面向合适的交互式主会话，为多轮、可验证且不扩大原任务范围的工作提出最多 500 字的 condition。默认 ask_user=true，用户一键批准后才排入 /goal；ask_user=false 只允许直接承接用户已经明确说出的结果。提议等待期间 worker 可以继续工作。",
+      "artifact": "claude-code-2.1.227/macos-arm64/claude",
+      "locator": "ProposeGoalTool; modelProposedGoals; pendingGoalProposal; goal_propose flow",
+      "sha256": "7432511ba3be818e01f23f6eef8630d214a8b618451e188c3c7d61a987eef6c7",
+      "boundary": "该入口受会话形态、设置与权限 gate 约束，并非每个环境都会出现；它只改变谁能发起 goal，批准或直接设置后仍走同一套 Stop evaluator 完成链。",
       "source": {
-        "label": "Leaked snapshot mirror · command registry",
-        "url": "https://github.com/dairui1/claude-code/blob/5a774a2b62d7949c1d94e0b726281554d7893cfd/src/commands.ts"
+        "label": "Claude Code 2.1.227 published package",
+        "url": "https://www.npmjs.com/package/@anthropic-ai/claude-code-darwin-arm64/v/2.1.227"
       }
     }
   ]
