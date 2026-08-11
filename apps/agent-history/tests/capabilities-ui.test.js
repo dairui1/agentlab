@@ -434,7 +434,7 @@ test("Goal Mode uses the compact evidence-only schema with pinned Codex and Clau
     assert.ok(typeof claim.source.label === "string" && claim.source.label.trim(), `${claim.id} lacks a source label`);
     assert.match(claim.source.url, /^https:\/\//, `${claim.id} source must use HTTPS`);
     const sourceUrl = new URL(claim.source.url);
-    assert.ok(["github.com", "code.claude.com"].includes(sourceUrl.hostname), `${claim.id} uses an unexpected source host`);
+    assert.ok(["github.com", "code.claude.com", "www.npmjs.com"].includes(sourceUrl.hostname), `${claim.id} uses an unexpected source host`);
   }
 });
 
@@ -570,15 +570,16 @@ test("Goal Mode embeds an accessible two-lane control-loop lab", () => {
   assert.match(html, /src="\/goal-mode-lab-core\.js"[\s\S]*src="\/goal-mode-lab\.js"[\s\S]*src="\/capability-article\.js"/);
 });
 
-test("Goal Mode lab models four scenarios through four evidence-backed Codex and Claude stages", () => {
+test("Goal Mode lab models five scenarios through four evidence-backed Codex and Claude stages", () => {
   const study = studies["goal-mode"];
   const evidenceIds = new Set(study.evidence.map((claim) => claim.id));
   assert.deepEqual(goalModeLabCore.stages.map((stage) => stage.id), ["set", "turn-end", "boundary", "next"]);
-  assert.equal(goalModeLabCore.scenarios.length, 4);
+  assert.equal(goalModeLabCore.scenarios.length, 5);
   assert.deepEqual(goalModeLabCore.scenarios.map((scenario) => scenario.id), [
     "evidence-missing",
     "same-blocker",
     "budget-edge",
+    "background-running",
     "resume",
   ]);
 
@@ -619,6 +620,10 @@ test("Goal Mode lab clamps deep links and preserves the selected comparison stat
   assert.deepEqual(
     goalModeLabCore.resolveSelection("https://agentlab.local/", "budget-edge", 1),
     { scenarioId: "budget-edge", step: 1 },
+  );
+  assert.deepEqual(
+    goalModeLabCore.resolveSelection("https://agentlab.local/?goalCase=background-running&goalStep=2"),
+    { scenarioId: "background-running", step: 2 },
   );
   assert.equal(goalModeLabCore.clampStep("not-a-step"), 0);
 });
