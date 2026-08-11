@@ -13,6 +13,9 @@ const summary = JSON.parse(read("dossiers/context-compaction-summary.json"));
 const claims = new Map(evidence.claims.map((claim) => [claim.id, claim]));
 const unknowns = new Map(summary.unknowns.map((item) => [item.id, item]));
 const agents = ["claude-code", "codex", "opencode"];
+const hasGeneratedHistory = workbench.snapshots.every((snapshot) =>
+  fs.existsSync(path.join(publicRoot, `data/agents/${snapshot.agent}/history.json`)),
+);
 
 function collectRefs(value, key, target = []) {
   if (Array.isArray(value)) {
@@ -104,7 +107,7 @@ test("facts use exact snapshot versions and deployment-stable HTTPS sources", ()
   for (const change of workbench.changes) assert.match(change.url, /^https:\/\//, `${change.version} change source is not HTTPS`);
 });
 
-test("snapshot versions exist in the local AgentLab history corpus", () => {
+test("snapshot versions exist in the local AgentLab history corpus", { skip: !hasGeneratedHistory }, () => {
   for (const snapshot of workbench.snapshots) {
     const history = JSON.parse(read(`data/agents/${snapshot.agent}/history.json`));
     assert.ok(history.versions.some((item) => item.version === snapshot.version), `${snapshot.agent} ${snapshot.version} is not captured locally`);

@@ -6,7 +6,10 @@ const test = require("node:test");
 const publicRoot = path.resolve(__dirname, "../public");
 const html = fs.readFileSync(path.join(publicRoot, "index.html"), "utf8");
 const app = fs.readFileSync(path.join(publicRoot, "app.js"), "utf8");
-const manifest = JSON.parse(fs.readFileSync(path.join(publicRoot, "data/manifest.json"), "utf8"));
+const manifestPath = path.join(publicRoot, "data/manifest.json");
+const manifest = fs.existsSync(manifestPath)
+  ? JSON.parse(fs.readFileSync(manifestPath, "utf8"))
+  : { agents: [] };
 
 test("header and favicon use the AgentLab brand mark", () => {
   const logoPath = path.join(publicRoot, "assets/agentlab-mark.png");

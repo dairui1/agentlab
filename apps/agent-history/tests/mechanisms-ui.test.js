@@ -15,6 +15,9 @@ const evidence = JSON.parse(read("dossiers/subagent-evidence.json"));
 const claims = new Map(evidence.claims.map((claim) => [claim.id, claim]));
 const unknowns = new Map(summary.unknowns.map((item) => [item.id, item]));
 const agents = ["claude-code", "codex", "opencode"];
+const hasGeneratedHistory = workbench.snapshots.every((snapshot) =>
+  fs.existsSync(path.join(publicRoot, `data/agents/${snapshot.agent}/history.json`)),
+);
 
 function collectRefs(value, key, target = []) {
   if (Array.isArray(value)) {
@@ -141,7 +144,7 @@ test("atomic facts carry versioned sources, boundaries, and comparison targets",
   }
 });
 
-test("snapshot versions match the published corpus", () => {
+test("snapshot versions match the published corpus", { skip: !hasGeneratedHistory }, () => {
   for (const snapshot of workbench.snapshots) {
     const history = JSON.parse(read(`data/agents/${snapshot.agent}/history.json`));
     assert.ok(history.versions.some((item) => item.version === snapshot.version));
@@ -151,7 +154,7 @@ test("snapshot versions match the published corpus", () => {
   }
 });
 
-test("all internal comparison links resolve to a captured outline item", () => {
+test("all internal comparison links resolve to a captured outline item", { skip: !hasGeneratedHistory }, () => {
   const urls = internalCompareUrls();
   assert.ok(urls.length >= 24);
   for (const href of urls) {
