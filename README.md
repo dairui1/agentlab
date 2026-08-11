@@ -35,22 +35,48 @@ flowchart LR
 4. `analyze_changelogs.py` 为发生变化的版本生成中文摘要、重要性和工程启示。
 5. `daily_update.py` 串联同步、构建、分析、测试与 Cloudflare 部署。
 
-## 本地运行
+## 用自己的 Codex 运行
 
-需要 Node.js 22 或更高版本、Python 3.11 或更高版本。首次构建会同步公开上游数据：
+需要 Node.js 22 或更高版本、Python 3.11 或更高版本，以及已经登录的 Codex CLI。先确认 Codex 可用：
+
+```bash
+codex login status
+```
+
+从一个全新的 clone 开始，最短路径是：
 
 ```bash
 cd apps/agent-history
 npm ci
-npm run sync
-npm run build
-npm test
+npm run local
 npm run dev
 ```
 
-`npm run analyze` 会调用本机 Codex，只处理 evidence 已变化且缺少有效分析的版本。该步骤可选；没有模型结果时，构建仍会生成确定性摘要。
+`npm run local` 只稀疏同步 Codex 数据和对应官方来源，默认选取最新 5 个待分析版本，调用当前用户已登录的 `codex exec`，随后合并结果、运行测试并构建站点。缓存、Evidence、分析结果和构建产物都留在本地，不进入 Git。
 
-完整日更流程使用 `npm run daily`。本机自动化安装和运维说明见 [`apps/agent-history/ops/README.md`](apps/agent-history/ops/README.md)。
+可以调整 Agent、模型和分析数量，例如：
+
+```bash
+npm run local -- --agents codex --max-releases 10 --reasoning-effort high
+```
+
+初次运行不需要下载整个 AgentLab 数据集。`codex` 的 Phistory Capture 当前约为十几 MB；脚本还会按需获取其官方 Release、Changelog 和有界代码比较。选择 `claude-code` 或 `all` 会明显增加同步量。
+
+流水线在同步前检查 Codex 登录状态。Codex 未安装、未登录，或者某个模型分析未通过本地 JSON Schema 与证据校验时，`npm run local` 会失败，而不会悄悄把确定性回退结果冒充成 Codex 分析。
+
+需要自己控制各阶段时可以运行：
+
+```bash
+npm run sync
+npm run build:data
+npm run analyze -- --agents codex --newest-first --max-releases 5
+npm run build
+npm test
+```
+
+`npm run analyze` 只处理 Evidence 已变化且缺少有效分析的版本。普通 `npm run daily` 面向无人值守发布，Codex 分析失败时允许确定性回退；完整日更流程的安全边界和参数见 [`apps/agent-history/ops/README.md`](apps/agent-history/ops/README.md)。
+
+所有生成目录均可删除后重建。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。
 
 ## Agent 数据访问
 

@@ -19,6 +19,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from official_release_sources import GITHUB_RELEASE_SOURCES
+
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = APP_ROOT / "scripts"
@@ -172,6 +175,8 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         "--cache-root",
         str(official_cache_root),
         "--allow-stale-on-error",
+        "--agents",
+        agents,
         "--capture-root",
         str(upstream),
         "--capture-root",
@@ -187,6 +192,18 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         "--overlay-root",
         str(capture_overlay_root),
     ]
+    requested_agents = None if agents == "all" else tuple(
+        part.strip() for part in agents.split(",") if part.strip()
+    )
+    source_agents = (
+        tuple(GITHUB_RELEASE_SOURCES)
+        if requested_agents is None
+        else tuple(
+            agent for agent in requested_agents if agent in GITHUB_RELEASE_SOURCES
+        )
+    )
+    if source_agents:
+        sync_source_captures.extend(("--agents", ",".join(source_agents)))
     build = [
         python,
         str(SCRIPTS / "build_from_phistory.py"),
@@ -216,6 +233,8 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         str(args.retries),
         "--reasoning-effort",
         args.reasoning_effort,
+        "--codex-bin",
+        args.codex_bin,
         "--fair-agents",
     ]
     if args.model:
@@ -229,28 +248,45 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
     if args.newest_first:
         analyze.append("--newest-first")
 
-    steps = [
-        Step("sync upstream", tuple(sync), APP_ROOT),
-        Step("sync official sources", tuple(sync_official), APP_ROOT),
-        Step("sync source-only captures", tuple(sync_source_captures), APP_ROOT),
-        Step("build deterministic evidence", tuple(build), APP_ROOT),
-        Step(
-            "analyze stale changelogs",
-            tuple(analyze),
-            APP_ROOT,
-            required=False,
-        ),
-        Step("merge validated changelogs", tuple(build), APP_ROOT),
-        Step("run tests", (args.npm_bin, "test"), APP_ROOT),
-        Step(
-            "build site",
-            (args.npm_bin, "run", "build"),
-            APP_ROOT,
-            environment={
-                "AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": str(capture_overlay_root)
-            },
-        ),
-    ]
+    steps = []
+    if args.require_codex:
+        steps.append(
+            Step(
+                "check Codex login",
+                (args.codex_bin, "login", "status"),
+                APP_ROOT,
+            )
+        )
+    steps.extend(
+        [
+            Step("sync upstream", tuple(sync), APP_ROOT),
+            Step("sync official sources", tuple(sync_official), APP_ROOT),
+        ]
+    )
+    if source_agents:
+        steps.append(Step("sync source-only captures", tuple(sync_source_captures), APP_ROOT))
+    steps.extend(
+        [
+            Step("build deterministic evidence", tuple(build), APP_ROOT),
+            Step(
+                "analyze stale changelogs",
+                tuple(analyze),
+                APP_ROOT,
+                required=args.require_codex,
+            ),
+            Step("merge validated changelogs", tuple(build), APP_ROOT),
+            Step("run tests", (args.npm_bin, "test"), APP_ROOT),
+            Step(
+                "build site",
+                (args.npm_bin, "run", "build"),
+                APP_ROOT,
+                environment={
+                    "AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": str(capture_overlay_root),
+                    "PHISTORY_AGENTS": agents,
+                },
+            ),
+        ]
+    )
     if args.deploy:
         steps.append(
             Step(
@@ -354,6 +390,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--codex-timeout", type=float, default=180.0)
     parser.add_argument("--retries", type=int, default=2)
+    parser.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"))
+    parser.add_argument(
+        "--require-codex",
+        action="store_true",
+        help="fail unless Codex is installed, logged in, and analysis succeeds",
+    )
     parser.add_argument("--model", default=os.environ.get("AGENT_HISTORY_CODEX_MODEL"))
     parser.add_argument(
         "--reasoning-effort",

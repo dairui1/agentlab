@@ -13,6 +13,9 @@ const summary = JSON.parse(read("dossiers/permission-sandbox-summary.json"));
 const claims = new Map(evidence.claims.map((claim) => [claim.id, claim]));
 const unknowns = new Map(summary.unknowns.map((item) => [item.id, item]));
 const agents = ["claude-code", "codex", "opencode"];
+const hasGeneratedHistory = workbench.snapshots.every((snapshot) =>
+  fs.existsSync(path.join(publicRoot, `data/agents/${snapshot.agent}/history.json`)),
+);
 
 function collectRefs(value, key, target = []) {
   if (Array.isArray(value)) {
@@ -87,7 +90,7 @@ test("all 41 atomic facts are unique, referenced, pinned, and source-resolvable"
   }
 });
 
-test("snapshot versions are captured by the local AgentLab corpus", () => {
+test("snapshot versions are captured by the local AgentLab corpus", { skip: !hasGeneratedHistory }, () => {
   for (const snapshot of workbench.snapshots) {
     const history = JSON.parse(read(`data/agents/${snapshot.agent}/history.json`));
     assert.ok(history.versions.some((item) => item.version === snapshot.version), `${snapshot.agent} ${snapshot.version} is absent locally`);

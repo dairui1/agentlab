@@ -1011,7 +1011,10 @@ class DailyUpdateTests(unittest.TestCase):
             )
         self.assertEqual(
             steps[7].environment,
-            {"AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": resolved_overlay},
+            {
+                "AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": resolved_overlay,
+                "PHISTORY_AGENTS": "all",
+            },
         )
         self.assertFalse(steps[4].required)
         self.assertTrue(all(step.required for index, step in enumerate(steps) if index != 4))
@@ -1030,11 +1033,43 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertEqual(args.agents, "all")
         self.assertEqual(steps[-1].command[:3], ("npx", "--no-install", "wrangler"))
 
+    def test_focused_local_run_requires_codex_and_skips_unrelated_sources(self):
+        args = daily.parse_args(
+            [
+                "--require-codex",
+                "--codex-bin",
+                "/tmp/codex",
+                "--agents",
+                "codex",
+                "--max-releases",
+                "5",
+            ]
+        )
+
+        steps = daily.build_steps(args)
+
+        self.assertEqual(steps[0].name, "check Codex login")
+        self.assertEqual(steps[0].command, ("/tmp/codex", "login", "status"))
+        self.assertNotIn("sync source-only captures", [step.name for step in steps])
+        official = next(step for step in steps if step.name == "sync official sources")
+        self.assertEqual(
+            official.command[official.command.index("--agents") + 1], "codex"
+        )
+        analyze = next(step for step in steps if step.name == "analyze stale changelogs")
+        self.assertTrue(analyze.required)
+        self.assertEqual(
+            analyze.command[analyze.command.index("--codex-bin") + 1],
+            "/tmp/codex",
+        )
+        site = next(step for step in steps if step.name == "build site")
+        self.assertEqual(site.environment["PHISTORY_AGENTS"], "codex")
+
     def test_package_build_data_uses_the_default_overlay_root(self):
         package = json.loads((APP_ROOT / "package.json").read_text(encoding="utf-8"))
         command = package["scripts"]["build:data"]
         self.assertIn("--capture-overlay-root", command)
         self.assertIn(".cache/agentlab-captures", command)
+        self.assertIn("PHISTORY_AGENTS", command)
 
         official_command = package["scripts"]["sync:official"]
         self.assertEqual(official_command.count("--capture-root"), 2)

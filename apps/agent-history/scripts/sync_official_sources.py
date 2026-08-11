@@ -29,6 +29,7 @@ from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import (
     GITHUB_RELEASE_SOURCES,
+    OFFICIAL_REPOSITORIES,
     SOURCE_CODE_COMPARISON_WINDOW,
 )
 
@@ -963,102 +964,108 @@ def sync(
     allow_stale_on_error: bool = False,
     token: str | None = None,
     capture_roots: Sequence[Path] = (),
+    agents: Sequence[str] | None = None,
 ) -> dict[str, object]:
     root = cache_root.expanduser().resolve()
     cache = HttpCache(root / "http", token=token)
     normalized_root = root / "normalized"
     captured = discover_capture_sequences(capture_roots)
+    selected = set(agents or OFFICIAL_REPOSITORIES)
+    selected.intersection_update(OFFICIAL_REPOSITORIES)
+    normalized_values: dict[str, dict[str, object]] = {}
 
-    codex_changelog = cache.fetch(
-        CODEX_CHANGELOG_RAW_URL,
-        accept="text/plain",
-        max_bytes=MAX_CHANGELOG_BYTES,
-        timeout=timeout,
-        allow_stale_on_error=allow_stale_on_error,
-    )
-    codex_releases_raw = codex_releases(
-        cache,
-        max_pages=max_release_pages,
-        timeout=timeout,
-        allow_stale_on_error=allow_stale_on_error,
-    )
-    codex = enrich_repository_history(
-        agent="codex",
-        repository=CODEX_REPOSITORY,
-        product_name="Codex",
-        tag_pattern=CODEX_TAG_RE,
-        releases=codex_releases_raw,
-        normalized_root=normalized_root,
-        captured_versions=captured.get("codex", ()),
-        cache=cache,
-        max_tag_pages=max_tag_pages,
-        newest_comparisons=max_comparisons,
-        timeout=timeout,
-        allow_stale_on_error=allow_stale_on_error,
-    )
-    codex_value = normalized_agent(
-        agent="codex",
-        repository=CODEX_REPOSITORY,
-        releases=codex,
-        documents=[
-            changelog_document(codex_changelog, source_url=CODEX_CHANGELOG_URL)
-        ],
-    )
+    if "codex" in selected:
+        codex_changelog = cache.fetch(
+            CODEX_CHANGELOG_RAW_URL,
+            accept="text/plain",
+            max_bytes=MAX_CHANGELOG_BYTES,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        codex_releases_raw = codex_releases(
+            cache,
+            max_pages=max_release_pages,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        codex = enrich_repository_history(
+            agent="codex",
+            repository=CODEX_REPOSITORY,
+            product_name="Codex",
+            tag_pattern=CODEX_TAG_RE,
+            releases=codex_releases_raw,
+            normalized_root=normalized_root,
+            captured_versions=captured.get("codex", ()),
+            cache=cache,
+            max_tag_pages=max_tag_pages,
+            newest_comparisons=max_comparisons,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        normalized_values["codex"] = normalized_agent(
+            agent="codex",
+            repository=CODEX_REPOSITORY,
+            releases=codex,
+            documents=[
+                changelog_document(codex_changelog, source_url=CODEX_CHANGELOG_URL)
+            ],
+        )
 
-    claude_changelog = cache.fetch(
-        CLAUDE_CHANGELOG_RAW_URL,
-        accept="text/plain",
-        max_bytes=MAX_CHANGELOG_BYTES,
-        timeout=timeout,
-        allow_stale_on_error=allow_stale_on_error,
-    )
-    try:
-        claude_text = claude_changelog.body.decode("utf-8")
-    except UnicodeDecodeError as error:
-        raise OfficialSyncError("Claude Code changelog is not UTF-8") from error
-    claude_entries = parse_markdown_changelog(claude_text)
-    claude_releases = [
-        {
-            "version": version,
-            "tag": f"v{version}",
-            "title": f"Claude Code {version}",
-            "sourceUrl": CLAUDE_CHANGELOG_URL,
-            "notes": notes_value(
-                notes,
-                source_kind="official-changelog",
-                source_url=CLAUDE_CHANGELOG_URL,
-            ),
-        }
-        for version, notes in sorted(claude_entries.items(), key=lambda item: version_key(item[0]))
-    ]
-    claude_releases = enrich_repository_history(
-        agent="claude-code",
-        repository=CLAUDE_REPOSITORY,
-        product_name="Claude Code",
-        tag_pattern=CLAUDE_TAG_RE,
-        releases=claude_releases,
-        normalized_root=normalized_root,
-        captured_versions=captured.get("claude-code", ()),
-        cache=cache,
-        max_tag_pages=max_tag_pages,
-        newest_comparisons=max_comparisons,
-        timeout=timeout,
-        allow_stale_on_error=allow_stale_on_error,
-    )
-    claude_value = normalized_agent(
-        agent="claude-code",
-        repository=CLAUDE_REPOSITORY,
-        releases=claude_releases,
-        documents=[
-            changelog_document(claude_changelog, source_url=CLAUDE_CHANGELOG_URL)
-        ],
-    )
+    if "claude-code" in selected:
+        claude_changelog = cache.fetch(
+            CLAUDE_CHANGELOG_RAW_URL,
+            accept="text/plain",
+            max_bytes=MAX_CHANGELOG_BYTES,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        try:
+            claude_text = claude_changelog.body.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise OfficialSyncError("Claude Code changelog is not UTF-8") from error
+        claude_entries = parse_markdown_changelog(claude_text)
+        claude_releases = [
+            {
+                "version": version,
+                "tag": f"v{version}",
+                "title": f"Claude Code {version}",
+                "sourceUrl": CLAUDE_CHANGELOG_URL,
+                "notes": notes_value(
+                    notes,
+                    source_kind="official-changelog",
+                    source_url=CLAUDE_CHANGELOG_URL,
+                ),
+            }
+            for version, notes in sorted(
+                claude_entries.items(), key=lambda item: version_key(item[0])
+            )
+        ]
+        claude_releases = enrich_repository_history(
+            agent="claude-code",
+            repository=CLAUDE_REPOSITORY,
+            product_name="Claude Code",
+            tag_pattern=CLAUDE_TAG_RE,
+            releases=claude_releases,
+            normalized_root=normalized_root,
+            captured_versions=captured.get("claude-code", ()),
+            cache=cache,
+            max_tag_pages=max_tag_pages,
+            newest_comparisons=max_comparisons,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        normalized_values["claude-code"] = normalized_agent(
+            agent="claude-code",
+            repository=CLAUDE_REPOSITORY,
+            releases=claude_releases,
+            documents=[
+                changelog_document(claude_changelog, source_url=CLAUDE_CHANGELOG_URL)
+            ],
+        )
 
-    normalized_values: dict[str, dict[str, object]] = {
-        "claude-code": claude_value,
-        "codex": codex_value,
-    }
     for agent, config in GITHUB_RELEASE_SOURCES.items():
+        if agent not in selected:
+            continue
         repository = str(config["repository"])
         tag_pattern = re.compile(str(config["tagPattern"]))
         product_name = str(config["label"])
@@ -1092,6 +1099,11 @@ def sync(
             documents=[],
         )
 
+    normalized_root.mkdir(parents=True, exist_ok=True)
+    retained_names = {f"{agent}.json" for agent in normalized_values} | {"manifest.json"}
+    for path in normalized_root.glob("*.json"):
+        if path.name not in retained_names and path.is_file() and not path.is_symlink():
+            path.unlink()
     for agent, value in normalized_values.items():
         atomic_write(normalized_root / f"{agent}.json", pretty_json(value))
     manifest: dict[str, object] = {
@@ -1142,6 +1154,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument(
+        "--agents",
+        default="all",
+        help="comma-separated agent ids, or 'all' (default: all official sources)",
+    )
+    parser.add_argument(
         "--max-release-pages",
         type=int,
         default=10,
@@ -1179,6 +1196,22 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--max-comparisons must be non-negative")
     if args.timeout <= 0:
         parser.error("--timeout must be greater than zero")
+    requested = tuple(
+        dict.fromkeys(part.strip() for part in args.agents.split(",") if part.strip())
+    )
+    if requested == ("all",):
+        args.agents = tuple(OFFICIAL_REPOSITORIES)
+    elif not requested or "all" in requested:
+        parser.error("--agents must be a comma-separated list or exactly 'all'")
+    else:
+        invalid = [
+            agent
+            for agent in requested
+            if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,63}", agent)
+        ]
+        if invalid:
+            parser.error("invalid agent id(s): " + ", ".join(invalid))
+        args.agents = requested
     return args
 
 
@@ -1197,6 +1230,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         allow_stale_on_error=args.allow_stale_on_error,
         token=resolve_github_token(),
         capture_roots=args.capture_root,
+        agents=args.agents,
     )
     counts = manifest["agents"]
     assert isinstance(counts, Mapping)
