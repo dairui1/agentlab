@@ -227,6 +227,8 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         agents,
         "--batch-size",
         str(args.batch_size),
+        "--jobs",
+        str(args.jobs),
         "--timeout",
         str(args.codex_timeout),
         "--retries",
@@ -375,6 +377,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="comma-separated agent ids, or 'all' for every Phistory agent (default: all)",
     )
     parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=int(os.environ.get("AGENT_HISTORY_ANALYSIS_JOBS", "8")),
+        help="maximum concurrent Codex analysis invocations",
+    )
     parser.add_argument("--batch-delay", type=float, default=0.0)
     parser.add_argument(
         "--max-releases",
@@ -396,7 +404,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="fail unless Codex is installed, logged in, and analysis succeeds",
     )
-    parser.add_argument("--model", default=os.environ.get("AGENT_HISTORY_CODEX_MODEL"))
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("AGENT_HISTORY_CODEX_MODEL", "gpt-5.6-luna"),
+    )
     parser.add_argument(
         "--reasoning-effort",
         choices=("low", "medium", "high", "xhigh"),
@@ -415,6 +426,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         args.max_releases = None
     if args.batch_size < 1:
         parser.error("--batch-size must be at least 1")
+    if args.jobs < 1 or args.jobs > 64:
+        parser.error("--jobs must be between 1 and 64")
     if args.max_releases is not None and args.max_releases < 1:
         parser.error("--max-releases must be at least 1, or 0 for no cap")
     if args.batch_delay < 0 or args.codex_timeout <= 0 or args.step_timeout <= 0:

@@ -9,6 +9,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -652,6 +653,65 @@ class AnalyzeChangelogsTests(unittest.TestCase):
             self.assertFalse((output / "1.0.0.json").exists())
             self.assertTrue((output / "1.0.1.json").exists())
 
+    def test_parallel_jobs_run_independent_codex_batches_concurrently(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            directory = root / "analysis" / "evidence" / "codex"
+            directory.mkdir(parents=True)
+            for index in range(4):
+                packet = evidence(f"1.0.{index}")
+                (directory / f"1.0.{index}.json").write_text(
+                    json.dumps(packet), encoding="utf-8"
+                )
+
+            lock = threading.Lock()
+            active = 0
+            max_active = 0
+            original = analyze.analyze_batch
+
+            def fake_analyze_batch(batch, options, analyzer=None):
+                nonlocal active, max_active
+                with lock:
+                    active += 1
+                    max_active = max(max_active, active)
+                try:
+                    time.sleep(0.05)
+                    return analyze.validate_batch_result(
+                        analyze.fake_batch(batch),
+                        batch,
+                        model="test-model",
+                        generator=analyze.generator_metadata(options),
+                    )
+                finally:
+                    with lock:
+                        active -= 1
+
+            analyze.analyze_batch = fake_analyze_batch
+            try:
+                result = analyze.main(
+                    [
+                        "--analysis-root",
+                        str(root / "analysis"),
+                        "--agents",
+                        "codex",
+                        "--batch-size",
+                        "1",
+                        "--jobs",
+                        "3",
+                        "--model",
+                        "test-model",
+                    ]
+                )
+            finally:
+                analyze.analyze_batch = original
+
+            self.assertEqual(result, 0)
+            self.assertGreaterEqual(max_active, 2)
+            self.assertEqual(
+                len(list((root / "analysis" / "changelogs" / "codex").glob("*.json"))),
+                4,
+            )
+
     def test_cache_requires_prompt_model_and_reasoning_provenance(self):
         with tempfile.TemporaryDirectory() as raw:
             packet = evidence()
@@ -1021,6 +1081,11 @@ class DailyUpdateTests(unittest.TestCase):
         analyze_command = steps[4].command
         self.assertIn("--batch-size", analyze_command)
         self.assertEqual(analyze_command[analyze_command.index("--batch-size") + 1], "1")
+        self.assertEqual(analyze_command[analyze_command.index("--jobs") + 1], "8")
+        self.assertEqual(
+            analyze_command[analyze_command.index("--model") + 1],
+            "gpt-5.6-luna",
+        )
         self.assertEqual(analyze_command[analyze_command.index("--timeout") + 1], "180.0")
         self.assertEqual(
             analyze_command[analyze_command.index("--reasoning-effort") + 1],

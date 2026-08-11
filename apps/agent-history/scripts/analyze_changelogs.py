@@ -13,7 +13,9 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -36,7 +38,8 @@ AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_-]{0,79}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 LOG = logging.getLogger("analyze-changelogs")
-_ACTIVE_CODEX_PROCESS: subprocess.Popen[str] | None = None
+_ACTIVE_CODEX_PROCESSES: set[subprocess.Popen[str]] = set()
+_ACTIVE_CODEX_LOCK = threading.Lock()
 _HANDLING_SIGNAL = False
 
 
@@ -71,6 +74,7 @@ class Options:
     fake_analyzer: bool
     batch_delay: float
     reasoning_effort: str
+    jobs: int = 1
 
 
 def canonical_json(value: object) -> bytes:
@@ -491,15 +495,23 @@ def stop_process_group(
 
 def handle_analysis_signal(signum: int, _frame: object) -> None:
     global _HANDLING_SIGNAL
-    process = _ACTIVE_CODEX_PROCESS
+    with _ACTIVE_CODEX_LOCK:
+        processes = tuple(_ACTIVE_CODEX_PROCESSES)
     if _HANDLING_SIGNAL:
-        if process is not None:
+        for process in processes:
             signal_process_group(process, signal.SIGKILL)
         raise AnalysisInterrupted(signum)
     _HANDLING_SIGNAL = True
     try:
-        LOG.warning("received signal %s; stopping active Codex", signum)
-        if process is not None:
+        LOG.warning(
+            "received signal %s; stopping %d active Codex process%s",
+            signum,
+            len(processes),
+            "" if len(processes) == 1 else "es",
+        )
+        for process in processes:
+            signal_process_group(process, signum)
+        for process in processes:
             stop_process_group(process, initial_signal=signum)
     finally:
         _HANDLING_SIGNAL = False
@@ -523,7 +535,6 @@ def analysis_signal_handlers() -> Iterator[None]:
 def communicate_with_timeout(
     command: Sequence[str], prompt: str, timeout: float
 ) -> tuple[str, str]:
-    global _ACTIVE_CODEX_PROCESS
     try:
         process = subprocess.Popen(
             list(command),
@@ -535,7 +546,8 @@ def communicate_with_timeout(
         )
     except OSError as error:
         raise AnalysisError(f"cannot start {command[0]}: {error}") from error
-    _ACTIVE_CODEX_PROCESS = process
+    with _ACTIVE_CODEX_LOCK:
+        _ACTIVE_CODEX_PROCESSES.add(process)
     try:
         stdout, stderr = process.communicate(prompt, timeout=timeout)
     except subprocess.TimeoutExpired as error:
@@ -559,8 +571,8 @@ def communicate_with_timeout(
             f"Codex timed out after {timeout:g}s" + (f":\n{tail}" if tail else "")
         ) from error
     finally:
-        if _ACTIVE_CODEX_PROCESS is process:
-            _ACTIVE_CODEX_PROCESS = None
+        with _ACTIVE_CODEX_LOCK:
+            _ACTIVE_CODEX_PROCESSES.discard(process)
     if process.returncode != 0:
         tail = "\n".join(stderr.strip().splitlines()[-16:])
         raise AnalysisError(
@@ -909,6 +921,13 @@ def positive_int(value: str) -> int:
     return parsed
 
 
+def bounded_jobs(value: str) -> int:
+    parsed = positive_int(value)
+    if parsed > 64:
+        raise argparse.ArgumentTypeError("must not exceed 64")
+    return parsed
+
+
 def nonnegative_int(value: str) -> int:
     parsed = int(value)
     if parsed < 0:
@@ -930,6 +949,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="comma-separated agent ids, or 'all'; defaults to discovered evidence dirs",
     )
     parser.add_argument("--batch-size", type=positive_int, default=1)
+    parser.add_argument(
+        "--jobs",
+        type=bounded_jobs,
+        default=int(os.environ.get("AGENT_HISTORY_ANALYSIS_JOBS", "8")),
+        help="maximum concurrent Codex invocations (default: 8, maximum: 64)",
+    )
     parser.add_argument(
         "--max-releases",
         type=positive_int,
@@ -954,7 +979,10 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--retries", type=nonnegative_int, default=2)
-    parser.add_argument("--model", default=os.environ.get("AGENT_HISTORY_CODEX_MODEL"))
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("AGENT_HISTORY_CODEX_MODEL", "gpt-5.6-luna"),
+    )
     parser.add_argument(
         "--reasoning-effort",
         choices=("low", "medium", "high", "xhigh"),
@@ -1015,6 +1043,7 @@ def _main(argv: Sequence[str] | None = None) -> int:
         fake_analyzer=args.fake_analyzer,
         batch_delay=args.batch_delay,
         reasoning_effort=args.reasoning_effort,
+        jobs=args.jobs,
     )
     packets = load_evidence(options)
     pending: list[dict[str, object]] = []
@@ -1078,10 +1107,32 @@ def _main(argv: Sequence[str] | None = None) -> int:
     completed = 0
     failures: list[tuple[dict[str, object], AnalysisError]] = []
     packet_batches = list(batches(pending, options.batch_size))
-    for batch_index, packet_batch in enumerate(packet_batches):
-        for completed_batch, records in analyze_with_splitting(
-            packet_batch, options, failures=failures
-        ):
+
+    def run_batch(
+        packet_batch: list[dict[str, object]],
+    ) -> tuple[
+        list[tuple[list[dict[str, object]], list[dict[str, object]]]],
+        list[tuple[dict[str, object], AnalysisError]],
+    ]:
+        batch_failures: list[tuple[dict[str, object], AnalysisError]] = []
+        completed_batches = list(
+            analyze_with_splitting(
+                packet_batch,
+                options,
+                failures=batch_failures,
+            )
+        )
+        return completed_batches, batch_failures
+
+    def write_completed(
+        completed_batches: list[
+            tuple[list[dict[str, object]], list[dict[str, object]]]
+        ],
+        batch_failures: list[tuple[dict[str, object], AnalysisError]],
+    ) -> None:
+        nonlocal completed
+        failures.extend(batch_failures)
+        for completed_batch, records in completed_batches:
             for packet, record in zip(completed_batch, records, strict=True):
                 path = output_path(options, packet)
                 atomic_write_json(path, record)
@@ -1092,9 +1143,45 @@ def _main(argv: Sequence[str] | None = None) -> int:
                     completed,
                     len(pending),
                 )
-        if options.batch_delay and batch_index + 1 < len(packet_batches):
-            LOG.info("waiting %gs before the next Codex batch", options.batch_delay)
-            time.sleep(options.batch_delay)
+
+    if packet_batches:
+        LOG.info(
+            "running %d Codex batch%s with up to %d concurrent job%s",
+            len(packet_batches),
+            "" if len(packet_batches) == 1 else "es",
+            min(options.jobs, len(packet_batches)),
+            "" if min(options.jobs, len(packet_batches)) == 1 else "s",
+        )
+    if options.jobs == 1:
+        for batch_index, packet_batch in enumerate(packet_batches):
+            write_completed(*run_batch(packet_batch))
+            if options.batch_delay and batch_index + 1 < len(packet_batches):
+                LOG.info("waiting %gs before the next Codex batch", options.batch_delay)
+                time.sleep(options.batch_delay)
+    else:
+        with ThreadPoolExecutor(
+            max_workers=min(options.jobs, len(packet_batches) or 1),
+            thread_name_prefix="changelog-analysis",
+        ) as executor:
+            futures: list[
+                Future[
+                    tuple[
+                        list[
+                            tuple[
+                                list[dict[str, object]],
+                                list[dict[str, object]],
+                            ]
+                        ],
+                        list[tuple[dict[str, object], AnalysisError]],
+                    ]
+                ]
+            ] = []
+            for batch_index, packet_batch in enumerate(packet_batches):
+                futures.append(executor.submit(run_batch, packet_batch))
+                if options.batch_delay and batch_index + 1 < len(packet_batches):
+                    time.sleep(options.batch_delay)
+            for future in as_completed(futures):
+                write_completed(*future.result())
     if failures:
         identities = ", ".join(
             f"{packet['agent']}@{packet['version']}" for packet, _error in failures
