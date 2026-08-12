@@ -15,11 +15,11 @@
   };
   const productAgents = ["claude-code", "codex", "opencode"];
   const defaultViewCopy = {
-    compare: ["CONTROL REFERENCE", "操作速查", "primitive、默认行为、返回通道与危险边界放在同一个比较行。"],
-    flows: ["OBSERVABLE LIFECYCLE", "生命周期", "图中只画公开合同可观测的状态与控制，不冒充内部 scheduler 实现。"],
-    failures: ["FAILURE / SIDE EFFECT", "失败面", "按重复执行、payload 丢失、文件冲突与资源生命周期排序。"],
-    resources: ["ISOLATION / LIMITS", "隔离与资源", "Conversation、workspace、permission 与 limits 分开陈述，数字保留分母和作用域。"],
-    changes: ["CONTRACT COMPATIBILITY", "版本变化", "只保留会改变调用、默认值、返回值、限额或 failure shape 的节点。"],
+    compare: ["事实对照", "操作速查", "primitive、默认行为、返回通道与危险边界放在同一个比较行。"],
+    flows: ["可观测链路", "生命周期", "图中只画公开合同可观测的状态与控制，不冒充内部 scheduler 实现。"],
+    failures: ["失败与副作用", "失败面", "按重复执行、payload 丢失、文件冲突与资源生命周期排序。"],
+    resources: ["隔离与限额", "隔离与资源", "Conversation、workspace、permission 与 limits 分开陈述，数字保留分母和作用域。"],
+    changes: ["版本事实", "版本变化", "只保留会改变调用、默认值、返回值、限额或 failure shape 的节点。"],
   };
   const dossierRegistry = {
     "subagent-orchestration": {
@@ -318,8 +318,8 @@
   function renderHeader() {
     document.getElementById("contractTitle").textContent = workbench.title;
     document.getElementById("contractSubtitle").textContent = workbench.subtitle;
-    document.getElementById("contractDate").textContent = `AUDIT ${workbench.verifiedAt}`;
-    document.title = `${workbench.title} · AgentLab`;
+    document.getElementById("contractDate").textContent = `核验于 ${workbench.verifiedAt}`;
+    document.title = `${workbench.title} · 专题研究 · AgentLab`;
     const description = document.querySelector('meta[name="description"]');
     if (description) description.content = workbench.description || workbench.subtitle;
     renderMechanismMenu();
@@ -332,8 +332,8 @@
     const mechanismLabel = currentMechanism?.querySelector("strong")?.textContent || workbench.title;
     document.getElementById("mechanismMenuLabel").textContent = mechanismLabel;
     const dossierCount = Object.keys(dossierRegistry).length;
-    document.querySelector(".mechanism-switcher-label").textContent = `机制档案 · ${dossierCount} 份`;
-    document.getElementById("mechanismMenuTrigger").setAttribute("aria-label", `切换机制档案（共 ${dossierCount} 份），当前：${mechanismLabel}`);
+    document.querySelector(".mechanism-switcher-label").textContent = `比较专题 · ${dossierCount} 个`;
+    document.getElementById("mechanismMenuTrigger").setAttribute("aria-label", `切换比较专题（共 ${dossierCount} 个），当前：${mechanismLabel}`);
     if (workbench.views) {
       document.querySelectorAll("[data-view]").forEach((button) => {
         const label = workbench.views[button.dataset.view]?.label;
@@ -433,7 +433,7 @@
         const call = el("div", "operation-field");
         call.append(el("span", "operation-field-label", "CALL / SIGNAL"), primitive);
         const guarantee = el("div", "operation-field");
-        guarantee.append(el("span", "operation-field-label", "OBSERVABLE CONTRACT"), el("p", "operation-contract", data.contract));
+        guarantee.append(el("span", "operation-field-label", "已核对行为"), el("p", "operation-contract", data.contract));
         const details = el("dl", "operation-details");
         (data.details || []).forEach((detail) => {
           const line = el("div");
@@ -765,7 +765,7 @@
     const [claim, label] = state.view === "compare" && selectedOperation
       ? compareDefault
       : configured ? [configured.claim, configured.label] : fallbackDefaults[state.view];
-    document.getElementById("inspectorContext").textContent = `DEFAULT EVIDENCE · ${label}`;
+    document.getElementById("inspectorContext").textContent = `默认证据 · ${label}`;
     renderInspectorRecord(claim);
   }
 
@@ -776,7 +776,7 @@
     state.claim = id;
     state.contextClaims = context;
     state.inspectorContext = contextLabel || "";
-    document.getElementById("inspectorContext").textContent = state.inspectorContext ? `EVIDENCE · ${state.inspectorContext}` : "EVIDENCE INSPECTOR";
+    document.getElementById("inspectorContext").textContent = state.inspectorContext ? `证据 · ${state.inspectorContext}` : "证据";
     document.querySelectorAll(".inspect-evidence.is-active").forEach((button) => {
       button.classList.remove("is-active");
       button.removeAttribute("aria-pressed");
@@ -800,7 +800,7 @@
     state.inspectorContext = "";
     inspector.classList.remove("is-open");
     syncInspectorMode();
-    document.getElementById("inspectorContext").textContent = "EVIDENCE INSPECTOR";
+    document.getElementById("inspectorContext").textContent = "证据";
     document.querySelectorAll(".inspect-evidence.is-active").forEach((button) => {
       button.classList.remove("is-active");
       button.removeAttribute("aria-pressed");
@@ -875,7 +875,7 @@
     clear(canvas);
     const configuredCopy = workbench.views?.[state.view];
     const copy = configuredCopy
-      ? [configuredCopy.kicker, configuredCopy.title, configuredCopy.description]
+      ? [defaultViewCopy[state.view][0], configuredCopy.title, configuredCopy.description]
       : defaultViewCopy[state.view];
     const operation = workbench.operations.find((item) => item.id === state.operation);
     document.getElementById("contractWorkspace").dataset.view = state.view;
@@ -1028,11 +1028,10 @@
     claimById = new Map(evidence.claims.map((item) => [item.id, item]));
     unknownById = new Map(summary.unknowns.map((item) => [item.id, item]));
     renderHeader();
-    renderSharpEdges();
     renderOperationRail();
     bindStaticControls();
     restoreState();
-    document.querySelectorAll("#contractHeader, #sharpEdgeStrip, #viewTabs, #contractWorkspace").forEach((node) => { node.hidden = false; });
+    document.querySelectorAll("#contractHeader, #viewTabs, #contractWorkspace").forEach((node) => { node.hidden = false; });
     if (state.claim) positionInspector();
     status.hidden = true;
     app.setAttribute("aria-busy", "false");

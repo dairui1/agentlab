@@ -4,7 +4,7 @@
   "title": "Goal Mode",
   "product": "Codex 0.147.0 · Claude Code 2.1.227",
   "subtitle": "同一句 /goal，背后是两套完全不同的续跑控制",
-  "description": "这份能力拆解不比较谁能连续跑更久，而是追问更具体的四件事：目标存在哪里，一轮结束后谁发起下一轮，卡住时谁能停，最后谁有资格说完成。Codex 把 goal 做成 thread 上的持久状态，由 runtime 负责计量和续跑，再让 worker 用受限工具申报 complete 或 blocked；Claude Code 把 goal 放在每轮出口，由 session-scoped Stop hook 调用独立 evaluator，根据对话里出现的证据决定放行还是继续。两种设计都能跨 turn，却把控制权、恢复语义和误判风险放在不同位置。",
+  "description": "这项研究不比较谁能连续跑更久，而是追问更具体的四件事：目标存在哪里，一轮结束后谁发起下一轮，卡住时谁能停，最后谁有资格说完成。Codex 把 goal 做成 thread 上的持久状态，由 runtime 负责计量和续跑，再让 worker 用受限工具申报 complete 或 blocked；Claude Code 把 goal 放在每轮出口，由 session-scoped Stop hook 调用独立 evaluator，根据对话里出现的证据决定放行还是继续。两种设计都能跨 turn，却把控制权、恢复语义和误判风险放在不同位置。",
   "verifiedAt": "2026-08-11",
   "status": "active",
   "scope": [

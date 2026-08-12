@@ -4,24 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="AgentLab Sub-agent control contract explorer：查询创建、寻址、等待、恢复、结果、取消和文件副作用。">
-  <title>Sub-agent control contracts · AgentLab</title>
+  <meta name="description" content="AgentLab 专题研究：比较固定版本下的 Agent 控制合同、失败面与公开证据。">
+  <title>比较研究 · 专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/mechanisms.css">
+  <link rel="stylesheet" href="/mechanisms.css?v=2">
 </head>
 <body>
   <div class="app-shell contract-shell">
     <header class="topbar">
       <a class="brand" href="/" aria-label="AgentLab 首页">
         <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
-        <span class="brand-copy"><strong>AgentLab</strong><span>机制档案</span></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>专题研究</span></span>
       </a>
       <div class="segmented mode-switch" role="group" aria-label="页面视图">
         <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
         <a href="/?mode=compare"><i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span></a>
-        <a href="/mechanisms.html" aria-current="page"><i data-lucide="network" aria-hidden="true"></i><span>机制档案</span></a>
-        <a href="/capabilities.html"><i data-lucide="scan-search" aria-hidden="true"></i><span>能力拆解</span></a>
+        <a href="/capabilities.html" aria-current="page"><i data-lucide="library" aria-hidden="true"></i><span>专题研究</span></a>
       </div>
       <div class="header-links">
         <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
@@ -36,13 +35,13 @@
       <header id="contractHeader" class="contract-header" hidden>
         <div class="contract-title-block">
           <div id="mechanismSwitcher" class="mechanism-switcher">
-            <span class="mechanism-switcher-label">机制档案</span>
+            <a class="mechanism-switcher-label" href="/capabilities.html">全部专题</a>
             <span class="mechanism-switcher-separator" aria-hidden="true">/</span>
             <button id="mechanismMenuTrigger" class="mechanism-menu-trigger" type="button" aria-expanded="false" aria-controls="mechanismMenu">
               <span id="mechanismMenuLabel">Sub-agent 编排</span>
               <i data-lucide="chevron-down" aria-hidden="true"></i>
             </button>
-            <nav id="mechanismMenu" class="mechanism-menu" aria-label="选择机制档案" hidden></nav>
+            <nav id="mechanismMenu" class="mechanism-menu" aria-label="选择比较专题" hidden></nav>
           </div>
           <div class="contract-title-row">
             <h1 id="contractTitle"></h1>
@@ -71,12 +70,6 @@
           <nav id="operationList" aria-label="按操作筛选">
             <button id="showAllOperations" class="operation-button rail-all" type="button" aria-pressed="true"><i data-lucide="rows-3" aria-hidden="true"></i><span>全部操作</span></button>
           </nav>
-          <div class="rail-scope">
-            <strong>Evidence scope</strong>
-            <span>model-visible contract</span>
-            <span>exact-tag source</span>
-            <span>official docs / release</span>
-          </div>
         </aside>
 
         <section id="contractPanel" class="contract-canvas" role="tabpanel" aria-live="polite" aria-labelledby="tabCompare">
@@ -100,11 +93,11 @@
         <div id="inspectorBackdrop" class="inspector-backdrop" hidden></div>
         <aside id="evidenceInspector" class="evidence-inspector" aria-labelledby="inspectorTitle">
           <header>
-            <div><span id="inspectorContext">EVIDENCE INSPECTOR</span><h2 id="inspectorTitle">选择一条合同</h2></div>
+            <div><span id="inspectorContext">证据</span><h2 id="inspectorTitle">选择一条事实</h2></div>
             <button id="closeInspector" class="icon-button" type="button" aria-label="关闭证据详情" title="关闭"><i data-lucide="x" aria-hidden="true"></i></button>
           </header>
           <div id="inspectorContent" class="inspector-content">
-            <p class="inspector-empty">点击任意“证据”按钮，在不离开当前比较位置的情况下检查版本、来源和边界。</p>
+            <p class="inspector-empty">点击“证据”，检查这条事实对应的版本、来源和边界。</p>
           </div>
         </aside>
       </div>
@@ -112,6 +105,6 @@
   </div>
 
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="/mechanisms.js"></script>
+  <script src="/mechanisms.js?v=2"></script>
 </body>
 </html>

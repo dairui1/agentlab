@@ -158,7 +158,7 @@ test("Claude percentage override is quarantined as tag-unverified, not a 2.1.226
 
 test("renderer selects dossiers through a mechanism menu and supports claims without compare links", () => {
   assert.match(html, /id="mechanismMenuTrigger"[^>]*aria-expanded="false"[^>]*aria-controls="mechanismMenu"/);
-  assert.match(html, /<nav id="mechanismMenu"[^>]*aria-label="选择机制档案"/);
+  assert.match(html, /<nav id="mechanismMenu"[^>]*aria-label="选择比较专题"/);
   assert.match(html, /<nav id="mechanismMenu"[^>]*hidden><\/nav>/);
   assert.doesNotMatch(html, /role="menu(item)?"|aria-haspopup="menu"/);
   assert.doesNotMatch(html, /<select/);

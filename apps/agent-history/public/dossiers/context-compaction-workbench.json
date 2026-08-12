@@ -1,5 +1,5 @@
 {
-  "title": "Context compaction contracts",
+  "title": "上下文压缩",
   "subtitle": "预算触发、历史替换、持久状态与失败恢复",
   "description": "Claude Code、Codex 与 opencode 固定版本下的上下文压缩 Harness 合同。",
   "eyebrow": "MECHANISM / CONTEXT COMPACTION",

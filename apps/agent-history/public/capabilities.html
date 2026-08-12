@@ -4,122 +4,94 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="AgentLab 能力拆解：持续追踪 Coding Agent 能力如何在具体发行版本中实现。">
-  <title>能力拆解 · AgentLab</title>
+  <meta name="description" content="AgentLab 专题研究：按固定版本整理 Coding Agent 的实现事实、公开证据与尚未证明的问题。">
+  <title>专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/capabilities-index.css">
+  <link rel="stylesheet" href="/research.css">
 </head>
 <body>
-  <div class="app-shell capability-library-shell">
+  <div class="app-shell research-shell">
     <header class="topbar">
       <a class="brand" href="/" aria-label="AgentLab 首页">
         <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
-        <span class="brand-copy"><strong>AgentLab</strong><span>能力拆解</span></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>专题研究</span></span>
       </a>
       <div class="segmented mode-switch" role="group" aria-label="页面视图">
         <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
         <a href="/?mode=compare"><i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span></a>
-        <a href="/mechanisms.html"><i data-lucide="network" aria-hidden="true"></i><span>机制档案</span></a>
-        <a href="/capabilities.html" aria-current="page"><i data-lucide="scan-search" aria-hidden="true"></i><span>能力拆解</span></a>
+        <a href="/capabilities.html" aria-current="page"><i data-lucide="library" aria-hidden="true"></i><span>专题研究</span></a>
       </div>
       <div class="header-links">
         <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
       </div>
     </header>
 
-    <main class="capability-library">
-      <header class="library-intro">
-        <div class="library-heading">
-          <span class="library-kicker">CAPABILITY TEARDOWNS</span>
-          <h1>能力拆解</h1>
-        </div>
-        <div class="library-definition">
-          <p>每篇文章沿一项能力向下拆解模型接口、宿主桥接、系统权限与真实失败面。</p>
-          <p class="library-method">研究锁定具体发行构建；事实、工程推断与未知问题分别标注，结论只写到证据允许的位置。</p>
-        </div>
-      </header>
+    <main id="researchApp" class="research-view" aria-busy="true">
+      <div id="researchStatus" class="research-status" role="status" aria-live="polite">
+        <span class="loading-spinner" aria-hidden="true"></span><span>正在读取专题</span>
+      </div>
 
-      <section class="library-catalog" aria-labelledby="catalogTitle">
-        <header class="catalog-heading">
+      <section id="researchIndex" hidden>
+        <header class="research-header">
           <div>
-            <span>THE COLLECTION</span>
-            <h2 id="catalogTitle">深度文章</h2>
+            <h1>专题研究</h1>
+            <p id="researchIndexMeta"></p>
           </div>
-          <p><strong>03</strong> 篇实现拆解</p>
         </header>
-
-        <ol class="article-list">
-          <li class="article-entry article-entry-featured">
-            <a class="article-link" href="/capabilities/browser-use.html" aria-label="阅读 Browser Use 能力拆解">
-              <div class="article-index" aria-hidden="true"><span class="article-number">01</span><img src="/assets/capability-browser.png" alt=""></div>
-              <div class="article-copy">
-                <div class="article-heading-line">
-                  <span class="article-status" data-status="active"><span aria-hidden="true"></span>已核验 · build 6234</span>
-                  <span class="article-slug">browser-use</span>
-                </div>
-                <h3>Browser Use</h3>
-                <p>从 WebMCP、Playwright 与 DOM 观察层，一路追到 tab 所有权、浏览器宿主和用户登录态。拆开 Codex 如何理解、控制并安全地交还一个真实网页。</p>
-              </div>
-              <dl class="article-meta">
-                <div><dt>研究构建</dt><dd>Codex for macOS · build 6234</dd></div>
-                <div><dt>阅读时间</dt><dd>约 28 分钟</dd></div>
-                <div><dt>发行包证据</dt><dd>32 条</dd></div>
-              </dl>
-              <span class="article-open" aria-hidden="true"><i data-lucide="arrow-up-right"></i></span>
-            </a>
-          </li>
-
-          <li class="article-entry">
-            <a class="article-link" href="/capabilities/computer-use.html" aria-label="阅读 Codex Computer Use 实现拆解">
-              <div class="article-index" aria-hidden="true"><span class="article-number">02</span><img src="/assets/capability-computer-use.svg" alt=""></div>
-              <div class="article-copy">
-                <div class="article-heading-line">
-                  <span class="article-status" data-status="maintained"><span aria-hidden="true"></span>已核验 · build 6234</span>
-                  <span class="article-slug">computer-use</span>
-                </div>
-                <h3>Computer Use</h3>
-                <p>沿固定构建拆开 node_repl、@oai/sky、本地 IPC、CUAService 与 macOS 权限，看它们怎样串成 Codex Computer Use 的实现链。</p>
-              </div>
-              <dl class="article-meta">
-                <div><dt>研究构建</dt><dd>Codex for macOS · build 6234</dd></div>
-                <div><dt>阅读时间</dt><dd>约 24 分钟</dd></div>
-                <div><dt>发行包证据</dt><dd>23 条</dd></div>
-              </dl>
-              <span class="article-open" aria-hidden="true"><i data-lucide="arrow-up-right"></i></span>
-            </a>
-          </li>
-
-          <li class="article-entry">
-            <a class="article-link" href="/capabilities/goal-mode.html" aria-label="阅读 Goal Mode 对比拆解">
-              <div class="article-index" aria-hidden="true"><span class="article-number">03</span><img src="/assets/capability-goal-mode.png" alt=""></div>
-              <div class="article-copy">
-                <div class="article-heading-line">
-                  <span class="article-status" data-status="active"><span aria-hidden="true"></span>更新于 · 2026-08-11</span>
-                  <span class="article-slug">goal-mode</span>
-                </div>
-                <h3>Goal Mode</h3>
-                <p>同样是用 <code>/goal</code> 把长任务继续做下去，Codex 把目标交给线程运行时，Claude Code 则在每轮结束时请模型验收。这里拆开两套循环各自怎样续跑、暂停和判断完成。</p>
-              </div>
-              <dl class="article-meta">
-                <div><dt>对比版本</dt><dd>Codex 0.147.0 · Claude Code 2.1.227</dd></div>
-                <div><dt>阅读时间</dt><dd>约 26 分钟</dd></div>
-                <div><dt>核心差异</dt><dd>持久状态 vs Stop hook</dd></div>
-              </dl>
-              <span class="article-open" aria-hidden="true"><i data-lucide="arrow-up-right"></i></span>
-            </a>
-          </li>
-        </ol>
+        <div class="research-controls" aria-label="专题筛选">
+          <label class="research-select-field">
+            <span>主题</span>
+            <select id="researchTopicFilter" aria-label="按主题筛选"></select>
+          </label>
+          <label class="research-select-field">
+            <span>产品</span>
+            <select id="researchProductFilter" aria-label="按产品筛选"></select>
+          </label>
+          <button id="resetResearchFilters" class="icon-button" type="button" aria-label="重置专题筛选" title="重置专题筛选" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+          <span id="researchResultCount" class="research-result-count" aria-live="polite"></span>
+        </div>
+        <section id="researchFeed" class="research-feed" aria-label="专题列表"></section>
       </section>
 
-      <footer class="library-footer">
-        <span>研究原则</span>
-        <p>不把编译产物写成源码，不把文件存在写成执行路径，也不让未知部分消失在叙事里。</p>
-      </footer>
+      <article id="researchDetail" class="research-detail" hidden>
+        <a class="research-back" href="/capabilities.html"><i data-lucide="arrow-left" aria-hidden="true"></i><span>全部专题</span></a>
+        <header class="research-detail-header">
+          <div class="research-detail-meta" id="researchDetailMeta"></div>
+          <h1 id="researchDetailTitle"></h1>
+          <p id="researchDetailFact"></p>
+          <div id="researchProducts" class="research-products" aria-label="核验版本"></div>
+          <div id="researchHeadlineEvidence" class="research-headline-evidence" aria-label="结论依据"></div>
+        </header>
+
+        <section class="research-detail-controls" aria-label="事实筛选">
+          <label class="research-search">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input id="researchEvidenceSearch" type="search" placeholder="搜索事实、证据位置或边界" aria-label="搜索事实与证据">
+          </label>
+          <label class="research-select-field">
+            <span>类型</span>
+            <select id="researchEvidenceType" aria-label="按证据类型筛选">
+              <option value="all">全部</option>
+              <option value="fact">事实</option>
+              <option value="inference">推断</option>
+              <option value="unknown">尚未证明</option>
+            </select>
+          </label>
+          <button id="resetEvidenceFilters" class="icon-button" type="button" aria-label="重置事实筛选" title="重置事实筛选" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+          <span id="researchEvidenceCount" class="research-result-count" aria-live="polite"></span>
+        </section>
+
+        <section id="researchEvidenceList" class="research-evidence-list" aria-label="事实与证据"></section>
+        <footer class="research-detail-footer">
+          <p>结论只适用于页面列出的版本。事实、推断和未知项分别显示，不用缺失证据补齐叙事。</p>
+          <a id="researchLegacyLink" href="#"><i data-lucide="table-properties" aria-hidden="true"></i><span>打开原始研究视图</span></a>
+        </footer>
+      </article>
     </main>
   </div>
 
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script>window.lucide?.createIcons();</script>
+  <script src="/research.js"></script>
 </body>
 </html>

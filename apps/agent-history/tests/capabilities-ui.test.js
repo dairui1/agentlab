@@ -9,6 +9,9 @@ const read = (file) => fs.readFileSync(path.join(publicRoot, file), "utf8");
 const indexHtml = read("index.html");
 const mechanismsHtml = read("mechanisms.html");
 const capabilitiesHtml = read("capabilities.html");
+const researchStyles = read("research.css");
+const researchScript = read("research.js");
+const researchIndex = JSON.parse(read("research-index.json"));
 const articleStyles = read("capability-article.css");
 const articleScript = read("capability-article.js");
 const computerUseLabStyles = read("computer-use-lab.css");
@@ -134,8 +137,8 @@ function assertEvidence(study, prefix) {
   }
 }
 
-test("the index, mechanism archive, library, and all three articles expose four top-level sections", () => {
-  const labels = ["更新情报", "版本比较", "机制档案", "能力拆解"];
+test("all public surfaces expose one shared research section instead of two competing modules", () => {
+  const labels = ["更新情报", "版本比较", "专题研究"];
   const pages = [
     ["index", indexHtml],
     ["mechanisms", mechanismsHtml],
@@ -147,43 +150,79 @@ test("the index, mechanism archive, library, and all three articles expose four 
     const navigation = navFragment(html);
     assert.ok(navigation, `${name} is missing the top-level navigation`);
     for (const label of labels) assert.match(navigation, new RegExp(`>${label}<`), `${name} is missing ${label}`);
-    assert.match(navigation, /href="\/mechanisms\.html"/);
     assert.match(navigation, /href="\/capabilities\.html"/);
+    assert.doesNotMatch(navigation, />机制档案<|>能力拆解<|href="\/mechanisms\.html"/);
   }
 
-  assert.match(mechanismsHtml, /href="\/mechanisms\.html" aria-current="page"/);
-  assert.doesNotMatch(mechanismsHtml, /href="\/capabilities\.html" aria-current="page"/);
-  for (const html of [capabilitiesHtml, ...Object.values(articles)]) {
+  for (const html of [mechanismsHtml, capabilitiesHtml, ...Object.values(articles)]) {
     assert.match(html, /href="\/capabilities\.html" aria-current="page"/);
-    assert.doesNotMatch(html, /href="\/mechanisms\.html" aria-current="page"/);
   }
 });
 
-test("the capability landing page is an ordered three-article library, not the old workbench", () => {
-  assert.ok(elements(capabilitiesHtml, "main").some((element) => hasClass(element, "capability-library")));
-  assert.ok(elements(capabilitiesHtml, "header").some((element) => hasClass(element, "library-intro")));
-  assert.ok(elements(capabilitiesHtml, "ol").some((element) => hasClass(element, "article-list")));
+test("the research landing is one fact-first index for comparisons and fixed builds", () => {
+  assert.ok(elements(capabilitiesHtml, "main").some((element) => hasClass(element, "research-view")));
+  assert.match(capabilitiesHtml, /id="researchIndex"/);
+  assert.match(capabilitiesHtml, /id="researchDetail"/);
+  assert.match(capabilitiesHtml, /id="researchFeed"[^>]*aria-label="专题列表"/);
+  assert.match(capabilitiesHtml, /id="researchEvidenceList"[^>]*aria-label="事实与证据"/);
+  assert.match(capabilitiesHtml, /id="researchHeadlineEvidence"[^>]*aria-label="结论依据"/);
+  assert.doesNotMatch(capabilitiesHtml, /researchEvidenceAgent|按产品筛选事实/);
+  assert.match(capabilitiesHtml, /href="\/research\.css"/);
+  assert.match(capabilitiesHtml, /src="\/research\.js"/);
+  assert.doesNotMatch(capabilitiesHtml, /CAPABILITY TEARDOWNS|THE COLLECTION|阅读时间|article-number|article-status|capability-library/);
 
-  const entries = elements(capabilitiesHtml, "li").filter((element) => hasClass(element, "article-entry"));
-  const links = elements(capabilitiesHtml, "a").filter((element) => hasClass(element, "article-link"));
-  assert.equal(entries.length, 3);
-  assert.deepEqual(links.map((link) => link.attributes.href), [
-    "/capabilities/browser-use.html",
-    "/capabilities/computer-use.html",
-    "/capabilities/goal-mode.html",
-  ]);
-  assert.equal(new Set(links.map((link) => link.attributes.href)).size, links.length);
-  assert.equal(elements(capabilitiesHtml, "dl").filter((element) => hasClass(element, "article-meta")).length, 3);
-  assert.deepEqual(
-    elements(capabilitiesHtml, "span")
-      .filter((element) => hasClass(element, "article-status"))
-      .map((element) => element.attributes["data-status"]),
-    ["active", "maintained", "active"],
-  );
+  assert.equal(researchIndex.studies.length, 10);
+  assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, 10);
+  assert.deepEqual(new Set(researchIndex.studies.map((study) => study.kind)), new Set(["comparison", "fixed-build"]));
+  assert.equal(researchIndex.studies.filter((study) => study.evidence).length, 7);
+  assert.equal(researchIndex.studies.filter((study) => study.data).length, 3);
+  for (const study of researchIndex.studies) {
+    assert.ok(study.fact && study.verifiedAt && study.topic);
+    assert.ok(study.products.length > 0 && study.products.every((product) => product.id && product.label && product.version));
+    assert.ok(study.headlineEvidence.length > 0 && new Set(study.headlineEvidence).size === study.headlineEvidence.length);
+    assert.ok(study.evidenceCount > 0 && study.unknownCount > 0);
+    assert.ok(study.legacyHref.startsWith("/"));
+  }
 
-  assert.match(capabilitiesHtml, /href="\/capabilities-index\.css"/);
-  assert.doesNotMatch(capabilitiesHtml, /capabilityApp|capabilityTabs|capabilityWorkspace|role="tablist"/);
-  assert.doesNotMatch(capabilitiesHtml, /capabilities-(?:core\.)?js|capabilities\.js|capabilities\.css/);
+  assert.match(researchScript, /textContent = study\.fact/);
+  assert.match(researchScript, /type: "unknown"/);
+  assert.match(researchScript, /record\.boundary/);
+  assert.match(researchScript, /claim\.artifact/);
+  assert.match(researchScript, /claim\.sha256/);
+  assert.doesNotMatch(researchScript, /innerHTML\s*=/);
+  assert.match(researchStyles, /\.research-item-link \{[\s\S]*grid-template-columns: 4px minmax\(0, 1fr\)/);
+  assert.match(researchStyles, /\.research-evidence-row\[data-record-type="inference"\]/);
+  assert.match(researchStyles, /@media \(max-width: 780px\)/);
+});
+
+test("every research index count resolves to the published fact and unknown datasets", () => {
+  for (const study of researchIndex.studies) {
+    if (study.data) {
+      const data = JSON.parse(read(study.data.replace(/^\//, "")));
+      const evidenceIds = new Set(data.evidence.map((claim) => claim.id));
+      assert.equal(data.evidence.length, study.evidenceCount, `${study.id} evidence count drifted`);
+      assert.equal(data.unknowns.length, study.unknownCount, `${study.id} unknown count drifted`);
+      for (const id of study.headlineEvidence) assert.ok(evidenceIds.has(id), `${study.id} headline evidence ${id} is missing`);
+      for (const claim of data.evidence) {
+        assert.ok(claim.id && claim.title && claim.statement && claim.boundary, `${study.id} has a shallow claim`);
+        assert.ok(["observation", "inference"].includes(claim.kind), `${claim.id} hides its fact type`);
+        assert.ok(claim.artifact && claim.locator && /^[a-f0-9]{64}$/.test(claim.sha256), `${claim.id} cannot be located`);
+      }
+      continue;
+    }
+
+    const evidence = JSON.parse(read(study.evidence.replace(/^\//, "")));
+    const summary = JSON.parse(read(study.summary.replace(/^\//, "")));
+    const evidenceIds = new Set(evidence.claims.map((claim) => claim.id));
+    assert.equal(evidence.claims.length, study.evidenceCount, `${study.id} evidence count drifted`);
+    assert.equal(summary.unknowns.length, study.unknownCount, `${study.id} unknown count drifted`);
+    for (const id of study.headlineEvidence) assert.ok(evidenceIds.has(id), `${study.id} headline evidence ${id} is missing`);
+    for (const claim of evidence.claims) {
+      assert.ok(claim.id && claim.title && claim.statement && claim.boundary, `${study.id} has a shallow fact`);
+      assert.ok(["fact", "inference"].includes(claim.type), `${claim.id} hides its evidence type`);
+      assert.ok(claim.agent && claim.version && claim.source?.url, `${claim.id} lacks versioned provenance`);
+    }
+  }
 });
 
 test("all three capability pages are long semantic articles with complete sticky-table-of-contents targets", () => {
@@ -191,7 +230,7 @@ test("all three capability pages are long semantic articles with complete sticky
     const body = elements(html, "body")[0];
     assert.equal(body.attributes["data-evidence-source"], `/capabilities/${id}.json`);
     assert.ok(Object.hasOwn(body.attributes, "data-evidence-source"));
-    assert.match(html, /href="\/capability-article\.css"/);
+    assert.match(html, /href="\/capability-article\.css\?v=2"/);
     assert.match(html, /src="\/capability-article\.js"/);
     assert.equal(elements(html, "main").length, 1, `${id} must have one semantic main region`);
     assert.match(html, /class="[^"]*\bcapability-reading\b/);
@@ -224,7 +263,7 @@ test("Computer Use headings form one implementation map instead of unrelated edi
   const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
     .map((match) => plainText(match[1]));
 
-  assert.match(html, /<span class="article-series">实现拆解 · 能力档案 002<\/span>/);
+  assert.match(html, /<span class="article-series">固定构建实现研究<\/span>/);
   assert.match(html, /<h1>Codex Computer Use<\/h1>/);
   assert.deepEqual(articleSectionIds(html), [
     "thesis",
@@ -278,7 +317,7 @@ test("Browser Use headings form the same kind of implementation map", () => {
   const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
     .map((match) => plainText(match[1]));
 
-  assert.match(html, /<span class="article-series">实现拆解 · 能力档案 001<\/span>/);
+  assert.match(html, /<span class="article-series">固定构建实现研究<\/span>/);
   assert.deepEqual(tocTitles, sectionTitles, "Browser Use TOC and section headings should use the same implementation labels");
   assert.deepEqual(sectionTitles.map((title) => title.split("：")[0]), [
     "整体模型",
@@ -303,7 +342,7 @@ test("Goal Mode headings keep the Codex and Claude Code comparison on one contro
   const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
     .map((match) => plainText(match[1]));
 
-  assert.match(html, /<span class="article-series">对比拆解 · 能力档案 003<\/span>/);
+  assert.match(html, /<span class="article-series">跨产品实现研究<\/span>/);
   assert.match(html, /<h1>Goal Mode<\/h1>/);
   assert.deepEqual(articleSectionIds(html), [
     "overall-model",

@@ -148,7 +148,7 @@
     { "id": "OBS-03", "title": "“后台”至少有三种合同", "text": "Claude Agent 默认后台且改变工具与错误面；Codex 以异步 mailbox 回收；opencode 默认前台，实验性后台以 synthetic prompt 回注。", "claims": ["CC-03", "CX-05", "OC-04"] },
     { "id": "OBS-04", "title": "恢复句柄保存的不是同一种状态", "text": "Claude 同时存在 transcript continuation 与 workflow prefix cache；Codex 保留可唤醒地址；opencode 的 task_id 直接续跑 child Session。", "claims": ["CC-04", "CX-05", "CX-06", "OC-02"] },
     { "id": "OBS-05", "title": "文件冲突保护明显不对称", "text": "Claude Code 至少暴露可选 worktree；Codex 明示共享 filesystem 而未声明仲裁；opencode 固定版本源码显示共享 worktree path。", "claims": ["CC-06", "CX-04", "OC-01"] },
-    { "id": "OBS-06", "title": "只追 Prompt diff 会漏掉机制变化", "text": "opencode 1.18.2 的嵌套限制只在 release/source 可见；机制档案必须同时保留 Runtime Prompt、固定版本源码与 release 三层。", "claims": ["OC-06"] }
+    { "id": "OBS-06", "title": "只追 Prompt diff 会漏掉机制变化", "text": "opencode 1.18.2 的嵌套限制只在 release/source 可见；专题研究必须同时保留 Runtime Prompt、固定版本源码与 release 三层。", "claims": ["OC-06"] }
   ],
   "timeline": [
     { "date": "2025-10-27", "agent": "claude-code", "version": "1.0.0 → 2.0.28", "title": "一次性 Task 变成可续接 transcript", "text": "schema 新增 Agent ID resume 与 per-call model。", "url": "/?mode=compare&agent=claude-code&left=1.0.0&right=2.0.28&view=structure&section=tool%3Atask" },

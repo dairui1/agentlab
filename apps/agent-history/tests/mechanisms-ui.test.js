@@ -46,11 +46,14 @@ function internalCompareUrls() {
   ].filter((url) => url.startsWith("/"));
 }
 
-test("mechanism workbench is wired as a compact five-view application", () => {
+test("legacy comparison URLs retain the evidence workbench behind the unified research index", () => {
   const index = read("index.html");
-  assert.match(index, /href="\/mechanisms\.html"/);
+  assert.match(index, /href="\/capabilities\.html"[\s\S]*>专题研究</);
+  assert.doesNotMatch(index, /href="\/mechanisms\.html"|>机制档案<|>能力拆解</);
   assert.match(html, /id="contractApp"/);
-  assert.match(html, /id="sharpEdgeStrip"/);
+  assert.match(html, /id="sharpEdgeStrip"[^>]*hidden/);
+  assert.doesNotMatch(html, /Evidence scope|EVIDENCE INSPECTOR/);
+  assert.doesNotMatch(script, /renderSharpEdges\(\);/);
   assert.match(html, /id="contractWorkspace"/);
   assert.match(html, /id="operationList"/);
   assert.match(html, /id="evidenceInspector"/);
@@ -59,8 +62,8 @@ test("mechanism workbench is wired as a compact five-view application", () => {
   for (const view of ["compare", "flows", "failures", "resources", "changes"]) {
     assert.match(html, new RegExp(`data-view="${view}"`));
   }
-  assert.match(html, /src="\/mechanisms\.js"/);
-  assert.match(html, /href="\/mechanisms\.css"/);
+  assert.match(html, /src="\/mechanisms\.js\?v=2"/);
+  assert.match(html, /href="\/mechanisms\.css\?v=2"/);
 });
 
 test("article-era repetition and self-built-Agent advice stay deleted", () => {

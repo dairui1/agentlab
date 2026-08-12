@@ -81,7 +81,12 @@
 .mechanism-switcher-label {
   color: var(--muted);
   font: 700 9px/1 var(--mono);
+  text-decoration: none;
   text-transform: uppercase;
+}
+
+.mechanism-switcher-label:hover {
+  color: var(--text);
 }
 
 .mechanism-switcher-separator {
@@ -349,6 +354,14 @@
   border-bottom: 1px solid var(--border);
   background: var(--surface-raised);
   scrollbar-width: thin;
+}
+
+.sharp-edge-strip[hidden] {
+  display: none !important;
+}
+
+.contract-app > .sharp-edge-strip {
+  display: none !important;
 }
 
 .sharp-edge-strip::after {

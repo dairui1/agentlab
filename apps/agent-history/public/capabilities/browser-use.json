@@ -4,7 +4,7 @@
   "title": "Browser Use",
   "product": "Codex Desktop · Browser / Chrome",
   "subtitle": "从页面工具到像素输入的多后端执行栈",
-  "description": "这份能力拆解把 Browser Use 还原为一条可审计的执行栈：Browser 与 Chrome 插件加载同一份受信 browser-client，客户端发现 IAB、extension 或 CDP 后端，按能力动态投影 API，并在 WebMCP、Playwright、DOM-CUA 与坐标 CUA 之间提供不同语义层级。每条命令在进入浏览器后端前经过 origin、站点状态、企业策略、用户许可与高风险确认等门禁；本地传输还以受信 nativePipe、framed JSON-RPC 和 macOS 对端代码签名检查约束调用者。重点不是列出能点什么，而是标明 tab 所有权、页面代码隔离、秘密凭据通道、策略例外和每层不能外推的事实。",
+  "description": "这项研究把 Browser Use 还原为一条可审计的执行栈：Browser 与 Chrome 插件加载同一份受信 browser-client，客户端发现 IAB、extension 或 CDP 后端，按能力动态投影 API，并在 WebMCP、Playwright、DOM-CUA 与坐标 CUA 之间提供不同语义层级。每条命令在进入浏览器后端前经过 origin、站点状态、企业策略、用户许可与高风险确认等门禁；本地传输还以受信 nativePipe、framed JSON-RPC 和 macOS 对端代码签名检查约束调用者。重点不是列出能点什么，而是标明 tab 所有权、页面代码隔离、秘密凭据通道、策略例外和每层不能外推的事实。",
   "verifiedAt": "2026-08-10",
   "status": "active",
   "scope": [

@@ -12,8 +12,7 @@ AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、C
 
 - **更新情报**：按 Agent、信号类型和重要性筛选近期变化。
 - **版本比较**：比较实际请求、Prompt 结构和 Tools，保留逐行证据。
-- **机制档案**：横向核对多个 Agent 暴露给 Harness 的控制合同、失败面和版本边界。
-- **能力拆解**：以持续维护的长篇档案锁定具体产品构建，纵向复原单项能力的宿主桥接、执行链路、权限与故障模型。
+- **专题研究**：在同一索引中查看跨 Agent 对比与固定构建研究；结论、版本、事实证据、推断边界和未知项分别呈现。
 - **多源证据**：组合 Phistory 快照、官方 changelog、GitHub Releases 与公开代码比较结果。
 - **中文解读**：生成重要性、变化摘要和对自研 Agent 的启示；模型不可用时保留确定性回退结果。
 
@@ -114,8 +113,8 @@ node .codex/skills/agentlab-update-feed/scripts/query-feed.mjs \
 agentlab/
   apps/agent-history/
     public/             # Web 应用源码与静态资源
-      capabilities/    # 单项能力的长篇文章与经审阅研究数据
-      dossiers/        # 跨 Agent 机制档案数据
+      capabilities/    # 固定构建研究数据与兼容详情页
+      dossiers/        # 跨 Agent 比较研究数据与证据
     scripts/            # 同步、规范化、分析、构建和发布脚本
     tests/              # Python 与 Node.js 测试
     ops/                # 本机日更自动化
