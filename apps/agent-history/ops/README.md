@@ -3,8 +3,9 @@
 The pipeline uses our own Python code, Git CLI operations, and normalized
 official-source fetches. It does not copy Phistory's application source into
 this repository. The upstream checkout is a shallow, blob-filtered sparse cache
-at `.cache/phistory/upstream`; the complete `captures` tree is materialized so
-new Phistory agents join the pipeline without another allowlist change. Official release notes and bounded code-change overviews are
+at `.cache/phistory/upstream`; full runs materialize the complete `captures`
+tree, while focused official-only runs keep only the verified upstream commit
+and an empty capture root. Official release notes and bounded code-change overviews are
 cached separately under `.cache/official-sources`.
 
 ## Manual verification
@@ -31,11 +32,16 @@ The production sequence is:
 
 1. sparse-sync the exact Phistory `main` SHA;
 2. refresh normalized official sources, reusing validated cache on fetch errors;
-3. build deterministic evidence and static data;
-4. send only missing or stale evidence digests to local `codex exec`;
-5. rebuild so validated AI changelogs, or deterministic fallbacks, are merged;
-6. run `npm test` and `npm run build`;
-7. optionally run Wrangler deploy.
+3. materialize official releases without runtime captures as source-only captures;
+4. build deterministic evidence and static data;
+5. send only missing or stale evidence digests to local `codex exec`;
+6. rebuild so validated AI changelogs, or deterministic fallbacks, are merged;
+7. run `npm test` and `npm run build`;
+8. optionally run Wrangler deploy; deployment always requires `--agents all`.
+
+`npm run deploy` rebuilds the site and compares its Agent list with the full
+capture catalog in the Phistory Git tree plus the source-only overlay. It stops
+before Wrangler on focused, incomplete, duplicated, empty, or degraded data.
 
 For the initial history backfill, cap and pace the work instead of sending the
 entire archive at once. This example starts with the newest 20 releases, one
@@ -67,8 +73,8 @@ the production default. If a larger configured batch fails, it is split
 recursively until each release is analyzed independently, so completed releases
 are preserved instead of replaying the whole batch.
 
-Non-baseline releases with no runtime prompt/tool signal, no static-prompt
-change, and no available official evidence are completed locally with
+Releases with no comparable runtime prompt/tool signal, no static-prompt
+change, and no independently analyzable official notes or code evidence are completed locally with
 `importance: none`. They never invoke Codex and do not consume the daily
 `--max-releases` allowance.
 

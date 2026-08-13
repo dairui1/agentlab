@@ -193,25 +193,39 @@ def sync_repository(
     remote: str,
     ref: str,
     agents: Sequence[str],
+    metadata_only: bool = False,
     timeout: float = 300.0,
 ) -> SyncResult:
     repo = repo.expanduser().resolve()
-    paths = sparse_paths(agents)
+    if metadata_only and agents:
+        raise SyncError("metadata-only sync cannot include capture agents")
+    if not metadata_only and not agents:
+        raise SyncError("at least one capture agent is required")
+    paths = () if metadata_only else sparse_paths(agents)
+    checkout_paths = (
+        ("captures/.agentlab-metadata-only",) if metadata_only else paths
+    )
     LOG.info("syncing %s ref %s into %s", remote, ref, repo)
     if repo.exists():
         previous, fetched = update_checkout(
-            repo, remote=remote, ref=ref, paths=paths, timeout=timeout
+            repo, remote=remote, ref=ref, paths=checkout_paths, timeout=timeout
         )
     else:
         previous = None
         fetched = clone_checkout(
-            repo, remote=remote, ref=ref, paths=paths, timeout=timeout
+            repo, remote=remote, ref=ref, paths=checkout_paths, timeout=timeout
         )
     current = current_sha(repo)
     if current != fetched:
         raise SyncError(
             f"checkout verification failed: fetched {fetched}, checked out {current or 'nothing'}"
         )
+    if metadata_only:
+        git(repo, "cat-file", "-e", "HEAD^{tree}:captures")
+        captures = repo / "captures"
+        captures.mkdir(exist_ok=True)
+        if captures.is_symlink() or not captures.is_dir():
+            raise SyncError(f"upstream captures root is invalid: {captures}")
     missing = [path for path in paths if not (repo / path).is_dir()]
     if missing:
         raise SyncError(f"upstream is missing requested sparse path(s): {', '.join(missing)}")
@@ -245,10 +259,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--remote", default=os.environ.get("PHISTORY_REMOTE", DEFAULT_REMOTE)
     )
     parser.add_argument("--ref", default=os.environ.get("PHISTORY_REF", DEFAULT_REF))
-    parser.add_argument(
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument(
         "--agents",
         default=os.environ.get("PHISTORY_AGENTS", DEFAULT_AGENTS),
         help="comma-separated agent ids, or 'all' to sync every Phistory capture (default: all)",
+    )
+    selection.add_argument(
+        "--metadata-only",
+        action="store_true",
+        help="sync the exact upstream commit without materializing capture contents",
     )
     parser.add_argument("--timeout", type=float, default=300.0)
     parser.add_argument("--verbose", action="store_true")
@@ -273,7 +293,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         repo_dir,
         remote=args.remote,
         ref=args.ref,
-        agents=parse_agents(args.agents),
+        agents=() if args.metadata_only else parse_agents(args.agents),
+        metadata_only=args.metadata_only,
         timeout=args.timeout,
     )
     print(json.dumps(asdict(result), ensure_ascii=False, sort_keys=True))

@@ -22,10 +22,11 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import (
+    NPM_RELEASE_SOURCES,
     OFFICIAL_REPOSITORIES,
     SOURCE_CODE_COMPARISON_WINDOW,
 )
@@ -136,6 +137,11 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Qwen Code Runtime Prompt 与工具的版本历史。",
         "projectUrl": "https://github.com/QwenLM/qwen-code",
     },
+    "deepseek-harness": {
+        "label": "DeepSeek Harness",
+        "description": "DeepSeek Harness 官方 npm 发布与 Agent Harness 架构演进历史。",
+        "projectUrl": "https://github.com/deepseek-ai/deepseek-harness",
+    },
     "reasonix": {
         "label": "Reasonix",
         "description": "Reasonix Coding Agent 的官方发布与 Agent 设计变更历史。",
@@ -159,6 +165,7 @@ PREFERRED_AGENT_ORDER = (
     "goose",
     "cline",
     "qwen-code",
+    "deepseek-harness",
     "reasonix",
 )
 AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -292,6 +299,13 @@ class OfficialSourceBundle:
     warnings: tuple[Mapping[str, str], ...]
     manifest_source_digest: str | None
     manifest_sha256: str | None
+    selected_agents: frozenset[str] = frozenset()
+    retained_agents: frozenset[str] = frozenset()
+
+    def status_for(self, agent: str) -> str:
+        if self.status == "fresh" and agent in self.retained_agents:
+            return "stale"
+        return self.status
 
     def public(self) -> dict[str, Any]:
         return {
@@ -301,6 +315,8 @@ class OfficialSourceBundle:
             "warnings": [dict(warning) for warning in self.warnings],
             "normalizedManifestSourceDigest": self.manifest_source_digest,
             "normalizedManifestSha256": self.manifest_sha256,
+            "selectedAgents": sorted(self.selected_agents),
+            "retainedAgents": sorted(self.retained_agents),
         }
 
 
@@ -668,7 +684,11 @@ def capture_digest(
         key: meta[key]
         for key in (
             "package",
+            "package_directory",
             "tap_client",
+            "tarball_url",
+            "tarball_integrity",
+            "tarball_shasum",
         )
         if key in meta
     })
@@ -725,13 +745,17 @@ def capture_provenance(
         source_url = meta.get("source_url")
         if not all(isinstance(item, str) and item for item in (repository, ref, source_url)):
             raise ValueError("official source capture metadata is incomplete")
-        if not str(source_url).startswith("https://github.com/"):
-            raise ValueError("official source capture URL must use https://github.com/")
+        parsed_source_url = urlsplit(str(source_url))
+        if parsed_source_url.scheme != "https" or not parsed_source_url.netloc:
+            raise ValueError("official source capture URL must use public HTTPS")
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", str(repository)):
+            raise ValueError("official source capture repository is invalid")
+        value.pop("commit", None)
         value.update(
             {
                 "kind": "official-source",
                 "repository": repository,
-                "commit": ref,
+                "ref": ref,
                 "url": f"https://github.com/{repository}",
                 "snapshotUrl": source_url,
                 "metaUrl": source_url,
@@ -929,6 +953,18 @@ def load_capture(
         raise ValueError(f"metadata agent_id does not match directory: {meta_path}")
     if meta.get("version", version) != version:
         raise ValueError(f"metadata version does not match directory: {meta_path}")
+    for status_field in ("runtime_prompt_status", "tool_schema_status"):
+        if status_field in meta and meta[status_field] != "unavailable":
+            raise ValueError(
+                f"metadata {status_field} must be 'unavailable' when present: {meta_path}"
+            )
+    if meta.get("capture_kind") == "official-source-history" and any(
+        meta.get(status_field) != "unavailable"
+        for status_field in ("runtime_prompt_status", "tool_schema_status")
+    ):
+        raise ValueError(
+            f"official source metadata must mark runtime layers unavailable: {meta_path}"
+        )
 
     captured_source = meta.get("captured_at", meta.get("published_at"))
     captured_at = normalize_timestamp(captured_source, field=f"{meta_path}:captured_at")
@@ -1606,6 +1642,42 @@ def load_official_sync_status(
             warnings=warnings,
         )
 
+    raw_selected = status_value.get("selectedAgents")
+    raw_retained = status_value.get("retainedAgents")
+    if raw_selected is None and raw_retained is None:
+        selected_agents = frozenset(indices)
+        retained_agents = frozenset()
+    elif (
+        isinstance(raw_selected, list)
+        and isinstance(raw_retained, list)
+        and all(isinstance(agent, str) for agent in raw_selected + raw_retained)
+    ):
+        selected_agents = frozenset(raw_selected)
+        retained_agents = frozenset(raw_retained)
+        if (
+            selected_agents & retained_agents
+            or selected_agents | retained_agents != frozenset(indices)
+            or len(selected_agents) != len(raw_selected)
+            or len(retained_agents) != len(raw_retained)
+        ):
+            return degraded_official_bundle(
+                indices=indices,
+                reason="sync-status-agent-sets-invalid",
+                manifest_source_digest=manifest_source_digest,
+                manifest_sha256=manifest_sha256,
+                sync_status=recorded_status,
+                warnings=warnings,
+            )
+    else:
+        return degraded_official_bundle(
+            indices=indices,
+            reason="sync-status-agent-sets-invalid",
+            manifest_source_digest=manifest_source_digest,
+            manifest_sha256=manifest_sha256,
+            sync_status=recorded_status,
+            warnings=warnings,
+        )
+
     expected_status = (
         "degraded"
         if any(warning["type"] != "stale-cache-used" for warning in warnings)
@@ -1629,6 +1701,8 @@ def load_official_sync_status(
         warnings=tuple(warnings),
         manifest_source_digest=manifest_source_digest,
         manifest_sha256=manifest_sha256,
+        selected_agents=selected_agents,
+        retained_agents=retained_agents,
     )
 
 
@@ -1677,9 +1751,6 @@ def load_official_sources(
     for agent, descriptor in manifest_agents.items():
         if agent not in OFFICIAL_REPOSITORIES or not isinstance(descriptor, dict):
             raise ValueError(f"official normalized manifest agent is invalid: {agent!r}")
-        expected_url = f"{agent}.json"
-        if descriptor.get("url") != expected_url:
-            raise ValueError(f"official normalized manifest URL mismatch: {agent}")
         recorded_count = descriptor.get("releaseCount")
         recorded_digest = descriptor.get("sourceDigest")
         if (
@@ -1690,7 +1761,16 @@ def load_official_sources(
             or not re.fullmatch(r"[0-9a-f]{64}", recorded_digest)
         ):
             raise ValueError(f"official normalized manifest descriptor is invalid: {agent}")
-        path = root / expected_url
+        expected_url = f"agents/{recorded_digest}.json"
+        legacy_url = f"{agent}.json"
+        descriptor_url = descriptor.get("url")
+        if descriptor_url == expected_url:
+            path_url = expected_url
+        elif descriptor_url == legacy_url:
+            path_url = legacy_url
+        else:
+            raise ValueError(f"official normalized manifest URL mismatch: {agent}")
+        path = root / path_url
         if not path.exists():
             raise ValueError(f"official source index is missing from committed generation: {path}")
         resolved = ensure_within(path, root, kind="official source index")
@@ -1723,12 +1803,8 @@ def load_official_sources(
             raise ValueError(f"official manifest/index releaseCount mismatch: {path}")
         result[agent] = value
 
-    uncommitted_indices = present_indices.difference(manifest_agents)
-    if uncommitted_indices:
-        raise ValueError(
-            "official source indices are not listed by the committed manifest: "
-            + ", ".join(sorted(uncommitted_indices))
-        )
+    # The manifest is the generation commit point. Flat files left by a legacy
+    # generation are untrusted orphans once a content-addressed manifest exists.
     manifest_source_digest = str(manifest["sourceDigest"])
     manifest_sha256 = sha256_bytes(manifest_raw)
     return load_official_sync_status(
@@ -1821,13 +1897,28 @@ def official_evidence(
         "title": raw.get("title"),
         "notes": semantic_notes,
     }
+    if isinstance(raw.get("sourceRef"), str):
+        release["sourceRef"] = raw["sourceRef"]
+    for key in ("packageName", "packageDirectory"):
+        if isinstance(raw.get(key), str):
+            release[key] = raw[key]
+    artifact = raw.get("artifact")
+    if isinstance(artifact, Mapping):
+        semantic_artifact = {
+            key: artifact[key]
+            for key in ("scope", "url", "integrity", "shasum")
+            if isinstance(artifact.get(key), str)
+        }
+        if semantic_artifact:
+            release["artifact"] = semantic_artifact
     source_url = raw.get("sourceUrl")
     if isinstance(source_url, str):
+        source_ref = raw.get("sourceRef", raw.get("tag", version))
         release_source: dict[str, Any] = {
             "sourceType": "official-release",
             "repository": repository,
             "url": source_url,
-            "ref": str(raw.get("tag", version)),
+            "ref": str(source_ref),
             "contentSha256": notes.get("sha256"),
         }
         if isinstance(raw.get("publishedAt"), str):
@@ -1901,7 +1992,11 @@ def capture_sources(
             value: dict[str, Any] = {
                 "sourceType": source_type,
                 "captureRoot": origin["label"],
-                "ref": origin["commit"],
+                "ref": (
+                    origin["ref"]
+                    if isinstance(origin.get("ref"), str)
+                    else origin["commit"]
+                ),
                 "contentSha256": origin[sha_key],
             }
             if origin.get("repository") is not None:
@@ -1910,9 +2005,14 @@ def capture_sources(
                 value["url"] = origin[url_key]
             return value
 
+        prompt_source_type = (
+            f"{prefix}-publication-placeholder"
+            if capture.meta.get("runtime_prompt_status") == "unavailable"
+            else f"{prefix}-prompt-capture"
+        )
         sources.append(
             source(
-                f"{prefix}-prompt-capture",
+                prompt_source_type,
                 url_key="promptUrl",
                 sha_key="promptSha256",
             )
@@ -1966,7 +2066,47 @@ def evidence_packet(
     official_freshness: str = "not-synced",
 ) -> dict[str, Any]:
     structure = structure_changes(previous, capture)
-    line_diff = unified_diff(previous, capture)
+    prompt_comparable = (
+        capture.meta.get("runtime_prompt_status") != "unavailable"
+        and (
+            previous is None
+            or previous.meta.get("runtime_prompt_status") != "unavailable"
+        )
+    )
+    tools_comparable = (
+        capture.meta.get("tool_schema_status") != "unavailable"
+        and (
+            previous is None
+            or previous.meta.get("tool_schema_status") != "unavailable"
+        )
+    )
+    if not prompt_comparable:
+        for key in (
+            "changedSections",
+            "sectionsAdded",
+            "sectionsRemoved",
+            "sectionsModified",
+        ):
+            structure[key] = []
+    if not tools_comparable:
+        for key in ("toolsAdded", "toolsRemoved", "toolsModified"):
+            structure[key] = []
+    line_diff = (
+        unified_diff(previous, capture)
+        if prompt_comparable
+        else {
+            "additions": 0,
+            "deletions": 0,
+            "diff": {
+                "format": "unified",
+                "truncated": False,
+                "maxLines": MAX_DIFF_LINES,
+                "totalLines": 0,
+                "lines": [],
+                "text": "",
+            },
+        }
+    )
     stats = {
         "additions": line_diff["additions"],
         "deletions": line_diff["deletions"],
@@ -2015,6 +2155,30 @@ def evidence_packet(
         "official": official,
         "sources": capture_sources(capture) + official_sources,
     }
+    if (
+        capture.meta.get("runtime_prompt_status") == "unavailable"
+        or capture.meta.get("tool_schema_status") == "unavailable"
+        or not prompt_comparable
+        or not tools_comparable
+    ):
+        packet["runtimeCapture"] = {
+            "promptStatus": (
+                "unavailable"
+                if capture.meta.get("runtime_prompt_status") == "unavailable"
+                else "available"
+            ),
+            "toolSchemaStatus": (
+                "unavailable"
+                if capture.meta.get("tool_schema_status") == "unavailable"
+                else "available"
+            ),
+            "promptComparisonStatus": (
+                "available" if prompt_comparable else "unavailable"
+            ),
+            "toolSchemaComparisonStatus": (
+                "available" if tools_comparable else "unavailable"
+            ),
+        }
     packet["evidenceDigest"] = evidence_digest(packet)
     return packet
 
@@ -2039,7 +2203,7 @@ def evidence_digest(packet: Mapping[str, Any]) -> str:
     # Refresh health is provenance, not a semantic product change. A stale-cache
     # warning must not invalidate an otherwise matching Codex analysis.
     semantic_official.pop("freshness", None)
-    projection = {
+    projection: dict[str, Any] = {
         "schemaVersion": packet["schemaVersion"],
         "agent": packet["agent"],
         "version": packet["version"],
@@ -2052,6 +2216,8 @@ def evidence_digest(packet: Mapping[str, Any]) -> str:
         "staticPrompt": packet["staticPrompt"],
         "official": semantic_official,
     }
+    if isinstance(packet.get("runtimeCapture"), Mapping):
+        projection["runtimeCapture"] = packet["runtimeCapture"]
     return sha256_bytes(canonical_json(projection))
 
 
@@ -2093,6 +2259,155 @@ def fallback_analysis(
         for key in ("addedCount", "removedCount", "modifiedCount")
     )
 
+    official_notes = ""
+    official_notes_kind = ""
+    release_title: str | None = None
+    if has_official:
+        assert isinstance(official, Mapping)
+        official_release = official.get("release")
+        if isinstance(official_release, Mapping):
+            raw_release_title = official_release.get("title")
+            if isinstance(raw_release_title, str):
+                release_title = raw_release_title
+            official_notes_value = official_release.get("notes")
+            if isinstance(official_notes_value, Mapping):
+                raw_notes = official_notes_value.get("text")
+                raw_notes_kind = official_notes_value.get("sourceKind")
+                if isinstance(raw_notes, str):
+                    official_notes = raw_notes.strip()
+                if isinstance(raw_notes_kind, str):
+                    official_notes_kind = raw_notes_kind
+    normalized_official = re.sub(
+        r"^[#*\-\s]+|[#*\-\s.]+$", "", official_notes.lower()
+    )
+    generic_official = normalized_official in {
+        "bug fixes",
+        "bug fixes and reliability improvements",
+        "various bug fixes and improvements",
+    }
+    meaningful_official = (
+        bool(official_notes)
+        and official_notes_kind != "npm-publication"
+        and not generic_official
+    )
+
+    current_runtime_prompt_unavailable = (
+        capture.meta.get("runtime_prompt_status") == "unavailable"
+    )
+    current_tool_schema_unavailable = (
+        capture.meta.get("tool_schema_status") == "unavailable"
+    )
+    prompt_comparison_unavailable = current_runtime_prompt_unavailable or (
+        previous is not None
+        and previous.meta.get("runtime_prompt_status") == "unavailable"
+    )
+    tool_comparison_unavailable = current_tool_schema_unavailable or (
+        previous is not None
+        and previous.meta.get("tool_schema_status") == "unavailable"
+    )
+    if current_runtime_prompt_unavailable or current_tool_schema_unavailable:
+        categories: list[str] = []
+        highlights: list[str] = []
+        if has_official:
+            categories.append("release")
+            highlights.append(
+                "已记录官方发布来源"
+                + (f"：{release_title}。" if release_title else "。")
+            )
+        else:
+            categories.append("source-only")
+            highlights.append("已记录公开发布来源与版本时间。")
+        unavailable_layers = []
+        if current_runtime_prompt_unavailable:
+            unavailable_layers.append("Runtime Prompt")
+        if current_tool_schema_unavailable:
+            unavailable_layers.append("Tool Schema")
+        highlights.append("、".join(unavailable_layers) + " 未提供公开捕获。")
+        if meaningful_official:
+            highlights.append("该版本另有可分析的官方发布说明。")
+        if has_code_changes:
+            categories.append("code")
+        if has_static_changes:
+            categories.append("static-prompt")
+            assert isinstance(static_changes, Mapping)
+            highlights.append(
+                "Static Prompt 集合变化："
+                f"新增 {static_changes['addedCount']}、"
+                f"删除 {static_changes['removedCount']}、"
+                f"修改 {static_changes['modifiedCount']}。"
+            )
+        comparison = (
+            "不能建立 Runtime Prompt 或 Tool Schema 比较基线"
+            if previous is None
+            else f"无法据此判断相较 {previous.version} 的运行时层变化"
+        )
+        return {
+            "title": f"{label} {capture.version} 官方发布记录",
+            "summary": (
+                f"收录 {capture.version} 的公开发布事实；"
+                f"{comparison}。"
+            ),
+            "highlights": highlights,
+            "categories": categories,
+            "importance": (
+                "medium"
+                if has_static_changes or meaningful_official or has_code_changes
+                else "none"
+            ),
+            "implications": [],
+            "analysisStatus": "pending",
+        }
+
+    if prompt_comparison_unavailable or tool_comparison_unavailable:
+        unavailable_layers = []
+        if prompt_comparison_unavailable:
+            unavailable_layers.append("Runtime Prompt")
+        if tool_comparison_unavailable:
+            unavailable_layers.append("Tool Schema")
+        categories = ["capture"]
+        highlights = [
+            "当前版本已提供运行时捕获。",
+            "前一版本缺少"
+            + "、".join(unavailable_layers)
+            + "捕获，因此不能生成相邻差异。",
+        ]
+        if has_official:
+            categories.append("release")
+            highlights.append(
+                "已记录官方发布来源"
+                + (f"：{release_title}。" if release_title else "。")
+            )
+        if meaningful_official:
+            highlights.append("该版本另有可分析的官方发布说明。")
+        if has_code_changes:
+            categories.append("code")
+        if has_static_changes:
+            categories.append("static-prompt")
+            assert isinstance(static_changes, Mapping)
+            highlights.append(
+                "Static Prompt 集合变化："
+                f"新增 {static_changes['addedCount']}、"
+                f"删除 {static_changes['removedCount']}、"
+                f"修改 {static_changes['modifiedCount']}。"
+            )
+        return {
+            "title": f"{label} {capture.version} 运行时捕获恢复",
+            "summary": (
+                f"{capture.version} 已有 Runtime Prompt 与 Tool Schema 捕获；"
+                f"由于 {previous.version if previous else '前一版本'} 缺少对应运行时层，"
+                "本条不能据此陈述相邻版本变化。"
+            ),
+            "highlights": highlights,
+            "categories": categories,
+            "importance": (
+                "medium"
+                if has_static_changes or meaningful_official or has_code_changes
+                else "none"
+            ),
+            "implications": [],
+            "analysisStatus": "pending",
+        }
+
     if previous is None:
         return {
             "title": f"{label} {capture.version} 基线快照",
@@ -2128,8 +2443,6 @@ def fallback_analysis(
         categories: list[str] = []
         if has_official:
             assert isinstance(official, Mapping)
-            release = official.get("release")
-            release_title = release.get("title") if isinstance(release, Mapping) else None
             highlights.append(
                 "已收录官方发布说明"
                 + (f"：{release_title}" if isinstance(release_title, str) else "。")
@@ -2146,28 +2459,6 @@ def fallback_analysis(
                 f"修改 {static_changes['modifiedCount']}。"
             )
             categories.append("static-prompt")
-        official_notes = ""
-        if has_official:
-            assert isinstance(official, Mapping)
-            official_release = official.get("release")
-            official_notes_value = (
-                official_release.get("notes")
-                if isinstance(official_release, Mapping)
-                else None
-            )
-            if isinstance(official_notes_value, Mapping) and isinstance(
-                official_notes_value.get("text"), str
-            ):
-                official_notes = official_notes_value["text"].strip()
-        normalized_official = re.sub(
-            r"^[#*\-\s]+|[#*\-\s.]+$", "", official_notes.lower()
-        )
-        generic_official = normalized_official in {
-            "bug fixes",
-            "bug fixes and reliability improvements",
-            "various bug fixes and improvements",
-        }
-        meaningful_official = bool(official_notes) and not generic_official
         importance = (
             "medium"
             if has_static_changes or meaningful_official or has_code_changes
@@ -2304,6 +2595,18 @@ def history_version(capture: Capture) -> dict[str, Any]:
         "lineCount": capture.line_count,
         "sections": [section.public() for section in capture.sections],
         "tools": [tool.public() for tool in capture.tools],
+        "runtimeCapture": {
+            "promptStatus": (
+                "unavailable"
+                if capture.meta.get("runtime_prompt_status") == "unavailable"
+                else "available"
+            ),
+            "toolSchemaStatus": (
+                "unavailable"
+                if capture.meta.get("tool_schema_status") == "unavailable"
+                else "available"
+            ),
+        },
     }
     for key, source_url in (
         ("sourceUrl", capture.source_url),
@@ -2315,11 +2618,21 @@ def history_version(capture: Capture) -> dict[str, Any]:
             value[key] = source_url
     if capture.published_at is not None:
         value["publishedAt"] = capture.published_at
-    for key in ("package", "binary_version", "tarball_url"):
+    for key in (
+        "package",
+        "package_directory",
+        "binary_version",
+        "tarball_url",
+        "tarball_integrity",
+        "tarball_shasum",
+    ):
         if isinstance(capture.meta.get(key), str):
             public_key = {
+                "package_directory": "packageDirectory",
                 "binary_version": "binaryVersion",
                 "tarball_url": "tarballUrl",
+                "tarball_integrity": "tarballIntegrity",
+                "tarball_shasum": "tarballShasum",
             }.get(key, key)
             value[public_key] = capture.meta[key]
     if capture.trace is not None:
@@ -2334,13 +2647,16 @@ def history_version(capture: Capture) -> dict[str, Any]:
 def runtime_layer(
     capture: Capture,
     *,
+    previous: Capture | None,
     metadata_field: str,
     available: Mapping[str, Any],
 ) -> dict[str, Any]:
-    if capture.meta.get(metadata_field) == "unavailable":
+    if capture.meta.get(metadata_field) == "unavailable" or (
+        previous is not None and previous.meta.get(metadata_field) == "unavailable"
+    ):
         return {
             "status": "unavailable",
-            "reason": "official-source-history-has-no-runtime-capture",
+            "reason": "adjacent-comparison-has-unavailable-runtime-capture",
         }
     return dict(available)
 
@@ -2552,11 +2868,14 @@ def build(
         entries: list[dict[str, Any]] = []
         official_available = 0
         official_code_available = 0
+        runtime_prompt_available = 0
         static_prompt_available = 0
         static_prompt_comparable = 0
         analyzed_releases = 0
         previous: Capture | None = None
         for capture in captures:
+            if capture.meta.get("runtime_prompt_status") != "unavailable":
+                runtime_prompt_available += 1
             object_path = output_path(public, "data", "objects", f"{capture.sha256}.md")
             if object_path.is_symlink():
                 raise ValueError(f"content-addressed object must not be a symlink: {object_path}")
@@ -2571,7 +2890,7 @@ def build(
                 commit=commit,
                 official_index=official_by_agent.get(agent),
                 official_freshness=(
-                    official_sources.status
+                    official_sources.status_for(agent)
                     if agent in official_by_agent
                     else (
                         "not-synced"
@@ -2640,6 +2959,7 @@ def build(
                 "layers": {
                     "prompt": runtime_layer(
                         capture,
+                        previous=previous,
                         metadata_field="runtime_prompt_status",
                         available={
                             "status": "available",
@@ -2650,6 +2970,7 @@ def build(
                     ),
                     "tools": runtime_layer(
                         capture,
+                        previous=previous,
                         metadata_field="tool_schema_status",
                         available={
                             "status": "available",
@@ -2690,9 +3011,12 @@ def build(
         definition = agent_definition(agent, captures)
         official_index = official_by_agent.get(agent)
         official_repository = OFFICIAL_REPOSITORIES.get(agent)
+        official_code_applicable = (
+            official_repository is not None and agent not in NPM_RELEASE_SOURCES
+        )
         official_code_expected = (
             min(max(0, len(captures) - 1), SOURCE_CODE_COMPARISON_WINDOW)
-            if official_repository
+            if official_code_applicable
             else 0
         )
         agent_source_url = (
@@ -2701,7 +3025,7 @@ def build(
             or UPSTREAM_URL
         )
         source_coverage = {
-            "promptCaptures": len(captures),
+            "promptCaptures": runtime_prompt_available,
             "officialReleases": official_available,
             "officialUnavailable": (
                 len(captures) - official_available if official_repository else 0
@@ -2711,10 +3035,12 @@ def build(
             "officialCodeExpected": official_code_expected,
             "officialCodeUnavailable": (
                 max(0, official_code_expected - official_code_available)
-                if official_repository
+                if official_code_applicable
                 else 0
             ),
-            "officialCodeWindow": SOURCE_CODE_COMPARISON_WINDOW,
+            "officialCodeWindow": (
+                SOURCE_CODE_COMPARISON_WINDOW if official_code_applicable else 0
+            ),
             "staticPromptSnapshots": static_prompt_available,
             "staticPromptComparisons": static_prompt_comparable,
         }
@@ -2724,7 +3050,7 @@ def build(
                 "description": definition["description"],
                 "sourceUrl": agent_source_url,
                 "officialSourceStatus": (
-                    official_sources.status
+                    official_sources.status_for(agent)
                     if agent in official_by_agent
                     else "not-synced" if official_repository else "not-collected"
                 ),
@@ -2736,6 +3062,8 @@ def build(
                 "sourceCodeStatus": (
                     "not-public"
                     if not official_repository
+                    else "not-applicable"
+                    if not official_code_applicable
                     else "complete"
                     if official_code_available >= official_code_expected
                     else "partial"

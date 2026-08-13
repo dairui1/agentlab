@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Iterator, Mapping, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from official_release_sources import GITHUB_RELEASE_SOURCES
+from official_release_sources import OFFICIAL_ONLY_AGENTS, SOURCE_CAPTURE_SOURCES
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -157,6 +157,14 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
     capture_overlay_root = args.capture_overlay_root.expanduser().resolve()
     agents = args.agents
 
+    requested_agents = None if agents == "all" else tuple(
+        part.strip() for part in agents.split(",") if part.strip()
+    )
+    requested_upstream_agents = (
+        None
+        if requested_agents is None
+        else tuple(agent for agent in requested_agents if agent not in OFFICIAL_ONLY_AGENTS)
+    )
     sync = [
         python,
         str(SCRIPTS / "sync_phistory.py"),
@@ -166,9 +174,13 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         args.remote,
         "--ref",
         args.ref,
-        "--agents",
-        agents,
     ]
+    if requested_upstream_agents is None:
+        sync.extend(("--agents", "all"))
+    elif requested_upstream_agents:
+        sync.extend(("--agents", ",".join(requested_upstream_agents)))
+    else:
+        sync.append("--metadata-only")
     sync_official = [
         python,
         str(SCRIPTS / "sync_official_sources.py"),
@@ -192,14 +204,11 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         "--overlay-root",
         str(capture_overlay_root),
     ]
-    requested_agents = None if agents == "all" else tuple(
-        part.strip() for part in agents.split(",") if part.strip()
-    )
     source_agents = (
-        tuple(GITHUB_RELEASE_SOURCES)
+        tuple(SOURCE_CAPTURE_SOURCES)
         if requested_agents is None
         else tuple(
-            agent for agent in requested_agents if agent in GITHUB_RELEASE_SOURCES
+            agent for agent in requested_agents if agent in SOURCE_CAPTURE_SOURCES
         )
     )
     if source_agents:
@@ -290,11 +299,22 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         ]
     )
     if args.deploy:
-        steps.append(
-            Step(
-                "deploy with Wrangler",
-                (args.npx_bin, "--no-install", "wrangler", "deploy"),
-                APP_ROOT,
+        steps.extend(
+            (
+                Step(
+                    "verify deployment data",
+                    (args.python_bin, "scripts/verify_deploy.py"),
+                    APP_ROOT,
+                    environment={
+                        "AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": str(capture_overlay_root),
+                        "PHISTORY_AGENTS": agents,
+                    },
+                ),
+                Step(
+                    "deploy with Wrangler",
+                    (args.npx_bin, "--no-install", "wrangler", "deploy"),
+                    APP_ROOT,
+                ),
             )
         )
     return steps
@@ -434,6 +454,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("timeouts must be positive and --batch-delay must be non-negative")
     if args.retries < 0:
         parser.error("--retries must be non-negative")
+    if args.deploy and args.agents != "all":
+        parser.error("--deploy requires --agents all so canonical data is not pruned")
     # npm run build intentionally uses the app's canonical generated-data paths;
     # keep every preceding pipeline step on those same paths.
     args.cache_root = DEFAULT_CACHE_ROOT

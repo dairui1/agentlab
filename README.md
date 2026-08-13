@@ -4,7 +4,7 @@
 
 [在线体验](https://agentlab.dairui1.com) · [GitHub 仓库](https://github.com/dairui1/agentlab)
 
-AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、Cline、Qwen Code、Reasonix 等 Coding Agent 的公开变化，把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化整理成可检索、可追溯的中文情报。
+AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、Cline、Qwen Code、DeepSeek Harness、Reasonix 等 Coding Agent 的公开变化，把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化整理成可检索、可追溯的中文情报。
 
 这个项目不是 Agent 排行榜，也不把模型生成内容当成事实。每条重要结论都应回到公开来源、版本和实际差异，并明确区分事实证据、工程观察与模型推断。
 
@@ -13,7 +13,7 @@ AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、C
 - **更新情报**：按 Agent、信号类型和重要性筛选近期变化。
 - **版本比较**：比较实际请求、Prompt 结构和 Tools，保留逐行证据。
 - **专题研究**：用固定版本证据回答会改变 Agent 工程判断的问题；先给结论和工程后果，再展开事实、推断边界与未知项。
-- **多源证据**：组合 Phistory 快照、官方 changelog、GitHub Releases 与公开代码比较结果。
+- **多源证据**：组合 Phistory 快照、官方 changelog、GitHub Releases、npm 发布与公开代码比较结果。
 - **中文解读**：生成重要性、变化摘要和对自研 Agent 的启示；模型不可用时保留确定性回退结果。
 
 ## 数据链路
@@ -29,10 +29,11 @@ flowchart LR
 ```
 
 1. `sync_phistory.py` 增量同步 [Phistory](https://github.com/WEIFENG2333/phistory) 收录的 Agent 快照。
-2. `sync_official_sources.py` 同步官方 changelog、GitHub Releases 和有界代码比较结果。
-3. `build_from_phistory.py` 规范化版本、请求正文、Tools、静态 Prompt 与多源 evidence。
-4. `analyze_changelogs.py` 为发生变化的版本生成中文摘要、重要性和工程启示。
-5. `daily_update.py` 串联同步、构建、分析、测试与 Cloudflare 部署。
+2. `sync_official_sources.py` 同步官方 changelog、GitHub Releases、npm 发布和有界代码比较结果；只有发布包映射、没有可靠 commit/tag 的来源不会冒充完整源码比较。
+3. `sync_source_captures.py` 将尚无运行时快照的官方发布物化为 source-only Capture。
+4. `build_from_phistory.py` 规范化版本、请求正文、Tools、静态 Prompt 与多源 evidence。
+5. `analyze_changelogs.py` 为发生变化的版本生成中文摘要、重要性和工程启示。
+6. `daily_update.py` 串联同步、构建、分析、测试与 Cloudflare 部署。
 
 ## 用自己的 Codex 运行
 
@@ -73,9 +74,11 @@ npm run build
 npm test
 ```
 
+`npm run sync` 会在官方来源同步完成后物化 source-only Capture，因此全新缓存也可直接交给 `npm run build:data`。
+
 `npm run analyze` 只处理 Evidence 已变化且缺少有效分析的版本。普通 `npm run daily` 面向无人值守发布，Codex 分析失败时允许确定性回退；完整日更流程的安全边界和参数见 [`apps/agent-history/ops/README.md`](apps/agent-history/ops/README.md)。
 
-所有生成目录均可删除后重建。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。
+生成的 `public/`、`dist/` 和 `analysis/` 可从已同步的数据重建；`.cache/official-sources/` 还保存有界代码比较的历史账本，应像发布状态一样备份，不能在普通更新前删除。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。
 
 ## Agent 数据访问
 

@@ -55,3 +55,24 @@ test("every configured agent filter option has its copied Phistory icon", () => 
     assert.ok(fs.statSync(iconPath).size > 0, `empty icon ${iconUrl}`);
   }
 });
+
+test("runtime placeholders cannot enter the actual-request diff viewer", () => {
+  assert.match(app, /release\.runtimeCapture\?\.promptStatus === "unavailable"/);
+  assert.match(app, /无法生成实际请求差异/);
+  assert.match(app, /elements\.sectionList\.replaceChildren\(\)/);
+  assert.match(app, /outlineVersion\.textContent = `\$\{displayVersion\(state\.right\)\} · Runtime Prompt 未公开`/);
+  assert.match(app, /sectionCount\.textContent = "0 项"/);
+  assert.match(app, /selectedSectionLabel\.textContent = "Runtime Prompt 未公开捕获"/);
+  assert.match(app, /setStats\(\{ hunks: 0, additions: 0, deletions: 0 \}\)/);
+  assert.ok(
+    app.indexOf("if (promptUnavailable)") < app.indexOf('setEditorPlaceholder("正在加载实际请求"'),
+    "availability must be checked before prompt fetching",
+  );
+});
+
+test("deterministic summaries are not attributed to Codex", () => {
+  assert.match(app, /generator\?\.model \|\| entry\?\.model/);
+  assert.match(app, /=== "deterministic-no-change"/);
+  assert.match(app, /textContent = "本地规则摘要"/);
+  assert.match(app, /textContent = "规则事实摘要，未调用 Codex"/);
+});

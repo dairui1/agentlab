@@ -23,12 +23,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import (
     GITHUB_RELEASE_SOURCES,
+    NPM_RELEASE_SOURCES,
     OFFICIAL_REPOSITORIES,
     SOURCE_CODE_COMPARISON_WINDOW,
 )
@@ -50,6 +51,7 @@ CLAUDE_CHANGELOG_RAW_URL = (
     f"https://raw.githubusercontent.com/{CLAUDE_REPOSITORY}/main/CHANGELOG.md"
 )
 CLAUDE_CHANGELOG_URL = f"https://github.com/{CLAUDE_REPOSITORY}/blob/main/CHANGELOG.md"
+NPM_REGISTRY_URL = "https://registry.npmjs.org"
 
 MAX_JSON_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_CHANGELOG_BYTES = 4 * 1024 * 1024
@@ -57,10 +59,15 @@ MAX_DIFF_BYTES = 1024 * 1024
 MAX_NOTES_BYTES = 16 * 1024
 MAX_KEY_FILES = 24
 MAX_NORMALIZED_RELEASE_BYTES = 64 * 1024
+MAX_NORMALIZED_INDEX_BYTES = 16 * 1024 * 1024
+MAX_NORMALIZED_MANIFEST_BYTES = 1024 * 1024
 MAX_CAPTURE_META_BYTES = 64 * 1024
 
 VERSION_RE = re.compile(
-    r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:(?:\.|-)(0|[1-9]\d*))?$"
+    r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:\.(0|[1-9]\d*))?"
+    r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
+    r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
 CODEX_TAG_RE = re.compile(r"^(?:rust-)?v?(\d+\.\d+\.\d+)$")
 CLAUDE_TAG_RE = re.compile(r"^v(\d+\.\d+\.\d+)$")
@@ -131,12 +138,55 @@ def bounded_text(value: str, max_bytes: int = MAX_NOTES_BYTES) -> tuple[str, boo
     return "", True
 
 
-def version_key(value: str) -> tuple[int, int, int, int]:
+def version_key(
+    value: str, *, numeric_revision: bool = False
+) -> tuple[Any, ...]:
     match = VERSION_RE.fullmatch(value)
     if not match:
         raise OfficialSyncError(f"invalid official release version: {value!r}")
-    major, minor, patch, extra = match.groups()
-    return int(major), int(minor), int(patch), int(extra or -1)
+    major, minor, patch, extra, prerelease, _build = match.groups()
+    if (
+        numeric_revision
+        and extra is None
+        and prerelease is not None
+        and prerelease.isdigit()
+    ):
+        extra, prerelease = prerelease, None
+    if prerelease is None:
+        prerelease_key: tuple[Any, ...] = (1, ())
+    else:
+        identifiers: list[tuple[int, int | str]] = []
+        for identifier in prerelease.split("."):
+            if identifier.isdigit():
+                if len(identifier) > 1 and identifier.startswith("0"):
+                    raise OfficialSyncError(
+                        f"invalid numeric prerelease identifier: {value!r}"
+                    )
+                identifiers.append((0, int(identifier)))
+            else:
+                identifiers.append((1, identifier))
+        prerelease_key = (0, tuple(identifiers))
+    return (
+        int(major),
+        int(minor),
+        int(patch),
+        int(extra or -1),
+        prerelease_key,
+        value,
+    )
+
+
+def source_version_key(
+    value: str, *, agent: str | None = None, repository: str | None = None
+) -> tuple[Any, ...]:
+    """Apply source-specific ordering without changing standard npm SemVer."""
+
+    return version_key(
+        value,
+        numeric_revision=(
+            agent == "openclaw" or repository == "openclaw/openclaw"
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -269,7 +319,10 @@ class HttpCache:
         key = self._key(url, f"{accept}\n{cache_variant}")
         cached = self._cached(key)
         headers = {"Accept": accept, "User-Agent": USER_AGENT}
-        if self.token:
+        if self.token and urlsplit(url).hostname in {
+            "api.github.com",
+            "raw.githubusercontent.com",
+        }:
             headers["Authorization"] = f"Bearer {self.token}"
             headers["X-GitHub-Api-Version"] = "2022-11-28"
         if cached and cached.etag:
@@ -290,6 +343,13 @@ class HttpCache:
                     try:
                         body = transform(body)
                     except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
+                        if allow_stale_on_error and cached is not None:
+                            self._record_stale(
+                                url=url,
+                                cached=cached,
+                                reason=f"normalize-failure:{type(error).__name__}",
+                            )
+                            return cached
                         raise OfficialSyncError(
                             f"cannot normalize official response from {url}: {error}"
                         ) from error
@@ -470,6 +530,171 @@ def minimize_github_tags(body: bytes) -> bytes:
     return canonical_json(minimized)
 
 
+def minimize_npm_package(body: bytes) -> bytes:
+    value = json.loads(body.decode("utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("npm package response is not an object")
+    versions = value.get("versions")
+    timestamps = value.get("time")
+    if not isinstance(versions, dict) or not isinstance(timestamps, dict):
+        raise ValueError("npm package response has no versions or publication times")
+    minimized_versions: dict[str, object] = {}
+    minimized_times: dict[str, object] = {}
+    for version, raw in versions.items():
+        if not isinstance(version, str) or not isinstance(raw, dict):
+            continue
+        repository = raw.get("repository")
+        dist = raw.get("dist")
+        minimized_versions[version] = {
+            "name": raw.get("name"),
+            "version": raw.get("version"),
+            "repository": (
+                {
+                    key: repository.get(key)
+                    for key in ("type", "url", "directory")
+                }
+                if isinstance(repository, dict)
+                else repository
+            ),
+            "dist": (
+                {key: dist.get(key) for key in ("tarball", "integrity", "shasum")}
+                if isinstance(dist, dict)
+                else dist
+            ),
+        }
+        if version in timestamps:
+            minimized_times[version] = timestamps[version]
+    return canonical_json(
+        {
+            "name": value.get("name"),
+            "versions": minimized_versions,
+            "time": minimized_times,
+        }
+    )
+
+
+def npm_releases(
+    cache: HttpCache,
+    *,
+    package_name: str,
+    repository: str,
+    package_directory: str,
+    product_name: str,
+    timeout: float,
+    allow_stale_on_error: bool,
+) -> list[dict[str, object]]:
+    registry_url = f"{NPM_REGISTRY_URL}/{quote(package_name, safe='')}"
+    response = cache.fetch(
+        registry_url,
+        accept="application/json",
+        max_bytes=MAX_JSON_RESPONSE_BYTES,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+        cache_variant="npm-package-minimal-v1",
+        transform=minimize_npm_package,
+    )
+    try:
+        value = json.loads(response.body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise OfficialSyncError(
+            f"invalid npm package JSON from {registry_url}: {error}"
+        ) from error
+    if not isinstance(value, dict) or value.get("name") != package_name:
+        raise OfficialSyncError(f"npm package identity mismatch: {registry_url}")
+    versions = value.get("versions")
+    timestamps = value.get("time")
+    if not isinstance(versions, dict) or not isinstance(timestamps, dict):
+        raise OfficialSyncError(f"npm package history is incomplete: {registry_url}")
+
+    expected_repository_url = f"https://github.com/{repository}"
+    releases: list[dict[str, object]] = []
+    for version, raw in versions.items():
+        if not isinstance(version, str) or not isinstance(raw, dict):
+            raise OfficialSyncError(f"invalid npm version record: {registry_url}")
+        version_key(version)
+        if raw.get("name") != package_name or raw.get("version") != version:
+            raise OfficialSyncError(
+                f"npm version identity mismatch: {package_name} {version}"
+            )
+        repository_value = raw.get("repository")
+        if not isinstance(repository_value, dict):
+            raise OfficialSyncError(
+                f"npm version has no repository metadata: {package_name} {version}"
+            )
+        repository_url = repository_value.get("url")
+        if isinstance(repository_url, str) and repository_url.startswith("git+"):
+            repository_url = repository_url[4:]
+        if isinstance(repository_url, str) and repository_url.endswith(".git"):
+            repository_url = repository_url[:-4]
+        if repository_url != expected_repository_url:
+            raise OfficialSyncError(
+                f"npm repository mismatch: {package_name} {version}"
+            )
+        if repository_value.get("directory") != package_directory:
+            raise OfficialSyncError(
+                f"npm repository directory mismatch: {package_name} {version}"
+            )
+
+        published_at = timestamps.get(version)
+        if not isinstance(published_at, str) or not published_at:
+            raise OfficialSyncError(
+                f"npm version has no publication time: {package_name} {version}"
+            )
+        parse_capture_timestamp(published_at)
+        dist = raw.get("dist")
+        if not isinstance(dist, dict):
+            raise OfficialSyncError(
+                f"npm version has no dist metadata: {package_name} {version}"
+            )
+        tarball_url = dist.get("tarball")
+        integrity = dist.get("integrity")
+        shasum = dist.get("shasum")
+        if not isinstance(tarball_url, str) or not tarball_url.startswith(
+            f"{NPM_REGISTRY_URL}/"
+        ):
+            raise OfficialSyncError(
+                f"npm tarball URL is invalid: {package_name} {version}"
+            )
+        if not isinstance(integrity, str) or not re.fullmatch(
+            r"sha(?:256|384|512)-[A-Za-z0-9+/]+={0,2}", integrity
+        ):
+            raise OfficialSyncError(
+                f"npm tarball integrity is invalid: {package_name} {version}"
+            )
+        if not isinstance(shasum, str) or not re.fullmatch(r"[0-9a-f]{40}", shasum):
+            raise OfficialSyncError(
+                f"npm tarball shasum is invalid: {package_name} {version}"
+            )
+
+        package_url = (
+            f"https://www.npmjs.com/package/{quote(package_name, safe='@/')}"
+            f"/v/{quote(version, safe='.-')}"
+        )
+        releases.append(
+            {
+                "version": version,
+                "sourceRef": f"{package_name}@{version}",
+                "title": f"{product_name} {version}",
+                "sourceUrl": package_url,
+                "publishedAt": published_at,
+                "packageName": package_name,
+                "packageDirectory": package_directory,
+                "artifact": {
+                    "scope": "published-package-only",
+                    "url": tarball_url,
+                    "integrity": integrity,
+                    "shasum": shasum,
+                },
+                "notes": notes_value(
+                    "",
+                    source_kind="npm-publication",
+                    source_url=package_url,
+                ),
+            }
+        )
+    return sorted(releases, key=lambda item: version_key(str(item["version"])))
+
+
 def github_tags(
     cache: HttpCache,
     *,
@@ -579,7 +804,12 @@ def github_releases(
                 f"GitHub release history exceeds --max-release-pages={max_pages}: "
                 f"{repository}"
             )
-    return sorted(releases.values(), key=lambda item: version_key(str(item["version"])))
+    return sorted(
+        releases.values(),
+        key=lambda item: source_version_key(
+            str(item["version"]), repository=repository
+        ),
+    )
 
 
 def codex_releases(
@@ -604,21 +834,22 @@ def retained_release_history(
     normalized_root: Path,
     agent: str,
     releases: Sequence[Mapping[str, object]],
+    previous_value: Mapping[str, object] | None = None,
 ) -> list[Mapping[str, object]]:
     retained: dict[str, Mapping[str, object]] = {}
-    path = normalized_root / f"{agent}.json"
-    if path.is_file() and not path.is_symlink():
-        try:
-            previous = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            previous = None
-        previous_releases = previous.get("releases") if isinstance(previous, dict) else None
-        if isinstance(previous_releases, dict):
-            retained.update(
-                (version, value)
-                for version, value in previous_releases.items()
-                if isinstance(version, str) and isinstance(value, dict)
-            )
+    if previous_value is None:
+        previous_value = load_normalized_generation(normalized_root).get(agent)
+    previous_releases = (
+        previous_value.get("releases")
+        if isinstance(previous_value, Mapping)
+        else None
+    )
+    if isinstance(previous_releases, dict):
+        retained.update(
+            (version, value)
+            for version, value in previous_releases.items()
+            if isinstance(version, str) and isinstance(value, dict)
+        )
     for release in releases:
         version = str(release["version"])
         previous = retained.get(version)
@@ -630,7 +861,12 @@ def retained_release_history(
         ):
             merged["codeChange"] = previous["codeChange"]
         retained[version] = merged
-    return [retained[version] for version in sorted(retained, key=version_key)]
+    return [
+        retained[version]
+        for version in sorted(
+            retained, key=lambda value: source_version_key(value, agent=agent)
+        )
+    ]
 
 
 def merge_tag_history(
@@ -658,7 +894,13 @@ def merge_tag_history(
         record["commitSha"] = tag["commitSha"]
         if not isinstance(record.get("tag"), str):
             record["tag"] = tag["tag"]
-    return [merged[version] for version in sorted(merged, key=version_key)]
+    return [
+        merged[version]
+        for version in sorted(
+            merged,
+            key=lambda value: source_version_key(value, repository=repository),
+        )
+    ]
 
 
 def parse_capture_timestamp(value: str) -> float:
@@ -711,7 +953,11 @@ def discover_capture_sequences(roots: Sequence[Path]) -> dict[str, list[str]]:
         agent: [
             version
             for version, _ in sorted(
-                versions.items(), key=lambda item: (item[1], version_key(item[0]))
+                versions.items(),
+                key=lambda item: (
+                    item[1],
+                    source_version_key(item[0], agent=agent),
+                ),
             )
         ]
         for agent, versions in observed.items()
@@ -857,6 +1103,7 @@ def enrich_repository_history(
     newest_comparisons: int,
     timeout: float,
     allow_stale_on_error: bool,
+    previous_value: Mapping[str, object] | None = None,
 ) -> list[dict[str, object]]:
     tags = github_tags(
         cache,
@@ -874,7 +1121,12 @@ def enrich_repository_history(
     )
     retained = [
         dict(release)
-        for release in retained_release_history(normalized_root, agent, tagged)
+        for release in retained_release_history(
+            normalized_root,
+            agent,
+            tagged,
+            previous_value=previous_value,
+        )
     ]
     pairs = comparison_pairs(
         retained, captured_versions, newest_count=newest_comparisons
@@ -928,6 +1180,172 @@ def normalized_agent(
     return value
 
 
+def normalized_descriptor(value: Mapping[str, object]) -> dict[str, object]:
+    releases = value.get("releases")
+    if not isinstance(releases, Mapping):
+        raise OfficialSyncError("normalized source releases must be an object")
+    return {
+        "url": f"agents/{value['sourceDigest']}.json",
+        "releaseCount": len(releases),
+        "tagCommitCount": sum(
+            1
+            for release in releases.values()
+            if isinstance(release, Mapping)
+            and isinstance(release.get("commitSha"), str)
+        ),
+        "codeComparisonCount": sum(
+            1
+            for release in releases.values()
+            if isinstance(release, Mapping)
+            and isinstance(release.get("codeChange"), Mapping)
+            and release["codeChange"].get("status") == "available"
+        ),
+        "analysisCodeComparisonCount": sum(
+            1
+            for release in releases.values()
+            if isinstance(release, Mapping)
+            and isinstance(release.get("codeChange"), Mapping)
+            and release["codeChange"].get("status") == "available"
+            and release["codeChange"].get("analysisEligible") is True
+        ),
+        "sourceDigest": value["sourceDigest"],
+    }
+
+
+def normalized_manifest(
+    values: Mapping[str, Mapping[str, object]],
+) -> dict[str, object]:
+    manifest: dict[str, object] = {
+        "schemaVersion": SCHEMA_VERSION,
+        "agents": {
+            agent: normalized_descriptor(value)
+            for agent, value in sorted(values.items())
+        },
+    }
+    manifest["sourceDigest"] = sha256_bytes(canonical_json(manifest))
+    return manifest
+
+
+def validate_normalized_digest(value: Mapping[str, object], *, path: Path) -> None:
+    recorded = value.get("sourceDigest")
+    if not isinstance(recorded, str) or not re.fullmatch(r"[0-9a-f]{64}", recorded):
+        raise OfficialSyncError(f"invalid normalized sourceDigest: {path}")
+    projection = dict(value)
+    projection.pop("sourceDigest", None)
+    if sha256_bytes(canonical_json(projection)) != recorded:
+        raise OfficialSyncError(f"normalized sourceDigest mismatch: {path}")
+
+
+def read_normalized_object(path: Path, *, maximum: int) -> dict[str, object]:
+    if path.is_symlink() or not path.is_file():
+        raise OfficialSyncError(f"normalized source must be a regular file: {path}")
+    try:
+        raw = path.read_bytes()
+    except OSError as error:
+        raise OfficialSyncError(f"cannot read normalized source: {path}: {error}") from error
+    if len(raw) > maximum:
+        raise OfficialSyncError(f"normalized source exceeds size limit: {path}")
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise OfficialSyncError(f"cannot parse normalized source: {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise OfficialSyncError(f"normalized source must be an object: {path}")
+    return value
+
+
+def load_normalized_generation(
+    normalized_root: Path,
+) -> dict[str, dict[str, object]]:
+    if normalized_root.is_symlink():
+        raise OfficialSyncError(
+            f"normalized source root must not be a symlink: {normalized_root}"
+        )
+    if not normalized_root.exists():
+        return {}
+    if not normalized_root.is_dir():
+        raise OfficialSyncError(
+            f"normalized source root must be a directory: {normalized_root}"
+        )
+    manifest_path = normalized_root / "manifest.json"
+    legacy_present = {
+        path.name
+        for path in normalized_root.glob("*.json")
+        if path.name != "manifest.json"
+    }
+    if not manifest_path.exists():
+        if legacy_present:
+            raise OfficialSyncError(
+                "normalized source indices exist without a committed manifest"
+            )
+        return {}
+    manifest = read_normalized_object(
+        manifest_path, maximum=MAX_NORMALIZED_MANIFEST_BYTES
+    )
+    if manifest.get("schemaVersion") != SCHEMA_VERSION:
+        raise OfficialSyncError(f"normalized manifest schema mismatch: {manifest_path}")
+    validate_normalized_digest(manifest, path=manifest_path)
+    descriptors = manifest.get("agents")
+    if not isinstance(descriptors, dict):
+        raise OfficialSyncError(f"normalized manifest agents are invalid: {manifest_path}")
+
+    values: dict[str, dict[str, object]] = {}
+    expected_paths: set[Path] = set()
+    for agent, descriptor in descriptors.items():
+        if agent not in OFFICIAL_REPOSITORIES or not isinstance(descriptor, dict):
+            raise OfficialSyncError(f"normalized manifest agent is invalid: {agent!r}")
+        expected_url = f"agents/{descriptor.get('sourceDigest')}.json"
+        legacy_url = f"{agent}.json"
+        descriptor_url = descriptor.get("url")
+        if descriptor_url == legacy_url:
+            path = normalized_root / legacy_url
+        elif descriptor_url == expected_url:
+            path = normalized_root / expected_url
+        else:
+            raise OfficialSyncError(f"normalized manifest URL mismatch: {agent}")
+        expected_paths.add(path)
+        value = read_normalized_object(path, maximum=MAX_NORMALIZED_INDEX_BYTES)
+        if (
+            value.get("schemaVersion") != SCHEMA_VERSION
+            or value.get("agent") != agent
+            or value.get("repository") != OFFICIAL_REPOSITORIES[agent]
+            or not isinstance(value.get("documents"), list)
+            or not isinstance(value.get("releases"), dict)
+        ):
+            raise OfficialSyncError(f"normalized source identity mismatch: {path}")
+        validate_normalized_digest(value, path=path)
+        releases = value["releases"]
+        assert isinstance(releases, dict)
+        for version, release in releases.items():
+            if (
+                not isinstance(version, str)
+                or not isinstance(release, dict)
+                or release.get("version") != version
+            ):
+                raise OfficialSyncError(f"normalized release identity mismatch: {path}")
+            version_key(version)
+            if len(canonical_json(release)) > MAX_NORMALIZED_RELEASE_BYTES:
+                raise OfficialSyncError(
+                    f"normalized release exceeds size limit: {agent} {version}"
+                )
+        expected_descriptor = normalized_descriptor(value)
+        comparable_descriptor = dict(expected_descriptor)
+        comparable_descriptor["url"] = descriptor_url
+        if canonical_json(descriptor) != canonical_json(comparable_descriptor):
+            raise OfficialSyncError(f"normalized manifest descriptor mismatch: {agent}")
+        values[agent] = value
+
+    # A content-addressed manifest may coexist with orphaned flat files after
+    # the atomic manifest switch. Only manifest-referenced objects are trusted.
+    missing = [path for path in expected_paths if not path.is_file()]
+    if missing:
+        raise OfficialSyncError(
+            "normalized manifest source indices are missing: "
+            + ", ".join(sorted(str(path) for path in missing))
+        )
+    return values
+
+
 def sync_health_status(warnings: Sequence[Mapping[str, str]]) -> str:
     if any(warning.get("type") != "stale-cache-used" for warning in warnings):
         return "degraded"
@@ -969,10 +1387,14 @@ def sync(
     root = cache_root.expanduser().resolve()
     cache = HttpCache(root / "http", token=token)
     normalized_root = root / "normalized"
+    previous_values = load_normalized_generation(normalized_root)
     captured = discover_capture_sequences(capture_roots)
     selected = set(agents or OFFICIAL_REPOSITORIES)
     selected.intersection_update(OFFICIAL_REPOSITORIES)
-    normalized_values: dict[str, dict[str, object]] = {}
+    normalized_values = dict(previous_values)
+
+    for agent in selected:
+        normalized_values.pop(agent, None)
 
     if "codex" in selected:
         codex_changelog = cache.fetch(
@@ -1001,6 +1423,7 @@ def sync(
             newest_comparisons=max_comparisons,
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
+            previous_value=previous_values.get("codex"),
         )
         normalized_values["codex"] = normalized_agent(
             agent="codex",
@@ -1053,6 +1476,7 @@ def sync(
             newest_comparisons=max_comparisons,
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
+            previous_value=previous_values.get("claude-code"),
         )
         normalized_values["claude-code"] = normalized_agent(
             agent="claude-code",
@@ -1091,6 +1515,33 @@ def sync(
             newest_comparisons=max_comparisons,
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
+            previous_value=previous_values.get(agent),
+        )
+        normalized_values[agent] = normalized_agent(
+            agent=agent,
+            repository=repository,
+            releases=retained,
+            documents=[],
+        )
+
+    for agent, config in NPM_RELEASE_SOURCES.items():
+        if agent not in selected:
+            continue
+        repository = str(config["repository"])
+        complete = npm_releases(
+            cache,
+            package_name=str(config["package"]),
+            repository=repository,
+            package_directory=str(config["packageDirectory"]),
+            product_name=str(config["label"]),
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        retained = retained_release_history(
+            normalized_root,
+            agent,
+            complete,
+            previous_value=previous_values.get(agent),
         )
         normalized_values[agent] = normalized_agent(
             agent=agent,
@@ -1100,50 +1551,30 @@ def sync(
         )
 
     normalized_root.mkdir(parents=True, exist_ok=True)
-    retained_names = {f"{agent}.json" for agent in normalized_values} | {"manifest.json"}
-    for path in normalized_root.glob("*.json"):
-        if path.name not in retained_names and path.is_file() and not path.is_symlink():
-            path.unlink()
-    for agent, value in normalized_values.items():
-        atomic_write(normalized_root / f"{agent}.json", pretty_json(value))
-    manifest: dict[str, object] = {
-        "schemaVersion": SCHEMA_VERSION,
-        "agents": {
-            agent: {
-                "url": f"{agent}.json",
-                "releaseCount": len(value["releases"]),
-                "tagCommitCount": sum(
-                    1
-                    for release in value["releases"].values()
-                    if isinstance(release, Mapping)
-                    and isinstance(release.get("commitSha"), str)
-                ),
-                "codeComparisonCount": sum(
-                    1
-                    for release in value["releases"].values()
-                    if isinstance(release, Mapping)
-                    and isinstance(release.get("codeChange"), Mapping)
-                    and release["codeChange"].get("status") == "available"
-                ),
-                "analysisCodeComparisonCount": sum(
-                    1
-                    for release in value["releases"].values()
-                    if isinstance(release, Mapping)
-                    and isinstance(release.get("codeChange"), Mapping)
-                    and release["codeChange"].get("status") == "available"
-                    and release["codeChange"].get("analysisEligible") is True
-                ),
-                "sourceDigest": value["sourceDigest"],
-            }
-            for agent, value in sorted(normalized_values.items())
-        },
-    }
-    manifest["sourceDigest"] = sha256_bytes(canonical_json(manifest))
+    object_root = normalized_root / "agents"
+    if object_root.is_symlink() or (object_root.exists() and not object_root.is_dir()):
+        raise OfficialSyncError(
+            f"normalized object root must be a regular directory: {object_root}"
+        )
+    object_root.mkdir(exist_ok=True)
+    for value in normalized_values.values():
+        digest = value["sourceDigest"]
+        if not isinstance(digest, str):
+            raise OfficialSyncError("normalized sourceDigest must be a string")
+        atomic_write(object_root / f"{digest}.json", pretty_json(value))
+    manifest = normalized_manifest(normalized_values)
     atomic_write(normalized_root / "manifest.json", pretty_json(manifest))
+    # Old immutable objects are harmless and let an interrupted reader finish
+    # against the manifest generation it already opened.
+    for path in normalized_root.glob("*.json"):
+        if path.name != "manifest.json" and path.is_file() and not path.is_symlink():
+            path.unlink()
     status = {
         "schemaVersion": SCHEMA_VERSION,
         "status": sync_health_status(cache.warnings),
         "warnings": sorted(cache.warnings, key=lambda item: (item["url"], item["reason"])),
+        "selectedAgents": sorted(selected),
+        "retainedAgents": sorted(previous_values.keys() - selected),
         "normalizedManifestSha256": sha256_bytes(pretty_json(manifest)),
     }
     atomic_write(root / "sync-status.json", pretty_json(status))
