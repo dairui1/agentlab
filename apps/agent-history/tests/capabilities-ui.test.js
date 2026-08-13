@@ -11,6 +11,7 @@ const mechanismsHtml = read("mechanisms.html");
 const capabilitiesHtml = read("capabilities.html");
 const researchStyles = read("research.css");
 const researchScript = read("research.js");
+const researchNavigation = require("../public/research-navigation-core.js");
 const researchIndex = JSON.parse(read("research-index.json"));
 const articleStyles = read("capability-article.css");
 const articleScript = read("capability-article.js");
@@ -159,40 +160,128 @@ test("all public surfaces expose one shared research section instead of two comp
   }
 });
 
-test("the research landing is one fact-first index for comparisons and fixed builds", () => {
+test("the research landing puts questions and engineering decisions before the evidence archive", () => {
   assert.ok(elements(capabilitiesHtml, "main").some((element) => hasClass(element, "research-view")));
   assert.match(capabilitiesHtml, /id="researchIndex"/);
   assert.match(capabilitiesHtml, /id="researchDetail"/);
+  assert.match(capabilitiesHtml, /class="research-masthead"/);
+  assert.match(capabilitiesHtml, /id="researchLead"[^>]*aria-label="本期焦点"/);
+  assert.match(capabilitiesHtml, /id="researchIndexSearch"/);
+  assert.match(capabilitiesHtml, /class="research-filter-disclosure"/);
+  assert.match(capabilitiesHtml, /id="researchDetailQuestion"/);
+  assert.match(capabilitiesHtml, /id="researchImplication"/);
+  assert.match(capabilitiesHtml, /id="researchBoundary"/);
+  assert.match(capabilitiesHtml, /<details id="researchArchive" class="research-archive">/);
   assert.match(capabilitiesHtml, /id="researchFeed"[^>]*aria-label="专题列表"/);
   assert.match(capabilitiesHtml, /id="researchEvidenceList"[^>]*aria-label="事实与证据"/);
   assert.match(capabilitiesHtml, /id="researchHeadlineEvidence"[^>]*aria-label="结论依据"/);
   assert.doesNotMatch(capabilitiesHtml, /researchEvidenceAgent|按产品筛选事实/);
-  assert.match(capabilitiesHtml, /href="\/research\.css"/);
-  assert.match(capabilitiesHtml, /src="\/research\.js"/);
+  assert.match(capabilitiesHtml, /href="\/research\.css\?v=10"/);
+  assert.match(capabilitiesHtml, /src="\/research\.js\?v=8"/);
+  assert.match(capabilitiesHtml, /src="\/research-navigation-core\.js\?v=1"/);
   assert.doesNotMatch(capabilitiesHtml, /CAPABILITY TEARDOWNS|THE COLLECTION|阅读时间|article-number|article-status|capability-library/);
 
-  assert.equal(researchIndex.studies.length, 10);
-  assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, 10);
+  assert.ok(researchIndex.studies.length > 0);
+  assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, researchIndex.studies.length);
   assert.deepEqual(new Set(researchIndex.studies.map((study) => study.kind)), new Set(["comparison", "fixed-build"]));
-  assert.equal(researchIndex.studies.filter((study) => study.evidence).length, 7);
-  assert.equal(researchIndex.studies.filter((study) => study.data).length, 3);
+  assert.ok(researchIndex.studies.some((study) => study.evidence));
+  assert.ok(researchIndex.studies.some((study) => study.data));
+  assert.ok(researchIndex.studies.every((study) => Boolean(study.data) !== Boolean(study.evidence && study.summary)));
+  assert.equal(researchIndex.studies.filter((study) => study.featured).length, 1);
+  assert.equal(new Set(researchIndex.studies.map((study) => study.editorialRank)).size, researchIndex.studies.length);
+  const featuredStudy = researchIndex.studies.find((study) => study.featured);
+  assert.ok(featuredStudy.leadPaths.length >= 2 && featuredStudy.leadPaths.every((path) => path.label && path.steps.length >= 2));
   for (const study of researchIndex.studies) {
-    assert.ok(study.fact && study.verifiedAt && study.topic);
+    assert.ok(study.question && study.fact && study.implication && study.boundary && study.verifiedAt && study.topic);
+    assert.match(study.question, /[？?]$/);
+    assert.ok(Number.isInteger(study.editorialRank) && study.editorialRank > 0);
     assert.ok(study.products.length > 0 && study.products.every((product) => product.id && product.label && product.version));
-    assert.ok(study.headlineEvidence.length > 0 && new Set(study.headlineEvidence).size === study.headlineEvidence.length);
+    assert.ok(study.headlineEvidence.length >= 3 && study.headlineEvidence.length <= 5);
+    assert.equal(new Set(study.headlineEvidence).size, study.headlineEvidence.length);
     assert.ok(study.evidenceCount > 0 && study.unknownCount > 0);
     assert.ok(study.legacyHref.startsWith("/"));
   }
 
+  assert.match(researchScript, /study\.question/);
+  assert.match(researchScript, /study\.implication/);
+  assert.match(researchScript, /left\.editorialRank - right\.editorialRank/);
   assert.match(researchScript, /textContent = study\.fact/);
+  assert.match(researchScript, /observation: "观察"/);
+  assert.match(researchScript, /document\.getElementById\("researchArchive"\)\.open = true/);
+  assert.match(researchScript, /ResearchNavigation\.detailRequest/);
+  assert.match(researchScript, /link\.href = researchHref\(study\)/);
   assert.match(researchScript, /type: "unknown"/);
   assert.match(researchScript, /record\.boundary/);
   assert.match(researchScript, /claim\.artifact/);
   assert.match(researchScript, /claim\.sha256/);
   assert.doesNotMatch(researchScript, /innerHTML\s*=/);
-  assert.match(researchStyles, /\.research-item-link \{[\s\S]*grid-template-columns: 4px minmax\(0, 1fr\)/);
+  assert.match(researchStyles, /\.research-item-link \{[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(researchStyles, /\.research-decision \{/);
+  assert.match(researchStyles, /\.research-archive-toggle \{/);
   assert.match(researchStyles, /\.research-evidence-row\[data-record-type="inference"\]/);
   assert.match(researchStyles, /@media \(max-width: 780px\)/);
+  assert.doesNotMatch(researchScript, /research-date-divider/);
+  assert.doesNotMatch(researchScript, /`证据项 \$\{study\.evidenceCount\}`|`尚未证明 \$\{study\.unknownCount\}`/);
+});
+
+test("research navigation preserves index context and lets evidence deep links override filters", () => {
+  const detailHref = researchNavigation.studyHref(
+    "https://agentlab.example/capabilities.html?topic=控制与协作&product=codex&search=停止&type=unknown&q=旧值",
+    "goal-mode",
+    { topic: "控制与协作", product: "codex", search: "停止" },
+  );
+  const detailUrl = new URL(detailHref, "https://agentlab.example");
+  assert.equal(detailUrl.searchParams.get("study"), "goal-mode");
+  assert.equal(detailUrl.searchParams.get("topic"), "控制与协作");
+  assert.equal(detailUrl.searchParams.get("product"), "codex");
+  assert.equal(detailUrl.searchParams.get("search"), "停止");
+  assert.equal(detailUrl.searchParams.has("type"), false);
+  assert.equal(detailUrl.searchParams.has("q"), false);
+
+  const request = researchNavigation.detailRequest(
+    "https://agentlab.example/capabilities.html?study=goal-mode&type=unknown&q=absent&agent=codex&evidence=GM-02",
+    new Set(["GM-02", "GM-05"]),
+  );
+  const normalizedUrl = new URL(request.href);
+  assert.equal(request.requestedEvidence, "GM-02");
+  assert.equal(request.invalidEvidence, null);
+  assert.equal(request.type, "all");
+  assert.equal(request.query, "");
+  assert.equal(normalizedUrl.searchParams.get("evidence"), "GM-02");
+  assert.equal(normalizedUrl.searchParams.has("type"), false);
+  assert.equal(normalizedUrl.searchParams.has("q"), false);
+  assert.equal(normalizedUrl.searchParams.has("agent"), false);
+
+  const invalid = researchNavigation.detailRequest(
+    "https://agentlab.example/capabilities.html?study=goal-mode&type=unknown&q=absent&evidence=GM-404",
+    new Set(["GM-02"]),
+  );
+  assert.equal(invalid.requestedEvidence, null);
+  assert.equal(invalid.invalidEvidence, "GM-404");
+  assert.equal(invalid.type, "all");
+  assert.equal(invalid.query, "");
+  assert.equal(new URL(invalid.href).searchParams.has("evidence"), false);
+});
+
+test("headline evidence keeps the direct anchors selected in adversarial review", () => {
+  const directAnchors = {
+    "goal-mode": ["GM-04"],
+    "subagent-orchestration": ["CC-06", "CX-04", "OC-01"],
+    "session-resume": ["SES-CC-05", "SES-CX-11", "SES-OC-04"],
+    "context-compaction": ["CMP-CC-06", "CMP-CX-05", "CMP-OC-06"],
+    "model-routing": ["MR-CC-11", "MR-CX-17", "MR-OC-15", "MR-INF-05"],
+    "permission-sandbox": ["PERM-CX-10"],
+    "tool-contract": ["TOOL-CC-07", "TOOL-OC-16"],
+    "mcp-dynamic-tools": ["MCP-CX-15", "MCP-OC-18"],
+    "browser-use": ["BU-07", "BU-08", "BU-19", "BU-20"],
+    "computer-use": ["CU-09", "CU-19"],
+  };
+  for (const study of researchIndex.studies) {
+    const selected = new Set(study.headlineEvidence);
+    for (const id of directAnchors[study.id]) {
+      assert.ok(selected.has(id), `${study.id} dropped reviewed direct evidence ${id}`);
+    }
+  }
 });
 
 test("every research index count resolves to the published fact and unknown datasets", () => {
@@ -225,7 +314,7 @@ test("every research index count resolves to the published fact and unknown data
   }
 });
 
-test("all three capability pages are long semantic articles with complete sticky-table-of-contents targets", () => {
+test("all three full implementation notes keep semantic navigation and evidence controls", () => {
   for (const [id, html] of Object.entries(articles)) {
     const body = elements(html, "body")[0];
     assert.equal(body.attributes["data-evidence-source"], `/capabilities/${id}.json`);
@@ -237,7 +326,7 @@ test("all three capability pages are long semantic articles with complete sticky
     assert.ok(elements(html, "article").some((element) => hasClass(element, "capability-article")));
 
     const sectionIds = articleSectionIds(html);
-    assert.ok(sectionIds.length >= 10, `${id} is not a skyscraper article`);
+    assert.ok(sectionIds.length > 0, `${id} has no research sections`);
     assert.ok(sectionIds.every(Boolean), `${id} has an article section without an id`);
     assert.equal(new Set(sectionIds).size, sectionIds.length, `${id} has duplicate section ids`);
 

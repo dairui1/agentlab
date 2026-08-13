@@ -8,7 +8,7 @@
   <title>专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/research.css">
+  <link rel="stylesheet" href="/research.css?v=10">
 </head>
 <body>
   <div class="app-shell research-shell">
@@ -33,65 +33,117 @@
       </div>
 
       <section id="researchIndex" hidden>
-        <header class="research-header">
-          <div>
+        <header class="research-masthead">
+          <div class="research-masthead-copy">
+            <span>固定版本 · 可追溯证据</span>
             <h1>专题研究</h1>
-            <p id="researchIndexMeta"></p>
+            <p>用固定版本证据，回答会改变 Agent 工程判断的问题。</p>
           </div>
+          <dl class="research-principles" aria-label="研究原则">
+            <div><dt>结论</dt><dd>回答具体问题</dd></div>
+            <div><dt>范围</dt><dd>锁定核验版本</dd></div>
+            <div><dt>边界</dt><dd>未知项不补写</dd></div>
+          </dl>
         </header>
-        <div class="research-controls" aria-label="专题筛选">
-          <label class="research-select-field">
-            <span>主题</span>
-            <select id="researchTopicFilter" aria-label="按主题筛选"></select>
-          </label>
-          <label class="research-select-field">
-            <span>产品</span>
-            <select id="researchProductFilter" aria-label="按产品筛选"></select>
-          </label>
-          <button id="resetResearchFilters" class="icon-button" type="button" aria-label="重置专题筛选" title="重置专题筛选" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
-          <span id="researchResultCount" class="research-result-count" aria-live="polite"></span>
-        </div>
-        <section id="researchFeed" class="research-feed" aria-label="专题列表"></section>
+
+        <section id="researchLead" class="research-lead" aria-label="本期焦点"></section>
+
+        <section class="research-library" aria-labelledby="researchLibraryTitle">
+          <header class="research-library-header">
+            <div>
+              <span id="researchIndexMeta"></span>
+              <h2 id="researchLibraryTitle">全部专题</h2>
+            </div>
+          </header>
+          <details class="research-filter-disclosure">
+            <summary><i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>搜索与筛选</span><span id="researchResultCount" class="research-result-count" aria-live="polite"></span></summary>
+            <div class="research-controls" aria-label="专题筛选">
+              <label class="research-search">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input id="researchIndexSearch" type="search" placeholder="搜索问题、结论或产品" aria-label="搜索专题">
+              </label>
+              <label class="research-select-field">
+                <span>主题</span>
+                <select id="researchTopicFilter" aria-label="按主题筛选"></select>
+              </label>
+              <label class="research-select-field">
+                <span>产品</span>
+                <select id="researchProductFilter" aria-label="按产品筛选"></select>
+              </label>
+              <button id="resetResearchFilters" class="icon-button" type="button" aria-label="重置专题筛选" title="重置专题筛选" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+            </div>
+          </details>
+          <section id="researchFeed" class="research-feed" aria-label="专题列表"></section>
+        </section>
       </section>
 
       <article id="researchDetail" class="research-detail" hidden>
         <a class="research-back" href="/capabilities.html"><i data-lucide="arrow-left" aria-hidden="true"></i><span>全部专题</span></a>
         <header class="research-detail-header">
           <div class="research-detail-meta" id="researchDetailMeta"></div>
-          <h1 id="researchDetailTitle"></h1>
+          <p class="research-detail-topic" id="researchDetailTitle"></p>
+          <h1 id="researchDetailQuestion"></h1>
           <p id="researchDetailFact"></p>
           <div id="researchProducts" class="research-products" aria-label="核验版本"></div>
-          <div id="researchHeadlineEvidence" class="research-headline-evidence" aria-label="结论依据"></div>
         </header>
 
-        <section class="research-detail-controls" aria-label="事实筛选">
-          <label class="research-search">
-            <i data-lucide="search" aria-hidden="true"></i>
-            <input id="researchEvidenceSearch" type="search" placeholder="搜索事实、证据位置或边界" aria-label="搜索事实与证据">
-          </label>
-          <label class="research-select-field">
-            <span>类型</span>
-            <select id="researchEvidenceType" aria-label="按证据类型筛选">
-              <option value="all">全部</option>
-              <option value="fact">事实</option>
-              <option value="inference">推断</option>
-              <option value="unknown">尚未证明</option>
-            </select>
-          </label>
-          <button id="resetEvidenceFilters" class="icon-button" type="button" aria-label="重置事实筛选" title="重置事实筛选" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
-          <span id="researchEvidenceCount" class="research-result-count" aria-live="polite"></span>
+        <section class="research-decision" aria-labelledby="researchDecisionTitle">
+          <span id="researchDecisionTitle">工程判断</span>
+          <p id="researchImplication"></p>
         </section>
 
-        <section id="researchEvidenceList" class="research-evidence-list" aria-label="事实与证据"></section>
+        <section class="research-guardrail" aria-labelledby="researchGuardrailTitle">
+          <span id="researchGuardrailTitle">不要误读</span>
+          <p id="researchBoundary"></p>
+        </section>
+
+        <section class="research-key-section" aria-labelledby="researchKeyTitle">
+          <header class="research-section-header">
+            <span>支持上述结论</span>
+            <h2 id="researchKeyTitle">结论依据</h2>
+          </header>
+          <div id="researchHeadlineEvidence" class="research-headline-evidence" aria-label="结论依据"></div>
+        </section>
+
+        <details id="researchArchive" class="research-archive">
+          <summary class="research-archive-toggle">
+            <div>
+              <span>完整记录</span>
+              <h2 id="researchArchiveTitle">证据库</h2>
+            </div>
+            <span id="researchEvidenceCount" class="research-result-count" aria-live="polite"></span>
+            <span class="research-archive-open"><span>展开完整记录</span><i data-lucide="chevron-down" aria-hidden="true"></i></span>
+          </summary>
+          <div class="research-archive-body">
+            <div class="research-detail-controls" aria-label="事实筛选">
+              <label class="research-search">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input id="researchEvidenceSearch" type="search" placeholder="搜索事实、证据位置或边界" aria-label="搜索事实与证据">
+              </label>
+              <label class="research-select-field">
+                <span>类型</span>
+                <select id="researchEvidenceType" aria-label="按证据类型筛选">
+                  <option value="all">全部</option>
+                  <option value="fact">事实与观察</option>
+                  <option value="inference">推断</option>
+                  <option value="unknown">尚未证明</option>
+                </select>
+              </label>
+              <button id="resetEvidenceFilters" class="icon-button" type="button" aria-label="重置事实筛选" title="重置事实筛选" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+            </div>
+            <section id="researchEvidenceList" class="research-evidence-list" aria-label="事实与证据"></section>
+          </div>
+        </details>
         <footer class="research-detail-footer">
-          <p>结论只适用于页面列出的版本。事实、推断和未知项分别显示，不用缺失证据补齐叙事。</p>
-          <a id="researchLegacyLink" href="#"><i data-lucide="table-properties" aria-hidden="true"></i><span>打开原始研究视图</span></a>
+          <div><strong>适用范围</strong><p id="researchScope">结论只适用于页面列出的版本。事实、推断和未知项分别显示，不用缺失证据补齐叙事。</p></div>
+          <a id="researchLegacyLink" href="#"><i data-lucide="table-properties" aria-hidden="true"></i><span>打开研究工作台</span></a>
         </footer>
       </article>
     </main>
   </div>
 
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="/research.js"></script>
+  <script src="/research-navigation-core.js?v=1"></script>
+  <script src="/research.js?v=8"></script>
 </body>
 </html>
