@@ -118,6 +118,48 @@ test("source layers honor the public layers and sources provenance contract", ()
   assert.equal(layers.find((layer) => layer.id === "runtime-prompt").url, "https://example.test/prompt");
 });
 
+test("unavailable runtime layers never become verified no-change", () => {
+  const layers = core.normalizeSourceLayers({
+    stats: { additions: 0, deletions: 0, toolsAdded: [], toolsRemoved: [], toolsModified: [] },
+    layers: {
+      prompt: { status: "unavailable", reason: "no-runtime-capture" },
+      tools: { status: "unavailable", reason: "no-runtime-capture" },
+    },
+  }, {}, {});
+
+  assert.equal(layers.find((layer) => layer.id === "runtime-prompt").state, "missing");
+  assert.equal(layers.find((layer) => layer.id === "tools").state, "missing");
+  assert.notEqual(layers.find((layer) => layer.id === "runtime-prompt").status, "核验无变化");
+  assert.notEqual(layers.find((layer) => layer.id === "tools").status, "核验无变化");
+});
+
+test("an npm publication title is evidence of a release, not a feature change", () => {
+  const entry = {
+    stats: { additions: 0, deletions: 0, toolsAdded: [], toolsRemoved: [], toolsModified: [] },
+    layers: {
+      prompt: { status: "unavailable" },
+      tools: { status: "unavailable" },
+      official: {
+        status: "available",
+        release: {
+          title: "DeepSeek Harness 0.1.0-rc.6",
+          notes: { sourceKind: "npm-publication", text: "" },
+        },
+      },
+    },
+    importance: "none",
+  };
+  const layers = core.normalizeSourceLayers(entry, {}, {});
+  const official = layers.find((layer) => layer.id === "official");
+
+  assert.equal(official.state, "available");
+  assert.deepEqual(core.entrySignalTypes(entry, {}, {}), []);
+  assert.doesNotMatch(
+    core.deriveImplications([entry]).map((item) => item.text).join(" "),
+    /官方发布说明中的能力点/,
+  );
+});
+
 test("intelligence feed hides no-change and importance none, then orders by recency", () => {
   const versions = [
     { version: "1.0.0", publishedAt: "2026-07-01T08:00:00Z" },

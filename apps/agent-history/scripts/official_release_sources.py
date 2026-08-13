@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Single registry for AgentLab GitHub release intelligence sources."""
+"""Single registry for AgentLab official release intelligence sources."""
 
 from __future__ import annotations
 
@@ -25,6 +25,16 @@ GITHUB_RELEASE_SOURCES = {
     "reasonix": {"repository": "esengine/DeepSeek-Reasonix", "label": "Reasonix", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
 }
 
+NPM_RELEASE_SOURCES = {
+    "deepseek-harness": {
+        "repository": "deepseek-ai/deepseek-harness",
+        "label": "DeepSeek Harness",
+        "package": "@deepseek-ai/dsh",
+        "packageDirectory": "apps/cli",
+        "officialOnly": True,
+    },
+}
+
 # Source-only captures start at the official-source rollout boundary.  Older
 # releases remain available as evidence for matching Phistory captures, without
 # turning an initial sync into an unbounded historical model-analysis backlog.
@@ -33,7 +43,34 @@ SOURCE_CAPTURE_SINCE = "2026-06-09T00:00:00Z"
 OFFICIAL_REPOSITORIES = {
     **SPECIAL_OFFICIAL_REPOSITORIES,
     **{agent: str(config["repository"]) for agent, config in GITHUB_RELEASE_SOURCES.items()},
+    **{agent: str(config["repository"]) for agent, config in NPM_RELEASE_SOURCES.items()},
 }
+
+SOURCE_CAPTURE_SOURCES = {
+    **{
+        agent: {
+            "repository": str(config["repository"]),
+            "label": str(config["label"]),
+            "package": str(config["repository"]),
+        }
+        for agent, config in GITHUB_RELEASE_SOURCES.items()
+    },
+    **{
+        agent: {
+            "repository": str(config["repository"]),
+            "label": str(config["label"]),
+            "package": str(config["package"]),
+            "packageDirectory": str(config["packageDirectory"]),
+        }
+        for agent, config in NPM_RELEASE_SOURCES.items()
+    },
+}
+
+OFFICIAL_ONLY_AGENTS = frozenset(
+    agent
+    for agent, config in NPM_RELEASE_SOURCES.items()
+    if config.get("officialOnly") is True
+)
 
 # Bootstrap one adjacent comparison per repository. Each future release keeps
 # its eligible comparison, so coverage grows without creating a one-time model

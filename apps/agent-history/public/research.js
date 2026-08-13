@@ -8,6 +8,7 @@
   const productLabels = {
     "claude-code": "Claude Code",
     codex: "Codex",
+    "deepseek-harness": "DeepSeek Harness",
     opencode: "opencode",
     "cross-product": "跨产品",
   };

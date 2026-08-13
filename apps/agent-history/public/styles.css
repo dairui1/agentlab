@@ -1983,6 +1983,11 @@ a.source-layer:hover {
   color: var(--delete);
 }
 
+.editor-placeholder[data-kind="unavailable"] {
+  padding: 24px;
+  color: var(--muted);
+}
+
 .editor-placeholder pre {
   width: min(760px, calc(100vw - 80px));
   max-height: 360px;

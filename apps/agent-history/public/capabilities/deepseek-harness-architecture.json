@@ -1,0 +1,286 @@
+{
+  "id": "deepseek-harness-architecture",
+  "number": "004",
+  "title": "DeepSeek Harness 架构",
+  "product": "DeepSeek Harness",
+  "subtitle": "Cordis 插件树、事件日志与可替换能力如何组成一个 Agent Harness",
+  "description": "这项研究锁定 DeepSeek Harness 提交 47f943859bef60e4160492346772ded9b24f765a，沿启动配置、核心服务、回合执行、持久日志、能力接缝、Agent 作用域和外部协议七条路径拆解架构。重点不是罗列 package，而是回答新行为应落在哪一层：需要持久化的事实进入 SessionEvent，运行中的拦截进入 typed event，需要替换的能力拆成 Definition、Provider 与 Consumer，每个 Agent 的差异则由 preset、scope 与 isolate 组合。文中所有结论来自固定提交的文档或源码；没有把静态可见的插件树写成某次部署实际加载的运行路径。",
+  "verifiedAt": "2026-08-13",
+  "status": "active",
+  "scope": [
+    {
+      "label": "Source",
+      "value": "deepseek-ai/deepseek-harness",
+      "note": "公开仓库固定提交，不跟随 master 漂移"
+    },
+    {
+      "label": "Commit",
+      "value": "47f943859bef60e4160492346772ded9b24f765a",
+      "note": "2026-08-13 核验"
+    },
+    {
+      "label": "Package manifest",
+      "value": "@deepseek-ai/dsh 0.1.0-rc.5",
+      "note": "专题锁定源码树中的版本，不等同 npm 当前 latest"
+    },
+    {
+      "label": "Architecture",
+      "value": "Cordis plugin tree",
+      "note": "service injection、typed events、reversible effects"
+    },
+    {
+      "label": "State model",
+      "value": "append-only SessionEvent log",
+      "note": "模型历史、回放和持久化从同一事件流派生"
+    },
+    {
+      "label": "Evidence",
+      "value": "14 条固定文件证据",
+      "note": "observation 与 bounded inference 分开记录"
+    },
+    {
+      "label": "Runtime trace",
+      "value": "未纳入",
+      "note": "实际 resolved plugin tree、并发时序与部署策略仍属未知"
+    }
+  ],
+  "boundary": "核验范围只覆盖提交 47f943859bef60e4160492346772ded9b24f765a 中可直接读取的架构文档、TypeScript 实现和接口说明。observation 表示固定文件明确声明的职责或控制流；inference 表示从多处静态关系归纳出的工程判断，并单列不能外推的部分。这里没有运行 dsh --dump-config 来记录某个用户配置最终解析出的插件树，也没有用生产模型、并发故障注入或跨进程恢复实验验证时序和兼容性。项目仍处于 RC 阶段，专题不把当前 package、配置或 wire protocol 写成稳定承诺。",
+  "unknowns": [
+    {
+      "id": "DSH-KU-01",
+      "title": "实际插件树会解析成什么",
+      "text": "源码能确认 layer 顺序和 patch 规则，不能确认任一机器上的 profile、home patch、命令行 overlay 与第三方插件最后组成了哪棵树。",
+      "needed": "对明确 profile 运行 dsh --dump-config，保存 resolved rows、来源 layer 与启用状态。"
+    },
+    {
+      "id": "DSH-KU-02",
+      "title": "并发与故障下的完整事件时序",
+      "text": "静态控制流说明 append、waterfall、工具执行与 turn 结束的顺序，但没有量化取消、重试、持久化 flush 和插件卸载同时发生时的外部可见结果。",
+      "needed": "带事件序号、持久化 checkpoint、取消信号和插件 lifecycle 的故障注入 trace。"
+    },
+    {
+      "id": "DSH-KU-03",
+      "title": "RC 接口何时稳定",
+      "text": "仓库明确采用预发布策略，JSON-RPC 也没有协议版本协商；当前 service、配置行与 wire method 不能当作长期兼容面。",
+      "needed": "首个 tagged stable release 的兼容说明、迁移政策与协议版本策略。"
+    },
+    {
+      "id": "DSH-KU-04",
+      "title": "插件化的运行成本",
+      "text": "可替换性在代码职责上很清楚，但固定源码没有回答大型插件树对启动时间、内存、事件分发延迟和调试成本的实际影响。",
+      "needed": "相同任务下按插件规模和 provider 组合分组的启动、内存、延迟与错误定位基准。"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "DSH-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "运行时各部分都以 Cordis 插件贡献",
+      "statement": "架构文档把模型适配器、工具注册表、Session log 和 Agent Loop 都列为插件；插件通过共享 Context 提供 service、typed event 与可逆 effect，卸载时注册随之撤销。",
+      "artifact": "docs/architecture.md",
+      "locator": "Cordis, lines 9-13",
+      "sha256": "c5b2d290be49f06019b412e56fee4c9b36b853813fd927d4e31fe678712a9c70",
+      "boundary": "文档说明设计规则和配置能力，不证明任意第三方插件组合都能正确启动或安全协作。",
+      "source": {
+        "label": "DeepSeek Harness source · architecture",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.md#L9-L13"
+      }
+    },
+    {
+      "id": "DSH-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Profile 是有顺序的 bundle 与 patch 叠层",
+      "statement": "app-boot 把 profile 定义为 bundle patch 的有序组合，再叠加 profile 自身 patch 与 launcher overlay；内置 web、headless 模板共享 base bundle。",
+      "artifact": "packages/boot/app-boot/src/profile.ts",
+      "locator": "module contract and PROFILE_TEMPLATES, lines 1-125",
+      "sha256": "c528b0aacd4c7acad9ac557e0a9ac97f1c7a0aed1239b36ac85f93135688861a",
+      "boundary": "源码给出组合算法和内置模板，不等于某台机器没有额外 home patch、命令行 overlay 或第三方 bundle。",
+      "source": {
+        "label": "DeepSeek Harness source · profile composition",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/boot/app-boot/src/profile.ts#L1-L125"
+      }
+    },
+    {
+      "id": "DSH-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "核心脊柱拆成六个 service",
+      "statement": "固定架构把 Session、System Prompt、Tools、Agent、Agent Loop 与 LLM adapter 分别映射到 ctx.sessions、ctx.systemPrompt、ctx.tools、ctx.agents、ctx.agentLoop 和 ctx.llm。",
+      "artifact": "docs/architecture.md",
+      "locator": "Core packages, lines 39-52",
+      "sha256": "c5b2d290be49f06019b412e56fee4c9b36b853813fd927d4e31fe678712a9c70",
+      "boundary": "这张职责表描述默认核心服务，不代表所有部署都会选择同一个具体 Provider 或工具集合。",
+      "source": {
+        "label": "DeepSeek Harness source · core services",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.md#L39-L52"
+      }
+    },
+    {
+      "id": "DSH-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Turn 在领取输入前打开，并保证写入终态",
+      "statement": "默认 loop 先记录 turn/start，再领取 inbox 输入并经过 agent/pre-step；reject、首步空输入、取消或异常都通过 finally 写入 turn/end，只有实际进入的 step 才写 step/start 与 step/end。",
+      "artifact": "packages/core/agent-loop/src/agent.ts",
+      "locator": "preStep and turn, lines 225-329",
+      "sha256": "e775e59f3761240ee571a9b997d0d29deb97a283b6c2fc3a071091b2743d22b4",
+      "boundary": "这是默认 agent-loop 的静态控制流；插件可在 waterfall 与 stopping event 上改写或阻断路径，具体事件序列仍需 trace。",
+      "source": {
+        "label": "DeepSeek Harness source · turn driver",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/core/agent-loop/src/agent.ts#L225-L329"
+      }
+    },
+    {
+      "id": "DSH-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "一次 Step 从日志派生消息再执行工具",
+      "statement": "step 以 session.deriveMessages() 生成请求历史，流式 chunk 逐条入日志，聚合后的 assistant/message 记录来源 chunk；若含 tool-call，再进入统一 executeToolCalls pipeline。",
+      "artifact": "packages/core/agent-loop/src/agent.ts",
+      "locator": "step, lines 332-399",
+      "sha256": "e775e59f3761240ee571a9b997d0d29deb97a283b6c2fc3a071091b2743d22b4",
+      "boundary": "这段实现确认默认请求与工具调度顺序，不说明具体 LLM adapter、tool provider 或 retry listener 会产生什么结果。",
+      "source": {
+        "label": "DeepSeek Harness source · step execution",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/core/agent-loop/src/agent.ts#L332-L399"
+      }
+    },
+    {
+      "id": "DSH-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Session append 在入日志前验证并快照",
+      "statement": "Session.append 先把 payload 与 surface metadata 转成 lossless JSON snapshot，校验 surface 关系并拒绝重入，之后才分配 seq、写入 log 并同步通知观察者；观察者失败不会撤销已接受事件。",
+      "artifact": "packages/core/session/src/index.ts",
+      "locator": "Session.append contract and implementation, lines 569-655",
+      "sha256": "9594e128e8b170845d703e37a54902cd0cd8b2e73e8555e94594575bd18af8f9",
+      "boundary": "这是内存日志的接受与发布规则；持久化由其他插件异步处理，进程崩溃时哪些事件已 flush 不能从这里单独推出。",
+      "source": {
+        "label": "DeepSeek Harness source · Session.append",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/core/session/src/index.ts#L569-L655"
+      }
+    },
+    {
+      "id": "DSH-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "模型历史不是第二份独立状态",
+      "statement": "Session 子系统把 append-only typed event log 定义为交互历史的事实源，LLM message history 与 replay 都从同一事件流重新派生；插件还能通过 declaration merging 扩展事件词汇。",
+      "artifact": "docs/subsystems/session.md",
+      "locator": "Sessions and SessionEventMap, lines 5-25",
+      "sha256": "4c220b6b99ae5e3e69e940a90ad12266bda7db6050c11db537d3febd3a83dc18",
+      "boundary": "event-sourced 设计保证可重建的来源一致，不保证摘要、外部副作用或未 flush 的存储在所有故障点都完整。",
+      "source": {
+        "label": "DeepSeek Harness source · session subsystem",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/subsystems/session.md#L5-L25"
+      }
+    },
+    {
+      "id": "DSH-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "事件分域，Waterfall 需要显式委托",
+      "statement": "架构把 session/event 用于需要跨 reload 的事实，把 agent/* 用于携带 live Agent 的运行中拦截，把 fs/*、tools/* 等 capability event 用于不导入 loop 的策略与适配器；waterfall listener 必须调用 next() 才会继续委托。",
+      "artifact": "docs/architecture.md",
+      "locator": "Events and turn flow, lines 53-84",
+      "sha256": "c5b2d290be49f06019b412e56fee4c9b36b853813fd927d4e31fe678712a9c70",
+      "boundary": "领域分类给出放置规则，不证明每个已有插件都没有跨域耦合，也不能替代对实际 producer/consumer 的逐项检查。",
+      "source": {
+        "label": "DeepSeek Harness source · event domains",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.md#L53-L84"
+      }
+    },
+    {
+      "id": "DSH-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "可替换能力必须包含三个角色",
+      "statement": "架构把 capability seam 定义为 Service Definition、Service Provider 与 Consumer 三个角色；Provider 可以替换，Consumer 依赖 service interface，而不是导入默认 loop 或具体实现。",
+      "artifact": "docs/architecture.md",
+      "locator": "Capability seams, lines 98-103",
+      "sha256": "c5b2d290be49f06019b412e56fee4c9b36b853813fd927d4e31fe678712a9c70",
+      "boundary": "三角色是架构完整性的要求，不证明任意两个 Provider 具有相同性能、安全属性或部署依赖。",
+      "source": {
+        "label": "DeepSeek Harness source · capability seams",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.md#L98-L103"
+      }
+    },
+    {
+      "id": "DSH-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Preset 内的 service 以 isolate 隔开 Session",
+      "statement": "agent-presets 的 mount 逻辑检查 service 是否泄露到 root realm，并提供按 Agent 精确读取其 preset service 的路径；源码明确说明 isolate 让两个 Session 的实现不会碰撞。",
+      "artifact": "packages/preset/agent-presets/src/mount.ts",
+      "locator": "leakedServices and serviceForAgent, lines 178-271",
+      "sha256": "78eab1f8ba2356bd53f67e010d93cd22830ce3549478ff05f38c36366d67d5f3",
+      "boundary": "isolate 约束 Cordis service realm，不等于进程、文件系统、网络或操作系统权限隔离。",
+      "source": {
+        "label": "DeepSeek Harness source · preset isolation",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/preset/agent-presets/src/mount.ts#L178-L271"
+      }
+    },
+    {
+      "id": "DSH-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "SDK runtime 使用行分隔 JSON-RPC",
+      "statement": "SDK protocol 在 caller-owned byte stream 上以一行一个 JSON-RPC 2.0 frame 传输，公开 initialize、session/prompt、shutdown 与 session、subagent 通知；当前没有 cancel、session close 或协议版本协商。",
+      "artifact": "packages/sdk/protocol/README.md",
+      "locator": "Transport, wire types and limitations, lines 5-25 and 35-39",
+      "sha256": "137ebe4f88ef2bc3f681017df0e94f5470d987ec4b33070d88b6fcfcff58e5fd",
+      "boundary": "协议文档说明这一固定提交的 wire surface，不保证 RC 版本间兼容，也不代表当前 Python SDK 已在所有平台公开发布。",
+      "source": {
+        "label": "DeepSeek Harness source · SDK protocol",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/sdk/protocol/README.md#L5-L39"
+      }
+    },
+    {
+      "id": "DSH-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "ACP 是独立的自动化适配器",
+      "statement": "ACP 插件通过 stdio 驱动 ctx.agents，支持 fresh session、prompt、cancel 与一次性 permission；它只输出 committed assistant text，并明确不提供恢复、编辑器、工具进度等交互表面。",
+      "artifact": "packages/acp/acp/README.md",
+      "locator": "Plugin, protocol contract and limitations, lines 5-81",
+      "sha256": "54d8ca70de2dcbe423865d6b10e42cc0c7313404ea1794a3619da2c037663990",
+      "boundary": "ACP 适配器暴露的能力比内部 Agent service 更窄；从协议可调用不能推出客户端已经配置好模型、权限或 workspace。",
+      "source": {
+        "label": "DeepSeek Harness source · ACP adapter",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/acp/acp/README.md#L5-L81"
+      }
+    },
+    {
+      "id": "DSH-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Headless 是一次性 runner 而不是服务器",
+      "statement": "headless bundle 创建一个持久 Agent、提交一条普通用户消息并等到 idle，再把最后一条非空 assistant text 写到 stdout；它不开监听端口，也没有交互式 follow-up。",
+      "artifact": "packages/bundle/headless/README.md",
+      "locator": "runner behavior and limitations, lines 5-20",
+      "sha256": "5122204dae7b83962bf66313f3f6879b0a9eb6e340f1df96e46823f4c38f028a",
+      "boundary": "一次性 CLI 适合 command-in/text-out 集成，不等于 SDK 的事件流、Session 生命周期或 ACP 的取消语义。",
+      "source": {
+        "label": "DeepSeek Harness source · headless bundle",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/packages/bundle/headless/README.md#L5-L20"
+      }
+    },
+    {
+      "id": "DSH-14",
+      "kind": "inference",
+      "confidence": "medium",
+      "title": "普通产品行为不该默认塞进 Agent Loop",
+      "statement": "从架构列出的扩展路径看，新行为通常应先落到 session event、agent/tools event、capability service、preset 或 host integration；只有默认 driver 的生命周期本身改变时，才需要修改 agent-loop。",
+      "artifact": "docs/architecture.md",
+      "locator": "Where new behavior goes, lines 104-127",
+      "sha256": "c5b2d290be49f06019b412e56fee4c9b36b853813fd927d4e31fe678712a9c70",
+      "boundary": "这是根据项目明示的 extension map 得出的放置判断，只说明首选责任归属；不能证明任何跨层需求都无需 loop 变更，实际改动仍要检查生命周期不变量。",
+      "source": {
+        "label": "DeepSeek Harness source · extension map",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/47f943859bef60e4160492346772ded9b24f765a/docs/architecture.md#L104-L127"
+      }
+    }
+  ]
+}

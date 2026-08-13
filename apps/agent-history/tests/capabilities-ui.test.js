@@ -27,11 +27,13 @@ const deAiSkill = fs.readFileSync(path.resolve(__dirname, "../../../.codex/skill
 const articles = {
   "browser-use": read("capabilities/browser-use.html"),
   "computer-use": read("capabilities/computer-use.html"),
+  "deepseek-harness-architecture": read("capabilities/deepseek-harness-architecture.html"),
   "goal-mode": read("capabilities/goal-mode.html"),
 };
 const studies = {
   "browser-use": JSON.parse(read("capabilities/browser-use.json")),
   "computer-use": JSON.parse(read("capabilities/computer-use.json")),
+  "deepseek-harness-architecture": JSON.parse(read("capabilities/deepseek-harness-architecture.json")),
   "goal-mode": JSON.parse(read("capabilities/goal-mode.json")),
 };
 
@@ -177,7 +179,7 @@ test("the research landing puts questions and engineering decisions before the e
   assert.match(capabilitiesHtml, /id="researchHeadlineEvidence"[^>]*aria-label="结论依据"/);
   assert.doesNotMatch(capabilitiesHtml, /researchEvidenceAgent|按产品筛选事实/);
   assert.match(capabilitiesHtml, /href="\/research\.css\?v=10"/);
-  assert.match(capabilitiesHtml, /src="\/research\.js\?v=8"/);
+  assert.match(capabilitiesHtml, /src="\/research\.js\?v=9"/);
   assert.match(capabilitiesHtml, /src="\/research-navigation-core\.js\?v=1"/);
   assert.doesNotMatch(capabilitiesHtml, /CAPABILITY TEARDOWNS|THE COLLECTION|阅读时间|article-number|article-status|capability-library/);
 
@@ -266,6 +268,7 @@ test("research navigation preserves index context and lets evidence deep links o
 test("headline evidence keeps the direct anchors selected in adversarial review", () => {
   const directAnchors = {
     "goal-mode": ["GM-04"],
+    "deepseek-harness-architecture": ["DSH-02", "DSH-04", "DSH-06", "DSH-09", "DSH-11"],
     "subagent-orchestration": ["CC-06", "CX-04", "OC-01"],
     "session-resume": ["SES-CC-05", "SES-CX-11", "SES-OC-04"],
     "context-compaction": ["CMP-CC-06", "CMP-CX-05", "CMP-OC-06"],
@@ -314,12 +317,12 @@ test("every research index count resolves to the published fact and unknown data
   }
 });
 
-test("all three full implementation notes keep semantic navigation and evidence controls", () => {
+test("all full implementation notes keep semantic navigation and evidence controls", () => {
   for (const [id, html] of Object.entries(articles)) {
     const body = elements(html, "body")[0];
     assert.equal(body.attributes["data-evidence-source"], `/capabilities/${id}.json`);
     assert.ok(Object.hasOwn(body.attributes, "data-evidence-source"));
-    assert.match(html, /href="\/capability-article\.css\?v=2"/);
+    assert.match(html, /href="\/capability-article\.css\?v=3"/);
     assert.match(html, /src="\/capability-article\.js"/);
     assert.equal(elements(html, "main").length, 1, `${id} must have one semantic main region`);
     assert.match(html, /class="[^"]*\bcapability-reading\b/);
@@ -566,6 +569,72 @@ test("Goal Mode uses the compact evidence-only schema with current Codex and Cla
   }
 });
 
+test("DeepSeek Harness architecture pins one public source revision and keeps inference bounded", () => {
+  const study = studies["deepseek-harness-architecture"];
+  assert.deepEqual(Object.keys(study).sort(), [
+    "boundary",
+    "description",
+    "evidence",
+    "id",
+    "number",
+    "product",
+    "scope",
+    "status",
+    "subtitle",
+    "title",
+    "unknowns",
+    "verifiedAt",
+  ]);
+  assert.equal(study.id, "deepseek-harness-architecture");
+  assert.equal(study.number, "004");
+  for (const field of ["title", "product", "subtitle", "description", "status", "boundary"]) {
+    assert.ok(typeof study[field] === "string" && study[field].trim(), `deepseek-harness-architecture lacks ${field}`);
+  }
+  assert.match(study.verifiedAt, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(Array.isArray(study.scope) && study.scope.length >= 5);
+  assertEvidence(study, "DSH");
+  assertUnknowns(study, "DSH");
+
+  const revision = "47f943859bef60e4160492346772ded9b24f765a";
+  for (const claim of study.evidence) {
+    assert.ok(claim.source && typeof claim.source === "object", `${claim.id} lacks a public source`);
+    assert.match(claim.source.url, new RegExp(`^https://github\\.com/deepseek-ai/deepseek-harness/blob/${revision}/`));
+  }
+
+  const evidenceById = new Map(study.evidence.map((claim) => [claim.id, claim]));
+  assert.match(evidenceById.get("DSH-02").locator, /lines 1-125$/);
+  assert.match(evidenceById.get("DSH-02").source.url, /#L1-L125$/);
+  assert.match(evidenceById.get("DSH-08").statement, /必须调用 next\(\)/);
+  assert.match(evidenceById.get("DSH-08").source.url, /#L53-L84$/);
+  assert.match(evidenceById.get("DSH-12").locator, /lines 5-81$/);
+  assert.match(evidenceById.get("DSH-12").source.url, /#L5-L81$/);
+
+  const html = articles[study.id];
+  const toc = html.match(/<aside\b[^>]*id="articleToc"[^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
+  const tocTitles = [...toc.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => plainText(match[1]));
+  const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
+    .map((match) => plainText(match[1]));
+  assert.deepEqual(tocTitles, sectionTitles);
+  assert.deepEqual(sectionTitles.map((title) => title.split("：")[0]), [
+    "整体模型",
+    "启动组合",
+    "核心脊柱",
+    "回合执行",
+    "持久状态",
+    "扩展协议",
+    "能力接缝",
+    "Agent 作用域",
+    "执行世界",
+    "外部接口",
+    "变更路径",
+    "结论与边界",
+  ]);
+  assert.match(html, /waterfall[\s\S]*data-evidence="DSH-08"/);
+  assert.match(html, /<td>Headless<\/td><td>最后一条非空 assistant text<\/td><td>无会话级入口<\/td>/);
+  assert.doesNotMatch(html, /<td>Headless<\/td>[\s\S]*?<td>终止进程<\/td>/);
+  assert.match(articles["goal-mode"], /href="\/capabilities\/deepseek-harness-architecture\.html"/);
+});
+
 test("Goal Mode publishes product conclusions without exposing the local research trail", () => {
   const publicCopy = [
     articles["goal-mode"],
@@ -801,7 +870,7 @@ test("Goal Mode lab renders with safe DOM APIs, keyboard traversal, URL state, a
   assert.doesNotMatch(goalModeLabStyles, /font-size:\s*clamp\([^;]*(?:vw|vmin|vmax)/);
 });
 
-test("Computer Use and Goal Mode copy are covered by the project de-ai-ify writing contract", () => {
+test("Computer Use, Goal Mode, and DeepSeek Harness copy follow the de-ai-ify writing contract", () => {
   assert.match(deAiSkill, /^name: de-ai-ify$/m);
   assert.match(deAiSkill, /不要编/);
   assert.match(deAiSkill, /HTML[\s\S]*JavaScript[\s\S]*JSON/);
@@ -817,6 +886,8 @@ test("Computer Use and Goal Mode copy are covered by the project de-ai-ify writi
     JSON.stringify(studies["goal-mode"]),
     goalModeLabCoreSource,
     goalModeLabScript,
+    articles["deepseek-harness-architecture"],
+    JSON.stringify(studies["deepseek-harness-architecture"]),
     articleScript,
   ].join("\n");
 
@@ -888,6 +959,8 @@ test("shared article styling keeps the TOC sticky and the long read responsive",
   assert.match(articleStyles, /@media\s*\(max-width:/);
   assert.match(articleStyles, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   assert.match(articleStyles, /overflow-wrap:\s*anywhere/);
+  assert.match(articleStyles, /\.article-toc-note\s*\{[^}]*overflow-wrap:\s*anywhere/);
+  assert.match(articleStyles, /@media\s*\(min-width:\s*621px\)\s*and\s*\(max-width:\s*860px\)[\s\S]*?\.article-flow\s*\{[^}]*grid-template-columns:\s*repeat\(2,/);
   assert.doesNotMatch(articleStyles, /font-size:\s*clamp\([^;]*(?:vw|vmin|vmax)/);
 });
 

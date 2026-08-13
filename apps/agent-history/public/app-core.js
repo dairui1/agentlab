@@ -152,6 +152,8 @@
 
   function explicitLayerChangeState(id, layer) {
     if (!layer) return "";
+    const statusState = sourceLayerState(layer.status || layer.state || layer.change, "");
+    if (["missing", "pending"].includes(statusState)) return statusState;
     if (id === "runtime-prompt") {
       return changeCount(layer, ["additions", "deletions"]) > 0
         || (Array.isArray(layer.changedSections) && layer.changedSections.length) ? "changed" : "unchanged";
@@ -167,9 +169,10 @@
     }
     if (id === "official") {
       const notes = layer.release?.notes;
-      if (stringValue(notes?.text) || layer.release?.title || layer.release?.hasNotes || layer.hasNotes) {
+      if (stringValue(notes?.text) || layer.release?.hasNotes || layer.hasNotes) {
         return "changed";
       }
+      if (layer.status === "available" || layer.release?.title) return "available";
     }
     if (id === "code") {
       if (changeCount(layer, ["filesObserved", "additionsObserved", "deletionsObserved"]) > 0

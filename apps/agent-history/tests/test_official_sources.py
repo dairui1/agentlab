@@ -91,7 +91,94 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(focused.agents, ("codex",))
         self.assertIn("codex", complete.agents)
         self.assertIn("claude-code", complete.agents)
+        self.assertIn("deepseek-harness", complete.agents)
         self.assertGreater(len(complete.agents), len(focused.agents))
+
+    def test_version_order_keeps_numeric_revision_source_specific(
+        self,
+    ) -> None:
+        versions = ["0.1.0", "0.1.0-rc.10", "0.1.0-rc.2", "0.1.0-0"]
+
+        self.assertEqual(
+            sorted(versions, key=official.version_key),
+            ["0.1.0-0", "0.1.0-rc.2", "0.1.0-rc.10", "0.1.0"],
+        )
+        self.assertLess(
+            official.version_key("2026.7.1-2"),
+            official.version_key("2026.7.1"),
+        )
+        self.assertLess(
+            official.source_version_key("2026.7.1", agent="openclaw"),
+            official.source_version_key("2026.7.1-2", agent="openclaw"),
+        )
+
+    def test_deepseek_harness_uses_npm_without_entering_github_tag_pipeline(
+        self,
+    ) -> None:
+        self.assertIn("deepseek-harness", official.NPM_RELEASE_SOURCES)
+        self.assertNotIn("deepseek-harness", official.GITHUB_RELEASE_SOURCES)
+        self.assertEqual(
+            official.OFFICIAL_REPOSITORIES["deepseek-harness"],
+            "deepseek-ai/deepseek-harness",
+        )
+
+    def test_normalizes_npm_publications_without_claiming_source_code_diffs(
+        self,
+    ) -> None:
+        body = json.dumps(
+            {
+                "name": "@deepseek-ai/dsh",
+                "versions": {
+                    version: {
+                        "name": "@deepseek-ai/dsh",
+                        "version": version,
+                        "repository": {
+                            "type": "git",
+                            "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+                            "directory": "apps/cli",
+                        },
+                        "dist": {
+                            "tarball": (
+                                "https://registry.npmjs.org/@deepseek-ai/dsh/-/"
+                                f"dsh-{version}.tgz"
+                            ),
+                            "integrity": "sha512-" + "A" * 86 + "==",
+                            "shasum": "a" * 40,
+                        },
+                    }
+                    for version in ("0.1.0-rc.10", "0.1.0-rc.2")
+                },
+                "time": {
+                    "0.1.0-rc.2": "2026-08-13T09:48:26.232Z",
+                    "0.1.0-rc.10": "2026-08-13T12:35:03.812Z",
+                },
+            }
+        ).encode()
+
+        releases = official.npm_releases(
+            FakeCache(body),
+            package_name="@deepseek-ai/dsh",
+            repository="deepseek-ai/deepseek-harness",
+            package_directory="apps/cli",
+            product_name="DeepSeek Harness",
+            timeout=1,
+            allow_stale_on_error=False,
+        )
+
+        self.assertEqual(
+            [release["version"] for release in releases],
+            ["0.1.0-rc.2", "0.1.0-rc.10"],
+        )
+        latest = releases[-1]
+        self.assertEqual(latest["sourceRef"], "@deepseek-ai/dsh@0.1.0-rc.10")
+        self.assertEqual(latest["packageDirectory"], "apps/cli")
+        self.assertEqual(latest["artifact"]["scope"], "published-package-only")
+        self.assertEqual(latest["artifact"]["integrity"], "sha512-" + "A" * 86 + "==")
+        self.assertEqual(latest["notes"]["sourceKind"], "npm-publication")
+        self.assertEqual(latest["notes"]["text"], "")
+        self.assertEqual(latest["notes"]["originalBytes"], 0)
+        self.assertNotIn("codeChange", latest)
+        self.assertNotIn("commitSha", latest)
 
     def test_parses_claude_changelog_by_exact_semver_heading(self) -> None:
         text = (FIXTURES / "official_claude_changelog.md").read_text(encoding="utf-8")
@@ -332,6 +419,158 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(digest, official.sha256_bytes(official.canonical_json(projection)))
         self.assertNotIn("fetchedAt", first)
 
+    def test_focused_sync_retains_the_committed_unselected_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            normalized = root / "normalized"
+            normalized.mkdir()
+            codex = official.normalized_agent(
+                agent="codex",
+                repository="openai/codex",
+                releases=[
+                    {
+                        "version": "1.0.0",
+                        "tag": "rust-v1.0.0",
+                        "commitSha": "a" * 40,
+                        "codeChange": {
+                            "status": "available",
+                            "analysisEligible": True,
+                        },
+                    }
+                ],
+                documents=[],
+            )
+            codex_bytes = official.pretty_json(codex)
+            codex_path = normalized / "agents" / f"{codex['sourceDigest']}.json"
+            codex_path.parent.mkdir()
+            codex_path.write_bytes(codex_bytes)
+            (normalized / "manifest.json").write_bytes(
+                official.pretty_json(official.normalized_manifest({"codex": codex}))
+            )
+            npm_release = {
+                "version": "0.1.0-rc.6",
+                "sourceRef": "@deepseek-ai/dsh@0.1.0-rc.6",
+                "sourceUrl": "https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.1.0-rc.6",
+                "publishedAt": "2026-08-13T12:35:03.812Z",
+                "packageName": "@deepseek-ai/dsh",
+                "packageDirectory": "apps/cli",
+                "artifact": {
+                    "scope": "published-package-only",
+                    "url": "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-0.1.0-rc.6.tgz",
+                    "integrity": "sha512-" + "A" * 86 + "==",
+                    "shasum": "b" * 40,
+                },
+            }
+
+            with mock.patch.object(
+                official, "npm_releases", return_value=[npm_release]
+            ):
+                manifest = official.sync(
+                    cache_root=root,
+                    timeout=1,
+                    agents=("deepseek-harness",),
+                )
+
+            self.assertEqual(
+                set(manifest["agents"]), {"codex", "deepseek-harness"}
+            )
+            self.assertEqual(codex_path.read_bytes(), codex_bytes)
+            retained = json.loads(codex_path.read_text())
+            self.assertEqual(
+                retained["releases"]["1.0.0"]["codeChange"]["status"],
+                "available",
+            )
+            status = json.loads((root / "sync-status.json").read_text())
+            manifest_bytes = (normalized / "manifest.json").read_bytes()
+            reloaded = official.load_normalized_generation(normalized)
+            self.assertEqual(status["status"], "current")
+            self.assertEqual(set(reloaded), {"codex", "deepseek-harness"})
+            self.assertEqual(
+                status["normalizedManifestSha256"],
+                official.sha256_bytes(manifest_bytes),
+            )
+            self.assertEqual(status["warnings"], [])
+            self.assertEqual(status["selectedAgents"], ["deepseek-harness"])
+            self.assertEqual(status["retainedAgents"], ["codex"])
+
+    def test_focused_sync_rejects_an_uncommitted_normalized_index(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            normalized = root / "normalized"
+            normalized.mkdir()
+            (normalized / "codex.json").write_text("{}\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                official.OfficialSyncError, "without a committed manifest"
+            ):
+                official.sync(
+                    cache_root=root,
+                    timeout=1,
+                    agents=("deepseek-harness",),
+                )
+
+    def test_focused_sync_migrates_a_committed_legacy_flat_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            normalized = root / "normalized"
+            normalized.mkdir()
+            codex = official.normalized_agent(
+                agent="codex",
+                repository="openai/codex",
+                releases=[
+                    {
+                        "version": "1.0.0",
+                        "codeChange": {
+                            "status": "available",
+                            "analysisEligible": True,
+                        },
+                    }
+                ],
+                documents=[],
+            )
+            legacy_descriptor = official.normalized_descriptor(codex)
+            legacy_descriptor["url"] = "codex.json"
+            legacy_manifest: dict[str, object] = {
+                "schemaVersion": 1,
+                "agents": {"codex": legacy_descriptor},
+            }
+            legacy_manifest["sourceDigest"] = official.sha256_bytes(
+                official.canonical_json(legacy_manifest)
+            )
+            (normalized / "codex.json").write_bytes(official.pretty_json(codex))
+            (normalized / "manifest.json").write_bytes(
+                official.pretty_json(legacy_manifest)
+            )
+            npm_release = {
+                "version": "0.1.0-rc.6",
+                "sourceRef": "@deepseek-ai/dsh@0.1.0-rc.6",
+                "sourceUrl": "https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.1.0-rc.6",
+                "publishedAt": "2026-08-13T12:35:03.812Z",
+                "packageName": "@deepseek-ai/dsh",
+                "packageDirectory": "apps/cli",
+                "artifact": {
+                    "scope": "published-package-only",
+                    "url": "https://registry.npmjs.org/@deepseek-ai/dsh/-/dsh-0.1.0-rc.6.tgz",
+                    "integrity": "sha512-" + "A" * 86 + "==",
+                    "shasum": "b" * 40,
+                },
+            }
+
+            with mock.patch.object(official, "npm_releases", return_value=[npm_release]):
+                manifest = official.sync(
+                    cache_root=root,
+                    timeout=1,
+                    agents=("deepseek-harness",),
+                )
+
+            self.assertFalse((normalized / "codex.json").exists())
+            self.assertRegex(manifest["agents"]["codex"]["url"], r"^agents/[0-9a-f]{64}\.json$")
+            reloaded = official.load_normalized_generation(normalized)
+            self.assertEqual(
+                reloaded["codex"]["releases"]["1.0.0"]["codeChange"]["status"],
+                "available",
+            )
+
     def test_http_cache_uses_verified_stale_body_after_refresh_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             cache = official.HttpCache(Path(directory))
@@ -358,6 +597,42 @@ class OfficialSourceTests(unittest.TestCase):
             self.assertEqual(first.sha256, second.sha256)
             self.assertTrue((Path(directory) / "index.json").is_file())
 
+    def test_http_cache_uses_verified_stale_body_after_normalization_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cache = official.HttpCache(Path(directory))
+            body = b'{"fixture":true}'
+            transform = lambda value: json.dumps(json.loads(value)).encode()
+            with mock.patch.object(official, "urlopen", return_value=FakeResponse(body)):
+                first = cache.fetch(
+                    "https://example.test/releases",
+                    accept="application/json",
+                    max_bytes=1024,
+                    timeout=1,
+                    allow_stale_on_error=False,
+                    cache_variant="json-v1",
+                    transform=transform,
+                )
+            with mock.patch.object(
+                official,
+                "urlopen",
+                return_value=FakeResponse(b'{"fixture":'),
+            ):
+                second = cache.fetch(
+                    "https://example.test/releases",
+                    accept="application/json",
+                    max_bytes=1024,
+                    timeout=1,
+                    allow_stale_on_error=True,
+                    cache_variant="json-v1",
+                    transform=transform,
+                )
+
+            self.assertEqual(second.body, first.body)
+            self.assertEqual(cache.warnings[0]["type"], "stale-cache-used")
+            self.assertEqual(
+                cache.warnings[0]["reason"], "normalize-failure:JSONDecodeError"
+            )
+
     def test_http_cache_without_existing_body_fails_offline(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             cache = official.HttpCache(Path(directory))
@@ -370,6 +645,24 @@ class OfficialSourceTests(unittest.TestCase):
                         timeout=1,
                         allow_stale_on_error=True,
                     )
+
+    def test_http_cache_never_sends_github_token_to_npm(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cache = official.HttpCache(Path(directory), token="github-secret")
+            with mock.patch.object(
+                official, "urlopen", return_value=FakeResponse(b"{}")
+            ) as fetch:
+                cache.fetch(
+                    "https://registry.npmjs.org/%40deepseek-ai%2Fdsh",
+                    accept="application/json",
+                    max_bytes=1024,
+                    timeout=1,
+                    allow_stale_on_error=False,
+                )
+
+        request = fetch.call_args.args[0]
+        self.assertIsNone(request.get_header("Authorization"))
+        self.assertIsNone(request.get_header("X-Github-Api-Version"))
 
     def test_sync_health_distinguishes_current_stale_and_degraded(self) -> None:
         self.assertEqual(official.sync_health_status([]), "current")

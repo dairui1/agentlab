@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 import os
@@ -13,6 +14,7 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +31,7 @@ def load_script(name: str, relative: str):
 
 
 analyze = load_script("agent_history_analyze", "scripts/analyze_changelogs.py")
+builder = load_script("agent_history_builder", "scripts/build_from_phistory.py")
 sync = load_script("agent_history_sync", "scripts/sync_phistory.py")
 source_sync = load_script(
     "agent_history_source_sync", "scripts/sync_source_captures.py"
@@ -224,6 +227,15 @@ class AnalyzeChangelogsTests(unittest.TestCase):
         changed = copy.deepcopy(packet)
         changed["official"]["freshness"] = "stale"
         self.assertEqual(analyze.evidence_digest(changed), digest)
+
+        changed = copy.deepcopy(packet)
+        changed["runtimeCapture"] = {
+            "promptStatus": "unavailable",
+            "toolSchemaStatus": "unavailable",
+            "promptComparisonStatus": "unavailable",
+            "toolSchemaComparisonStatus": "unavailable",
+        }
+        self.assertNotEqual(analyze.evidence_digest(changed), digest)
 
     def test_prompt_uses_the_same_semantic_projection_as_the_digest(self):
         packet = evidence()
@@ -504,6 +516,70 @@ class AnalyzeChangelogsTests(unittest.TestCase):
                 json.loads(output.read_text(encoding="utf-8"))["model"],
                 "deterministic-no-change",
             )
+
+    def test_source_only_publication_never_claims_runtime_layers_are_equal(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            directory = root / "analysis" / "evidence" / "deepseek-harness"
+            directory.mkdir(parents=True)
+            packet = no_change_evidence(
+                "0.1.0-rc.6",
+                None,
+                captured_at="2026-08-13T12:35:03.812Z",
+            )
+            packet["agent"] = "deepseek-harness"
+            packet["runtimeCapture"] = {
+                "promptStatus": "unavailable",
+                "toolSchemaStatus": "unavailable",
+                "promptComparisonStatus": "unavailable",
+                "toolSchemaComparisonStatus": "unavailable",
+            }
+            packet["official"] = {
+                "status": "available",
+                "repository": "deepseek-ai/deepseek-harness",
+                "version": packet["version"],
+                "release": {
+                    "version": packet["version"],
+                    "sourceRef": "@deepseek-ai/dsh@0.1.0-rc.6",
+                    "title": "DeepSeek Harness 0.1.0-rc.6",
+                    "notes": {
+                        "sourceKind": "npm-publication",
+                        "text": "",
+                        "truncated": False,
+                        "sha256": hashlib.sha256(b"").hexdigest(),
+                        "originalBytes": 0,
+                    },
+                },
+            }
+            packet["evidenceDigest"] = analyze.evidence_digest(packet)
+            prompt = analyze.build_prompt([packet])
+            self.assertIn("comparisonStatus 为 unavailable", prompt)
+            (directory / "0.1.0-rc.6.json").write_text(
+                json.dumps(packet), encoding="utf-8"
+            )
+
+            result = analyze.main(
+                [
+                    "--analysis-root",
+                    str(root / "analysis"),
+                    "--agents",
+                    "deepseek-harness",
+                    "--codex-bin",
+                    str(root / "does-not-exist"),
+                ]
+            )
+
+            output = json.loads(
+                (
+                    root
+                    / "analysis/changelogs/deepseek-harness/0.1.0-rc.6.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(result, 0)
+            self.assertEqual(output["model"], "deterministic-no-change")
+            self.assertEqual(output["importance"], "none")
+            self.assertIn("没有公开", output["summary"])
+            self.assertNotIn("一致", output["summary"])
 
     def test_batch_retries_after_invalid_response(self):
         packet = evidence()
@@ -870,13 +946,170 @@ class SyncPhistoryTests(unittest.TestCase):
             self.assertEqual(updated.current_sha, second)
             self.assertTrue(updated.changed)
 
+    def test_metadata_only_sync_tracks_commit_without_capture_blobs(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            origin = root / "origin"
+            origin.mkdir()
+            subprocess.run(
+                ("git", "init", "-b", "main", str(origin)),
+                check=True,
+                stdout=subprocess.DEVNULL,
+            )
+            self.git(origin, "config", "user.email", "test@example.test")
+            self.git(origin, "config", "user.name", "Test")
+            capture = origin / "captures" / "codex" / "1.0.0"
+            capture.mkdir(parents=True)
+            (capture / "prompt.md").write_text("# codex\n", encoding="utf-8")
+            (origin / "README.md").write_text("upstream docs\n", encoding="utf-8")
+            self.git(origin, "add", ".")
+            self.git(origin, "commit", "-m", "initial")
+            first = self.git(origin, "rev-parse", "HEAD")
+
+            checkout = root / "cache" / "upstream"
+            result = sync.sync_repository(
+                checkout,
+                remote=str(origin),
+                ref="main",
+                agents=(),
+                metadata_only=True,
+            )
+
+            self.assertEqual(result.current_sha, first)
+            self.assertEqual(result.sparse_paths, ())
+            self.assertTrue((checkout / ".git").is_dir())
+            self.assertTrue((checkout / "captures").is_dir())
+            self.assertEqual(list((checkout / "captures").iterdir()), [])
+            self.assertFalse((checkout / "README.md").exists())
+            self.assertEqual(self.git(checkout, "status", "--porcelain"), "")
+
+            (capture / "prompt.md").write_text("# codex\nchanged\n", encoding="utf-8")
+            self.git(origin, "add", ".")
+            self.git(origin, "commit", "-m", "update")
+            second = self.git(origin, "rev-parse", "HEAD")
+            updated = sync.sync_repository(
+                checkout,
+                remote=str(origin),
+                ref="main",
+                agents=(),
+                metadata_only=True,
+            )
+
+            self.assertEqual(updated.previous_sha, first)
+            self.assertEqual(updated.current_sha, second)
+            self.assertEqual(list((checkout / "captures").iterdir()), [])
+            self.assertEqual(self.git(checkout, "status", "--porcelain"), "")
+
 
 class SourceCaptureSyncTests(unittest.TestCase):
-    def test_source_capture_registry_covers_every_github_release_source(self):
+    @staticmethod
+    def write_official_index(root: Path, agent: str, value: dict[str, object]) -> None:
+        value = {"schemaVersion": 1, "agent": agent, "documents": [], **value}
+        value["sourceDigest"] = builder.sha256_bytes(builder.canonical_json(value))
+        digest = value["sourceDigest"]
+        directory = root / "agents"
+        directory.mkdir(exist_ok=True)
+        (directory / f"{digest}.json").write_bytes(builder.pretty_json(value))
+        descriptor = {
+            "url": f"agents/{digest}.json",
+            "releaseCount": len(value["releases"]),
+            "sourceDigest": digest,
+        }
+        manifest = {"schemaVersion": 1, "agents": {agent: descriptor}}
+        manifest["sourceDigest"] = builder.sha256_bytes(builder.canonical_json(manifest))
+        (root / "manifest.json").write_bytes(builder.pretty_json(manifest))
+
+    @staticmethod
+    def cline_release(
+        version: str = "1.0.1",
+        *,
+        source_ref: str | None = None,
+        source_url: str | None = None,
+    ) -> dict[str, str]:
+        tag = source_ref or f"cli-v{version}"
+        return {
+            "version": version,
+            "tag": tag,
+            "sourceUrl": source_url
+            or f"https://github.com/cline/cline/releases/tag/{tag}",
+            "publishedAt": "2026-08-02T00:00:00Z",
+        }
+
+    def test_source_capture_registry_covers_every_release_history_source(self):
         self.assertEqual(
             set(source_sync.SOURCE_AGENTS),
-            set(source_sync.GITHUB_RELEASE_SOURCES),
+            set(source_sync.SOURCE_CAPTURE_SOURCES),
         )
+        self.assertIn("deepseek-harness", source_sync.SOURCE_AGENTS)
+
+    def test_materializes_npm_release_with_artifact_provenance(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "0.1.0-rc.6"
+            self.write_official_index(
+                official,
+                "deepseek-harness",
+                {
+                        "repository": "deepseek-ai/deepseek-harness",
+                        "releases": {
+                            version: {
+                                "version": version,
+                                "sourceRef": f"@deepseek-ai/dsh@{version}",
+                                "sourceUrl": (
+                                    "https://www.npmjs.com/package/@deepseek-ai/dsh/"
+                                    f"v/{version}"
+                                ),
+                                "publishedAt": "2026-08-13T12:35:03.812Z",
+                                "packageName": "@deepseek-ai/dsh",
+                                "packageDirectory": "apps/cli",
+                                "artifact": {
+                                    "scope": "published-package-only",
+                                    "url": (
+                                        "https://registry.npmjs.org/@deepseek-ai/dsh/-/"
+                                        f"dsh-{version}.tgz"
+                                    ),
+                                    "integrity": "sha512-" + "A" * 86 + "==",
+                                    "shasum": "a" * 40,
+                                },
+                            }
+                        },
+                    },
+            )
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("deepseek-harness",),
+            )
+
+            self.assertEqual(result, {"deepseek-harness": 1})
+            capture = overlay / "captures/deepseek-harness" / version
+            metadata = json.loads((capture / "meta.json").read_text())
+            self.assertEqual(metadata["package"], "@deepseek-ai/dsh")
+            self.assertEqual(metadata["package_directory"], "apps/cli")
+            self.assertEqual(metadata["source_ref"], f"@deepseek-ai/dsh@{version}")
+            self.assertEqual(metadata["tarball_integrity"], "sha512-" + "A" * 86 + "==")
+            self.assertEqual(metadata["tarball_shasum"], "a" * 40)
+
+            public = root / "public"
+            analysis = root / "analysis"
+            manifest = builder.build(
+                phistory_root=phistory,
+                capture_overlay_root=overlay,
+                public_root=public,
+                analysis_root=analysis,
+                agents=("deepseek-harness",),
+            )
+            self.assertEqual(
+                [agent["id"] for agent in manifest["agents"]],
+                ["deepseek-harness"],
+            )
 
     def test_materializes_only_missing_official_releases(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -906,14 +1139,13 @@ class SourceCaptureSyncTests(unittest.TestCase):
                 "tag": "cli-v0.8.0",
                 "sourceUrl": "https://github.com/cline/cline/tree/cli-v0.8.0",
             }
-            (official / "cline.json").write_text(
-                json.dumps(
-                    {
+            self.write_official_index(
+                official,
+                "cline",
+                {
                         "repository": "cline/cline",
                         "releases": releases,
-                    }
-                ),
-                encoding="utf-8",
+                    },
             )
 
             result = source_sync.sync(
@@ -939,6 +1171,306 @@ class SourceCaptureSyncTests(unittest.TestCase):
                     agents=("cline",),
                 ),
                 {"cline": 0},
+            )
+
+    def test_repairs_empty_source_capture_directory(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.1"
+            self.write_official_index(
+                official,
+                "cline",
+                {
+                    "repository": "cline/cline",
+                    "releases": {version: self.cline_release(version)},
+                },
+            )
+            capture = overlay / "captures/cline" / version
+            capture.mkdir(parents=True)
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("cline",),
+            )
+
+            self.assertEqual(result, {"cline": 1})
+            self.assertEqual(
+                {path.name for path in capture.iterdir()}, {"meta.json", "prompt.md"}
+            )
+            metadata = json.loads((capture / "meta.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["capture_kind"], "official-source-history")
+
+    def test_repairs_damaged_owned_source_capture_metadata(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.1"
+            self.write_official_index(
+                official,
+                "cline",
+                {
+                    "repository": "cline/cline",
+                    "releases": {version: self.cline_release(version)},
+                },
+            )
+            capture = overlay / "captures/cline" / version
+            capture.mkdir(parents=True)
+            (capture / "prompt.md").write_bytes(
+                source_sync.render_placeholder("cline", "Cline")
+            )
+            (capture / "meta.json").write_text("{broken", encoding="utf-8")
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("cline",),
+            )
+
+            self.assertEqual(result, {"cline": 1})
+            metadata = json.loads((capture / "meta.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["capture_kind"], "official-source-history")
+
+    def test_reconciles_owned_source_capture_with_current_provenance(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.1"
+            source_url = "https://github.com/cline/cline/releases/tag/cli-v1.0.1"
+            self.write_official_index(
+                official,
+                "cline",
+                {
+                    "repository": "cline/cline",
+                    "releases": {
+                        version: self.cline_release(
+                            version,
+                            source_ref="cli-v1.0.1",
+                            source_url=source_url,
+                        )
+                    },
+                },
+            )
+            capture = overlay / "captures/cline" / version
+            capture.mkdir(parents=True)
+            (capture / "prompt.md").write_text("old placeholder\n", encoding="utf-8")
+            (capture / "meta.json").write_text(
+                json.dumps(
+                    {
+                        "capture_kind": "official-source-history",
+                        "source_ref": "cli-v1.0.0",
+                        "source_url": "https://example.test/old",
+                        "version": version,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("cline",),
+            )
+
+            self.assertEqual(result, {"cline": 1})
+            metadata = json.loads((capture / "meta.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["source_ref"], "cli-v1.0.1")
+            self.assertEqual(metadata["source_url"], source_url)
+            self.assertIn("runtime prompt", (capture / "prompt.md").read_text())
+
+    def test_failed_owned_capture_replacement_restores_previous_directory(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.1"
+            self.write_official_index(
+                official,
+                "cline",
+                {
+                    "repository": "cline/cline",
+                    "releases": {version: self.cline_release(version)},
+                },
+            )
+            capture = overlay / "captures/cline" / version
+            capture.mkdir(parents=True)
+            prompt = b"old placeholder\n"
+            metadata = builder.pretty_json(
+                {
+                    "capture_kind": "official-source-history",
+                    "source_ref": "cli-v1.0.0",
+                    "version": version,
+                }
+            )
+            (capture / "prompt.md").write_bytes(prompt)
+            (capture / "meta.json").write_bytes(metadata)
+            real_replace = os.replace
+
+            def fail_install(source: object, destination: object) -> None:
+                source_path = Path(source)
+                if (
+                    Path(destination) == capture
+                    and source_path.name.startswith(f".{version}.")
+                    and not source_path.name.endswith(".previous")
+                ):
+                    raise OSError("simulated install failure")
+                real_replace(source, destination)
+
+            with mock.patch.object(source_sync.os, "replace", side_effect=fail_install):
+                with self.assertRaisesRegex(
+                    source_sync.SourceCaptureError, "cannot replace source capture"
+                ):
+                    source_sync.sync(
+                        official_root=official,
+                        phistory_root=phistory,
+                        overlay_root=overlay,
+                        agents=("cline",),
+                    )
+
+            self.assertEqual((capture / "prompt.md").read_bytes(), prompt)
+            self.assertEqual((capture / "meta.json").read_bytes(), metadata)
+            self.assertEqual(
+                {path.name for path in capture.parent.iterdir()}, {version}
+            )
+
+    def test_preserves_non_owned_overlay_runtime_capture(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.1"
+            self.write_official_index(
+                official,
+                "cline",
+                {
+                    "repository": "cline/cline",
+                    "releases": {version: self.cline_release(version)},
+                },
+            )
+            capture = overlay / "captures/cline" / version
+            capture.mkdir(parents=True)
+            prompt = b"# Real runtime capture\n"
+            metadata = (
+                b'{"agent_id":"cline","agent":"Cline","version":"1.0.1",'
+                b'"captured_at":"2026-08-02T00:00:00Z"}\n'
+            )
+            (capture / "prompt.md").write_bytes(prompt)
+            (capture / "meta.json").write_bytes(metadata)
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("cline",),
+            )
+
+            self.assertEqual(result, {"cline": 0})
+            self.assertEqual((capture / "prompt.md").read_bytes(), prompt)
+            self.assertEqual((capture / "meta.json").read_bytes(), metadata)
+
+    def test_refuses_valid_json_with_invalid_non_owned_metadata(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.1"
+            self.write_official_index(
+                official,
+                "cline",
+                {
+                    "repository": "cline/cline",
+                    "releases": {version: self.cline_release(version)},
+                },
+            )
+            capture = overlay / "captures/cline" / version
+            capture.mkdir(parents=True)
+            (capture / "prompt.md").write_text("# incomplete\n", encoding="utf-8")
+            (capture / "meta.json").write_text("{}\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                source_sync.SourceCaptureError, "invalid non-owned source capture"
+            ):
+                source_sync.sync(
+                    official_root=official,
+                    phistory_root=phistory,
+                    overlay_root=overlay,
+                    agents=("cline",),
+                )
+
+    def test_matching_source_capture_is_idempotent_without_rewrite(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.1"
+            self.write_official_index(
+                official,
+                "cline",
+                {
+                    "repository": "cline/cline",
+                    "releases": {version: self.cline_release(version)},
+                },
+            )
+            capture = overlay / "captures/cline" / version
+            self.assertEqual(
+                source_sync.sync(
+                    official_root=official,
+                    phistory_root=phistory,
+                    overlay_root=overlay,
+                    agents=("cline",),
+                ),
+                {"cline": 1},
+            )
+            before = {
+                name: ((capture / name).stat().st_ino, (capture / name).stat().st_mtime_ns)
+                for name in ("meta.json", "prompt.md")
+            }
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("cline",),
+            )
+
+            self.assertEqual(result, {"cline": 0})
+            self.assertEqual(
+                {
+                    name: (
+                        (capture / name).stat().st_ino,
+                        (capture / name).stat().st_mtime_ns,
+                    )
+                    for name in ("meta.json", "prompt.md")
+                },
+                before,
             )
 
     def test_backfills_official_gaps_within_existing_capture_history(self):
@@ -968,11 +1500,10 @@ class SourceCaptureSyncTests(unittest.TestCase):
                     "publishedAt": "2026-03-28T20:12:05Z",
                 },
             }
-            (official / "hermes.json").write_text(
-                json.dumps(
-                    {"repository": "NousResearch/hermes-agent", "releases": releases}
-                ),
-                encoding="utf-8",
+            self.write_official_index(
+                official,
+                "hermes",
+                {"repository": "NousResearch/hermes-agent", "releases": releases},
             )
 
             result = source_sync.sync(
@@ -1044,6 +1575,7 @@ class DailyUpdateTests(unittest.TestCase):
                 "merge validated changelogs",
                 "run tests",
                 "build site",
+                "verify deployment data",
                 "deploy with Wrangler",
             ],
         )
@@ -1096,6 +1628,8 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertIn("--newest-first", analyze_command)
         self.assertIn("--fair-agents", analyze_command)
         self.assertEqual(args.agents, "all")
+        self.assertEqual(steps[-2].command, (args.python_bin, "scripts/verify_deploy.py"))
+        self.assertEqual(steps[-2].environment, steps[-3].environment)
         self.assertEqual(steps[-1].command[:3], ("npx", "--no-install", "wrangler"))
 
     def test_focused_local_run_requires_codex_and_skips_unrelated_sources(self):
@@ -1129,8 +1663,30 @@ class DailyUpdateTests(unittest.TestCase):
         site = next(step for step in steps if step.name == "build site")
         self.assertEqual(site.environment["PHISTORY_AGENTS"], "codex")
 
+    def test_focused_deepseek_harness_run_includes_npm_source_history(self):
+        args = daily.parse_args(["--agents", "deepseek-harness"])
+
+        steps = daily.build_steps(args)
+
+        upstream = next(step for step in steps if step.name == "sync upstream")
+        self.assertIn("--metadata-only", upstream.command)
+        self.assertNotIn("--agents", upstream.command)
+        source = next(step for step in steps if step.name == "sync source-only captures")
+        self.assertEqual(
+            source.command[source.command.index("--agents") + 1],
+            "deepseek-harness",
+        )
+
+    def test_focused_run_cannot_deploy_canonical_data(self):
+        with self.assertRaises(SystemExit):
+            daily.parse_args(["--agents", "deepseek-harness", "--deploy"])
+
     def test_package_build_data_uses_the_default_overlay_root(self):
         package = json.loads((APP_ROOT / "package.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            package["scripts"]["sync"],
+            "npm run sync:phistory && npm run sync:official && npm run sync:source-captures",
+        )
         command = package["scripts"]["build:data"]
         self.assertIn("--capture-overlay-root", command)
         self.assertIn(".cache/agentlab-captures", command)
@@ -1140,6 +1696,11 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertEqual(official_command.count("--capture-root"), 2)
         self.assertIn(".cache/phistory/upstream", official_command)
         self.assertIn(".cache/agentlab-captures", official_command)
+
+        source_command = package["scripts"]["sync:source-captures"]
+        self.assertIn(".cache/official-sources/normalized", source_command)
+        self.assertIn(".cache/phistory/upstream", source_command)
+        self.assertIn(".cache/agentlab-captures", source_command)
 
     def test_optional_analyzer_failure_continues_pipeline(self):
         with tempfile.TemporaryDirectory() as raw:

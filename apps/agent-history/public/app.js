@@ -171,6 +171,7 @@
     cline: "/agent-icons/cline.svg",
     "qwen-code": "/agent-icons/qwen-code.svg",
     reasonix: "/agent-icons/reasonix.svg",
+    "deepseek-harness": "/agent-icons/deepseek-harness.svg",
   };
 
   const sourceLayerIcons = {
@@ -1177,7 +1178,16 @@
     }));
   }
 
-  function renderInterpretationProvenance(status) {
+  function renderInterpretationProvenance(status, entries = []) {
+    const deterministic = entries.length > 0 && entries.every((entry) => (
+      String(entry?.generator?.model || entry?.model || "").toLowerCase() === "deterministic-no-change"
+    ));
+    if (deterministic) {
+      elements.analysisEyebrow.querySelector("span").textContent = "本地规则摘要";
+      elements.interpretationLabel.dataset.kind = "rule";
+      elements.interpretationLabel.textContent = "规则事实摘要，未调用 Codex";
+      return;
+    }
     if (["complete", "generated", "reviewed"].includes(status)) {
       elements.analysisEyebrow.querySelector("span").textContent = "本地 Codex 推断";
       elements.interpretationLabel.dataset.kind = "inference";
@@ -1260,7 +1270,7 @@
     const status = normalizedAnalysisStatus(entries);
     elements.analysisStatus.dataset.status = status;
     elements.analysisStatus.textContent = analysisLabels[status] || "分析完成";
-    renderInterpretationProvenance(status);
+    renderInterpretationProvenance(status, entries);
     elements.changelogTitle.textContent = entries.length === 1
       ? textValue(latest.title, `${displayVersion(latest.version)} 版本变化`)
       : `${entries.length} 个版本的累计变化`;
@@ -1388,6 +1398,18 @@
   }
 
   function renderOutline() {
+    const leftRelease = versionEntry(state.left);
+    const rightRelease = versionEntry(state.right);
+    if ([leftRelease, rightRelease].some(
+      (release) => release?.runtimeCapture?.promptStatus === "unavailable",
+    )) {
+      elements.sectionList.replaceChildren();
+      elements.outlineVersion.textContent = `${displayVersion(state.right)} · Runtime Prompt 未公开`;
+      elements.sectionCount.textContent = "0 项";
+      elements.sectionCount.title = "当前比较包含未公开的 Runtime Prompt 捕获";
+      elements.selectedSectionLabel.textContent = "Runtime Prompt 未公开捕获";
+      return;
+    }
     const items = currentOutlineItems();
     const changedNames = outlineChangedNames();
     const query = elements.sectionSearch.value.trim().toLocaleLowerCase("zh-CN");
@@ -1608,6 +1630,19 @@
     const leftRelease = versionEntry(state.left);
     const rightRelease = versionEntry(state.right);
     if (!leftRelease || !rightRelease) return;
+    const promptUnavailable = [leftRelease, rightRelease].some(
+      (release) => release.runtimeCapture?.promptStatus === "unavailable",
+    );
+    if (promptUnavailable) {
+      disposeModels();
+      setStats({ hunks: 0, additions: 0, deletions: 0 });
+      elements.promptMeta.textContent = "Runtime Prompt 未公开捕获";
+      setEditorPlaceholder(
+        "所选版本至少一侧没有公开的 Runtime Prompt 捕获，无法生成实际请求差异。",
+        "unavailable",
+      );
+      return;
+    }
     setEditorPlaceholder("正在加载实际请求", "loading");
     elements.promptMeta.textContent = `${formatBytes(leftRelease.bytes)} → ${formatBytes(rightRelease.bytes)}`;
 

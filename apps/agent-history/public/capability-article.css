@@ -255,6 +255,7 @@
 .article-toc-note {
   margin-top: 22px;
   padding-top: 15px;
+  overflow-wrap: anywhere;
   border-top: 2px solid var(--text);
   color: var(--muted);
   font-size: 10px;
@@ -950,6 +951,29 @@
 
   .article-lead {
     font-size: 16px;
+  }
+}
+
+@media (min-width: 621px) and (max-width: 860px) {
+  .article-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .article-flow > div {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .article-flow > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .article-flow > div:nth-last-child(2):nth-child(odd),
+  .article-flow > div:last-child {
+    border-bottom: 0;
+  }
+
+  .article-flow > div:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 

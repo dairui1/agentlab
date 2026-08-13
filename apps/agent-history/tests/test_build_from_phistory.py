@@ -183,7 +183,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
 
     def _refresh_official_generation(self, root: Path) -> None:
         agents: dict[str, object] = {}
-        for agent in ("claude-code", "codex"):
+        for agent in ("claude-code", "codex", "deepseek-harness"):
             path = root / f"{agent}.json"
             if not path.exists():
                 continue
@@ -215,6 +215,8 @@ class BuildFromPhistoryTests(unittest.TestCase):
         status: str,
         warnings: list[dict[str, str]],
         manifest_sha256: str | None = None,
+        selected_agents: list[str] | None = None,
+        retained_agents: list[str] | None = None,
     ) -> None:
         manifest_bytes = (root / "manifest.json").read_bytes()
         value = {
@@ -227,6 +229,10 @@ class BuildFromPhistoryTests(unittest.TestCase):
                 else builder.sha256_bytes(manifest_bytes)
             ),
         }
+        if selected_agents is not None:
+            value["selectedAgents"] = selected_agents
+        if retained_agents is not None:
+            value["retainedAgents"] = retained_agents
         (root.parent / "sync-status.json").write_bytes(builder.pretty_json(value))
 
     def _json(self, path: Path) -> dict[str, object]:
@@ -308,7 +314,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(future["label"], "fixture")
 
     def test_new_agent_definitions_override_capture_metadata(self) -> None:
-        for agent in ("goose", "cline", "qwen-code", "reasonix"):
+        for agent in ("goose", "cline", "qwen-code", "deepseek-harness", "reasonix"):
             self._capture(agent, "1.0.0", CLAUDE_OLD, "2026-08-06T12:00:00Z")
 
         manifest = self._build()
@@ -316,7 +322,15 @@ class BuildFromPhistoryTests(unittest.TestCase):
         agents = {item["id"]: item for item in manifest["agents"]}
         self.assertEqual(
             [item["id"] for item in manifest["agents"]],
-            ["claude-code", "codex", "goose", "cline", "qwen-code", "reasonix"],
+            [
+                "claude-code",
+                "codex",
+                "goose",
+                "cline",
+                "qwen-code",
+                "deepseek-harness",
+                "reasonix",
+            ],
         )
         self.assertEqual(agents["goose"]["label"], "Goose")
         self.assertEqual(
@@ -328,6 +342,11 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(
             agents["qwen-code"]["projectUrl"], "https://github.com/QwenLM/qwen-code"
         )
+        self.assertEqual(agents["deepseek-harness"]["label"], "DeepSeek Harness")
+        self.assertEqual(
+            agents["deepseek-harness"]["projectUrl"],
+            "https://github.com/deepseek-ai/deepseek-harness",
+        )
         self.assertEqual(agents["reasonix"]["label"], "Reasonix")
         self.assertEqual(
             agents["reasonix"]["projectUrl"],
@@ -335,6 +354,136 @@ class BuildFromPhistoryTests(unittest.TestCase):
         )
         for agent in ("goose", "cline", "qwen-code"):
             self.assertIn("Runtime Prompt", agents[agent]["description"])
+
+    def test_npm_source_only_capture_keeps_package_artifact_provenance(self) -> None:
+        overlay = self.root / "overlay"
+        versions = (
+            ("0.1.0-rc.5", "2026-08-13T10:35:03.812Z"),
+            ("0.1.0-rc.6", "2026-08-13T12:35:03.812Z"),
+        )
+        releases: dict[str, object] = {}
+        for version, timestamp in versions:
+            source_url = (
+                "https://www.npmjs.com/package/@deepseek-ai/dsh/"
+                f"v/{version}"
+            )
+            tarball_url = (
+                "https://registry.npmjs.org/@deepseek-ai/dsh/-/"
+                f"dsh-{version}.tgz"
+            )
+            self._capture(
+                "deepseek-harness",
+                version,
+                "# Runtime Evidence\n\nOfficial npm publication only.\n",
+                timestamp,
+                root=overlay,
+                extra_meta={
+                    "capture_kind": "official-source-history",
+                    "runtime_prompt_status": "unavailable",
+                    "tool_schema_status": "unavailable",
+                    "package": "@deepseek-ai/dsh",
+                    "package_directory": "apps/cli",
+                    "source_repository": "deepseek-ai/deepseek-harness",
+                    "source_ref": f"@deepseek-ai/dsh@{version}",
+                    "source_url": source_url,
+                    "tarball_url": tarball_url,
+                    "tarball_integrity": "sha512-" + "A" * 86 + "==",
+                    "tarball_shasum": "a" * 40,
+                },
+            )
+            releases[version] = {
+                "version": version,
+                "sourceRef": f"@deepseek-ai/dsh@{version}",
+                "title": f"DeepSeek Harness {version}",
+                "sourceUrl": source_url,
+                "publishedAt": timestamp,
+                "packageName": "@deepseek-ai/dsh",
+                "packageDirectory": "apps/cli",
+                "artifact": {
+                    "scope": "published-package-only",
+                    "url": tarball_url,
+                    "integrity": "sha512-" + "A" * 86 + "==",
+                    "shasum": "a" * 40,
+                },
+                "notes": {
+                    "sourceKind": "npm-publication",
+                    "sourceUrl": source_url,
+                    "text": "",
+                    "truncated": False,
+                    "sha256": hashlib.sha256(b"").hexdigest(),
+                    "originalBytes": 0,
+                },
+            }
+        official_root = self._official_index()
+        official_index: dict[str, object] = {
+            "schemaVersion": 1,
+            "agent": "deepseek-harness",
+            "repository": "deepseek-ai/deepseek-harness",
+            "documents": [],
+            "releases": releases,
+        }
+        official_index["sourceDigest"] = builder.sha256_bytes(
+            builder.canonical_json(official_index)
+        )
+        (official_root / "deepseek-harness.json").write_bytes(
+            builder.pretty_json(official_index)
+        )
+        self._refresh_official_generation(official_root)
+
+        manifest = self._build(
+            capture_overlay_root=overlay,
+            official_root=official_root,
+        )
+
+        history = self._json(
+            self.public / "data/agents/deepseek-harness/history.json"
+        )
+        release = history["versions"][-1]
+        self.assertEqual(release["package"], "@deepseek-ai/dsh")
+        self.assertEqual(release["packageDirectory"], "apps/cli")
+        self.assertEqual(release["tarballIntegrity"], "sha512-" + "A" * 86 + "==")
+        origin = release["provenance"][0]
+        self.assertEqual(origin["ref"], "@deepseek-ai/dsh@0.1.0-rc.6")
+        self.assertNotIn("commit", origin)
+        changelog = self._json(
+            self.public / "data/agents/deepseek-harness/changelog.json"
+        )
+        self.assertEqual(len(changelog["entries"]), 2)
+        for entry in changelog["entries"]:
+            self.assertIn("官方发布记录", entry["title"])
+            self.assertEqual(entry["importance"], "none")
+            self.assertEqual(entry["layers"]["prompt"]["status"], "unavailable")
+            self.assertEqual(entry["layers"]["tools"]["status"], "unavailable")
+            self.assertNotIn("逐行一致", entry["summary"])
+            self.assertNotIn("可比较基线", entry["summary"])
+            self.assertNotIn("Runtime Prompt 一致", entry["summary"])
+        source = next(
+            source
+            for source in changelog["entries"][0]["sources"]
+            if source["sourceType"] == "official-source-publication-placeholder"
+        )
+        self.assertEqual(source["repository"], "deepseek-ai/deepseek-harness")
+        self.assertEqual(source["ref"], "@deepseek-ai/dsh@0.1.0-rc.5")
+        evidence = self._json(
+            self.analysis / "evidence/deepseek-harness/0.1.0-rc.6.json"
+        )
+        self.assertEqual(
+            evidence["runtimeCapture"],
+            {
+                "promptStatus": "unavailable",
+                "toolSchemaStatus": "unavailable",
+                "promptComparisonStatus": "unavailable",
+                "toolSchemaComparisonStatus": "unavailable",
+            },
+        )
+        deepseek = next(
+            item for item in manifest["agents"] if item["id"] == "deepseek-harness"
+        )
+        self.assertEqual(deepseek["sourceCoverage"]["promptCaptures"], 0)
+        self.assertEqual(deepseek["sourceCoverage"]["officialCodeExpected"], 0)
+        self.assertEqual(deepseek["sourceCoverage"]["officialCodeUnavailable"], 0)
+        self.assertEqual(deepseek["sourceCoverage"]["officialCodeWindow"], 0)
+        self.assertEqual(deepseek["sourceCodeStatus"], "not-applicable")
 
     def test_source_only_capture_exposes_official_provenance_and_unavailable_layers(self) -> None:
         overlay = self.root / "overlay"
@@ -363,7 +512,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         source = next(
             source
             for source in entry["sources"]
-            if source["sourceType"] == "official-source-prompt-capture"
+            if source["sourceType"] == "official-source-publication-placeholder"
         )
         self.assertEqual(source["repository"], "esengine/DeepSeek-Reasonix")
         self.assertEqual(source["ref"], "v1.20.0")
@@ -882,6 +1031,71 @@ class BuildFromPhistoryTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "without a committed manifest"):
             self._build(official_root=official_root)
+
+    def test_content_addressed_generation_ignores_legacy_flat_orphan(self) -> None:
+        official_root = self._official_index()
+        legacy_path = official_root / "claude-code.json"
+        value = self._json(legacy_path)
+        digest = value["sourceDigest"]
+        object_root = official_root / "agents"
+        object_root.mkdir()
+        (object_root / f"{digest}.json").write_bytes(legacy_path.read_bytes())
+        manifest = self._json(official_root / "manifest.json")
+        manifest["agents"]["claude-code"]["url"] = f"agents/{digest}.json"
+        manifest.pop("sourceDigest")
+        manifest["sourceDigest"] = builder.sha256_bytes(builder.canonical_json(manifest))
+        (official_root / "manifest.json").write_bytes(builder.pretty_json(manifest))
+        self._set_official_status(official_root, status="current", warnings=[])
+
+        built = self._build(official_root=official_root)
+
+        claude = next(item for item in built["agents"] if item["id"] == "claude-code")
+        self.assertEqual(claude["officialSourceStatus"], "fresh")
+        self.assertTrue(legacy_path.exists())
+
+    def test_focused_refresh_marks_retained_agents_stale(self) -> None:
+        official_root = self._official_index()
+        codex: dict[str, object] = {
+            "schemaVersion": 1,
+            "agent": "codex",
+            "repository": "openai/codex",
+            "documents": [],
+            "releases": {},
+        }
+        codex["sourceDigest"] = builder.sha256_bytes(builder.canonical_json(codex))
+        (official_root / "codex.json").write_bytes(builder.pretty_json(codex))
+        self._refresh_official_generation(official_root)
+        self._set_official_status(
+            official_root,
+            status="current",
+            warnings=[],
+            selected_agents=["claude-code"],
+            retained_agents=["codex"],
+        )
+
+        manifest = self._build(official_root=official_root)
+
+        by_agent = {item["id"]: item for item in manifest["agents"]}
+        self.assertEqual(by_agent["claude-code"]["officialSourceStatus"], "fresh")
+        self.assertEqual(by_agent["codex"]["officialSourceStatus"], "stale")
+
+    def test_incomplete_focused_refresh_agent_sets_degrade_generation(self) -> None:
+        official_root = self._official_index()
+        self._set_official_status(
+            official_root,
+            status="current",
+            warnings=[],
+            selected_agents=[],
+            retained_agents=[],
+        )
+
+        manifest = self._build(official_root=official_root)
+
+        self.assertEqual(manifest["officialSources"]["status"], "degraded")
+        self.assertEqual(
+            manifest["officialSources"]["warnings"][-1]["reason"],
+            "sync-status-agent-sets-invalid",
+        )
 
     def test_unavailable_code_compare_does_not_create_feed_signal(self) -> None:
         official_root = self._official_index()
