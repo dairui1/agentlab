@@ -90,6 +90,18 @@ class VerifyDeployTests(unittest.TestCase):
     def test_accepts_complete_catalog_from_git_tree_and_overlay(self) -> None:
         self.assertEqual(self._verify(), 2)
 
+    def test_accepts_canonical_agent_for_phistory_alias(self) -> None:
+        capture = self.phistory / "captures/dsh/0.1.0-rc.6/meta.json"
+        capture.parent.mkdir(parents=True)
+        capture.write_text("{}\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.phistory), "add", "."], check=True)
+        subprocess.run(
+            ["git", "-C", str(self.phistory), "commit", "-qm", "add alias"],
+            check=True,
+        )
+
+        self.assertEqual(self._verify(), 2)
+
     def test_rejects_focused_build_even_when_process_environment_was_reset(self) -> None:
         self._write_manifest(["deepseek-harness"])
         with self.assertRaisesRegex(deploy.DeployDataError, "missing=codex"):

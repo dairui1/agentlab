@@ -15,7 +15,7 @@ from typing import Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_from_phistory import PREFERRED_AGENT_ORDER
-from official_release_sources import OFFICIAL_REPOSITORIES
+from official_release_sources import OFFICIAL_REPOSITORIES, canonical_agent_id
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -48,7 +48,11 @@ def capture_catalog(phistory_root: Path, overlay_root: Path) -> set[str]:
             "cannot read the complete Phistory capture catalog; run the full sync first"
         ) from error
     agents = set(REQUIRED_AGENT_IDS)
-    agents.update(line.strip() for line in result.stdout.splitlines() if line.strip())
+    agents.update(
+        canonical_agent_id(line.strip())
+        for line in result.stdout.splitlines()
+        if line.strip()
+    )
     overlay_captures = overlay_root / "captures"
     if overlay_captures.exists():
         if overlay_captures.is_symlink() or not overlay_captures.is_dir():
@@ -56,7 +60,7 @@ def capture_catalog(phistory_root: Path, overlay_root: Path) -> set[str]:
                 f"capture overlay is not a regular directory: {overlay_captures}"
             )
         agents.update(
-            child.name
+            canonical_agent_id(child.name)
             for child in overlay_captures.iterdir()
             if child.is_dir() and not child.is_symlink()
         )
