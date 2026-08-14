@@ -16,6 +16,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from official_release_sources import phistory_agent_ids
+
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CACHE_ROOT = APP_ROOT / ".cache" / "phistory"
@@ -89,7 +92,11 @@ def parse_agents(raw: str) -> tuple[str, ...]:
 def sparse_paths(agents: Sequence[str]) -> tuple[str, ...]:
     if tuple(agents) == ("all",):
         return ("captures",)
-    return tuple(f"captures/{agent}" for agent in agents)
+    return tuple(
+        f"captures/{source_agent}"
+        for agent in agents
+        for source_agent in phistory_agent_ids(agent)
+    )
 
 
 def assert_clean(repo: Path) -> None:

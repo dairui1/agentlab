@@ -31,9 +31,28 @@ NPM_RELEASE_SOURCES = {
         "label": "DeepSeek Harness",
         "package": "@deepseek-ai/dsh",
         "packageDirectory": "apps/cli",
-        "officialOnly": True,
     },
 }
+
+# Phistory still publishes DeepSeek Harness runtime captures under the CLI
+# package name. Keep that upstream spelling at the boundary and expose one
+# canonical AgentLab identity everywhere else.
+PHISTORY_AGENT_IDS = {
+    "deepseek-harness": ("dsh",),
+}
+PHISTORY_AGENT_ALIASES = {
+    source: canonical
+    for canonical, sources in PHISTORY_AGENT_IDS.items()
+    for source in sources
+}
+
+
+def canonical_agent_id(agent: str) -> str:
+    return PHISTORY_AGENT_ALIASES.get(agent, agent)
+
+
+def phistory_agent_ids(agent: str) -> tuple[str, ...]:
+    return PHISTORY_AGENT_IDS.get(agent, (agent,))
 
 # Source-only captures start at the official-source rollout boundary.  Older
 # releases remain available as evidence for matching Phistory captures, without

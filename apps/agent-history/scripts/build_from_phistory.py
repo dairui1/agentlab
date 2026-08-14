@@ -29,6 +29,8 @@ from official_release_sources import (
     NPM_RELEASE_SOURCES,
     OFFICIAL_REPOSITORIES,
     SOURCE_CODE_COMPARISON_WINDOW,
+    canonical_agent_id,
+    phistory_agent_ids,
 )
 
 
@@ -382,7 +384,7 @@ def discover_agents(capture_roots: Sequence[CaptureRoot]) -> tuple[str, ...]:
                 raise ValueError(
                     f"invalid {root.label} agent directory: {path.name!r}"
                 )
-            discovered.add(path.name)
+            discovered.add(canonical_agent_id(path.name))
     if not discovered:
         raise ValueError("no agent capture directories found in configured capture roots")
     return tuple(sorted(discovered, key=agent_sort_key))
@@ -914,7 +916,9 @@ def load_capture(
     root: CaptureRoot,
     capture_dir: Path,
     agent: str,
+    source_agent: str | None = None,
 ) -> Capture:
+    source_agent = source_agent or agent
     capture_root = root.path
     version = safe_component(capture_dir.name, kind="version directory")
     semver_key(version)
@@ -949,7 +953,7 @@ def load_capture(
     meta = read_json_object(
         meta_path, kind="capture metadata", maximum=MAX_CAPTURE_META_BYTES
     )
-    if meta.get("agent_id", agent) != agent:
+    if meta.get("agent_id", source_agent) != source_agent:
         raise ValueError(f"metadata agent_id does not match directory: {meta_path}")
     if meta.get("version", version) != version:
         raise ValueError(f"metadata version does not match directory: {meta_path}")
@@ -986,7 +990,7 @@ def load_capture(
     has_static_prompts = static_path.exists() or static_path.is_symlink()
     links = (
         source_links(
-            agent,
+            source_agent,
             version,
             root.ref,
             has_trace=trace is not None,
@@ -1059,10 +1063,13 @@ def load_capture(
 def load_agent_captures(
     root: CaptureRoot,
     agent: str,
+    source_agent: str | None = None,
 ) -> CaptureIngestion:
+    source_agent = source_agent or agent
     capture_root = root.path
     safe_component(agent, kind="agent")
-    agent_dir = capture_root / "captures" / agent
+    safe_component(source_agent, kind="source agent")
+    agent_dir = capture_root / "captures" / source_agent
     resolved_agent_dir = ensure_within(
         agent_dir, capture_root, kind="agent capture directory"
     )
@@ -1127,7 +1134,7 @@ def load_agent_captures(
     captures: list[Capture] = []
     for _key, path in candidates:
         try:
-            captures.append(load_capture(root, path, agent))
+            captures.append(load_capture(root, path, agent, source_agent))
         except (OSError, RecursionError, RuntimeError, ValueError) as error:
             rejected_count += 1
             add_warning(
@@ -1176,35 +1183,47 @@ def merge_agent_captures(
             warnings_truncated = True
 
     for root in capture_roots:
-        agent_dir = root.path / "captures" / agent
-        if not (agent_dir.exists() or agent_dir.is_symlink()):
-            continue
-        ingestion = load_agent_captures(root, agent)
-        rejected_count += ingestion.rejected_count
-        warnings_truncated = warnings_truncated or ingestion.warnings_truncated
-        for warning in ingestion.warnings:
-            add_warning({**warning, "captureRoot": root.label})
-        for capture in ingestion.captures:
-            existing = by_version.get(capture.version)
-            if existing is None:
-                by_version[capture.version] = capture
+        source_agents = (
+            tuple(dict.fromkeys((agent, *phistory_agent_ids(agent))))
+            if root.kind == "phistory"
+            else (agent,)
+        )
+        for source_agent in source_agents:
+            agent_dir = root.path / "captures" / source_agent
+            if not (agent_dir.exists() or agent_dir.is_symlink()):
                 continue
-            if existing.capture_sha256 != capture.capture_sha256:
-                existing_label = str(existing.provenance[0]["label"])
-                raise ValueError(
-                    f"conflicting capture for {agent} {capture.version}: "
-                    f"{existing_label} sha256 {existing.capture_sha256} differs from "
-                    f"{root.label} sha256 {capture.capture_sha256}"
+            ingestion = load_agent_captures(root, agent, source_agent)
+            rejected_count += ingestion.rejected_count
+            warnings_truncated = warnings_truncated or ingestion.warnings_truncated
+            for warning in ingestion.warnings:
+                add_warning({**warning, "captureRoot": root.label})
+            for capture in ingestion.captures:
+                existing = by_version.get(capture.version)
+                if existing is None:
+                    by_version[capture.version] = capture
+                    continue
+                existing_source_only = existing.meta.get("capture_kind") == "official-source-history"
+                capture_source_only = capture.meta.get("capture_kind") == "official-source-history"
+                if existing_source_only != capture_source_only:
+                    if existing_source_only:
+                        by_version[capture.version] = capture
+                    continue
+                if existing.capture_sha256 != capture.capture_sha256:
+                    existing_label = str(existing.provenance[0]["label"])
+                    raise ValueError(
+                        f"conflicting capture for {agent} {capture.version}: "
+                        f"{existing_label} sha256 {existing.capture_sha256} differs from "
+                        f"{root.label} sha256 {capture.capture_sha256}"
+                    )
+                seen = {canonical_json(item) for item in existing.provenance}
+                merged_provenance = existing.provenance + tuple(
+                    item
+                    for item in capture.provenance
+                    if canonical_json(item) not in seen
                 )
-            seen = {canonical_json(item) for item in existing.provenance}
-            merged_provenance = existing.provenance + tuple(
-                item
-                for item in capture.provenance
-                if canonical_json(item) not in seen
-            )
-            by_version[capture.version] = replace(
-                existing, provenance=merged_provenance
-            )
+                by_version[capture.version] = replace(
+                    existing, provenance=merged_provenance
+                )
 
     if not by_version:
         raise ValueError(f"no captures found for agent {agent!r}")
@@ -2839,7 +2858,11 @@ def build(
         public_root,
         analysis_root,
     )
-    agents = tuple(agents) if agents is not None else discover_agents(capture_roots)
+    agents = (
+        tuple(dict.fromkeys(canonical_agent_id(agent) for agent in agents))
+        if agents is not None
+        else discover_agents(capture_roots)
+    )
     if not agents:
         raise ValueError("at least one agent is required")
     if len(agents) != len(set(agents)):

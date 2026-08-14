@@ -355,6 +355,56 @@ class BuildFromPhistoryTests(unittest.TestCase):
         for agent in ("goose", "cline", "qwen-code"):
             self.assertIn("Runtime Prompt", agents[agent]["description"])
 
+    def test_dsh_runtime_and_deepseek_source_history_share_one_agent(self) -> None:
+        overlay = self.root / "overlay"
+        self._capture("dsh", "0.1.0-rc.5", CLAUDE_OLD, "2026-08-13T10:00:00Z")
+        self._capture("dsh", "0.1.0-rc.6", CLAUDE_NEW, "2026-08-13T11:00:00Z")
+        self._capture(
+            "deepseek-harness",
+            "0.1.0-rc.6",
+            "# Runtime Evidence\n",
+            "2026-08-13T11:00:00Z",
+            root=overlay,
+            extra_meta={
+                "capture_kind": "official-source-history",
+                "runtime_prompt_status": "unavailable",
+                "tool_schema_status": "unavailable",
+                "source_repository": "deepseek-ai/deepseek-harness",
+                "source_ref": "@deepseek-ai/dsh@0.1.0-rc.6",
+                "source_url": "https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.1.0-rc.6",
+            },
+        )
+        self._capture(
+            "deepseek-harness",
+            "0.1.0-rc.7",
+            "# Runtime Evidence\n",
+            "2026-08-13T12:00:00Z",
+            root=overlay,
+            extra_meta={
+                "capture_kind": "official-source-history",
+                "runtime_prompt_status": "unavailable",
+                "tool_schema_status": "unavailable",
+                "source_repository": "deepseek-ai/deepseek-harness",
+                "source_ref": "@deepseek-ai/dsh@0.1.0-rc.7",
+                "source_url": "https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.1.0-rc.7",
+            },
+        )
+
+        manifest = self._build(capture_overlay_root=overlay)
+
+        matching = [
+            item for item in manifest["agents"] if item["id"] == "deepseek-harness"
+        ]
+        self.assertEqual(len(matching), 1)
+        self.assertNotIn("dsh", {item["id"] for item in manifest["agents"]})
+        self.assertEqual(matching[0]["releaseCount"], 3)
+        history = self._json(
+            self.public / "data/agents/deepseek-harness/history.json"
+        )
+        releases = {item["version"]: item for item in history["versions"]}
+        self.assertEqual(releases["0.1.0-rc.6"]["runtimeCapture"]["promptStatus"], "available")
+        self.assertEqual(releases["0.1.0-rc.7"]["runtimeCapture"]["promptStatus"], "unavailable")
+
     def test_npm_source_only_capture_keeps_package_artifact_provenance(self) -> None:
         overlay = self.root / "overlay"
         versions = (

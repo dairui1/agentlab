@@ -16,7 +16,11 @@ from typing import Any, Mapping, Sequence
 from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from official_release_sources import SOURCE_CAPTURE_SINCE, SOURCE_CAPTURE_SOURCES
+from official_release_sources import (
+    SOURCE_CAPTURE_SINCE,
+    SOURCE_CAPTURE_SOURCES,
+    phistory_agent_ids,
+)
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -100,7 +104,12 @@ def existing_versions(root: Path, agent: str) -> set[str]:
 def prune_superseded_placeholders(
     *, phistory_root: Path, overlay_root: Path, agent: str
 ) -> int:
-    upstream_versions = existing_versions(phistory_root, agent)
+    upstream_versions = set().union(
+        *(
+            existing_versions(phistory_root, source)
+            for source in dict.fromkeys((agent, *phistory_agent_ids(agent)))
+        )
+    )
     overlay_versions = existing_versions(overlay_root, agent)
     pruned = 0
     for version in sorted(upstream_versions & overlay_versions):
@@ -506,13 +515,21 @@ def sync(
             raise SourceCaptureError(f"official repository mismatch for {agent}")
         if not isinstance(releases, dict):
             raise SourceCaptureError(f"official releases are invalid for {agent}")
-        upstream_versions = existing_versions(phistory_root, agent)
+        upstream_versions = set().union(
+            *(
+                existing_versions(phistory_root, source)
+                for source in dict.fromkeys((agent, *phistory_agent_ids(agent)))
+            )
+        )
         overlay_versions = existing_versions(overlay_root, agent)
         threshold = parse_timestamp(
             SOURCE_CAPTURE_SINCE, context="source capture rollout"
         )
         coverage_starts = (
-            earliest_capture_timestamp((phistory_root,), agent),
+            *(
+                earliest_capture_timestamp((phistory_root,), source)
+                for source in dict.fromkeys((agent, *phistory_agent_ids(agent)))
+            ),
             earliest_capture_timestamp((overlay_root,), agent, ignore_invalid=True),
         )
         for coverage_start in coverage_starts:

@@ -887,6 +887,12 @@ class SyncPhistoryTests(unittest.TestCase):
         )
         return completed.stdout.strip()
 
+    def test_deepseek_harness_sparse_checkout_uses_phistory_dsh_directory(self):
+        self.assertEqual(
+            sync.sparse_paths(("deepseek-harness",)),
+            ("captures/dsh",),
+        )
+
     def test_sparse_clone_and_exact_sha_update(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -1549,6 +1555,38 @@ class SourceCaptureSyncTests(unittest.TestCase):
             self.assertFalse(placeholder.parent.exists())
             self.assertEqual((upstream / "prompt.md").read_text(), "real capture")
 
+    def test_prunes_deepseek_placeholder_when_dsh_runtime_capture_exists(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            placeholder = overlay / "captures/deepseek-harness/0.1.0-rc.6"
+            placeholder.mkdir(parents=True)
+            (placeholder / "prompt.md").write_text("placeholder", encoding="utf-8")
+            (placeholder / "meta.json").write_text(
+                json.dumps(
+                    {
+                        "agent_id": "deepseek-harness",
+                        "version": "0.1.0-rc.6",
+                        "capture_kind": "official-source-history",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            runtime = phistory / "captures/dsh/0.1.0-rc.6"
+            runtime.mkdir(parents=True)
+            (runtime / "prompt.md").write_text("real capture", encoding="utf-8")
+
+            pruned = source_sync.prune_superseded_placeholders(
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agent="deepseek-harness",
+            )
+
+            self.assertEqual(pruned, 1)
+            self.assertFalse(placeholder.exists())
+            self.assertEqual((runtime / "prompt.md").read_text(), "real capture")
+
 
 class DailyUpdateTests(unittest.TestCase):
     def test_step_order_backfill_limit_and_optional_deploy(self):
@@ -1663,14 +1701,17 @@ class DailyUpdateTests(unittest.TestCase):
         site = next(step for step in steps if step.name == "build site")
         self.assertEqual(site.environment["PHISTORY_AGENTS"], "codex")
 
-    def test_focused_deepseek_harness_run_includes_npm_source_history(self):
+    def test_focused_deepseek_harness_run_includes_runtime_and_npm_history(self):
         args = daily.parse_args(["--agents", "deepseek-harness"])
 
         steps = daily.build_steps(args)
 
         upstream = next(step for step in steps if step.name == "sync upstream")
-        self.assertIn("--metadata-only", upstream.command)
-        self.assertNotIn("--agents", upstream.command)
+        self.assertNotIn("--metadata-only", upstream.command)
+        self.assertEqual(
+            upstream.command[upstream.command.index("--agents") + 1],
+            "deepseek-harness",
+        )
         source = next(step for step in steps if step.name == "sync source-only captures")
         self.assertEqual(
             source.command[source.command.index("--agents") + 1],
