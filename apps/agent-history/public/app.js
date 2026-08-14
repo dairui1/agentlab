@@ -171,6 +171,7 @@
     cline: "/agent-icons/cline.svg",
     "qwen-code": "/agent-icons/qwen-code.svg",
     reasonix: "/agent-icons/reasonix.svg",
+    dsh: "/agent-icons/deepseek-harness.svg",
     "deepseek-harness": "/agent-icons/deepseek-harness.svg",
   };
 
