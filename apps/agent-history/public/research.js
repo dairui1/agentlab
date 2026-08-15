@@ -110,6 +110,9 @@
     url.searchParams.delete("type");
     url.searchParams.delete("q");
     url.searchParams.delete("agent");
+    url.searchParams.delete("replay");
+    url.searchParams.delete("frame");
+    url.searchParams.delete("ax");
     for (const [key, value] of [["topic", state.topic], ["product", state.product]]) {
       if (value === "all") url.searchParams.delete(key);
       else url.searchParams.set(key, value);
@@ -285,6 +288,9 @@
     bindIndexControls();
     renderIndexFeed();
     indexView.hidden = false;
+    const cleanUrl = new URL(location.href);
+    for (const key of ["replay", "frame", "ax"]) cleanUrl.searchParams.delete(key);
+    if (cleanUrl.href !== location.href) history.replaceState(null, "", cleanUrl);
   }
 
   function capabilityAgent(study) {
@@ -570,6 +576,11 @@
   }
 
   async function renderDetail(study) {
+    if (study.id !== "computer-use") {
+      const cleanUrl = new URL(location.href);
+      for (const key of ["replay", "frame", "ax"]) cleanUrl.searchParams.delete(key);
+      if (cleanUrl.href !== location.href) history.replaceState(null, "", cleanUrl);
+    }
     state.study = study;
     state.records = await loadStudyRecords(study);
     const evidenceCount = state.records.filter((record) => record.type !== "unknown").length;
@@ -591,6 +602,9 @@
     backUrl.searchParams.delete("type");
     backUrl.searchParams.delete("q");
     backUrl.searchParams.delete("agent");
+    backUrl.searchParams.delete("replay");
+    backUrl.searchParams.delete("frame");
+    backUrl.searchParams.delete("ax");
     back.href = `${backUrl.pathname}${backUrl.search}`;
     renderProducts(study);
     renderHeadlineEvidence(study);
@@ -602,6 +616,9 @@
     bindDetailControls();
     renderEvidenceList();
     detailView.hidden = false;
+    window.dispatchEvent(new CustomEvent("agentlab:research-detail-ready", {
+      detail: { study, records: state.records },
+    }));
 
     const requestedEvidence = state.requestedEvidence;
     if (requestedEvidence) {

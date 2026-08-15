@@ -8,7 +8,8 @@
   <title>专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/research.css?v=10">
+  <link rel="stylesheet" href="/research.css?v=11">
+  <link rel="stylesheet" href="/computer-use-playback.css?v=1">
 </head>
 <body>
   <div class="app-shell research-shell">
@@ -97,6 +98,113 @@
           <p id="researchBoundary"></p>
         </section>
 
+        <section id="computerUsePlayback" class="cua-playback" data-cua-playback aria-labelledby="cuaPlaybackTitle" hidden>
+          <header class="cua-playback-header">
+            <div>
+              <span>证据支持的合同复原</span>
+              <h2 id="cuaPlaybackTitle">看 Agent 怎样操作一台 Mac</h2>
+            </div>
+            <p>播放一个具体任务，切到 Agent 视野，就能看到它怎样读取界面、选中最新元素、只做一步，再回头确认结果。</p>
+          </header>
+
+          <div class="cua-playback-toolbar">
+            <div class="cua-scenario-tabs" role="tablist" aria-label="选择操作场景" data-cua-scenario-tabs></div>
+            <label class="cua-scenario-select">
+              <span>操作场景</span>
+              <select data-cua-scenario-select aria-label="选择操作场景"></select>
+            </label>
+            <div class="segmented cua-view-switch" role="group" aria-label="桌面观察方式">
+              <button type="button" data-cua-view="screen" aria-pressed="true"><i data-lucide="monitor" aria-hidden="true"></i><span>屏幕</span></button>
+              <button type="button" data-cua-view="agent" aria-pressed="false"><i data-lucide="scan-search" aria-hidden="true"></i><span>Agent 视野</span></button>
+            </div>
+          </div>
+
+          <div id="cuaWorkspace" class="cua-workspace" role="tabpanel" tabindex="0" aria-label="Computer Use 操作回放，使用左右方向键切换步骤">
+            <figure class="cua-screen-figure">
+              <div class="cua-desktop" data-cua-desktop data-view="screen" aria-hidden="true">
+                <div class="cua-desktop-menu" aria-hidden="true">
+                  <strong>Deskboard</strong>
+                  <span>文件</span><span>编辑</span><span>显示</span>
+                  <time>10:24</time>
+                </div>
+                <div class="cua-app-window">
+                  <div class="cua-window-bar">
+                    <span class="cua-window-controls" aria-hidden="true"><i></i><i></i><i></i></span>
+                    <strong>Deskboard</strong>
+                    <span data-cua-window-state>今天</span>
+                  </div>
+                  <div class="cua-app-body">
+                    <nav class="cua-app-sidebar" aria-label="模拟应用侧栏">
+                      <strong>工作区</strong>
+                      <span class="is-active"><i data-lucide="sun" aria-hidden="true"></i>今天 <b data-cua-task-count>3</b></span>
+                      <span><i data-lucide="inbox" aria-hidden="true"></i>收件箱 <b>2</b></span>
+                      <span><i data-lucide="calendar-days" aria-hidden="true"></i>本周</span>
+                    </nav>
+                    <div class="cua-task-surface">
+                      <header>
+                        <div><span>8 月 14 日</span><h3>今天</h3></div>
+                        <button type="button" tabindex="-1" data-cua-new-task><i data-lucide="plus" aria-hidden="true"></i><span>新建任务</span></button>
+                      </header>
+                      <div class="cua-task-list">
+                        <div class="cua-task-row"><span></span><p><strong>核对发布清单</strong><small>工程</small></p></div>
+                        <div class="cua-task-row"><span></span><p><strong>整理访谈笔记</strong><small>研究</small></p></div>
+                        <div class="cua-task-row is-done"><span><i data-lucide="check" aria-hidden="true"></i></span><p><strong>更新测试基线</strong><small>已完成</small></p></div>
+                        <div class="cua-task-row cua-created-task" data-cua-created-task hidden><span></span><p><strong data-cua-created-text></strong><small>刚刚创建</small></p></div>
+                      </div>
+                      <div class="cua-task-composer" data-cua-composer hidden>
+                        <label><span>任务名称</span><input type="text" tabindex="-1" readonly data-cua-composer-input></label>
+                        <div><button type="button" tabindex="-1">取消</button><button type="button" tabindex="-1" data-cua-submit-task>保存</button></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="cua-ax-overlay" data-cua-ax-overlay aria-hidden="true"></div>
+                <div class="cua-desktop-notice" data-cua-desktop-notice hidden></div>
+                <span class="cua-cursor" data-cua-cursor aria-hidden="true"><i data-lucide="mouse-pointer-2"></i><span></span></span>
+                <span class="cua-screen-badge" data-cua-screen-badge>人眼看到的屏幕</span>
+              </div>
+              <figcaption aria-live="polite">
+                <strong data-cua-frame-title>准备回放</strong>
+                <span data-cua-caption>正在读取操作场景。</span>
+              </figcaption>
+            </figure>
+
+            <aside class="cua-agent-panel" aria-label="Agent 当前操作">
+              <header>
+                <div><span data-cua-phase>等待</span><strong data-cua-step-label>步骤 1</strong></div>
+                <span class="cua-call-status" data-cua-call-status>就绪</span>
+              </header>
+              <div class="cua-current-call">
+                <span data-cua-call-actor>Agent 当前调用</span>
+                <code data-cua-call-name>等待场景加载</code>
+                <pre data-cua-call-args></pre>
+                <p data-cua-call-result></p>
+              </div>
+              <div class="cua-agent-decision">
+                <span>Agent 此刻的判断</span>
+                <p data-cua-decision>先观察界面，再决定动作。</p>
+              </div>
+              <nav class="cua-evidence-links" aria-label="当前步骤证据" data-cua-evidence-links></nav>
+              <ol class="cua-timeline" data-cua-timeline aria-label="回放步骤"></ol>
+            </aside>
+          </div>
+
+          <div class="cua-player" aria-label="回放控制">
+            <div class="cua-player-buttons">
+              <button class="icon-button" type="button" data-cua-restart aria-label="重新开始" title="重新开始"><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+              <button class="icon-button" type="button" data-cua-previous aria-label="上一步" title="上一步"><i data-lucide="skip-back" aria-hidden="true"></i></button>
+              <button class="cua-play-button" type="button" data-cua-play aria-label="播放回放"><i data-lucide="play" aria-hidden="true"></i><span>播放</span></button>
+              <button class="icon-button" type="button" data-cua-next aria-label="下一步" title="下一步"><i data-lucide="skip-forward" aria-hidden="true"></i></button>
+            </div>
+            <label class="cua-scrubber">
+              <span class="sr-only">回放进度</span>
+              <input type="range" min="0" max="0" value="0" step="1" data-cua-scrubber>
+            </label>
+            <output data-cua-progress aria-live="polite">0 / 0</output>
+          </div>
+          <p class="cua-playback-boundary"><i data-lucide="badge-info" aria-hidden="true"></i><span data-cua-premise>这是按固定构建合同复原的交互过程，不是一次真实会话录屏。</span></p>
+        </section>
+
         <section class="research-key-section" aria-labelledby="researchKeyTitle">
           <header class="research-section-header">
             <span>支持上述结论</span>
@@ -143,7 +251,9 @@
   </div>
 
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="/research-navigation-core.js?v=1"></script>
-  <script src="/research.js?v=9"></script>
+  <script src="/research-navigation-core.js?v=2"></script>
+  <script src="/computer-use-playback-core.js?v=1"></script>
+  <script src="/computer-use-playback.js?v=1"></script>
+  <script src="/research.js?v=10"></script>
 </body>
 </html>

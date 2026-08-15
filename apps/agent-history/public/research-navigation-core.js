@@ -7,7 +7,7 @@
 
   function studyHref(currentHref, studyId, filters) {
     const url = new URL(currentHref);
-    for (const key of ["evidence", "type", "q", "agent"]) url.searchParams.delete(key);
+    for (const key of ["evidence", "type", "q", "agent", "replay", "frame", "ax"]) url.searchParams.delete(key);
     for (const [key, value] of [["topic", filters.topic], ["product", filters.product]]) {
       if (!value || value === "all") url.searchParams.delete(key);
       else url.searchParams.set(key, value);

@@ -19,6 +19,10 @@ const computerUseLabStyles = read("computer-use-lab.css");
 const computerUseLabScript = read("computer-use-lab.js");
 const computerUseLabCoreSource = read("computer-use-lab-core.js");
 const computerUseLabCore = require("../public/computer-use-lab-core.js");
+const computerUsePlaybackStyles = read("computer-use-playback.css");
+const computerUsePlaybackScript = read("computer-use-playback.js");
+const computerUsePlaybackCoreSource = read("computer-use-playback-core.js");
+const computerUsePlaybackCore = require("../public/computer-use-playback-core.js");
 const goalModeLabStyles = read("goal-mode-lab.css");
 const goalModeLabScript = read("goal-mode-lab.js");
 const goalModeLabCoreSource = read("goal-mode-lab-core.js");
@@ -178,9 +182,9 @@ test("the research landing puts questions and engineering decisions before the e
   assert.match(capabilitiesHtml, /id="researchEvidenceList"[^>]*aria-label="事实与证据"/);
   assert.match(capabilitiesHtml, /id="researchHeadlineEvidence"[^>]*aria-label="结论依据"/);
   assert.doesNotMatch(capabilitiesHtml, /researchEvidenceAgent|按产品筛选事实/);
-  assert.match(capabilitiesHtml, /href="\/research\.css\?v=10"/);
-  assert.match(capabilitiesHtml, /src="\/research\.js\?v=9"/);
-  assert.match(capabilitiesHtml, /src="\/research-navigation-core\.js\?v=1"/);
+  assert.match(capabilitiesHtml, /href="\/research\.css\?v=11"/);
+  assert.match(capabilitiesHtml, /src="\/research\.js\?v=10"/);
+  assert.match(capabilitiesHtml, /src="\/research-navigation-core\.js\?v=2"/);
   assert.doesNotMatch(capabilitiesHtml, /CAPABILITY TEARDOWNS|THE COLLECTION|阅读时间|article-number|article-status|capability-library/);
 
   assert.ok(researchIndex.studies.length > 0);
@@ -228,7 +232,7 @@ test("the research landing puts questions and engineering decisions before the e
 
 test("research navigation preserves index context and lets evidence deep links override filters", () => {
   const detailHref = researchNavigation.studyHref(
-    "https://agentlab.example/capabilities.html?topic=控制与协作&product=codex&search=停止&type=unknown&q=旧值",
+    "https://agentlab.example/capabilities.html?topic=控制与协作&product=codex&search=停止&type=unknown&q=旧值&replay=stale-element&frame=4&ax=1",
     "goal-mode",
     { topic: "控制与协作", product: "codex", search: "停止" },
   );
@@ -239,6 +243,9 @@ test("research navigation preserves index context and lets evidence deep links o
   assert.equal(detailUrl.searchParams.get("search"), "停止");
   assert.equal(detailUrl.searchParams.has("type"), false);
   assert.equal(detailUrl.searchParams.has("q"), false);
+  assert.equal(detailUrl.searchParams.has("replay"), false);
+  assert.equal(detailUrl.searchParams.has("frame"), false);
+  assert.equal(detailUrl.searchParams.has("ax"), false);
 
   const request = researchNavigation.detailRequest(
     "https://agentlab.example/capabilities.html?study=goal-mode&type=unknown&q=absent&agent=codex&evidence=GM-02",
@@ -649,6 +656,221 @@ test("Goal Mode publishes product conclusions without exposing the local researc
   assert.match(publicCopy, /task budget|task-budget/);
 });
 
+test("the unified Computer Use detail mounts an accessible playback between its guardrail and evidence", () => {
+  const guardrailIndex = capabilitiesHtml.indexOf('class="research-guardrail"');
+  const playbackIndex = capabilitiesHtml.indexOf('data-cua-playback');
+  const evidenceIndex = capabilitiesHtml.indexOf('class="research-key-section"');
+  assert.ok(guardrailIndex >= 0 && guardrailIndex < playbackIndex, "playback must follow the research boundary");
+  assert.ok(playbackIndex < evidenceIndex, "playback must precede the evidence archive");
+
+  const mount = elements(capabilitiesHtml, "section").find((element) => Object.hasOwn(element.attributes, "data-cua-playback"));
+  assert.ok(mount, "unified detail lacks the Computer Use playback mount");
+  assert.equal(mount.attributes.id, "computerUsePlayback");
+  assert.equal(mount.attributes["aria-labelledby"], "cuaPlaybackTitle");
+  assert.ok(Object.hasOwn(mount.attributes, "hidden"), "playback must stay hidden on unrelated studies");
+  assert.match(capabilitiesHtml, /<h2 id="cuaPlaybackTitle">[^<]+<\/h2>/);
+
+  const workspace = elements(capabilitiesHtml, "div").find((element) => hasClass(element, "cua-workspace"));
+  assert.equal(workspace?.attributes.tabindex, "0");
+  assert.match(workspace?.attributes["aria-label"] || "", /左右方向键/);
+  assert.ok(elements(capabilitiesHtml, "div").some((element) => element.attributes.role === "tablist" && element.attributes["aria-label"]));
+  assert.ok(elements(capabilitiesHtml, "select").some((element) => Object.hasOwn(element.attributes, "data-cua-scenario-select") && element.attributes["aria-label"]));
+  const viewButtons = elements(capabilitiesHtml, "button").filter((element) => Object.hasOwn(element.attributes, "data-cua-view"));
+  assert.equal(viewButtons.length, 2);
+  assert.ok(viewButtons.every((button) => Object.hasOwn(button.attributes, "aria-pressed")));
+  for (const hook of ["data-cua-restart", "data-cua-previous", "data-cua-play", "data-cua-next"]) {
+    const button = elements(capabilitiesHtml, "button").find((element) => Object.hasOwn(element.attributes, hook));
+    assert.equal(button?.attributes.type, "button", `${hook} is not a real button`);
+    assert.ok(button?.attributes["aria-label"], `${hook} lacks an accessible name`);
+  }
+  assert.match(capabilitiesHtml, /<label class="cua-scrubber">[\s\S]*data-cua-scrubber/);
+  assert.match(capabilitiesHtml, /<output[^>]*data-cua-progress[^>]*aria-live="polite"/);
+
+  assert.match(capabilitiesHtml, /href="\/computer-use-playback\.css\?v=1"/);
+  assert.match(
+    capabilitiesHtml,
+    /src="\/research-navigation-core\.js\?v=2"[\s\S]*src="\/computer-use-playback-core\.js\?v=1"[\s\S]*src="\/computer-use-playback\.js\?v=1"[\s\S]*src="\/research\.js\?v=10"/,
+    "playback must subscribe before research.js dispatches the detail event",
+  );
+});
+
+test("Computer Use playback publishes three evidence-backed contract reconstructions across 22 frames", () => {
+  assert.deepEqual(computerUsePlaybackCore.scenarioIds, ["normal-loop", "stale-element", "transport-timeout"]);
+  assert.deepEqual(computerUsePlaybackCore.scenarios.map((scenario) => scenario.frames.length), [10, 6, 6]);
+  assert.equal(computerUsePlaybackCore.scenarios.flatMap((scenario) => scenario.frames).length, 22);
+  assert.equal(computerUsePlaybackCore.getScenario("missing").id, "normal-loop");
+
+  const computerUse = studies["computer-use"];
+  const publishedIds = new Set([
+    ...computerUse.evidence.map((claim) => claim.id),
+    ...computerUse.unknowns.map((unknown) => unknown.id),
+  ]);
+  const requiredFields = ["id", "phase", "title", "caption", "premise", "desktop", "tool", "cursor", "ax", "evidence"];
+  const frameIds = [];
+
+  for (const scenario of computerUsePlaybackCore.scenarios) {
+    assert.ok(scenario.frames.length >= 6 && scenario.frames.length <= 10, `${scenario.id} has the wrong playback length`);
+    assert.match(`${scenario.summary} ${scenario.frames.map((frame) => frame.premise).join(" ")}`, /复原|不是.*(?:录屏|trace)|场景(?:给定|事实|分支)/i);
+    scenario.frames.forEach((frame, index) => {
+      frameIds.push(frame.id);
+      for (const field of requiredFields) assert.ok(Object.hasOwn(frame, field), `${frame.id} lacks ${field}`);
+      assert.ok(frame.title && frame.caption && frame.premise, `${frame.id} has shallow reader copy`);
+      assert.ok(frame.desktop && frame.tool && frame.cursor && frame.ax, `${frame.id} cannot drive the playback surface`);
+      assert.ok(Array.isArray(frame.evidence) && frame.evidence.length > 0, `${frame.id} lacks evidence`);
+      for (const id of frame.evidence) assert.ok(publishedIds.has(id), `${frame.id} links unpublished evidence ${id}`);
+      if (frame.tool.name === "get_app_state" && frame.tool.state !== "cached") {
+        assert.match(frame.tool.args, /app:\s*['"]Deskboard['"]/, `${frame.id} omits the required app target`);
+      }
+
+      if (frame.phase === "act") {
+        const before = scenario.frames.slice(0, index).map((item) => item.phase);
+        const after = scenario.frames.slice(index + 1).map((item) => item.phase);
+        assert.ok(before.includes("observe"), `${frame.id} acts before observing`);
+        assert.ok(before.includes("decide"), `${frame.id} acts before deciding`);
+        assert.ok(after.includes("verify"), `${frame.id} has no later readback`);
+        assert.match(frame.tool.args, /app:\s*['"]Deskboard['"]/, `${frame.id} omits the required app target`);
+      }
+    });
+  }
+  assert.equal(new Set(frameIds).size, frameIds.length, "playback frame IDs must be unique");
+
+  const normal = computerUsePlaybackCore.getScenario("normal-loop");
+  assert.ok(normal.frames.some((frame) => frame.phase === "observe"));
+  assert.ok(normal.frames.some((frame) => frame.phase === "act"));
+  assert.equal(normal.frames.at(-1).phase, "verify");
+  assert.equal(normal.frames.at(-1).tool.name, "get_app_state");
+  assert.ok(normal.frames.at(-1).desktop.tasks.some((task) => task.fresh), "normal loop never shows the requested result");
+  const setValue = normal.frames.find((frame) => frame.tool.name === "set_value");
+  assert.match(setValue.tool.args, /app:\s*['"]Deskboard['"]/);
+  assert.match(setValue.caption, /设值与保存.*两个动作/);
+  assert.doesNotMatch(setValue.caption, /换行.*提交/);
+  assert.doesNotMatch(normal.frames.find((frame) => frame.id === "normal-authorize").evidence.join(" "), /CU-19/);
+});
+
+test("stale indices and transport timeouts recover through fresh observation instead of invented guarantees", () => {
+  const stale = computerUsePlaybackCore.getScenario("stale-element");
+  assert.match(stale.summary, /页面刷新.*前提/);
+  assert.match(stale.summary, /旧 index.*怎样失败|失败方式未知/);
+  assert.ok(stale.frames.some((frame) => frame.evidence.includes("CU-KU-03")));
+  const oldIndexFrames = stale.frames.filter((frame) => /(?:element_index|element)\D*42/.test(frame.tool.args));
+  assert.ok(oldIndexFrames.length > 0, "stale scenario never exposes the rejected plan");
+  assert.ok(oldIndexFrames.every((frame) => !["request", "response"].includes(frame.tool.state)), "stale index was sent to the service");
+  const fullReadIndex = stale.frames.findIndex((frame) => frame.tool.name === "get_app_state" && /disableDiff:\s*true/.test(frame.tool.args));
+  const staleActIndex = stale.frames.findIndex((frame) => frame.phase === "act");
+  assert.ok(fullReadIndex >= 0 && fullReadIndex < staleActIndex, "stale scenario acts before a full readback");
+  assert.match(stale.frames[staleActIndex].tool.args, /element_index:\s*57/);
+  assert.doesNotMatch(stale.frames[staleActIndex].tool.args, /42/);
+
+  const timeout = computerUsePlaybackCore.getScenario("transport-timeout");
+  const timeoutIndex = timeout.frames.findIndex((frame) => frame.tool.state === "timeout");
+  assert.ok(timeoutIndex >= 0, "timeout scenario never enters an unknown result state");
+  assert.match(`${timeout.frames[timeoutIndex].title} ${timeout.frames[timeoutIndex].caption}`, /可能没做.*可能已做|副作用未知/);
+  assert.ok(timeout.frames[timeoutIndex].evidence.includes("CU-KU-04"));
+  const timedOutAction = timeout.frames[timeoutIndex - 1];
+  assert.equal(timedOutAction.tool.name, "click");
+  assert.equal(timedOutAction.desktop.view, "editor");
+  assert.ok(timedOutAction.desktop.draft, "timeout action has no visible payload to save");
+  assert.ok(timedOutAction.ax.nodes.some((item) => item.target && item.label === "保存"), "timeout action does not target Save");
+  assert.equal(timeout.frames[timeoutIndex].tool.args, timedOutAction.tool.args, "timeout frame dropped the original action parameters");
+  assert.match(timeout.frames[timeoutIndex].tool.result, /timeout.*side effect unknown/);
+  const readback = timeout.frames[timeoutIndex + 1];
+  assert.equal(readback.tool.name, "get_app_state", "the frame after timeout must read the UI");
+  assert.equal(readback.tool.state, "request");
+  assert.ok(timeout.frames.slice(timeoutIndex + 1).every((frame) => frame.tool.name !== "click"), "timeout branch automatically replays the click");
+  const final = timeout.frames.at(-1);
+  assert.equal(final.tool.name, "get_app_state");
+  assert.equal(final.tool.state, "response");
+  assert.equal(final.desktop.revision, "r4");
+  assert.ok(final.desktop.tasks.some((task) => task.fresh && task.label === timedOutAction.desktop.draft), "readback does not match the timed-out Save payload");
+  assert.match(`${timeout.summary} ${final.premise}`, /假定|场景给定|场景分支/);
+});
+
+test("Computer Use playback clamps and round-trips replay, frame, and AX URL state", () => {
+  assert.deepEqual(
+    computerUsePlaybackCore.resolveSelection("https://agentlab.example/capabilities.html?study=computer-use"),
+    { scenarioId: "normal-loop", frame: 0, axVisible: false },
+  );
+  assert.deepEqual(
+    computerUsePlaybackCore.resolveSelection("https://agentlab.example/capabilities.html?replay=stale-element&frame=99&ax=1"),
+    { scenarioId: "stale-element", frame: 5, axVisible: true },
+  );
+  assert.deepEqual(
+    computerUsePlaybackCore.resolveSelection("https://agentlab.example/capabilities.html?replay=missing&frame=not-a-number&ax=no"),
+    { scenarioId: "normal-loop", frame: 0, axVisible: false },
+  );
+
+  assert.equal(computerUsePlaybackCore.clampFrame(-1), 0);
+  assert.equal(computerUsePlaybackCore.clampFrame("normal-loop", 99), 9);
+  assert.equal(computerUsePlaybackCore.nextFrame("stale-element", 5), 5);
+  assert.equal(computerUsePlaybackCore.previousFrame("stale-element", 0), 0);
+  assert.equal(computerUsePlaybackCore.nextFrame("transport-timeout", 3), 4);
+  assert.equal(computerUsePlaybackCore.previousFrame("transport-timeout", 3), 2);
+
+  const href = computerUsePlaybackCore.selectionHref(
+    "https://agentlab.example/capabilities.html?study=computer-use&topic=界面自动化#playback",
+    "transport-timeout",
+    4,
+    true,
+  );
+  const url = new URL(href, "https://agentlab.example");
+  assert.equal(url.searchParams.get("study"), "computer-use");
+  assert.equal(url.searchParams.get("topic"), "界面自动化");
+  assert.equal(url.searchParams.get("replay"), "transport-timeout");
+  assert.equal(url.searchParams.get("frame"), "4");
+  assert.equal(url.searchParams.get("ax"), "1");
+  assert.equal(url.hash, "#playback");
+  assert.deepEqual(computerUsePlaybackCore.resolveSelection(href), {
+    scenarioId: "transport-timeout",
+    frame: 4,
+    axVisible: true,
+  });
+});
+
+test("Computer Use playback renders safely, responds to detail lifecycle, and pauses offscreen", () => {
+  assert.doesNotMatch(computerUsePlaybackScript, /\.innerHTML\s*=|\.outerHTML\s*=|insertAdjacentHTML\s*\(|document\.write\s*\(/);
+  assert.match(computerUsePlaybackScript, /\.textContent\s*=/);
+  assert.match(computerUsePlaybackScript, /\.replaceChildren\(/);
+  assert.match(researchScript, /new CustomEvent\("agentlab:research-detail-ready"/);
+  assert.match(computerUsePlaybackScript, /addEventListener\("agentlab:research-detail-ready"/);
+  assert.match(computerUsePlaybackScript, /study\?\.id !== "computer-use"/);
+
+  for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+    assert.match(computerUsePlaybackScript, new RegExp(`event\\.key === "${key}"`), `playback ignores ${key}`);
+  }
+  assert.match(computerUsePlaybackScript, /event\.key === " "/);
+  assert.match(computerUsePlaybackScript, /window\.setInterval\(/);
+  assert.match(computerUsePlaybackScript, /visibilitychange/);
+  assert.match(computerUsePlaybackScript, /document\.hidden/);
+  assert.match(computerUsePlaybackScript, /"IntersectionObserver" in window/);
+  assert.match(computerUsePlaybackScript, /\.observe\(root\)/);
+  assert.match(computerUsePlaybackScript, /if \(!state\.visible\) stopPlayback\(\)/);
+
+  assert.match(computerUsePlaybackScript, /core\.resolveSelection\(location\.href\)/);
+  assert.match(computerUsePlaybackScript, /core\.selectionHref\(location\.href/);
+  assert.match(computerUsePlaybackScript, /history\.replaceState\(/);
+  assert.match(computerUsePlaybackScript, /url\.searchParams\.set\("study", "computer-use"\)/);
+  assert.match(computerUsePlaybackScript, /url\.searchParams\.set\("evidence", id\)/);
+  assert.match(computerUsePlaybackScript, /refs\.timeline\.dataset\.scenario !== activeScenario\.id/);
+  assert.match(computerUsePlaybackScript, /button\.removeAttribute\("aria-current"\)/);
+  assert.doesNotMatch(computerUsePlaybackCoreSource, /document\.|window\.|location\.|history\./, "playback core must stay DOM-free");
+});
+
+test("Computer Use playback CSS has stable desktop, mobile, and reduced-motion layouts", () => {
+  assert.match(computerUsePlaybackStyles, /\.cua-workspace\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\) 312px/);
+  assert.match(computerUsePlaybackStyles, /\.cua-desktop\s*\{[\s\S]*min-height:\s*500px/);
+  assert.match(computerUsePlaybackStyles, /\.cua-ax-overlay\s*\{/);
+  assert.match(computerUsePlaybackStyles, /\.cua-desktop\[data-view="agent"\] \.cua-ax-overlay/);
+  assert.match(computerUsePlaybackStyles, /@media\s*\(max-width:\s*980px\)/);
+  assert.match(computerUsePlaybackStyles, /@media\s*\(max-width:\s*680px\)/);
+  assert.match(computerUsePlaybackStyles, /@media\s*\(max-width:\s*420px\)/);
+  assert.match(computerUsePlaybackStyles, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*transition:\s*none[\s\S]*animation:\s*none/);
+  assert.match(computerUsePlaybackStyles, /\.cua-scenario-select select\s*\{[^}]*height:\s*44px/);
+  assert.match(computerUsePlaybackStyles, /\.cua-evidence-links a\s*\{[^}]*min-height:\s*44px/);
+  assert.match(computerUsePlaybackStyles, /\.cua-player-buttons \.icon-button\s*\{[^}]*flex:\s*0 0 44px/);
+  assert.match(computerUsePlaybackStyles, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(computerUsePlaybackStyles, /font-size:\s*(?:clamp\([^;]*(?:vw|vmin|vmax)|[^;]*(?:vw|vmin|vmax))/);
+});
+
 test("Computer Use retains its existing research schema without driving a five-view UI", () => {
   const study = studies["computer-use"];
   assert.equal(study.id, "computer-use");
@@ -882,6 +1104,8 @@ test("Computer Use, Goal Mode, and DeepSeek Harness copy follow the de-ai-ify wr
     JSON.stringify(studies["computer-use"]),
     computerUseLabCoreSource,
     computerUseLabScript,
+    computerUsePlaybackCoreSource,
+    computerUsePlaybackScript,
     articles["goal-mode"],
     JSON.stringify(studies["goal-mode"]),
     goalModeLabCoreSource,
