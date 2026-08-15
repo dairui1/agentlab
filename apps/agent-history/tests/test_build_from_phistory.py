@@ -405,6 +405,61 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(releases["0.1.0-rc.6"]["runtimeCapture"]["promptStatus"], "available")
         self.assertEqual(releases["0.1.0-rc.7"]["runtimeCapture"]["promptStatus"], "unavailable")
 
+    def test_reads_phistory_default_variant_and_version_static_archive(self) -> None:
+        version_dir = self.phistory / "captures/claude-code/1.0.0"
+        runtime_dir = version_dir / "variants/default"
+        runtime_dir.mkdir(parents=True)
+        (runtime_dir / "prompt.md").write_text(CLAUDE_OLD, encoding="utf-8")
+        (runtime_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "agent_id": "claude-code",
+                    "version": "1.0.0",
+                    "published_at": "2026-01-01T00:00:00Z",
+                    "captured_at": "2026-01-01T00:00:00Z",
+                    "variant": {"id": "default", "label": "Default", "dimensions": {}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (runtime_dir / "trace.jsonl").write_text(
+            '{"event":"request"}\n', encoding="utf-8"
+        )
+        static_dir = version_dir / "static"
+        static_dir.mkdir()
+        content = "Static system instruction"
+        (static_dir / "prompts.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "agent_id": "claude-code",
+                    "version": "1.0.0",
+                    "source": "fixture",
+                    "summary": {"total": 1, "known": 1, "unknown": 0},
+                    "prompts": [
+                        {
+                            "id": "system",
+                            "name": "System",
+                            "category": "system-prompt",
+                            "description": "Fixture",
+                            "content_hash": hashlib.sha256(content.encode()).hexdigest(),
+                            "content": content,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        manifest = self._build()
+
+        agent = next(item for item in manifest["agents"] if item["id"] == "claude-code")
+        self.assertGreaterEqual(agent["sourceCoverage"]["promptCaptures"], 1)
+        history = self._json(self.public / "data/agents/claude-code/history.json")
+        release = next(item for item in history["versions"] if item["version"] == "1.0.0")
+        self.assertIn("/variants/default/prompt.md", release["promptSourceUrl"])
+        self.assertIn("/static/prompts.json", release["staticPrompt"]["sourceUrl"])
+
     def test_npm_source_only_capture_keeps_package_artifact_provenance(self) -> None:
         overlay = self.root / "overlay"
         versions = (

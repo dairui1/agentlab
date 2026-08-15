@@ -654,18 +654,26 @@ def source_links(
     ref: str,
     *,
     has_trace: bool,
-    has_static_prompts: bool = False,
+    runtime_subdir: str | None = None,
+    static_prompts_subpath: str | None = None,
 ) -> dict[str, str | None]:
     encoded_agent = quote(agent, safe="")
     encoded_version = quote(version, safe="")
-    base = f"{UPSTREAM_URL}/tree/{quote(ref, safe='')}/captures/{encoded_agent}/{encoded_version}"
-    blob = f"{UPSTREAM_URL}/blob/{quote(ref, safe='')}/captures/{encoded_agent}/{encoded_version}"
+    version_base = f"{UPSTREAM_URL}/tree/{quote(ref, safe='')}/captures/{encoded_agent}/{encoded_version}"
+    version_blob = f"{UPSTREAM_URL}/blob/{quote(ref, safe='')}/captures/{encoded_agent}/{encoded_version}"
+    runtime_suffix = f"/{runtime_subdir}" if runtime_subdir else ""
+    base = version_base + runtime_suffix
+    blob = version_blob + runtime_suffix
     return {
         "snapshot": base,
         "prompt": f"{blob}/prompt.md",
         "meta": f"{blob}/meta.json",
         "trace": f"{blob}/trace.jsonl" if has_trace else None,
-        "staticPrompts": f"{blob}/static-prompts.json" if has_static_prompts else None,
+        "staticPrompts": (
+            f"{version_blob}/{static_prompts_subpath}"
+            if static_prompts_subpath
+            else None
+        ),
     }
 
 
@@ -926,8 +934,19 @@ def load_capture(
     if capture_dir.is_symlink() or not resolved_dir.is_dir():
         raise ValueError(f"capture directory must be a real directory: {capture_dir}")
 
-    source_prompt_path = capture_dir / "prompt.md"
-    source_meta_path = capture_dir / "meta.json"
+    runtime_dir = capture_dir
+    runtime_subdir: str | None = None
+    if not (capture_dir / "prompt.md").exists() and not (capture_dir / "meta.json").exists():
+        runtime_dir = capture_dir / "variants" / "default"
+        runtime_subdir = "variants/default"
+    resolved_runtime_dir = ensure_within(
+        runtime_dir, capture_root, kind="runtime capture directory"
+    )
+    if runtime_dir.is_symlink() or not resolved_runtime_dir.is_dir():
+        raise ValueError(f"runtime capture directory must be a real directory: {runtime_dir}")
+
+    source_prompt_path = runtime_dir / "prompt.md"
+    source_meta_path = runtime_dir / "meta.json"
     if source_prompt_path.is_symlink() or source_meta_path.is_symlink():
         raise ValueError(f"capture prompt and metadata must not be symlinks: {capture_dir}")
     prompt_path = ensure_within(source_prompt_path, capture_root, kind="prompt")
@@ -979,22 +998,36 @@ def load_capture(
     )
     sections, tools = parse_prompt(prompt_text)
 
-    trace_path = capture_dir / "trace.jsonl"
+    trace_path = runtime_dir / "trace.jsonl"
     trace: Mapping[str, Any] | None = None
     if trace_path.exists() or trace_path.is_symlink():
         resolved_trace = ensure_within(trace_path, capture_root, kind="trace")
         if trace_path.is_symlink() or not resolved_trace.is_file():
             raise ValueError(f"trace must be a regular file: {trace_path}")
         trace = read_trace(resolved_trace)
-    static_path = capture_dir / "static-prompts.json"
-    has_static_prompts = static_path.exists() or static_path.is_symlink()
+    static_candidates = (
+        (capture_dir / "static-prompts.json", "static-prompts.json"),
+        (capture_dir / "static" / "prompts.json", "static/prompts.json"),
+    )
+    present_static = [
+        (path, subpath)
+        for path, subpath in static_candidates
+        if path.exists() or path.is_symlink()
+    ]
+    if len(present_static) > 1:
+        raise ValueError(f"capture has ambiguous static prompt archives: {capture_dir}")
+    static_path, static_subpath = (
+        present_static[0] if present_static else (capture_dir / "static-prompts.json", None)
+    )
+    has_static_prompts = static_subpath is not None
     links = (
         source_links(
             source_agent,
             version,
             root.ref,
             has_trace=trace is not None,
-            has_static_prompts=has_static_prompts,
+            runtime_subdir=runtime_subdir,
+            static_prompts_subpath=static_subpath,
         )
         if root.kind == "phistory"
         else {
