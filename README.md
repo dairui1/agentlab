@@ -110,6 +110,8 @@ node .codex/skills/agentlab-update-feed/scripts/query-feed.mjs \
 
 项目里也放了一份 [`de-ai-ify`](.codex/skills/de-ai-ify/SKILL.md) skill。研究文章、交互提示、证据说明和报错文案在发布前都要照着它过一遍：少说套话，多讲清楚“哪一步、出了什么事、读者接下来能做什么”。口语化不能拿来糊弄事实，尤其不能编造个人经历，也不能把文件里的静态线索写成已经亲手跑通的结果。
 
+仓库运维使用 [`agentlab-release-ops`](.codex/skills/agentlab-release-ops/SKILL.md) skill。它把每日流水线的 launchd 核查、上游与官方源码同步、AI 队列门禁、安全恢复、测试构建、Wrangler 发布和双域 manifest 验收收在同一套流程里。这个 skill 需要 AgentLab checkout 和本机发布环境，不是面向公开 feed 的只读查询器。
+
 ## 仓库结构
 
 ```text
