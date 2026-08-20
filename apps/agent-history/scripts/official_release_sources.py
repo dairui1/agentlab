@@ -31,6 +31,7 @@ NPM_RELEASE_SOURCES = {
         "label": "DeepSeek Harness",
         "package": "@deepseek-ai/dsh",
         "packageDirectory": "apps/cli",
+        "tagPattern": r"^dsh-v(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)$",
     },
 }
 

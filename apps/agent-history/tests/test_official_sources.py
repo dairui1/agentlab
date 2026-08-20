@@ -112,11 +112,18 @@ class OfficialSourceTests(unittest.TestCase):
             official.source_version_key("2026.7.1-2", agent="openclaw"),
         )
 
-    def test_deepseek_harness_uses_npm_without_entering_github_tag_pipeline(
+    def test_deepseek_harness_combines_npm_publications_with_github_tags(
         self,
     ) -> None:
         self.assertIn("deepseek-harness", official.NPM_RELEASE_SOURCES)
         self.assertNotIn("deepseek-harness", official.GITHUB_RELEASE_SOURCES)
+        tag_pattern = re.compile(
+            str(official.NPM_RELEASE_SOURCES["deepseek-harness"]["tagPattern"])
+        )
+        self.assertEqual(
+            tag_pattern.fullmatch("dsh-v0.1.0-rc.8").group(1),
+            "0.1.0-rc.8",
+        )
         self.assertEqual(
             official.OFFICIAL_REPOSITORIES["deepseek-harness"],
             "deepseek-ai/deepseek-harness",
@@ -462,14 +469,27 @@ class OfficialSourceTests(unittest.TestCase):
                 },
             }
 
-            with mock.patch.object(
-                official, "npm_releases", return_value=[npm_release]
+            with (
+                mock.patch.object(
+                    official, "npm_releases", return_value=[npm_release]
+                ),
+                mock.patch.object(
+                    official,
+                    "enrich_repository_history",
+                    return_value=[npm_release],
+                ) as enrich,
             ):
                 manifest = official.sync(
                     cache_root=root,
                     timeout=1,
                     agents=("deepseek-harness",),
                 )
+
+            enrich.assert_called_once()
+            self.assertEqual(
+                enrich.call_args.kwargs["tag_pattern"].pattern,
+                official.NPM_RELEASE_SOURCES["deepseek-harness"]["tagPattern"],
+            )
 
             self.assertEqual(
                 set(manifest["agents"]), {"codex", "deepseek-harness"}

@@ -1537,12 +1537,30 @@ def sync(
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
         )
-        retained = retained_release_history(
-            normalized_root,
-            agent,
-            complete,
-            previous_value=previous_values.get(agent),
-        )
+        tag_pattern_value = config.get("tagPattern")
+        if isinstance(tag_pattern_value, str):
+            retained = enrich_repository_history(
+                agent=agent,
+                repository=repository,
+                product_name=str(config["label"]),
+                tag_pattern=re.compile(tag_pattern_value),
+                releases=complete,
+                normalized_root=normalized_root,
+                captured_versions=captured.get(agent, ()),
+                cache=cache,
+                max_tag_pages=max_tag_pages,
+                newest_comparisons=max_comparisons,
+                timeout=timeout,
+                allow_stale_on_error=allow_stale_on_error,
+                previous_value=previous_values.get(agent),
+            )
+        else:
+            retained = retained_release_history(
+                normalized_root,
+                agent,
+                complete,
+                previous_value=previous_values.get(agent),
+            )
         normalized_values[agent] = normalized_agent(
             agent=agent,
             repository=repository,
