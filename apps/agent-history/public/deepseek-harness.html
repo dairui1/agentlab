@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="按组合、编排、Context、执行、状态、宿主和兼容性追踪 DeepSeek Harness 的版本演进。">
+  <meta name="description" content="追踪 DeepSeek Harness 的版本演进，以及 awesome-dsh-plugin 的 Top 20 与 Trending 插件。">
   <title>DeepSeek Harness 版本雷达 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
@@ -51,6 +51,26 @@
       <section class="dsh-domain-section" aria-labelledby="domainTitle">
         <div class="dsh-section-heading"><div><span>EVOLUTION PLANES</span><h2 id="domainTitle">Harness 演进平面</h2></div><p>Release 信号按平台职责归位，不再把所有变化压成 Prompt 行数。</p></div>
         <div id="domainGrid" class="dsh-domain-grid"></div>
+      </section>
+
+      <section class="dsh-plugin-section" aria-labelledby="pluginTitle">
+        <div class="dsh-section-heading">
+          <div><span>PLUGIN ECOSYSTEM</span><h2 id="pluginTitle">插件生态雷达</h2></div>
+          <p>榜单来自 awesome-dsh-plugin 的机器可读目录；Stars 看累计影响，30 天下载量看近期使用。</p>
+        </div>
+        <div class="dsh-plugin-toolbar">
+          <div class="segmented dsh-plugin-tabs" role="tablist" aria-label="插件榜单">
+            <button id="pluginTopTab" type="button" role="tab" aria-selected="true" data-plugin-mode="top">Top 20</button>
+            <button id="pluginTrendingTab" type="button" role="tab" aria-selected="false" data-plugin-mode="trending">Trending</button>
+          </div>
+          <div class="dsh-plugin-source">
+            <strong id="pluginCatalogCount">读取中</strong>
+            <span id="pluginSyncDate">等待上游快照</span>
+            <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin" target="_blank" rel="noopener noreferrer">查看源目录 <i data-lucide="external-link" aria-hidden="true"></i></a>
+          </div>
+        </div>
+        <p id="pluginMethod" class="dsh-plugin-method"></p>
+        <ol id="pluginList" class="dsh-plugin-list" aria-live="polite"></ol>
       </section>
 
       <div class="dsh-tracker-layout">

@@ -1607,6 +1607,7 @@ class DailyUpdateTests(unittest.TestCase):
             [
                 "sync upstream",
                 "sync official sources",
+                "sync DSH plugin leaderboards",
                 "sync source-only captures",
                 "build deterministic evidence",
                 "analyze stale changelogs",
@@ -1618,6 +1619,10 @@ class DailyUpdateTests(unittest.TestCase):
             ],
         )
         self.assertIn("--allow-stale-on-error", steps[1].command)
+        plugin_sync = next(
+            step for step in steps if step.name == "sync DSH plugin leaderboards"
+        )
+        self.assertIn("--allow-stale-on-error", plugin_sync.command)
         self.assertIn(str(daily.DEFAULT_OFFICIAL_CACHE_ROOT), steps[1].command)
         resolved_overlay = str(overlay.resolve())
         official_command = steps[1].command
@@ -1630,25 +1635,29 @@ class DailyUpdateTests(unittest.TestCase):
             capture_roots,
             [str(daily.DEFAULT_CACHE_ROOT.resolve() / "upstream"), resolved_overlay],
         )
-        source_command = steps[2].command
+        source_command = next(
+            step.command for step in steps if step.name == "sync source-only captures"
+        )
         self.assertEqual(
             source_command[source_command.index("--overlay-root") + 1], resolved_overlay
         )
-        for index in (3, 5):
-            command = steps[index].command
+        for step_name in ("build deterministic evidence", "merge validated changelogs"):
+            command = next(step.command for step in steps if step.name == step_name)
             self.assertEqual(
                 command[command.index("--capture-overlay-root") + 1], resolved_overlay
             )
+        site_step = next(step for step in steps if step.name == "build site")
         self.assertEqual(
-            steps[7].environment,
+            site_step.environment,
             {
                 "AGENT_HISTORY_CAPTURE_OVERLAY_ROOT": resolved_overlay,
                 "PHISTORY_AGENTS": "all",
             },
         )
-        self.assertFalse(steps[4].required)
-        self.assertTrue(all(step.required for index, step in enumerate(steps) if index != 4))
-        analyze_command = steps[4].command
+        analyze_step = next(step for step in steps if step.name == "analyze stale changelogs")
+        self.assertFalse(analyze_step.required)
+        self.assertTrue(all(step.required for step in steps if step is not analyze_step))
+        analyze_command = analyze_step.command
         self.assertIn("--batch-size", analyze_command)
         self.assertEqual(analyze_command[analyze_command.index("--batch-size") + 1], "1")
         self.assertEqual(analyze_command[analyze_command.index("--jobs") + 1], "8")
@@ -1726,7 +1735,7 @@ class DailyUpdateTests(unittest.TestCase):
         package = json.loads((APP_ROOT / "package.json").read_text(encoding="utf-8"))
         self.assertEqual(
             package["scripts"]["sync"],
-            "npm run sync:phistory && npm run sync:official && npm run sync:source-captures",
+            "npm run sync:phistory && npm run sync:official && npm run sync:source-captures && npm run sync:dsh-plugins",
         )
         command = package["scripts"]["build:data"]
         self.assertIn("--capture-overlay-root", command)
@@ -1742,6 +1751,10 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertIn(".cache/official-sources/normalized", source_command)
         self.assertIn(".cache/phistory/upstream", source_command)
         self.assertIn(".cache/agentlab-captures", source_command)
+
+        plugin_command = package["scripts"]["sync:dsh-plugins"]
+        self.assertIn("sync_dsh_plugins.py", plugin_command)
+        self.assertIn("--allow-stale-on-error", plugin_command)
 
     def test_optional_analyzer_failure_continues_pipeline(self):
         with tempfile.TemporaryDirectory() as raw:

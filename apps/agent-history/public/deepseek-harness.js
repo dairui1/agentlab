@@ -4,7 +4,8 @@
   const core = window.deepSeekHarnessCore;
   const $ = (id) => document.getElementById(id);
   const importanceLabels = { high: "高影响", medium: "中影响", low: "低影响", none: "发布记录" };
-  const state = { history: null, changelog: null, selected: "" };
+  const state = { history: null, changelog: null, plugins: null, pluginMode: "top", selected: "" };
+  const numberFormatter = new Intl.NumberFormat("zh-CN", { notation: "compact", maximumFractionDigits: 1 });
 
   function dateLabel(value) {
     const date = new Date(value || "");
@@ -55,6 +56,58 @@
       item.append(icon, label, count, copy);
       return item;
     }));
+  }
+
+  function renderPluginLeaderboard() {
+    const leaderboard = state.plugins?.leaderboards?.[state.pluginMode];
+    if (!leaderboard) return;
+    const catalog = state.plugins.catalog;
+    const source = state.plugins.source;
+    $("pluginCatalogCount").textContent = `${catalog.pluginCount.toLocaleString("zh-CN")} 个插件 · ${catalog.categoryCount} 类`;
+    const checkedAt = state.pluginMode === "top" ? source.starsCheckedAt : source.downloadsCheckedAt;
+    $("pluginSyncDate").textContent = `${state.pluginMode === "top" ? "Stars" : "Downloads"} 数据 ${checkedAt || source.catalogUpdated || "日期未知"}`;
+    $("pluginMethod").textContent = leaderboard.method;
+    document.querySelectorAll("[data-plugin-mode]").forEach((button) => {
+      button.setAttribute("aria-selected", String(button.dataset.pluginMode === state.pluginMode));
+    });
+    $("pluginList").replaceChildren(...leaderboard.items.map((plugin) => {
+      const item = document.createElement("li");
+      item.className = "dsh-plugin-row";
+      const rank = document.createElement("span");
+      rank.className = "dsh-plugin-rank";
+      rank.textContent = String(plugin.rank).padStart(2, "0");
+      const identity = document.createElement("div");
+      identity.className = "dsh-plugin-identity";
+      const link = document.createElement("a");
+      link.href = plugin.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = plugin.name;
+      const description = document.createElement("p");
+      description.textContent = plugin.description?.zh || plugin.description?.en || "暂无简介";
+      identity.append(link, description);
+      const category = document.createElement("span");
+      category.className = "dsh-plugin-category";
+      category.textContent = catalog.categories[plugin.category] || plugin.category;
+      const stars = document.createElement("span");
+      stars.className = "dsh-plugin-stat";
+      stars.innerHTML = `<i data-lucide="star" aria-hidden="true"></i><b>${numberFormatter.format(plugin.stars || 0)}</b><small>Stars</small>`;
+      const downloads = document.createElement("span");
+      downloads.className = "dsh-plugin-stat";
+      downloads.innerHTML = plugin.downloads == null
+        ? `<i data-lucide="download" aria-hidden="true"></i><b>—</b><small>30 天下载</small>`
+        : `<i data-lucide="download" aria-hidden="true"></i><b>${numberFormatter.format(plugin.downloads)}</b><small>30 天下载</small>`;
+      item.append(rank, identity, category, stars, downloads);
+      return item;
+    }));
+    refreshIcons();
+  }
+
+  function renderPluginUnavailable(message) {
+    $("pluginCatalogCount").textContent = "插件榜单暂不可用";
+    $("pluginSyncDate").textContent = "Release 追踪不受影响";
+    $("pluginMethod").textContent = message;
+    $("pluginList").replaceChildren();
   }
 
   function renderReleaseList() {
@@ -190,6 +243,11 @@
 
   async function boot() {
     try {
+      const pluginRequest = fetch("/data/deepseek-harness/plugins.json")
+        .then((response) => {
+          if (!response.ok) throw new Error(`插件榜单 HTTP ${response.status}`);
+          return response.json();
+        });
       const [historyResponse, changelogResponse] = await Promise.all([
         fetch("/data/agents/deepseek-harness/history.json"),
         fetch("/data/agents/deepseek-harness/changelog.json"),
@@ -202,6 +260,18 @@
       renderOverview();
       renderReleaseList();
       renderInspector();
+      try {
+        state.plugins = await pluginRequest;
+        renderPluginLeaderboard();
+      } catch (error) {
+        renderPluginUnavailable(error.message);
+      }
+      $("pluginTopTab").parentElement.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-plugin-mode]");
+        if (!button || !state.plugins) return;
+        state.pluginMode = button.dataset.pluginMode;
+        renderPluginLeaderboard();
+      });
       $("releaseList").addEventListener("click", (event) => {
         const button = event.target.closest("[data-version]");
         if (!button) return;
