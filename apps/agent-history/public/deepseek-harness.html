@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="追踪 DeepSeek Harness 的版本演进，以及 awesome-dsh-plugin 的 Top 20 与 Trending 插件。">
+  <meta name="description" content="追踪 DeepSeek Harness 的版本演进，并从能力层面理解 DSH 插件生态。">
   <title>DeepSeek Harness 版本雷达 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
@@ -55,22 +55,18 @@
 
       <section class="dsh-plugin-section" aria-labelledby="pluginTitle">
         <div class="dsh-section-heading">
-          <div><span>PLUGIN ECOSYSTEM</span><h2 id="pluginTitle">插件生态雷达</h2></div>
-          <p>榜单来自 awesome-dsh-plugin 的机器可读目录；Stars 看累计影响，30 天下载量看近期使用。</p>
+          <div><span>PLUGIN CAPABILITY MAP</span><h2 id="pluginTitle">插件作用地图</h2></div>
+          <p>不做实时排名，只看插件把 Harness 的能力边界扩展到了哪里。</p>
         </div>
-        <div class="dsh-plugin-toolbar">
-          <div class="segmented dsh-plugin-tabs" role="tablist" aria-label="插件榜单">
-            <button id="pluginTopTab" type="button" role="tab" aria-selected="true" data-plugin-mode="top">Top 20</button>
-            <button id="pluginTrendingTab" type="button" role="tab" aria-selected="false" data-plugin-mode="trending">Trending</button>
+        <div class="dsh-plugin-intro">
+          <div>
+            <strong>插件是 DSH 的能力组合层</strong>
+            <p>它们可以改造界面，也可以接入 Memory、模型、工具、工作流和远程宿主。不同类型对应不同的权限、状态和失败边界。</p>
           </div>
-          <div class="dsh-plugin-source">
-            <strong id="pluginCatalogCount">读取中</strong>
-            <span id="pluginSyncDate">等待上游快照</span>
-            <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin" target="_blank" rel="noopener noreferrer">查看源目录 <i data-lucide="external-link" aria-hidden="true"></i></a>
-          </div>
+          <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin" target="_blank" rel="noopener noreferrer">浏览 awesome-dsh-plugin <i data-lucide="external-link" aria-hidden="true"></i></a>
         </div>
-        <p id="pluginMethod" class="dsh-plugin-method"></p>
-        <ol id="pluginList" class="dsh-plugin-list" aria-live="polite"></ol>
+        <div id="pluginCapabilityGrid" class="dsh-plugin-capability-grid"></div>
+        <p class="dsh-plugin-boundary"><strong>边界：</strong>目录收录不等于安全审查。安装前仍需检查 Plugin 声明、Tool 权限、网络访问、凭据读取、持久化与卸载行为。</p>
       </section>
 
       <div class="dsh-tracker-layout">

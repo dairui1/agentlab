@@ -6,11 +6,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "sync": "npm run sync:phistory && npm run sync:official && npm run sync:source-captures && npm run sync:dsh-plugins",
+    "sync": "npm run sync:phistory && npm run sync:official && npm run sync:source-captures",
     "sync:phistory": "python3 scripts/sync_phistory.py --cache-root .cache/phistory",
     "sync:official": "python3 scripts/sync_official_sources.py --cache-root .cache/official-sources --allow-stale-on-error --capture-root .cache/phistory/upstream --capture-root \"${AGENT_HISTORY_CAPTURE_OVERLAY_ROOT:-.cache/agentlab-captures}\"",
     "sync:source-captures": "python3 scripts/sync_source_captures.py --official-root .cache/official-sources/normalized --phistory-root .cache/phistory/upstream --overlay-root \"${AGENT_HISTORY_CAPTURE_OVERLAY_ROOT:-.cache/agentlab-captures}\"",
-    "sync:dsh-plugins": "python3 scripts/sync_dsh_plugins.py --allow-stale-on-error",
     "build:data": "python3 scripts/build_from_phistory.py --phistory-root .cache/phistory/upstream --capture-overlay-root \"${AGENT_HISTORY_CAPTURE_OVERLAY_ROOT:-.cache/agentlab-captures}\" --public-root public --analysis-root analysis --agents \"${PHISTORY_AGENTS:-all}\"",
     "analyze": "python3 scripts/analyze_changelogs.py --analysis-root analysis",
     "local": "python3 scripts/daily_update.py --require-codex --agents codex --max-releases 5",

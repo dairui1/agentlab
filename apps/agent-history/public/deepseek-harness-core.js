@@ -15,6 +15,72 @@
     { id: "reliability", label: "可靠性与兼容", icon: "shield-check", pattern: /修复|fix|失败|兼容|incompatible|性能|载荷|取消|截断|retry/i },
   ];
 
+  const pluginCapabilities = [
+    {
+      id: "workspace",
+      icon: "panels-top-left",
+      layer: "SURFACE",
+      title: "工作台与交互界面",
+      description: "扩展侧栏、终端、任务面板、移动端入口、主题和状态反馈，让 DSH 从聊天界面变成可操作的工程工作台。",
+      forms: ["UI 增强", "主题与外观", "远程与移动端"],
+      boundary: "浏览器宿主兼容、前端资源隔离与升级后的 UI API 稳定性。",
+    },
+    {
+      id: "memory",
+      icon: "brain-circuit",
+      layer: "CONTEXT",
+      title: "Memory 与 Context",
+      description: "在回合前召回项目知识，在回合后保存经验，或把文档、会话和仓库信息组织成可检索的长期 Context。",
+      forms: ["长期记忆", "项目上下文", "会话引用"],
+      boundary: "注入内容的来源、作用域、过期策略、隐私和 Context 膨胀。",
+    },
+    {
+      id: "multimodal",
+      icon: "scan-eye",
+      layer: "INPUT / OUTPUT",
+      title: "视觉、语音与文档",
+      description: "为文本模型补上看图、OCR、语音输入输出、截图理解、文档解析和结果渲染能力。",
+      forms: ["视觉桥接", "语音与音频", "文档渲染"],
+      boundary: "媒体是否离开本机、第三方服务配额、文件大小和多轮载荷。",
+    },
+    {
+      id: "tools",
+      icon: "wrench",
+      layer: "TOOLS",
+      title: "工具与外部系统",
+      description: "把浏览器、搜索、Git、通知、企业通信和垂直 API 变成 Agent 可调用的 Tool，扩展可执行动作集合。",
+      forms: ["Browser 与网页", "Git 与评审", "通知与集成"],
+      boundary: "Tool Schema、授权粒度、网络出口、幂等性和外部副作用。",
+    },
+    {
+      id: "workflow",
+      icon: "workflow",
+      layer: "ORCHESTRATION",
+      title: "工作流与 Agent 编排",
+      description: "提供任务 DAG、多 Agent 协作、审批门、交接、验证收据和领域流程，把单回合执行组织成长任务。",
+      forms: ["Agent Teams", "任务工作流", "技能包"],
+      boundary: "子任务权限继承、失败传播、取消、结算顺序和恢复语义。",
+    },
+    {
+      id: "model",
+      icon: "route",
+      layer: "MODEL ACCESS",
+      title: "模型、身份与用量",
+      description: "接入不同模型和账号，提供路由、余额、Token、成本与配额视图，并处理身份和消息桥接。",
+      forms: ["模型接入", "身份与通信", "用量与计费"],
+      boundary: "凭据存放、请求代理、模型能力差异、计费口径与故障降级。",
+    },
+    {
+      id: "runtime",
+      icon: "shield-check",
+      layer: "RUNTIME",
+      title: "运行时、安全与管理",
+      description: "增强沙箱、权限检查、Telemetry 脱敏、运行诊断、插件安装更新和开发调试能力。",
+      forms: ["安全与权限", "开发与运行时", "插件市场"],
+      boundary: "插件本身运行在什么信任域，以及启停、升级、卸载能否完整回收状态。",
+    },
+  ];
+
   function officialNotes(entry) {
     return String(entry?.layers?.official?.release?.notes?.text || "");
   }
@@ -63,5 +129,5 @@
     ]));
   }
 
-  return { domains, classifyEntry, chineseReleaseSections, codeChange, domainCounts, officialNotes, searchableText };
+  return { domains, pluginCapabilities, classifyEntry, chineseReleaseSections, codeChange, domainCounts, officialNotes, searchableText };
 });

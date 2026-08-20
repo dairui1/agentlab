@@ -272,15 +272,6 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         [
             Step("sync upstream", tuple(sync), APP_ROOT),
             Step("sync official sources", tuple(sync_official), APP_ROOT),
-            Step(
-                "sync DSH plugin leaderboards",
-                (
-                    python,
-                    str(SCRIPTS / "sync_dsh_plugins.py"),
-                    "--allow-stale-on-error",
-                ),
-                APP_ROOT,
-            ),
         ]
     )
     if source_agents:
