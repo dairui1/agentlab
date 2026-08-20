@@ -63,7 +63,8 @@ test("runtime placeholders cannot enter the actual-request diff viewer", () => {
   assert.match(app, /outlineVersion\.textContent = `\$\{displayVersion\(state\.right\)\} · Runtime Prompt 未公开`/);
   assert.match(app, /sectionCount\.textContent = "0 项"/);
   assert.match(app, /selectedSectionLabel\.textContent = "Runtime Prompt 未公开捕获"/);
-  assert.match(app, /setStats\(\{ hunks: 0, additions: 0, deletions: 0 \}\)/);
+  assert.match(app, /setStats\(\{ available: false \}\)/);
+  assert.match(app, /if \(stats\.available === false\)/);
   assert.ok(
     app.indexOf("if (promptUnavailable)") < app.indexOf('setEditorPlaceholder("正在加载实际请求"'),
     "availability must be checked before prompt fetching",

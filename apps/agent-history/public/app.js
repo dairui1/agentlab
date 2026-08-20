@@ -1334,6 +1334,12 @@
   }
 
   function setStats(stats) {
+    if (stats.available === false) {
+      elements.hunkCount.textContent = "—";
+      elements.additionCount.textContent = "—";
+      elements.deletionCount.textContent = "—";
+      return;
+    }
     elements.hunkCount.textContent = formatNumber(stats.hunks);
     elements.additionCount.textContent = formatNumber(stats.additions);
     elements.deletionCount.textContent = formatNumber(stats.deletions);
@@ -1635,7 +1641,7 @@
     );
     if (promptUnavailable) {
       disposeModels();
-      setStats({ hunks: 0, additions: 0, deletions: 0 });
+      setStats({ available: false });
       elements.promptMeta.textContent = "Runtime Prompt 未公开捕获";
       setEditorPlaceholder(
         "所选版本至少一侧没有公开的 Runtime Prompt 捕获，无法生成实际请求差异。",
