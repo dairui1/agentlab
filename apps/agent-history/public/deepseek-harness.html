@@ -41,34 +41,6 @@
         </div>
       </header>
 
-      <section class="dsh-status-band" aria-label="追踪状态">
-        <div><span>Release</span><strong id="releaseCount">—</strong><small>已收录版本</small></div>
-        <div><span>Official Notes</span><strong id="notesCount">—</strong><small>官方正文</small></div>
-        <div><span>Code Compare</span><strong id="compareCount">—</strong><small>代码比较</small></div>
-        <div><span>Runtime Capture</span><strong id="runtimeCount">—</strong><small>请求快照</small></div>
-      </section>
-
-      <section class="dsh-domain-section" aria-labelledby="domainTitle">
-        <div class="dsh-section-heading"><div><span>EVOLUTION PLANES</span><h2 id="domainTitle">Harness 演进平面</h2></div><p>Release 信号按平台职责归位，不再把所有变化压成 Prompt 行数。</p></div>
-        <div id="domainGrid" class="dsh-domain-grid"></div>
-      </section>
-
-      <section class="dsh-plugin-section" aria-labelledby="pluginTitle">
-        <div class="dsh-section-heading">
-          <div><span>PLUGIN CAPABILITY MAP</span><h2 id="pluginTitle">插件作用地图</h2></div>
-          <p>不做实时排名，只看插件把 Harness 的能力边界扩展到了哪里。</p>
-        </div>
-        <div class="dsh-plugin-intro">
-          <div>
-            <strong>插件是 DSH 的能力组合层</strong>
-            <p>它们可以改造界面，也可以接入 Memory、模型、工具、工作流和远程宿主。不同类型对应不同的权限、状态和失败边界。</p>
-          </div>
-          <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin" target="_blank" rel="noopener noreferrer">浏览 awesome-dsh-plugin <i data-lucide="external-link" aria-hidden="true"></i></a>
-        </div>
-        <div id="pluginCapabilityGrid" class="dsh-plugin-capability-grid"></div>
-        <p class="dsh-plugin-boundary"><strong>边界：</strong>目录收录不等于安全审查。安装前仍需检查 Plugin 声明、Tool 权限、网络访问、凭据读取、持久化与卸载行为。</p>
-      </section>
-
       <div class="dsh-tracker-layout">
         <aside class="dsh-release-rail" aria-labelledby="releaseRailTitle">
           <div class="dsh-rail-heading"><span>RELEASE STREAM</span><h2 id="releaseRailTitle">版本流</h2></div>
@@ -100,6 +72,41 @@
           </section>
         </article>
       </div>
+
+      <section class="dsh-plugin-section" aria-labelledby="pluginTitle">
+        <div class="dsh-section-heading">
+          <div><span>PLUGIN CAPABILITY MAP</span><h2 id="pluginTitle">插件作用地图</h2></div>
+          <p>不做实时排名，只看插件把 Harness 的能力边界扩展到了哪里。</p>
+        </div>
+        <div class="dsh-plugin-intro">
+          <div>
+            <strong>插件是 DSH 的能力组合层</strong>
+            <p>它们可以改造界面，也可以接入 Memory、模型、工具、工作流和远程宿主。不同类型对应不同的权限、状态和失败边界。</p>
+          </div>
+          <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin" target="_blank" rel="noopener noreferrer">浏览 awesome-dsh-plugin <i data-lucide="external-link" aria-hidden="true"></i></a>
+        </div>
+        <div id="pluginCapabilityGrid" class="dsh-plugin-capability-grid"></div>
+        <p class="dsh-plugin-boundary"><strong>边界：</strong>目录收录不等于安全审查。安装前仍需检查 Plugin 声明、Tool 权限、网络访问、凭据读取、持久化与卸载行为。</p>
+      </section>
+
+      <details id="trackingCoverage" class="dsh-tracking-coverage">
+        <summary>
+          <span><i data-lucide="sliders-horizontal" aria-hidden="true"></i><strong>追踪口径</strong><small>Release 覆盖、证据数量与演进分类</small></span>
+          <i data-lucide="chevron-down" aria-hidden="true"></i>
+        </summary>
+        <div class="dsh-coverage-content">
+          <section class="dsh-status-band" aria-label="追踪状态">
+            <div><span>Release</span><strong id="releaseCount">—</strong><small>已收录版本</small></div>
+            <div><span>Official Notes</span><strong id="notesCount">—</strong><small>官方正文</small></div>
+            <div><span>Code Compare</span><strong id="compareCount">—</strong><small>代码比较</small></div>
+            <div><span>Runtime Capture</span><strong id="runtimeCount">—</strong><small>请求快照</small></div>
+          </section>
+          <section class="dsh-domain-section" aria-labelledby="domainTitle">
+            <div class="dsh-section-heading"><div><span>EVOLUTION PLANES</span><h2 id="domainTitle">Harness 演进平面</h2></div><p>Release 信号按平台职责归位，不把所有变化压成 Prompt 行数。</p></div>
+            <div id="domainGrid" class="dsh-domain-grid"></div>
+          </section>
+        </div>
+      </details>
     </main>
   </div>
 

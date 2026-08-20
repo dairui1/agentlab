@@ -34,6 +34,19 @@ test("DSH plugin section explains capability roles without a live leaderboard", 
   assert.doesNotMatch(tracker, /plugins\.json|pluginMode/);
 });
 
+test("release facts lead while low-value coverage metrics stay collapsed", () => {
+  const trackerIndex = html.indexOf('class="dsh-tracker-layout"');
+  const pluginIndex = html.indexOf('class="dsh-plugin-section"');
+  const coverageIndex = html.indexOf('id="trackingCoverage"');
+  assert.ok(trackerIndex > 0);
+  assert.ok(trackerIndex < pluginIndex);
+  assert.ok(pluginIndex < coverageIndex);
+  const coverage = html.slice(coverageIndex, html.indexOf("</details>", coverageIndex));
+  assert.match(coverage, /class="dsh-status-band"/);
+  assert.match(coverage, /id="domainGrid"/);
+  assert.doesNotMatch(html, /<details[^>]*\sopen(?:\s|>)/);
+});
+
 test("release classification keeps DSH cross-plane changes visible", () => {
   const entry = {
     title: "Profile Bundle and persistent PowerShell",
