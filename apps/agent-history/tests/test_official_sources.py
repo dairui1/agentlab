@@ -576,7 +576,16 @@ class OfficialSourceTests(unittest.TestCase):
                 },
             }
 
-            with mock.patch.object(official, "npm_releases", return_value=[npm_release]):
+            with (
+                mock.patch.object(
+                    official, "npm_releases", return_value=[npm_release]
+                ),
+                mock.patch.object(
+                    official,
+                    "enrich_repository_history",
+                    return_value=[npm_release],
+                ),
+            ):
                 manifest = official.sync(
                     cache_root=root,
                     timeout=1,
