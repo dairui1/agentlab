@@ -691,6 +691,11 @@
   }
 
   function comparisonHref(item) {
+    if (item.agent.id === "deepseek-harness") {
+      const dedicated = new URL("/deepseek-harness.html", window.location.origin);
+      dedicated.searchParams.set("version", item.entry.version);
+      return dedicated.href;
+    }
     const url = new URL(window.location.href);
     const values = {
       mode: "compare",

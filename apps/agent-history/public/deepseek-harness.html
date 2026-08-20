@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="按组合、编排、Context、执行、状态、宿主和兼容性追踪 DeepSeek Harness 的版本演进。">
+  <title>DeepSeek Harness 版本雷达 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/deepseek-harness.css">
+</head>
+<body class="dsh-page">
+  <div class="app-shell dsh-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>Harness 追踪</span></span>
+      </a>
+      <nav class="segmented mode-switch" aria-label="页面视图">
+        <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
+        <a href="/?mode=compare&agent=deepseek-harness"><i data-lucide="file-diff" aria-hidden="true"></i><span>请求比较</span></a>
+        <a href="/deepseek-harness.html" aria-current="page"><i data-lucide="radar" aria-hidden="true"></i><span>DSH 雷达</span></a>
+        <a href="/capabilities/deepseek-harness-architecture.html"><i data-lucide="library" aria-hidden="true"></i><span>架构研究</span></a>
+      </nav>
+      <div class="header-links">
+        <a class="icon-button" href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener noreferrer" aria-label="打开 DeepSeek Harness GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
+      </div>
+    </header>
+
+    <main class="dsh-main">
+      <header class="dsh-product-header">
+        <div class="dsh-product-identity">
+          <img src="/agent-icons/deepseek-harness.svg" alt="" aria-hidden="true">
+          <div><span>PLATFORM RELEASE INTELLIGENCE</span><h1>DeepSeek Harness</h1><p>组合、运行、持久化与宿主界面的版本演进</p></div>
+        </div>
+        <div class="dsh-current-release">
+          <span>当前追踪</span>
+          <strong id="latestVersion">读取中</strong>
+          <time id="latestDate"></time>
+        </div>
+      </header>
+
+      <section class="dsh-status-band" aria-label="追踪状态">
+        <div><span>Release</span><strong id="releaseCount">—</strong><small>已收录版本</small></div>
+        <div><span>Official Notes</span><strong id="notesCount">—</strong><small>官方正文</small></div>
+        <div><span>Code Compare</span><strong id="compareCount">—</strong><small>代码比较</small></div>
+        <div><span>Runtime Capture</span><strong id="runtimeCount">—</strong><small>请求快照</small></div>
+      </section>
+
+      <section class="dsh-domain-section" aria-labelledby="domainTitle">
+        <div class="dsh-section-heading"><div><span>EVOLUTION PLANES</span><h2 id="domainTitle">Harness 演进平面</h2></div><p>Release 信号按平台职责归位，不再把所有变化压成 Prompt 行数。</p></div>
+        <div id="domainGrid" class="dsh-domain-grid"></div>
+      </section>
+
+      <div class="dsh-tracker-layout">
+        <aside class="dsh-release-rail" aria-labelledby="releaseRailTitle">
+          <div class="dsh-rail-heading"><span>RELEASE STREAM</span><h2 id="releaseRailTitle">版本流</h2></div>
+          <div id="releaseList" class="dsh-release-list"></div>
+        </aside>
+
+        <article id="releaseInspector" class="dsh-release-inspector" aria-live="polite">
+          <header class="dsh-inspector-header">
+            <div><span id="selectedDate" class="dsh-selected-date">—</span><h2 id="selectedTitle">正在读取版本证据</h2><p id="selectedSummary"></p></div>
+            <span id="selectedImportance" class="dsh-importance">—</span>
+          </header>
+
+          <div id="selectedDomains" class="dsh-selected-domains" aria-label="涉及平面"></div>
+
+          <section class="dsh-release-facts" aria-labelledby="releaseFactsTitle">
+            <div class="dsh-subheading"><h3 id="releaseFactsTitle">版本事实</h3><span>官方说明优先</span></div>
+            <div id="officialSections" class="dsh-official-sections"></div>
+            <ul id="analysisHighlights" class="dsh-analysis-highlights"></ul>
+          </section>
+
+          <section class="dsh-evidence-ledger" aria-labelledby="evidenceLedgerTitle">
+            <div class="dsh-subheading"><h3 id="evidenceLedgerTitle">证据账本</h3><span>每层单独标注</span></div>
+            <div id="evidenceLedger" class="dsh-evidence-grid"></div>
+          </section>
+
+          <section class="dsh-compatibility" aria-labelledby="compatibilityTitle">
+            <div class="dsh-subheading"><h3 id="compatibilityTitle">兼容性边界</h3><span>升级前检查</span></div>
+            <div id="compatibilityList" class="dsh-compatibility-list"></div>
+          </section>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
+  <script src="/deepseek-harness-core.js"></script>
+  <script src="/deepseek-harness.js"></script>
+</body>
+</html>
