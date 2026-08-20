@@ -26,12 +26,33 @@ GITHUB_RELEASE_SOURCES = {
 }
 
 NPM_RELEASE_SOURCES = {
+    "grok": {
+        "repository": "xai-org/grok-build",
+        "label": "Grok Build",
+        "package": "@xai-official/grok",
+        # The package does not declare repository metadata. The official source
+        # mirror is instead linked by xAI and synced from its monorepo.
+        "requireRepositoryMetadata": False,
+        "sourceSnapshotAfterPublish": True,
+    },
     "deepseek-harness": {
         "repository": "deepseek-ai/deepseek-harness",
         "label": "DeepSeek Harness",
         "package": "@deepseek-ai/dsh",
         "packageDirectory": "apps/cli",
         "tagPattern": r"^dsh-v(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)$",
+        "githubReleaseNotes": True,
+        "includePrereleases": True,
+    },
+}
+
+# Every catalog agent must either have official source intelligence above or
+# be explicitly classified here. This prevents a newly-added open-source agent
+# from silently falling back to Phistory-only evidence.
+NO_PUBLIC_SOURCE_AGENTS = {
+    "minimax-code": {
+        "reason": "official-repository-is-issue-tracker-only",
+        "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
     },
 }
 
@@ -80,7 +101,11 @@ SOURCE_CAPTURE_SOURCES = {
             "repository": str(config["repository"]),
             "label": str(config["label"]),
             "package": str(config["package"]),
-            "packageDirectory": str(config["packageDirectory"]),
+            **(
+                {"packageDirectory": str(config["packageDirectory"])}
+                if config.get("packageDirectory") is not None
+                else {}
+            ),
         }
         for agent, config in NPM_RELEASE_SOURCES.items()
     },

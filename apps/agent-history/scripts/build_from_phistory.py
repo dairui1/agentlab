@@ -27,6 +27,7 @@ from urllib.parse import quote, urlsplit
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import (
     NPM_RELEASE_SOURCES,
+    NO_PUBLIC_SOURCE_AGENTS,
     OFFICIAL_REPOSITORIES,
     SOURCE_CODE_COMPARISON_WINDOW,
     canonical_agent_id,
@@ -82,7 +83,7 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
     "grok": {
         "label": "Grok Build",
         "description": "xAI Grok Build Runtime Prompt 与工具的版本历史。",
-        "projectUrl": "https://www.npmjs.com/package/@xai-official/grok",
+        "projectUrl": "https://github.com/xai-org/grok-build",
     },
     "kimi-code": {
         "label": "Kimi Code",
@@ -148,6 +149,10 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "label": "Reasonix",
         "description": "Reasonix Coding Agent 的官方发布与 Agent 设计变更历史。",
         "projectUrl": "https://github.com/esengine/DeepSeek-Reasonix",
+    },
+    "minimax-code": {
+        "label": "MiniMax Code",
+        "description": "MiniMax Code Runtime Prompt 与工具的版本历史。",
     },
 }
 

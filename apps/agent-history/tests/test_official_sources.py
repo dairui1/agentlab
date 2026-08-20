@@ -128,6 +128,66 @@ class OfficialSourceTests(unittest.TestCase):
             official.OFFICIAL_REPOSITORIES["deepseek-harness"],
             "deepseek-ai/deepseek-harness",
         )
+        self.assertTrue(
+            official.NPM_RELEASE_SOURCES["deepseek-harness"]["githubReleaseNotes"]
+        )
+        self.assertTrue(
+            official.NPM_RELEASE_SOURCES["deepseek-harness"]["includePrereleases"]
+        )
+
+    def test_grok_combines_npm_publications_with_source_snapshots(self) -> None:
+        config = official.NPM_RELEASE_SOURCES["grok"]
+
+        self.assertEqual(config["repository"], "xai-org/grok-build")
+        self.assertEqual(config["package"], "@xai-official/grok")
+        self.assertFalse(config["requireRepositoryMetadata"])
+        self.assertTrue(config["sourceSnapshotAfterPublish"])
+        self.assertEqual(
+            official.NO_PUBLIC_SOURCE_AGENTS,
+            {
+                "minimax-code": {
+                    "reason": "official-repository-is-issue-tracker-only",
+                    "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
+                }
+            },
+        )
+
+    def test_aligns_untagged_source_sync_to_latest_prior_publication(self) -> None:
+        releases = [
+            {"version": "1.0.4", "publishedAt": "2026-08-13T20:20:06Z"},
+            {"version": "1.0.5", "publishedAt": "2026-08-16T00:25:35Z"},
+            {"version": "1.0.6", "publishedAt": "2026-08-18T19:25:15Z"},
+        ]
+        commits = [
+            {"sha": "a" * 40, "committedAt": "2026-08-13T18:26:29Z"},
+            {"sha": "b" * 40, "committedAt": "2026-08-15T15:14:48Z"},
+            {"sha": "c" * 40, "committedAt": "2026-08-16T19:00:58Z"},
+            {"sha": "d" * 40, "committedAt": "2026-08-19T19:55:30Z"},
+        ]
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(
+            official, "github_commits", return_value=commits
+        ), mock.patch.object(official, "attach_code_compares"):
+            retained = official.enrich_repository_snapshots(
+                agent="grok",
+                repository="xai-org/grok-build",
+                releases=releases,
+                normalized_root=Path(directory),
+                captured_versions=("1.0.4", "1.0.5", "1.0.6"),
+                cache=mock.Mock(),
+                max_commit_pages=1,
+                newest_comparisons=1,
+                timeout=1,
+                allow_stale_on_error=False,
+            )
+
+        by_version = {release["version"]: release for release in retained}
+        self.assertEqual(by_version["1.0.4"]["commitSha"], "b" * 40)
+        self.assertEqual(by_version["1.0.5"]["commitSha"], "c" * 40)
+        self.assertEqual(by_version["1.0.6"]["commitSha"], "d" * 40)
+        self.assertEqual(
+            by_version["1.0.5"]["repositorySnapshot"]["alignment"],
+            "first-source-sync-after-publication",
+        )
 
     def test_normalizes_npm_publications_without_claiming_source_code_diffs(
         self,
@@ -186,6 +246,60 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(latest["notes"]["originalBytes"], 0)
         self.assertNotIn("codeChange", latest)
         self.assertNotIn("commitSha", latest)
+
+    def test_github_release_parser_can_include_prerelease_notes(self) -> None:
+        body = json.dumps(
+            [
+                {
+                    "tag_name": "dsh-v0.1.0-rc.8",
+                    "name": "v0.1.0-rc.8",
+                    "body": "### New Features\n\n- Add native image requests.",
+                    "html_url": "https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.0-rc.8",
+                    "published_at": "2026-08-19T15:37:00Z",
+                    "draft": False,
+                    "prerelease": True,
+                }
+            ]
+        ).encode()
+
+        releases = official.github_releases(
+            FakeCache(body),
+            repository="deepseek-ai/deepseek-harness",
+            tag_pattern=re.compile(
+                official.NPM_RELEASE_SOURCES["deepseek-harness"]["tagPattern"]
+            ),
+            product_name="DeepSeek Harness",
+            max_pages=1,
+            timeout=1,
+            allow_stale_on_error=False,
+            include_prereleases=True,
+        )
+
+        self.assertEqual([release["version"] for release in releases], ["0.1.0-rc.8"])
+        self.assertIn("native image requests", releases[0]["notes"]["text"])
+        self.assertEqual(releases[0]["notes"]["sourceKind"], "github-release")
+
+    def test_official_release_notes_overlay_preserves_npm_artifact(self) -> None:
+        package_release = {
+            "version": "0.1.0-rc.8",
+            "sourceUrl": "https://www.npmjs.com/package/@deepseek-ai/dsh/v/0.1.0-rc.8",
+            "artifact": {"scope": "published-package-only"},
+            "notes": {"sourceKind": "npm-publication", "text": ""},
+        }
+        github_release = {
+            "version": "0.1.0-rc.8",
+            "tag": "dsh-v0.1.0-rc.8",
+            "sourceUrl": "https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.0-rc.8",
+            "notes": {"sourceKind": "github-release", "text": "Release notes"},
+        }
+
+        merged = official.merge_release_histories(
+            [package_release], [github_release]
+        )[0]
+
+        self.assertEqual(merged["artifact"], {"scope": "published-package-only"})
+        self.assertEqual(merged["notes"]["sourceKind"], "github-release")
+        self.assertEqual(merged["tag"], "dsh-v0.1.0-rc.8")
 
     def test_parses_claude_changelog_by_exact_semver_heading(self) -> None:
         text = (FIXTURES / "official_claude_changelog.md").read_text(encoding="utf-8")
@@ -474,6 +588,9 @@ class OfficialSourceTests(unittest.TestCase):
                     official, "npm_releases", return_value=[npm_release]
                 ),
                 mock.patch.object(
+                    official, "github_releases", return_value=[]
+                ),
+                mock.patch.object(
                     official,
                     "enrich_repository_history",
                     return_value=[npm_release],
@@ -579,6 +696,9 @@ class OfficialSourceTests(unittest.TestCase):
             with (
                 mock.patch.object(
                     official, "npm_releases", return_value=[npm_release]
+                ),
+                mock.patch.object(
+                    official, "github_releases", return_value=[]
                 ),
                 mock.patch.object(
                     official,

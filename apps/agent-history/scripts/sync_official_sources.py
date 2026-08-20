@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import (
     GITHUB_RELEASE_SOURCES,
     NPM_RELEASE_SOURCES,
+    NO_PUBLIC_SOURCE_AGENTS,
     OFFICIAL_REPOSITORIES,
     SOURCE_CODE_COMPARISON_WINDOW,
 )
@@ -530,6 +531,27 @@ def minimize_github_tags(body: bytes) -> bytes:
     return canonical_json(minimized)
 
 
+def minimize_github_commits(body: bytes) -> bytes:
+    value = json.loads(body.decode("utf-8"))
+    if not isinstance(value, list):
+        raise ValueError("GitHub commits response is not an array")
+    minimized = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            continue
+        commit = raw.get("commit")
+        committer = commit.get("committer") if isinstance(commit, dict) else None
+        minimized.append(
+            {
+                "sha": raw.get("sha"),
+                "committedAt": (
+                    committer.get("date") if isinstance(committer, dict) else None
+                ),
+            }
+        )
+    return canonical_json(minimized)
+
+
 def minimize_npm_package(body: bytes) -> bytes:
     value = json.loads(body.decode("utf-8"))
     if not isinstance(value, dict):
@@ -578,10 +600,11 @@ def npm_releases(
     *,
     package_name: str,
     repository: str,
-    package_directory: str,
+    package_directory: str | None,
     product_name: str,
     timeout: float,
     allow_stale_on_error: bool,
+    require_repository_metadata: bool = True,
 ) -> list[dict[str, object]]:
     registry_url = f"{NPM_REGISTRY_URL}/{quote(package_name, safe='')}"
     response = cache.fetch(
@@ -617,23 +640,24 @@ def npm_releases(
                 f"npm version identity mismatch: {package_name} {version}"
             )
         repository_value = raw.get("repository")
-        if not isinstance(repository_value, dict):
+        if not isinstance(repository_value, dict) and require_repository_metadata:
             raise OfficialSyncError(
                 f"npm version has no repository metadata: {package_name} {version}"
             )
-        repository_url = repository_value.get("url")
-        if isinstance(repository_url, str) and repository_url.startswith("git+"):
-            repository_url = repository_url[4:]
-        if isinstance(repository_url, str) and repository_url.endswith(".git"):
-            repository_url = repository_url[:-4]
-        if repository_url != expected_repository_url:
-            raise OfficialSyncError(
-                f"npm repository mismatch: {package_name} {version}"
-            )
-        if repository_value.get("directory") != package_directory:
-            raise OfficialSyncError(
-                f"npm repository directory mismatch: {package_name} {version}"
-            )
+        if isinstance(repository_value, dict):
+            repository_url = repository_value.get("url")
+            if isinstance(repository_url, str) and repository_url.startswith("git+"):
+                repository_url = repository_url[4:]
+            if isinstance(repository_url, str) and repository_url.endswith(".git"):
+                repository_url = repository_url[:-4]
+            if repository_url != expected_repository_url:
+                raise OfficialSyncError(
+                    f"npm repository mismatch: {package_name} {version}"
+                )
+            if repository_value.get("directory") != package_directory:
+                raise OfficialSyncError(
+                    f"npm repository directory mismatch: {package_name} {version}"
+                )
 
         published_at = timestamps.get(version)
         if not isinstance(published_at, str) or not published_at:
@@ -678,7 +702,11 @@ def npm_releases(
                 "sourceUrl": package_url,
                 "publishedAt": published_at,
                 "packageName": package_name,
-                "packageDirectory": package_directory,
+                **(
+                    {"packageDirectory": package_directory}
+                    if package_directory is not None
+                    else {}
+                ),
                 "artifact": {
                     "scope": "published-package-only",
                     "url": tarball_url,
@@ -740,6 +768,52 @@ def github_tags(
     return tags
 
 
+def github_commits(
+    cache: HttpCache,
+    *,
+    repository: str,
+    max_pages: int,
+    timeout: float,
+    allow_stale_on_error: bool,
+) -> list[dict[str, str]]:
+    commits: list[dict[str, str]] = []
+    for page in range(1, max_pages + 1):
+        url = f"https://api.github.com/repos/{repository}/commits?per_page=100&page={page}"
+        response = cache.fetch(
+            url,
+            accept="application/vnd.github+json",
+            max_bytes=MAX_JSON_RESPONSE_BYTES,
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+            cache_variant="github-commit-minimal-v1",
+            transform=minimize_github_commits,
+        )
+        value = github_json(response, url=url)
+        if not isinstance(value, list):
+            raise OfficialSyncError(f"GitHub commits response is not an array: {url}")
+        if not value:
+            break
+        for raw in value:
+            if not isinstance(raw, dict):
+                continue
+            sha = raw.get("sha")
+            committed_at = raw.get("committedAt")
+            if (
+                isinstance(sha, str)
+                and re.fullmatch(r"[0-9a-f]{40}", sha)
+                and isinstance(committed_at, str)
+            ):
+                parse_capture_timestamp(committed_at)
+                commits.append({"sha": sha, "committedAt": committed_at})
+        if len(value) < 100:
+            break
+        if page == max_pages:
+            raise OfficialSyncError(
+                f"GitHub commit history exceeds --max-tag-pages={max_pages}: {repository}"
+            )
+    return sorted(commits, key=lambda item: parse_capture_timestamp(item["committedAt"]))
+
+
 def github_releases(
     cache: HttpCache,
     *,
@@ -749,6 +823,7 @@ def github_releases(
     max_pages: int,
     timeout: float,
     allow_stale_on_error: bool,
+    include_prereleases: bool = False,
 ) -> list[dict[str, object]]:
     releases: dict[str, dict[str, object]] = {}
     for page in range(1, max_pages + 1):
@@ -775,7 +850,7 @@ def github_releases(
             if match is None:
                 continue
             version = match.group(1)
-            if raw.get("prerelease") is True:
+            if raw.get("prerelease") is True and not include_prereleases:
                 continue
             published = raw.get("published_at")
             body = raw.get("body") if isinstance(raw.get("body"), str) else ""
@@ -810,6 +885,23 @@ def github_releases(
             str(item["version"]), repository=repository
         ),
     )
+
+
+def merge_release_histories(
+    primary: Sequence[Mapping[str, object]],
+    official: Sequence[Mapping[str, object]],
+) -> list[dict[str, object]]:
+    """Overlay authoritative release-page metadata onto package publications."""
+
+    merged = {str(release["version"]): dict(release) for release in primary}
+    for release in official:
+        version = str(release["version"])
+        record = merged.setdefault(version, {})
+        record.update(release)
+    return [
+        merged[version]
+        for version in sorted(merged, key=version_key)
+    ]
 
 
 def codex_releases(
@@ -1128,6 +1220,77 @@ def enrich_repository_history(
             previous_value=previous_value,
         )
     ]
+    pairs = comparison_pairs(
+        retained, captured_versions, newest_count=newest_comparisons
+    )
+    attach_code_compares(
+        retained,
+        cache,
+        repository=repository,
+        pairs=pairs,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+    )
+    return retained
+
+
+def enrich_repository_snapshots(
+    *,
+    agent: str,
+    repository: str,
+    releases: Sequence[Mapping[str, object]],
+    normalized_root: Path,
+    captured_versions: Sequence[str],
+    cache: HttpCache,
+    max_commit_pages: int,
+    newest_comparisons: int,
+    timeout: float,
+    allow_stale_on_error: bool,
+    previous_value: Mapping[str, object] | None = None,
+) -> list[dict[str, object]]:
+    """Align an untagged source mirror to the latest prior publication."""
+    retained = [
+        dict(release)
+        for release in retained_release_history(
+            normalized_root,
+            agent,
+            releases,
+            previous_value=previous_value,
+        )
+    ]
+    commits = github_commits(
+        cache,
+        repository=repository,
+        max_pages=max_commit_pages,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+    )
+    published = [
+        (parse_capture_timestamp(str(release["publishedAt"])), release)
+        for release in retained
+        if isinstance(release.get("publishedAt"), str)
+    ]
+    published.sort(key=lambda item: item[0])
+    if commits and published:
+        previous_sync_at = parse_capture_timestamp(commits[0]["committedAt"])
+        for commit in commits:
+            committed_at = parse_capture_timestamp(commit["committedAt"])
+            candidates = [
+                release
+                for published_at, release in published
+                if previous_sync_at <= published_at <= committed_at
+            ]
+            if candidates:
+                release = candidates[-1]
+                sha = commit["sha"]
+                release["commitSha"] = sha
+                release["tag"] = sha
+                release["repositorySnapshot"] = {
+                    "alignment": "first-source-sync-after-publication",
+                    "committedAt": commit["committedAt"],
+                    "sourceUrl": f"https://github.com/{repository}/tree/{sha}",
+                }
+            previous_sync_at = committed_at
     pairs = comparison_pairs(
         retained, captured_versions, newest_count=newest_comparisons
     )
@@ -1532,12 +1695,35 @@ def sync(
             cache,
             package_name=str(config["package"]),
             repository=repository,
-            package_directory=str(config["packageDirectory"]),
+            package_directory=(
+                str(config["packageDirectory"])
+                if config.get("packageDirectory") is not None
+                else None
+            ),
             product_name=str(config["label"]),
+            require_repository_metadata=(
+                config.get("requireRepositoryMetadata") is not False
+            ),
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
         )
         tag_pattern_value = config.get("tagPattern")
+        if config.get("githubReleaseNotes") is True:
+            if not isinstance(tag_pattern_value, str):
+                raise OfficialSyncError(
+                    f"GitHub release notes require a tag pattern: {agent}"
+                )
+            release_notes = github_releases(
+                cache,
+                repository=repository,
+                tag_pattern=re.compile(tag_pattern_value),
+                product_name=str(config["label"]),
+                max_pages=max_release_pages,
+                timeout=timeout,
+                allow_stale_on_error=allow_stale_on_error,
+                include_prereleases=config.get("includePrereleases") is True,
+            )
+            complete = merge_release_histories(complete, release_notes)
         if isinstance(tag_pattern_value, str):
             retained = enrich_repository_history(
                 agent=agent,
@@ -1549,6 +1735,20 @@ def sync(
                 captured_versions=captured.get(agent, ()),
                 cache=cache,
                 max_tag_pages=max_tag_pages,
+                newest_comparisons=max_comparisons,
+                timeout=timeout,
+                allow_stale_on_error=allow_stale_on_error,
+                previous_value=previous_values.get(agent),
+            )
+        elif config.get("sourceSnapshotAfterPublish") is True:
+            retained = enrich_repository_snapshots(
+                agent=agent,
+                repository=repository,
+                releases=complete,
+                normalized_root=normalized_root,
+                captured_versions=captured.get(agent, ()),
+                cache=cache,
+                max_commit_pages=max_tag_pages,
                 newest_comparisons=max_comparisons,
                 timeout=timeout,
                 allow_stale_on_error=allow_stale_on_error,

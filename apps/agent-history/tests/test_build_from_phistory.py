@@ -248,6 +248,14 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertLessEqual(github_agents, set(builder.OFFICIAL_REPOSITORIES))
         self.assertIn("pi", builder.OFFICIAL_REPOSITORIES)
 
+    def test_every_catalog_agent_has_source_intelligence_or_explicit_exception(self) -> None:
+        classified = set(builder.OFFICIAL_REPOSITORIES) | set(
+            builder.NO_PUBLIC_SOURCE_AGENTS
+        )
+
+        self.assertEqual(set(builder.AGENT_DEFINITIONS), classified)
+        self.assertEqual(set(builder.NO_PUBLIC_SOURCE_AGENTS), {"minimax-code"})
+
     def test_builds_two_agents_in_semver_order_with_sections_and_tools(self) -> None:
         manifest = self._build()
 
