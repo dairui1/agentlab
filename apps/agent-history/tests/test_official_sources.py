@@ -84,6 +84,11 @@ class RouteCache:
 
 
 class OfficialSourceTests(unittest.TestCase):
+    def test_default_release_page_budget_has_growth_headroom(self) -> None:
+        args = official.parse_args([])
+
+        self.assertEqual(args.max_release_pages, 50)
+
     def test_focused_sync_parses_only_requested_official_agents(self) -> None:
         focused = official.parse_args(["--agents", "codex"])
         complete = official.parse_args(["--agents", "all"])

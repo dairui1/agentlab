@@ -103,7 +103,7 @@ jq '{generatedAt, upstream, officialSources, agents: [.agents[] | {id, latestVer
   "$APP_ROOT/dist/data/manifest.json"
 ```
 
-`officialSources.status` 必须为 `fresh`、`syncStatus` 必须为 `current`、`warningCount` 必须为 `0`，且不能有 retained agent。任何 stale cache、抓取失败、normalize failure 或 code-compare degradation 都不能被 HTTP 200 掩盖。
+`officialSources.status` 必须为 `fresh`、`syncStatus` 必须为 `current`、`warningCount` 必须为 `0`，且不能有 retained agent。任何 stale cache、抓取失败、normalize failure、分页上限不足或 code-compare degradation 都不能被 HTTP 200 掩盖。发布历史分页上限必须留有增长余量；上游超过上限时应提高有界上限并保留显式溢出失败，不能静默截断。
 
 使用 cache-busting 请求对比两个生产域与本地文件：
 

@@ -1538,7 +1538,7 @@ def resolve_github_token() -> str | None:
 def sync(
     *,
     cache_root: Path,
-    max_release_pages: int = 10,
+    max_release_pages: int = 50,
     max_tag_pages: int = 50,
     max_comparisons: int = SOURCE_CODE_COMPARISON_WINDOW,
     timeout: float = 45.0,
@@ -1810,8 +1810,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--max-release-pages",
         type=int,
-        default=10,
-        help="GitHub release pages to inspect; 10 covers the complete captured Codex range",
+        default=50,
+        help="GitHub release pages to inspect; failure is explicit if history exceeds 5,000 releases",
     )
     parser.add_argument(
         "--max-tag-pages",
