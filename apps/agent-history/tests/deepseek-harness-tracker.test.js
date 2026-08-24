@@ -65,5 +65,5 @@ test("DSH feed entries route to the dedicated tracker", () => {
   assert.match(app, /item\.agent\.id === "deepseek-harness"/);
   assert.match(app, /\/deepseek-harness\.html/);
   assert.ok(navigation.items.some((item) => item.id === "dsh" && item.href === "/deepseek-harness.html"));
-  assert.match(architecture, /<agentlab-navigation[^>]+current="research"/);
+  assert.doesNotMatch(architecture, /<agentlab-navigation[^>]+current=/);
 });

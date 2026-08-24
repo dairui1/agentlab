@@ -13,6 +13,7 @@ const researchStyles = read("research.css");
 const researchScript = read("research.js");
 const researchNavigation = require("../public/research-navigation-core.js");
 const siteNavigation = require("../public/site-navigation.js");
+const siteNavigationSource = read("site-navigation.js");
 const researchIndex = JSON.parse(read("research-index.json"));
 const articleStyles = read("capability-article.css");
 const articleScript = read("capability-article.js");
@@ -145,10 +146,11 @@ function assertEvidence(study, prefix) {
   }
 }
 
-test("all public surfaces expose one shared research section instead of two competing modules", () => {
-  const expectedItems = ["更新情报", "版本比较", "专题研究", "DSH 雷达", "Grok Bot"];
+test("all public surfaces expose Goal Mode as the shared current research entry", () => {
+  const expectedItems = ["更新情报", "版本比较", "Goal 模式", "DSH 雷达", "Grok Bot"];
   assert.deepEqual(siteNavigation.items.map((item) => item.label), expectedItems);
-  assert.equal(siteNavigation.items.find((item) => item.id === "research").href, "/capabilities.html");
+  assert.equal(siteNavigation.items.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
+  assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
   const pages = [
     ["index", indexHtml],
     ["mechanisms", mechanismsHtml],
@@ -163,8 +165,10 @@ test("all public surfaces expose one shared research section instead of two comp
     assert.doesNotMatch(navigation, />机制档案<|>能力拆解<|href="\/mechanisms\.html"/);
   }
 
-  for (const html of [mechanismsHtml, capabilitiesHtml, ...Object.values(articles)]) {
-    assert.match(html, /<agentlab-navigation[^>]+current="research"/);
+  assert.match(capabilitiesHtml, /<agentlab-navigation[^>]+current="auto"/);
+  assert.match(articles["goal-mode"], /<agentlab-navigation[^>]+current="goal"/);
+  for (const html of [mechanismsHtml, articles["browser-use"], articles["computer-use"], articles["deepseek-harness-architecture"]]) {
+    assert.doesNotMatch(html, /<agentlab-navigation[^>]+current=/);
   }
 });
 

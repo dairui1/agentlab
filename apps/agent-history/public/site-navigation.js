@@ -8,7 +8,7 @@
   const items = [
     { id: "intelligence", label: "更新情报", icon: "newspaper", href: "/" },
     { id: "compare", label: "版本比较", icon: "file-diff", href: "/?mode=compare" },
-    { id: "research", label: "专题研究", icon: "library", href: "/capabilities.html" },
+    { id: "goal", label: "Goal 模式", icon: "target", href: "/capabilities.html?study=goal-mode" },
     { id: "dsh", label: "DSH 雷达", icon: "radar", href: "/deepseek-harness.html" },
     { id: "grok", label: "Grok Bot", icon: "bot", href: "/grok-bot.html" },
   ];
@@ -18,8 +18,11 @@
 
     class AgentLabNavigation extends root.HTMLElement {
       connectedCallback() {
-        const current = this.getAttribute("current") || "intelligence";
         const interactive = this.hasAttribute("interactive");
+        const requestedCurrent = this.getAttribute("current");
+        const current = requestedCurrent === "auto"
+          ? (new URL(root.location.href).searchParams.get("study") === "goal-mode" ? "goal" : "")
+          : (requestedCurrent || (interactive ? "intelligence" : ""));
         const compareAgent = this.getAttribute("compare-agent");
         const nav = root.document.createElement("nav");
         nav.className = "segmented mode-switch radar-switch";
