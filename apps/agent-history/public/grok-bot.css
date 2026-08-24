@@ -192,6 +192,7 @@
 
 .grok-layer-band,
 .grok-mechanism-section,
+.grok-deep-dive-section,
 .grok-provider-section,
 .grok-x-section,
 .grok-risk-section,
@@ -576,6 +577,347 @@
 
 .grok-inline-evidence a:hover {
   border-color: var(--grok-blue);
+}
+
+.grok-deep-dive-shell {
+  border: 1px solid var(--grok-line);
+  background: var(--grok-paper);
+}
+
+.grok-deep-dive-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid var(--grok-line);
+  background: var(--grok-soft);
+}
+
+.grok-deep-dive-tab {
+  min-width: 0;
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-right: 1px solid var(--grok-line);
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--grok-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.grok-deep-dive-tab:last-child {
+  border-right: 0;
+}
+
+.grok-deep-dive-tab:hover {
+  color: var(--grok-ink);
+}
+
+.grok-deep-dive-tab[aria-selected="true"] {
+  border-bottom-color: var(--grok-coral);
+  background: var(--grok-paper);
+  color: var(--grok-ink);
+}
+
+.grok-deep-dive-tab svg {
+  width: 16px;
+  height: 16px;
+  color: var(--grok-teal);
+}
+
+.grok-deep-dive-panel {
+  min-width: 0;
+  outline-offset: -3px;
+}
+
+.grok-architecture-intro {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 22px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--grok-line);
+}
+
+.grok-architecture-intro strong {
+  font-size: 14px;
+}
+
+.grok-architecture-intro p {
+  margin: 0;
+  color: var(--grok-copy);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.grok-architecture-map {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(142px, 1fr));
+  overflow-x: auto;
+  border-bottom: 1px solid var(--grok-line);
+}
+
+.grok-architecture-node {
+  position: relative;
+  min-width: 0;
+  min-height: 118px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 17px 16px;
+  border: 0;
+  border-right: 1px solid var(--grok-line);
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: #fbfcfb;
+  color: var(--grok-ink);
+  text-align: left;
+}
+
+.grok-architecture-node:last-child {
+  border-right: 0;
+}
+
+.grok-architecture-node:not(:last-child)::after {
+  position: absolute;
+  top: 54px;
+  right: -5px;
+  width: 8px;
+  height: 8px;
+  border-top: 1px solid var(--grok-blue);
+  border-right: 1px solid var(--grok-blue);
+  background: #fbfcfb;
+  transform: rotate(45deg);
+  content: "";
+  z-index: 1;
+}
+
+.grok-architecture-node:hover,
+.grok-architecture-node.is-selected {
+  background: var(--grok-soft);
+}
+
+.grok-architecture-node.is-selected {
+  border-bottom-color: var(--grok-blue);
+}
+
+.grok-architecture-node span,
+.grok-deep-item span {
+  color: var(--grok-blue);
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.grok-architecture-node strong {
+  margin-top: 18px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.grok-architecture-node small {
+  margin-top: 5px;
+  color: var(--grok-muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.grok-deep-collection {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.grok-deep-collection.is-curiosities {
+  grid-template-columns: 390px minmax(0, 1fr);
+}
+
+.grok-deep-rail {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  border-right: 1px solid var(--grok-line);
+}
+
+.grok-deep-collection.is-curiosities .grok-deep-rail {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grok-deep-item {
+  min-width: 0;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-content: center;
+  gap: 4px 8px;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid var(--grok-line);
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--grok-ink);
+  text-align: left;
+}
+
+.grok-deep-collection.is-curiosities .grok-deep-item:nth-child(odd) {
+  border-right: 1px solid var(--grok-line);
+}
+
+.grok-deep-item:hover,
+.grok-deep-item.is-selected {
+  background: var(--grok-soft);
+}
+
+.grok-deep-item.is-selected {
+  border-left-color: var(--grok-coral);
+}
+
+.grok-deep-item strong {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.grok-deep-item small {
+  grid-column: 2;
+  color: var(--grok-muted);
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.grok-deep-inspector {
+  min-width: 0;
+  padding: 26px 28px 28px;
+}
+
+.grok-deep-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.grok-deep-meta span {
+  padding: 4px 6px;
+  border: 1px solid var(--grok-line);
+  color: var(--grok-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.grok-deep-meta span:first-child {
+  border-color: var(--grok-teal);
+  color: var(--grok-teal);
+}
+
+.grok-deep-inspector[data-status="gated"] .grok-deep-meta span:first-child,
+.grok-deep-inspector[data-status="author-extension"] .grok-deep-meta span:first-child,
+.grok-deep-inspector[data-status="reconstructed-ui"] .grok-deep-meta span:first-child {
+  border-color: var(--grok-coral);
+  color: var(--grok-coral);
+}
+
+.grok-deep-inspector[data-status="reconstruction-drift"] .grok-deep-meta span:first-child {
+  border-color: var(--grok-gold);
+  color: var(--grok-gold);
+}
+
+.grok-deep-inspector[data-status="dormant"] .grok-deep-meta span:first-child,
+.grok-deep-inspector[data-status="partial"] .grok-deep-meta span:first-child {
+  border-color: var(--grok-gold);
+  color: var(--grok-gold);
+}
+
+.grok-deep-inspector h3 {
+  margin: 12px 0 0;
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.grok-deep-summary {
+  max-width: 980px;
+  margin: 13px 0 0;
+  color: var(--grok-copy);
+  font-size: 13px;
+  font-weight: 580;
+  line-height: 1.72;
+}
+
+.grok-architecture-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 22px 0 0;
+  border: 1px solid var(--grok-line);
+  background: var(--grok-line);
+  gap: 1px;
+}
+
+.grok-architecture-details div {
+  min-width: 0;
+  padding: 14px 16px;
+  background: var(--grok-paper);
+}
+
+.grok-architecture-details dt,
+.grok-architecture-details dd {
+  margin: 0;
+}
+
+.grok-architecture-details dt {
+  color: var(--grok-blue);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.grok-architecture-details dd {
+  margin-top: 6px;
+  color: var(--grok-copy);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.grok-deep-mechanism {
+  margin-top: 20px;
+  padding: 15px 17px;
+  border-left: 3px solid var(--grok-blue);
+  background: var(--grok-soft);
+}
+
+.grok-deep-mechanism h4,
+.grok-deep-implications h4 {
+  margin: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.grok-deep-mechanism p,
+.grok-deep-implications p {
+  margin: 7px 0 0;
+  color: var(--grok-copy);
+  font-size: 11px;
+  line-height: 1.62;
+}
+
+.grok-deep-implications {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 16px;
+  border: 1px solid var(--grok-line);
+  background: var(--grok-line);
+}
+
+.grok-deep-implications section {
+  padding: 15px 17px;
+  background: var(--grok-paper);
+}
+
+.grok-deep-implications section:last-child h4 {
+  color: var(--grok-coral);
 }
 
 .grok-table-wrap {
@@ -1092,7 +1434,6 @@
 .grok-evidence-item code {
   display: block;
   margin-top: auto;
-  padding-right: 18px;
   color: var(--grok-blue);
   font-family: var(--mono);
   font-size: 8px;
@@ -1100,13 +1441,32 @@
   overflow-wrap: anywhere;
 }
 
-.grok-evidence-item > svg {
-  position: absolute;
-  right: 13px;
-  bottom: 13px;
-  width: 13px;
-  height: 13px;
-  color: var(--grok-muted);
+.grok-evidence-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 12px;
+}
+
+.grok-evidence-sources a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--grok-line);
+  color: var(--grok-blue);
+  font-family: var(--mono);
+  font-size: 8px;
+  text-decoration: none;
+}
+
+.grok-evidence-sources a:hover {
+  border-color: var(--grok-blue);
+}
+
+.grok-evidence-sources svg {
+  width: 10px;
+  height: 10px;
 }
 
 .grok-evidence-empty {
@@ -1157,6 +1517,19 @@
 
   .grok-mechanism-layout {
     grid-template-columns: 230px minmax(0, 1fr);
+  }
+
+  .grok-deep-collection,
+  .grok-deep-collection.is-curiosities {
+    grid-template-columns: 250px minmax(0, 1fr);
+  }
+
+  .grok-deep-collection.is-curiosities .grok-deep-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .grok-deep-collection.is-curiosities .grok-deep-item:nth-child(odd) {
+    border-right: 0;
   }
 
   .grok-flow {
@@ -1256,6 +1629,7 @@
 
   .grok-layer-band,
   .grok-mechanism-section,
+  .grok-deep-dive-section,
   .grok-provider-section,
   .grok-x-section,
   .grok-risk-section,
@@ -1356,6 +1730,58 @@
     grid-template-columns: 1fr;
   }
 
+  .grok-deep-dive-tabs {
+    overflow-x: auto;
+    grid-template-columns: repeat(4, minmax(142px, 1fr));
+  }
+
+  .grok-architecture-intro {
+    grid-template-columns: 1fr;
+    gap: 7px;
+    padding: 16px;
+  }
+
+  .grok-deep-collection,
+  .grok-deep-collection.is-curiosities {
+    display: block;
+  }
+
+  .grok-deep-rail,
+  .grok-deep-collection.is-curiosities .grok-deep-rail {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--grok-line);
+  }
+
+  .grok-deep-item {
+    width: 176px;
+    min-height: 72px;
+    flex: 0 0 176px;
+    border-right: 1px solid var(--grok-line);
+    border-bottom: 0;
+    border-left: 0;
+    border-top: 3px solid transparent;
+  }
+
+  .grok-deep-item.is-selected {
+    border-top-color: var(--grok-coral);
+    border-left: 0;
+  }
+
+  .grok-deep-inspector {
+    padding: 21px 16px 22px;
+  }
+
+  .grok-deep-inspector h3 {
+    font-size: 21px;
+  }
+
+  .grok-architecture-details,
+  .grok-deep-implications {
+    grid-template-columns: 1fr;
+  }
+
   .grok-unknown {
     grid-template-columns: 1fr;
     gap: 6px;
@@ -1430,6 +1856,8 @@
   .grok-x-card:hover,
   .grok-evidence-item:hover,
   .grok-mechanism-button[aria-selected="true"],
+  .grok-architecture-node,
+  .grok-architecture-node:not(:last-child)::after,
   .grok-flow li,
   .grok-flow li:not(:last-child)::after {
     background: #202729;

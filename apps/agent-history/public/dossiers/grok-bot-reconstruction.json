@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "grok-bot-0.18-reconstruction",
   "title": "Grok Bot 0.18 Reconstruction Radar",
   "verifiedAt": "2026-08-24",
@@ -433,6 +433,655 @@
       ]
     }
   ],
+  "deepDive": {
+    "architecture": {
+      "title": "两套 Turn Engine，共用一个聊天外壳",
+      "summary": "Renderer 发起的 sendPrompt 在 Coordinator 分流：Cursor 路径经 Gateway 进入完整 Host Harness，Codex、Claude 与 OpenRouter 被作者扩展截获后写 shadow transcript 并本地调用 provider。Host 内部 turn 仍可使用非 Cursor provider adapter，因此这不是全局唯一的 provider→engine 映射。Electron main 主要是可信 Port broker 和控制面。",
+      "nodes": [
+        {
+          "id": "renderer",
+          "index": "A1",
+          "title": "Renderer",
+          "process": "Electron renderer",
+          "role": "收集 prompt、附件、nonce 与 reply/fork 信息；通过独占 MessagePort 发 request。",
+          "transport": "preload 暴露的 MessagePort request/reply/event 协议",
+          "state": "UI journal 与 pending request；断线后拒绝在途调用并请求新 port。",
+          "failureBoundary": "重连不保留 renderer 侧在途 RPC，可能触发整个 Coordinator 重建。",
+          "summary": "用户输入从 UI 起就带 client nonce；它不是一条普通 fetch，而是后续去重和接受账本的身份。",
+          "whyItMatters": "把 nonce 放到最前端，Cursor→Host 路径才能区分“请求没发出”和“已发出但结果未知”。",
+          "boundary": "Frontend 是部分可读重构；shadow Router 只回显/记录 nonce，没有 Host acceptance ledger 的去重语义。",
+          "status": "reconstructed-ui",
+          "evidence": ["GB-04", "GB-37"],
+          "attributions": ["reconstructed-runtime"]
+        },
+        {
+          "id": "electron-main",
+          "index": "A2",
+          "title": "Electron Main",
+          "process": "desktop control plane",
+          "role": "校验 frame、fork utility child、一次性转交 control、renderer-data、main-data 三条 port。",
+          "transport": "MessageChannelMain + transferable ports",
+          "state": "Coordinator generation、renderer port ownership、桌面连接与系统权限。",
+          "failureBoundary": "用 generation fence 丢弃旧 child 的迟到事件；renderer port 只能转移一次。",
+          "summary": "Main 是生命周期与权限 broker。正常 Cursor turn 在端口交接后不再逐包经过 Main。",
+          "whyItMatters": "这会改变性能、崩溃与安全边界的判断，不能画成 renderer → main → host 的同步调用链。",
+          "boundary": "这是重建 runtime 的静态实现；未取得生产进程 trace。",
+          "status": "live-path",
+          "evidence": ["GB-37", "GB-38"],
+          "attributions": ["reconstructed-runtime"]
+        },
+        {
+          "id": "coordinator",
+          "index": "A3",
+          "title": "Coordinator",
+          "process": "utility child",
+          "role": "持有 Gateway/SSE、Host supervisor、MCP OAuth、local-exec 与 WebAuthn 转发。",
+          "transport": "严格 v1 port 状态机；向 Host 使用 HTTP/SSE",
+          "state": "Gateway descriptor、连接代次、router 选择与长连接。",
+          "failureBoundary": "协议 breach 会关闭整条 session；崩溃由 Main 退避重启。",
+          "summary": "它是桌面数据面的真正枢纽，也是 renderer-originated sendPrompt 分成完整 Harness 与 shadow router 两套状态机的截获点。",
+          "whyItMatters": "同一个 UI sendPrompt 在这里分成完整 Harness 和 shadow router 两套状态机，但 Host 内部 provider 选择不受这条分流概括。",
+          "boundary": "Router 分支是作者扩展；Coordinator 骨架归入重建 runtime。",
+          "status": "live-path",
+          "evidence": ["GB-16", "GB-37", "GB-38"],
+          "attributions": ["reconstructed-runtime", "author-extensions"]
+        },
+        {
+          "id": "shadow-router",
+          "index": "A4",
+          "title": "Shadow Router",
+          "process": "non-Cursor branch",
+          "role": "截获 Codex、Claude、OpenRouter turn，维护本地 transcript，并直接调用 provider/MCP bridge。",
+          "transport": "Coordinator-local provider API；Claude 另起 localhost MCP bridge",
+          "state": "最多 200 条本地 Router history，读取 UI transcript 时再与 Host 尾部合并。",
+          "failureBoundary": "绕过 Host AgentStore、checkpoint、SendMessage obligation、capability projection 与 background lane；MCP 仍经 desktop routed bridge 执行。",
+          "summary": "UI 看起来仍是同一会话，但模型 history、工具协议和恢复语义已经分裂。",
+          "whyItMatters": "这是判断 Router 是否等价于“换模型”的关键：答案是否定的。",
+          "boundary": "明确属于重建作者后加实验，不能反推上游 Grok Bot 原生支持这些 provider。",
+          "status": "author-extension",
+          "evidence": ["GB-16", "GB-17", "GB-18", "GB-19", "GB-70"],
+          "attributions": ["author-extensions"]
+        },
+        {
+          "id": "gateway-host",
+          "index": "A5",
+          "title": "Gateway + Host",
+          "process": "remote box / local box",
+          "role": "接受 Cursor prompt、写 acceptance ledger、排队 turn，并编排 transcript、extensions 与 exec daemon。",
+          "transport": "authenticated HTTP(S) POST admission + SSE completion/event stream",
+          "state": "nonce/input digest、ack obligation、run lanes、agent SQLite 与 blob root。",
+          "failureBoundary": "HTTP accepted 只代表录入排队；SQLite BUSY 时 echo 写入可能降级但 send 继续。",
+          "summary": "Host 把一次聊天请求变成可恢复任务；HTTP 200 并不代表模型已经完成，更不代表用户已经收到消息。",
+          "whyItMatters": "admission、execution、delivery 是三套独立状态，观测和重试必须分别设计。",
+          "boundary": "远端服务端未公开；这里仅描述仓库可见 Host/Gateway contract。",
+          "status": "live-path",
+          "evidence": ["GB-39", "GB-40"],
+          "attributions": ["reconstructed-runtime"]
+        },
+        {
+          "id": "turn-runtime",
+          "index": "A6",
+          "title": "Turn Runtime",
+          "process": "Host runner",
+          "role": "组装 prompt、model session、权限 epoch、MCP/resource projection、action dispatcher 与 settle。",
+          "transport": "AnysphereAgent stream + action receiver + checkpoint callbacks",
+          "state": "ConversationStateHandle、pending tool calls、usage、run ownership 与 step checkpoint。",
+          "failureBoundary": "生产 adapter 会持久化 step checkpoint，但固定调用链只启动一次 stream；外层 checkpoint retry owner 仍是 dormant。",
+          "summary": "核心不是朴素 ReAct while-loop，而是 action dispatcher、动态资源投影和 blob checkpoint 组成的运行壳。",
+          "whyItMatters": "真正可迁移的资产是状态/权限/副作用协议，而不是 prompt 文案。",
+          "boundary": "共享 @anysphere/agent 包含额外能力；是否出现在 Grok Bot turn 仍取决于 Host 投影。",
+          "status": "live-path",
+          "evidence": ["GB-31", "GB-40", "GB-41", "GB-45"],
+          "attributions": ["reconstructed-runtime"]
+        },
+        {
+          "id": "executors",
+          "index": "A7",
+          "title": "Tools + Children",
+          "process": "box / user computer / child runners",
+          "role": "按 surface 执行 shell、MCP、browser/computer、文件与专用 subagent。",
+          "transport": "RPC resource、box-exec-daemon、CDP、反向 local-exec SSE",
+          "state": "tool checkpoint、background registry、terminal footer、window allocation。",
+          "failureBoundary": "后台 child 主要在宿主内存；恢复依赖 transcript、terminal path 和 revival glue。",
+          "summary": "工具名不是权限边界。host_machine、isolated_box、browser child 与 computer child 是不同 capability surface。",
+          "whyItMatters": "同名 Shell 或“浏览器工具”如果抹掉 owner/location/trust，会制造错误授权。",
+          "boundary": "专用 child model 和共享包默认值可能被远端配置覆盖。",
+          "status": "live-path",
+          "evidence": ["GB-41", "GB-48", "GB-54", "GB-76"],
+          "attributions": ["reconstructed-runtime"]
+        },
+        {
+          "id": "persistence",
+          "index": "A8",
+          "title": "Persistence",
+          "process": "multi-store recovery",
+          "role": "协调 SQLite transcript/KV、worker blob DAG、JSONL mirror、Markdown memory 与 best-effort persistent JSON ledgers。",
+          "transport": "WAL prepare/commit、content-addressed blobs、atomic rename；仅部分 journal 路径显式 fsync",
+          "state": "AgentStore root、transcript journal marker、memory fingerprints/tombstones。",
+          "failureBoundary": "不是单库 ACID；正确性分别靠 journal ordering、active-run identity、scheduler queue generation 与不可重试分类拼合，部分 ledger 明示 degraded window。",
+          "summary": "一名 Agent 的状态散在多个存储域，备份一个 store.db 并不能完整恢复它。",
+          "whyItMatters": "这套设计优先避免副作用重放，但也留下静默降级与跨存储恢复复杂度。",
+          "boundary": "可选 S3 backstop 受 gate 控制；代码存在不表示默认启用。",
+          "status": "recovery-path",
+          "evidence": ["GB-39", "GB-43", "GB-44", "GB-50", "GB-69", "GB-75", "GB-78"],
+          "attributions": ["reconstructed-runtime"]
+        }
+      ]
+    },
+    "harness": [
+      {
+        "id": "action-runner",
+        "index": "H1",
+        "title": "不是朴素 ReAct 循环",
+        "kicker": "Action dispatcher",
+        "summary": "Turn runtime 进入 SandAgentRunner，再由 AnysphereAgent 恢复 blob DAG、分派 action、消费排队 action，并在边界 checkpoint。",
+        "mechanism": "ConversationStateHandle、action receiver、stream consumer 和 checkpoint callback 共同构成状态机；每个模型 step 的 pending tool call 也先落 checkpoint。",
+        "whyItMatters": "模型调用只是其中一段，取消、恢复、排队和工具副作用才是 Harness 的主体。",
+        "boundary": "部分 package 是共享 Anysphere 代码；本项只收录 Host 实际组合到 turn 的路径。",
+        "status": "live-path",
+        "evidence": ["GB-40", "GB-45"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "capability-projection",
+        "index": "H2",
+        "title": "工具是逐 step 投影",
+        "kicker": "Capability lattice",
+        "summary": "工具集不是全局常量，甚至不在 turn 开始时冻结；每个 model step 会结合 mode、root/child 身份、room、box、MCP 与实时资源重建。",
+        "mechanism": "普通 subagent 可被 fence 成空工具集；Browser/Computer 工具只给专用 child；shared room 再套 allowlist；MCP 无 live projection 时保持 dormant。",
+        "whyItMatters": "它同时解决 context budget 和最小权限，比把全部 schema 永久塞进 system prompt 更稳。",
+        "boundary": "all-tools inventory 只能证明代码归属，不能证明某工具在当前产品/turn 可见。",
+        "status": "live-path",
+        "evidence": ["GB-11", "GB-41", "GB-72"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "delivery-obligation",
+        "index": "H3",
+        "title": "完成与交付是两套状态机",
+        "kicker": "Typed SendMessage",
+        "summary": "普通 assistant 文本不是用户可见回复；只有真实 SendMessage interaction 才写入可见 transcript 并完成 ack obligation。",
+        "mechanism": "SendMessage schema 区分 text、attachment、widget、cursor-agent 与 secret-request；默认在第 2 次工具调用后提醒致意、超过 6 次非 SendMessage 调用后提醒播报，settle 后还可隐藏重驱，obligation 能跨重启恢复。",
+        "whyItMatters": "“模型停止生成”不等于“用户收到结果”，产品可靠性必须显式追踪 delivery owed。",
+        "boundary": "SAND_DISABLE_USER_REPLY_REMINDER 只改 system prompt，不关闭 runtime middleware；subagent 或 isSilenceAllowed 才绕过这两层提醒。",
+        "status": "live-path",
+        "evidence": ["GB-42", "GB-43"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "nonce-admission",
+        "index": "H4",
+        "title": "Host admission 用 Nonce 做近似 exactly-once",
+        "kicker": "Admission ledger",
+        "summary": "clientNonce 与 canonical input SHA-256 绑定；同 nonce 不同输入直接拒绝，HTTP 发出后的重试也被限制在已证明支持 dedupe 的同一 endpoint。",
+        "mechanism": "Host acceptance ledger 记录 pending/accepted 与 gap；Coordinator 区分未发出、已发出未知、可安全重试三种状态。",
+        "whyItMatters": "宁可暴露结果未知，也不跨 Host 双发一次可能带副作用的任务。",
+        "boundary": "仅适用于 Cursor→Host admission。acceptance-ledger 的 corruption/eviction/persistence gap 会得到 unknown-durability 并允许重新 dispatch；SQLite BUSY 导致的 user-echo 非耐久是另一条独立降级，不应混成 nonce dedupe 失败。shadow Router 没有 digest ledger。",
+        "status": "live-path",
+        "evidence": ["GB-39"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "checkpoint-retry",
+        "index": "H5",
+        "title": "Checkpoint retry 有设计，production owner 未接线",
+        "kicker": "Dormant ResumeAction",
+        "summary": "共享 createStreamAttempt 能接受 durable checkpoint，并以空 ResumeAction 续跑；但固定 Host composition 明说该 option dormant，production adapter 只调用一次 startStream。",
+        "mechanism": "当前活跃路径是 transcript mirror prepare → AgentStore checkpoint → mirror commit，checkpoint 后 append 失败被标为不可重试；外层 retry owner 与 Resume projection 有实现，却没有被 productionTurnRunShell 消费。",
+        "whyItMatters": "源码里有“正确的恢复算法”不等于交付路径已经启用。这里必须把可复用设计与当前接线分开。",
+        "boundary": "这是固定提交的静态调用链结论；不可把 dormant owner 写成线上 recovery path，也不能据此断言远端未公开组件没有别的恢复层。",
+        "status": "dormant",
+        "evidence": ["GB-44", "GB-45"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "soft-exclusive",
+        "index": "H6",
+        "title": "Exclusive run 其实是软互斥",
+        "kicker": "Zombie fencing",
+        "summary": "新用户任务先等旧 run 120 秒，再 interrupt 并等 30 秒；仍不退出就把旧 run 移入 zombie，让新 run 开始。",
+        "mechanism": "旧 run 可能真实重叠；scheduler generation 只保护 queue slot 的 late-settle，active-run identity 保护 final state。step checkpoint 使用 Host runGeneration，固定代码未证明它能隔离 escaped zombie 的所有迟到 checkpoint。",
+        "whyItMatters": "“同一 Agent 单线程”不是绝对事实，而且 queue ownership、final settle 与 step checkpoint 是三个不同的隔离问题。",
+        "boundary": "120s + 30s 阈值有直接源码锚点；zombie late step checkpoint 是否可能写入仍是静态未决风险，不在这里宣称已安全。",
+        "status": "recovery-path",
+        "evidence": ["GB-78"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "async-reconstruction",
+        "index": "H7",
+        "title": "把 UI 异步事件重写回模型历史",
+        "kicker": "Synthetic tool results",
+        "summary": "用户打断、问题选择和后台结果不会以松散 callback 塞回模型，而会重建 synthetic assistant tool call 与 tool result。",
+        "mechanism": "Shell interruption保留部分输出/耗时；AskQuestion completion 先做 receipt 去重，再把合法的调用-结果对注回 conversation state。",
+        "whyItMatters": "模型下一轮看到的是协议完整的历史，避免工具永远悬空或重复完成。",
+        "boundary": "这是静态恢复逻辑；未以生产 interruption trace 独立验证。",
+        "status": "recovery-path",
+        "evidence": ["GB-46"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "memory-engine",
+        "index": "H8",
+        "title": "Memory 是带证据的文件数据库",
+        "kicker": "Provenance + tombstones",
+        "summary": "长期记忆不是向量库：profile/log Markdown、用户/项目 shards、显式与合成 origin、tombstone 和 refresh metadata 共同组成状态。",
+        "mechanism": "检索以 Unicode token 词面重合排序；dreaming bridge 未启用时的 legacy 路径每 6 turn 可提取 episode。Dreaming 先生成带 evidence ID 的提案，再由独立 verifier 审核，并用 fingerprint 拒绝陈旧并发写。",
+        "whyItMatters": "显式记忆不可被自动改删，合成器也不能悄悄覆盖用户事实，这是很强的 provenance 设计。",
+        "boundary": "基础 Memory 在完整路径中组装；维护失败不会打断可见 turn，代价是可能静默陈旧，而 dreaming 另受 gate 控制。",
+        "status": "live-path",
+        "evidence": ["GB-24", "GB-50", "GB-51"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "compaction-view",
+        "index": "H9",
+        "title": "Compaction 是换视图，不是删历史",
+        "kicker": "Summary archive",
+        "summary": "Host 在剩余约 10% context（或 10k tokens）时启动后台总结；通常到剩余约 5%（或 5k）才持久化。持久化时旧 messages 进入内容寻址 archive，当前 prompt 换成 summary + tail。",
+        "mechanism": "Orchestrator 可后台启动、等待或复用结果；production handler 没开启 deterministic fallback，失败处理依赖 retry/discard 语义。Compaction epoch 同时冻结 memory/profile prompt snapshot。",
+        "whyItMatters": "Summary 既是连续性文本，也是原始历史索引；缓存稳定性和长期记忆用同一个 epoch 对齐。",
+        "boundary": "10%/5% 同时受 10k/5k 绝对阈值约束，不能机械换算为所有模型固定 90%/95%；deterministic fallback 只存在共享实现，固定 Host 接线默认关闭。",
+        "status": "live-path",
+        "evidence": ["GB-58"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "loop-antispin",
+        "index": "H10",
+        "title": "检测循环，但先 fail open",
+        "kicker": "Loop + anti-spin",
+        "summary": "循环检测有 500ms 预算；超时直接 fail open，不产生 loop 结果。只有真正检测到循环并抛出 AgentLoopError 后，Harness 才注入隐藏提醒并重试一次。Goal continuation 连续三轮无工具调用才以 anti_spin 暂停。",
+        "mechanism": "检测器去掉 think 内容后比较重复片段；detected-loop retry 与 detector timeout 是两条路径。真实工具工作会重置 no-tool streak，避免把长任务误当空转。",
+        "whyItMatters": "它优先不误杀正常 turn，再对持续无进展施加软刹车。",
+        "boundary": "Agent mode/goal continuation 来自共享 package，UI 是否暴露要另行核验。",
+        "status": "shared-package",
+        "evidence": ["GB-47"],
+        "attributions": ["reconstructed-runtime"]
+      }
+    ],
+    "features": [
+      {
+        "id": "routines",
+        "index": "F1",
+        "title": "Routine 是后台会话，不是 cron + prompt",
+        "kicker": "Scheduled and event wakes",
+        "summary": "Slack/GitHub relay 进入本地 SandTriggerHub；schedule 与 Teams/Linear/Sentry/PagerDuty 等 server fires 经 cloud sync + SandAutomationFireConsumer。两条入口都进入 hidden background lane，但只有 external event fire 标 untrusted；schedule/manual wake 带 trusted automation marker。",
+        "mechanism": "每 Agent 最多 50 条 routine、20 条 run history；事件侧 750ms debounce、最多聚合 25 条，内部队列上限 500 且溢出丢最老事件，同一 automation in-flight 时会抑制或合并。",
+        "whyItMatters": "语义更接近有损合并的后台 turn，而非 exactly-once 作业系统。",
+        "boundary": "部分 quiet-hours、自过期等规则主要写在 prompt；不能全当硬约束。",
+        "status": "live-path",
+        "evidence": ["GB-15", "GB-32", "GB-52"],
+        "attributions": ["reconstructed-runtime", "official-product"]
+      },
+      {
+        "id": "workflows",
+        "index": "F2",
+        "title": "Workflow UI 合并四种不同资产",
+        "kicker": "Skills and rules",
+        "summary": "统一列表实际聚合 managed skills、plugin skills、用户 SKILL.md workflows 与 automations；带 trigger 的 workflow 会转存为 automation。",
+        "mechanism": "WatchedDirectory 维护已导入 workflows；CLAUDE.md、AGENTS.md、.claude/CLAUDE.md 和 .cursor/rules 只在 portLocalSkills() 被调用时发现，再建立 live source reference。fallback 名称虽叫 Claude/Agents memory，资产类型仍是 workflow，不是持续 watcher。",
+        "whyItMatters": "UI 可统一，但 source identity、所有权、可编辑性与更新策略不能丢。",
+        "boundary": "这是重建 Host 的解析规则，不证明每类入口在 0.18 UI 都完整暴露。",
+        "status": "live-path",
+        "evidence": ["GB-53"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "subagents",
+        "index": "F3",
+        "title": "Background Agent 是 child runner",
+        "kicker": "Delegation and revival",
+        "summary": "Task 创建独立 AnysphereAgent、conversation/state/transcript；后台 session、promise、abort、outline 与 pending steer 主要保存在同一 Host 进程内。",
+        "mechanism": "Steer 会 interrupt 后再发 child 下一轮；shell/cloud watcher 用 terminal path 和 transcript revival 重挂，最长可 watch 5 小时。",
+        "whyItMatters": "它不是独立持久 daemon；Host 重启后的耐久度低于 UI 上“后台 Agent”的直觉。",
+        "boundary": "恢复 glue 能覆盖部分 shell/cloud 状态，不能恢复原 JavaScript 栈。",
+        "status": "live-path",
+        "evidence": ["GB-48"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "agent-network",
+        "index": "F4",
+        "title": "Agent Network 不只是 Task 子 Agent",
+        "kicker": "Persistent agent messaging",
+        "summary": "命名 Agent 之间可以私信、群聊、priority wake 与 admin broadcast；消息进入隐藏 wake turn，并保留每个 Agent 的 persona 与 memory 边界。",
+        "mechanism": "协议区分 SendToAgent 与用户可见 SendMessage，限制 8,000 字符并带 anti-ping-pong 规则；shared room 的工具集另行收紧。",
+        "whyItMatters": "这是产品级多 Agent 协作网络，而不是一次 Task 调用返回字符串。",
+        "boundary": "受 sand_agent_network gate 控制；代码存在不说明所有账户已启用。",
+        "status": "gated",
+        "evidence": ["GB-49", "GB-77"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "browser-computer-deep",
+        "index": "F5",
+        "title": "Computer 条件接线，Browser 再加一层 Gate",
+        "kicker": "CDP versus GUI",
+        "summary": "remote box 同时有 desktop 且当前 available 时，Host 才注入 ComputerUse child；BrowserUse child 还要求 sand_browser_use_subagent。前者独占 GUI window 并逐动作截图，后者经 CDP 做语义自动化。",
+        "mechanism": "Browser driver 会复活被 Memory Saver discard 的 tab，再按 URL 和跨进程锁认领 target；Computer batch 最多 9 步、窗口上限 1。两者可能共享持久 Chrome world，但可见性 gate 不同。",
+        "whyItMatters": "“headless”更准确是无鼠标的语义层，而非无状态沙箱；登录态和页面副作用可能共享。",
+        "boundary": "sand_computer_use_playwright_config 控制 ComputerUse 的模型 override，不是 Browser driver 是否加载 Playwright；playwright-core 在 driver 路径中直接导入。",
+        "status": "partial",
+        "evidence": ["GB-12", "GB-54"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "mcp-connectors",
+        "index": "F6",
+        "title": "MCP 控制面与执行面分离",
+        "kicker": "Discover then call",
+        "summary": "GetMcpTools → CallMcpTool 是两阶段发现协议和模型引导，不是可靠的“读过 schema 才执行”硬门。Desktop 提供 UI catalog/auth，完整 Host 也构造 SandMcpManager 并暴露管理/执行工具。",
+        "mechanism": "definition guard 能返回 unread，但当前 CallMcpTool 分支没有处理该结果；meta 模式缺 definitionPath 时还会 fail open。大 catalog/schema 可 spill，needsAuth 每 server/turn 最多发一张 connect card。",
+        "whyItMatters": "控制面不是只在 Desktop，执行面也不是只在 box；更重要的是 prompt 约定不能冒充 enforceable authorization。",
+        "boundary": "作者 Router 另走 desktop routed bridge；descriptor validator 是可选 hook，固定 Host 接线未证明启用。",
+        "status": "live-path",
+        "evidence": ["GB-22", "GB-41", "GB-55"],
+        "attributions": ["reconstructed-runtime", "author-extensions"]
+      },
+      {
+        "id": "security-triad",
+        "index": "F7",
+        "title": "Permission、Auto-review、Spotlight 是三件事",
+        "kicker": "Three safety layers",
+        "summary": "Local permission 管能否碰用户电脑；Auto-review 管副作用是否需人批准；Spotlight 只给不可信工具内容加 prompt-injection fence。",
+        "mechanism": "审批与 agent、tool fingerprint、user-message epoch、host generation 绑定并在执行前重检；Spotlight 会 scrub 伪 marker，再包进 cursor_untrusted_data_1337。",
+        "whyItMatters": "把三者压成一个“安全模式”会混淆 OS 权限、人工审批和内容 taint。",
+        "boundary": "Spotlight 不是密码学隔离；Auto-review off/shadow/enforce 还受 gate 与 runtime mode 控制。",
+        "status": "gated",
+        "evidence": ["GB-10", "GB-13", "GB-59"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "files-artifacts",
+        "index": "F8",
+        "title": "附件与工具输出跨多个位置域",
+        "kicker": "Owner + location + trust",
+        "summary": "Desktop staging、durable attachments、box workspace 与 .sand/tools spill 没有统一对象模型，至少已跨四种位置/权限域。",
+        "mechanism": "附件按 SHA-256 + 扩展名内容寻址；8MiB 是 Host 附件读取 API 的单次最大 read chunk，不是 ingest 分块。Host→box attachment staging 对不可用、超限与 upload 失败做 best-effort 降级；Desktop stage/commit 失败仍会返回失败或 null。",
+        "whyItMatters": "只传 path 字符串会丢 owner/location/trust；同样的绝对或相对 path 在 Desktop、Host 与 box 上可能指向完全不同的对象。",
+        "boundary": "1MB Sand spill 与共享 agent-exec 的 40KB/50MB 阈值属于不同层，不能混成一个全局限制。",
+        "status": "live-path",
+        "evidence": ["GB-56"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "shell-surfaces",
+        "index": "F9",
+        "title": "模型看到两个 Shell capability surface",
+        "kicker": "Host machine versus isolated box",
+        "summary": "生产投影由同一个 factory 生成 host_machine 与 isolated_box 两个模型工具；Host 内部 shell 是实现基础设施，不是第三个同级模型 surface。",
+        "mechanism": "Factory 支持可选 preflight，但固定 Host binding 未注入它。活跃链包含 model-facing UI guard、classifier/approval、执行前状态复检、file lock 与 executor；native permission 只适用于 external host_machine executor。前台默认等 30 秒后可转后台，硬上限 24 小时。",
+        "whyItMatters": "工具 display name 不足以表达信任域，授权必须绑定原命令、cwd、surface、sandbox 和 execution plan。",
+        "boundary": "具体 timeout 可配置；审批步骤还取决于 mode 与 surface，不能把内部 Host shell 与用户电脑能力混为一谈。",
+        "status": "live-path",
+        "evidence": ["GB-57"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "notifications-hidden",
+        "index": "F10",
+        "title": "通知来自状态转换，不直接消费事件",
+        "kicker": "OS, mobile, dock",
+        "summary": "running→done 和无需输入→needs-input 才生成共用 transition；OS 层把完成设 silent、needs-input 设 critical。前台和隐藏 Agent 被抑制，Dock badge 只汇总可见 Agent 未读；mobile 复用 transition，但没有 silent/critical 呈现字段。",
+        "mechanism": "启动先 seed baseline 避免旧任务误报；5 秒 throttle；epoch/sequence fence 丢弃陈旧 roster 更新。Agent 自隐藏后仍能运行和收 routine。",
+        "whyItMatters": "从状态差分生成通知比消费可能重复的事件流更不容易重放。",
+        "boundary": "全局 notification 设置残留被硬钉 false，但 per-agent 通知路径仍存在；这是两套兼容层。",
+        "status": "live-path",
+        "evidence": ["GB-60"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "teach-demo",
+        "index": "F11",
+        "title": "Teach by demonstration 已有完整暗线",
+        "kicker": "Record then learn",
+        "summary": "私有 monitor 录 X11 画面，15fps H.264、无音频、最长 10 分钟；结束后给 Agent 注入隐藏 Learn from demonstration prompt。",
+        "mechanism": "32-byte key 以 0600 保存，队列用 HMAC 验证；伪造项 quarantine，未交付 session 可在重启后恢复。reconstructed frontend 存在 REC 与 Stop & save 组件。",
+        "whyItMatters": "这不是一个孤立 TODO，而是从录制、完整性、恢复到学习 prompt 都打通的实验。",
+        "boundary": "受 sand_teach_by_demonstration gate 控制；REC / Stop & save 来自 reconstructed frontend，不能当作原厂 authored UI 证据。",
+        "status": "gated",
+        "evidence": ["GB-61"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "channels",
+        "index": "F12",
+        "title": "Channels 更像半成品骨架",
+        "kicker": "Inbound and outbound wakes",
+        "summary": "Inbound 按 address 合并成 hidden [inbound] background run，outbound 失败会写人类可读错误并再次唤醒 Agent 修正。",
+        "mechanism": "连接 metadata 与 secret 分库存放、原子 rename；但 Slack/Discord 状态仍标 coming-soon，只有 legacy configured connection 才显示。",
+        "whyItMatters": "数据模型和 wake 路径存在，不等于 0.18 已包含完整 live transport。",
+        "boundary": "可读树未找到完整 Slack/Discord transport，因此保留为 partial 而非已实现结论。",
+        "status": "partial",
+        "evidence": ["GB-14", "GB-74"],
+        "attributions": ["reconstructed-runtime"]
+      }
+    ],
+    "curiosities": [
+      {
+        "id": "spotlight-1337",
+        "index": "E01",
+        "title": "不可信 fence 里藏着 1337",
+        "kicker": "cursor_untrusted_data_1337",
+        "summary": "Spotlight 的固定 marker 是 cursor_untrusted_data_1337，还会先擦掉工具结果中伪造的同名 marker。",
+        "mechanism": "截图文字中即使出现 closing marker 也被提示为假的，真正边界由 Harness 在外层重新包裹。",
+        "whyItMatters": "小命名背后是 taint propagation 思路，而非简单加一句“忽略网页指令”。",
+        "boundary": "Prompt fence 只能降低注入风险，不能代替权限隔离。",
+        "status": "gated",
+        "evidence": ["GB-10", "GB-59"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "silence-watchdogs",
+        "index": "E02",
+        "title": "第 2 次、超过 6 次才会被催",
+        "kicker": "Delivery watchdogs",
+        "summary": "默认 threshold 是 1 与 6，但判断使用 count > threshold：第 2 次工具调用后才提醒 acknowledgement，第 7 次连续非 SendMessage 调用后才提醒进度。",
+        "mechanism": "提醒进入 tool executor 的 hidden prompt，不直接写用户 transcript；磁盘压力和早期结果还有各自 reminder。",
+        "whyItMatters": "“及时播报进度”不是只靠 system prompt，而有运行时 watchdog。",
+        "boundary": "SAND_DISABLE_USER_REPLY_REMINDER 只改 system prompt，不关闭 runtime middleware；subagent 或 isSilenceAllowed 才绕过两层提醒。",
+        "status": "live-path",
+        "evidence": ["GB-43"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "wallpaper-clock",
+        "index": "E03",
+        "title": "壁纸是时区服务",
+        "kicker": "Ambient host service",
+        "summary": "壁纸色调不是前端 CSS，而是 Host extension 按时区边界调度，遇 timezone change 重新计算并涂到每个 live X display。",
+        "mechanism": "命令以对应 display 的 UID/GID 调用 sand-wallpaper helper，并安排下一个 daylight tone 边界。",
+        "whyItMatters": "说明这个产品把桌面氛围也当可恢复 Host capability，而不是静态装饰。",
+        "boundary": "production extension table 已接线，但缺少 /usr/local/bin/sand-wallpaper 与 sand-wallpaper-tone.mjs 时会返回 isEnabled:false；公开树不含这两个 helper，因此固定交付物的实际可用性未证实。",
+        "status": "partial",
+        "evidence": ["GB-62"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "emoji-tapback",
+        "index": "E04",
+        "title": "Agent 会给消息 Tapback",
+        "kicker": "One emoji reaction",
+        "summary": "SandReaction 可对一条用户消息做单 emoji 反应；同一 emoji 再发一次会 toggle off，而且是 fire-and-forget。",
+        "mechanism": "系统提示要求镜像用户语气，reaction telemetry 还区分 landed 与 timeout。",
+        "whyItMatters": "这是一条独立的轻量交互通道，不占可见 SendMessage 正文。",
+        "boundary": "反应是否实际呈现仍依赖 renderer 与 transport。",
+        "status": "live-path",
+        "evidence": ["GB-63"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "self-hide",
+        "index": "E05",
+        "title": "Agent 能把自己藏出侧栏",
+        "kicker": "hidden_from_sidebar",
+        "summary": "模型可设置 hidden_from_sidebar；隐藏后仍运行、收 routine、积累未读，只是不进通知和 Dock badge。",
+        "mechanism": "用户可从 Hidden chats 或 Cmd-K 找回，说明“隐藏”是可见性状态而非停用。",
+        "whyItMatters": "Agent 能管理自身 UI presence，是很少见的产品级自主权。",
+        "boundary": "这是 system prompt 赋予的能力，执行仍由 update_state schema 与 UI 支持决定。",
+        "status": "live-path",
+        "evidence": ["GB-60"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "character-moods",
+        "index": "E06",
+        "title": "角色有 10 色、8 形与隐藏情绪",
+        "kicker": "suspicious to powering-down",
+        "summary": "AgentId 稳定哈希选择角色外观，还藏了 suspicious、bored、shy、laughing、scared、orbit、humming 等状态，眼睛会跟随指针。",
+        "mechanism": "组件还暴露 imperative spin、bounce、burst 动画，显示角色不是静态头像。",
+        "whyItMatters": "它揭示产品希望用微动作表达 Agent 状态，而不是只靠状态标签。",
+        "boundary": "文件位于 partial reconstructed frontend，只能称 artifact-anchored UI 重构。",
+        "status": "reconstructed-ui",
+        "evidence": ["GB-71"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "statsig-ghost",
+        "index": "E07",
+        "title": "Statsig 请求带 x-ghost-mode",
+        "kicker": "Custom bootstrap",
+        "summary": "实验 bootstrap 自制 machine checksum，请求带 x-ghost-mode:true，只允许 /rgstr 日志，其余 endpoint 返回 fake 204。",
+        "mechanism": "整份 config 被缓存到 sand-statsig-bootstrap.json，checksum 由时间片、XOR seed 165 与 machineId 组合。",
+        "whyItMatters": "这是为桌面 Agent 定制过的实验控制面，不是默认 SDK 直连。",
+        "boundary": "公开 client key 和协议形状不等于能伪造授权实验身份。",
+        "status": "live-path",
+        "evidence": ["GB-64"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "internal-devtools",
+        "index": "E08",
+        "title": "打包版 DevTools 看登录域名开门",
+        "kicker": "Internal account gate",
+        "summary": "Dev build 或 isAnysphereUser 才允许打包版 DevTools；否则即使已打开也会被强制 close，菜单与快捷键动态出现。",
+        "mechanism": "本地 experiment override 同样只向 dev/internal user 开放，并持久化 24 小时。",
+        "whyItMatters": "内部诊断能力与账号身份绑定，不只是 NODE_ENV 判断。",
+        "boundary": "这是内部访问门，不应被描述成安全隔离或漏洞。",
+        "status": "gated",
+        "evidence": ["GB-65"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "flag-drift",
+        "index": "E09",
+        "title": "注释说 OFF，literal 却是 true",
+        "kicker": "Reconstruction drift",
+        "summary": "Multitask、analytics、global search、PR menu、Spotlight 等至少五处 registry 注释与机械恢复出的默认 literal 冲突。",
+        "mechanism": "无 Statsig 或异常时 resolver 会回退到 literal，因此固定仓库的运行值和自然语言解释确实可能相反。",
+        "whyItMatters": "这是重建源码最重要的认识论警报：能运行的值也未必等于官方二进制真实默认。",
+        "boundary": "只能报告“仓库内漂移”，不能据此判定上游生产配置。",
+        "status": "reconstruction-drift",
+        "evidence": ["GB-66"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "pause-cover",
+        "index": "E10",
+        "title": "一个远端 flag 能暂停整台客户端",
+        "kicker": "Pause cover",
+        "summary": "Pause cover 会替换整个窗口、丢弃连接流、阻止 ensure box，并只保留实验 polling 以等待自解锁。",
+        "mechanism": "暂停期间 connect/recreate 被拒绝，也不下发 local-exec credentials。",
+        "whyItMatters": "Feature flag 在这里不仅改 UI，而能成为运营级 kill switch。",
+        "boundary": "Gate 存在不表示它在当前账户或生产环境被打开。",
+        "status": "gated",
+        "evidence": ["GB-66"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "ua-owner",
+        "index": "E11",
+        "title": "浏览器 UA 带匿名 owner stamp",
+        "kicker": "/tmp kill switch",
+        "summary": "JWT sub 被 SHA-256 后取前 16 hex，写入 /tmp/sand-ua-user，并可追加到 GrokAgent UA token。",
+        "mechanism": "/tmp/sand-ua-token-disabled 是无需重启的文件式 kill switch，可即时关掉 UA token。",
+        "whyItMatters": "它在可关联性与隐私之间取了一个稳定匿名标识折中。",
+        "boundary": "哈希截断不是匿名化证明；服务端如何使用该 stamp 不在仓库中。",
+        "status": "gated",
+        "evidence": ["GB-67"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "jacob-model",
+        "index": "E12",
+        "title": "注释里直接写“等 Jacob 开实验”",
+        "kicker": "Opus control arm",
+        "summary": "Sand model experiment 的 control 固定 Claude Opus 4.8/max/thinking/1m context；treatment 才读远端配置，失败仍回 Opus。",
+        "mechanism": "Computer/browser fallback 则明确关 max 与 thinking、effort low，以 see-act loop 延迟优先。",
+        "whyItMatters": "模型不是全产品统一选择，而按任务形态优化 latency、reasoning 与 context。",
+        "boundary": "这是共享 provider 兼容/实验代码，不证明 Grok Bot 主 turn 在线上使用 Claude。",
+        "status": "shared-package",
+        "evidence": ["GB-68"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "claude-compaction",
+        "index": "E13",
+        "title": "共享包里藏着 Claude Code compaction prompt",
+        "kicker": "Provider compatibility",
+        "summary": "Self-summary package 同时包含 Claude Code 风格长 prompt、OpenAI 与 Anthropic 专用 compaction handler。",
+        "mechanism": "90% context threshold 与多 provider serializer 共处一包，说明 Harness 代码来自更广的 Anysphere runtime。",
+        "whyItMatters": "可从代码谱系推断共用基础设施，但不能把这些 handler 当成本产品当前 provider 事实。",
+        "boundary": "严格标记为 shared-package；不用于证明 Grok Bot 正常推理调用 Claude/OpenAI。",
+        "status": "shared-package",
+        "evidence": ["GB-58"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "tool-owners",
+        "index": "E14",
+        "title": "工具表暴露了内部团队地图",
+        "kicker": "agent-quality / async / bugbot",
+        "summary": "all-tools.ts 给工具标了 agent-quality、async、bugbot、core、data-infra、extensibility 等 owner。",
+        "mechanism": "这张 inventory 还包含许多 Cursor/Anysphere 共用工具，真实 Grok turn 再由 turn-toolset 过滤。",
+        "whyItMatters": "除了代码谱系，它还透露 Agent Harness 的组织拆分方式。",
+        "boundary": "Inventory 不是 shipped capability 清单，不能按文件中出现就算产品已支持。",
+        "status": "shared-package",
+        "evidence": ["GB-72"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "multitask-prompt",
+        "index": "E15",
+        "title": "Multitask 按钮本质是一段 fork prompt",
+        "kicker": "Prompt-driven orchestration",
+        "summary": "Start Multitasking 强制当前 Agent 只 fork 一个 async self-resume child，然后前台停止；Build in Parallel 再用 prompt 分 phase。",
+        "mechanism": "旧 auto-run mode 也只迁移成 default + isRunEverything=true，说明不少“模式”是 prompt/metadata 组合。",
+        "whyItMatters": "产品功能不一定对应独立调度原语，很多编排来自可审计的 prompt protocol。",
+        "boundary": "模式和 simulated reason 枚举来自共享 package，UI 可见性未逐项验证。",
+        "status": "shared-package",
+        "evidence": ["GB-73"],
+        "attributions": ["reconstructed-runtime"]
+      },
+      {
+        "id": "router-pulse",
+        "index": "E16",
+        "title": "Router 每 250ms 伪造活动脉冲",
+        "kicker": "Then wait 1200ms",
+        "summary": "非 Cursor Router 用 250ms roster pulse 抵消远端 idle refresh；完成前还故意等 1.2 秒，让 renderer 先出现 composing row。",
+        "mechanism": "这是为兼容既有 UI 时序打的补丁，不属于完整 Host turn 协议。",
+        "whyItMatters": "它解释了为什么界面能看似连续，却无法证明底层 runner 连续。",
+        "boundary": "明确属于作者扩展，不可写成上游 Grok Bot 彩蛋。",
+        "status": "author-extension",
+        "evidence": ["GB-70"],
+        "attributions": ["author-extensions"]
+      },
+      {
+        "id": "memory-half-life",
+        "index": "E17",
+        "title": "用 log-space 实现 30 天指数 half-life",
+        "kicker": "Exponential decay, linear score",
+        "summary": "排序公式 log2(importance) + createdAt / H 看似是线性时间项；把 createdAt 改写成 now - age 后，它等价于常数 + log2(importance × 2^(-age/H))。",
+        "mechanism": "也就是在 log-space 里实现指数衰减：每过 30 天，旧记忆需约 2 倍 importance 才能维持同一排序；再与词面命中组合。",
+        "whyItMatters": "这是一个容易被源码表象误读的小技巧。复刻时直接用指数 decay 或使用等价 log score 都可以，但不能把两者说成不同语义。",
+        "boundary": "这是对固定提交公式的直接阅读；未用生产 memory corpus 测量实际召回分布。",
+        "status": "live-path",
+        "evidence": ["GB-50"],
+        "attributions": ["reconstructed-runtime"]
+      }
+    ]
+  },
   "providers": [
     {
       "id": "cursor",
@@ -1117,6 +1766,628 @@
         "reconstructed-runtime",
         "author-extensions"
       ]
+    },
+    {
+      "id": "GB-37",
+      "kind": "source-code",
+      "layer": "进程与 IPC",
+      "confidence": "高",
+      "statement": "Renderer 发出的 Cursor prompt 从 UI 起携带 nonce；Electron main fork Coordinator，并一次转交 control、renderer-data、main-data 三条 MessagePort。",
+      "locator": "frontend/src/production/ProductionRenderer.tsx:989-1012; source/electron-main/coordinator/coordinator-launcher.ts:46-109",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/coordinator/coordinator-launcher.ts#L46-L109",
+      "links": [
+        { "label": "Renderer nonce", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/frontend/src/production/ProductionRenderer.tsx#L989-L1012" },
+        { "label": "Coordinator ports", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/coordinator/coordinator-launcher.ts#L46-L109" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-38",
+      "kind": "source-code",
+      "layer": "进程与 IPC",
+      "confidence": "高",
+      "statement": "Coordinator 由 generation fence 隔离旧事件并退避重启；renderer port 是一次性资源，重取会替换整个 child。",
+      "locator": "source/electron-main/coordinator/coordinator-runtime.ts:33-53,95-229; source/node-agent-coordinator/main.ts:66-290",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/coordinator/coordinator-runtime.ts#L33-L229",
+      "links": [
+        { "label": "Main lifecycle", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/coordinator/coordinator-runtime.ts#L33-L229" },
+        { "label": "Coordinator port owner", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/node-agent-coordinator/main.ts#L66-L290" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-39",
+      "kind": "source-code",
+      "layer": "请求录入",
+      "confidence": "高",
+      "statement": "Gateway 的 HTTP success 只代表 admission/enqueue；clientNonce 与输入 digest 去重，ledger gap 可返回 unknown-durability 后重新 dispatch，已发请求只在同 endpoint 已证明 dedupe 时重试。",
+      "locator": "source/node-agent-coordinator/gateway/gateway-client.ts:348-390; source/host/host-gateway-api.ts:184-212; source/host/extensions/transcript/send-turn-dispatch.ts:150-192; source/host/extensions/transcript/prompt-acceptance-ledger.ts:25-69,225-274,316-425; source/host/extensions/transcript/send-pipeline.ts:100-147,320-332,385-467",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/prompt-acceptance-ledger.ts#L25-L425",
+      "links": [
+        { "label": "same-endpoint retry", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/node-agent-coordinator/gateway/gateway-client.ts#L348-L390" },
+        { "label": "Gateway accepted response", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/host-gateway-api.ts#L184-L212" },
+        { "label": "enqueue versus await", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/send-turn-dispatch.ts#L150-L192" },
+        { "label": "acceptance ledger", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/prompt-acceptance-ledger.ts#L25-L425" },
+        { "label": "admit and echo gaps", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/send-pipeline.ts#L100-L467" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-40",
+      "kind": "source-code",
+      "layer": "Harness 内核",
+      "confidence": "高",
+      "statement": "完整 turn 穿过 turn-runtime、SandAgentRunner、turn-run-shell、AnysphereAgent action dispatcher 和 checkpoint drain，而不是单一 ReAct 循环。",
+      "locator": "source/host/extensions/transcript/turn-runtime.ts:327-524; source/host/runner/sand-agent-runner.ts:1177-1215; source/host/runner/turn-run-shell.ts:534-800; source/host/runner/production-turn-run-shell-adapter.ts:303-329; source/packages/agent/index.ts:59-141",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/turn-runtime.ts#L327-L524",
+      "links": [
+        { "label": "turn runtime", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/turn-runtime.ts#L327-L524" },
+        { "label": "production runner", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/sand-agent-runner.ts#L1177-L1215" },
+        { "label": "run shell", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-run-shell.ts#L534-L800" },
+        { "label": "production stream adapter", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/production-turn-run-shell-adapter.ts#L303-L329" },
+        { "label": "agent dispatcher", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/index.ts#L59-L141" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-41",
+      "kind": "source-code",
+      "layer": "工具能力",
+      "confidence": "高",
+      "statement": "每个 model step 依据 root/child、mode、room、box、MCP 和实时资源重建工具集；专用 Browser/Computer child 与 shared room 有独立 allowlist。",
+      "locator": "source/host/runner/tools/turn-toolset.ts:1293-1531; source/packages/agent/actions/user-message-action/abstract-user-message-action-handler.ts:1868-2023",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/turn-toolset.ts#L1293-L1531",
+      "links": [
+        { "label": "Host tool projection", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/turn-toolset.ts#L1293-L1531" },
+        { "label": "per-step action tools", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/actions/user-message-action/abstract-user-message-action-handler.ts#L1868-L2023" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-42",
+      "kind": "source-code",
+      "layer": "消息交付",
+      "confidence": "高",
+      "statement": "SendMessage 是 typed side-effect 协议，支持 text、attachment、widget、cursor-agent 与 secret-request；secret 值直写凭据文件而不进入模型或 chat。",
+      "locator": "source/host/runner/tools/send-message-schema.ts:3-51; source/host/runner/tools/send-message-tool.ts:16-133",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/send-message-schema.ts#L3-L51",
+      "links": [
+        { "label": "typed message schema", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/send-message-schema.ts#L3-L51" },
+        { "label": "message and secret effects", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/send-message-tool.ts#L16-L133" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-43",
+      "kind": "source-code",
+      "layer": "消息交付",
+      "confidence": "高",
+      "statement": "第 2 次工具调用后未致意、超过 6 次非 SendMessage 调用未播报才触发隐藏提醒；delivery obligation 还能跨重启继续追讨。",
+      "locator": "source/host/runner/start-of-turn-ack-reminder-middleware.ts:9-98; source/host/runner/send-message-reminder-middleware.ts:1-42; source/host/runner/system-prompt.ts:9-12; source/host/runner/turn-agent-composition.ts:185-205; source/host/extensions/transcript/ack-obligations.ts:158-292; source/host/extensions/transcript/sand-ack-obligation-store.ts:48-127; source/host/sand-host.ts:563-568",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/send-message-reminder-middleware.ts#L1-L42",
+      "links": [
+        { "label": "ack threshold", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/start-of-turn-ack-reminder-middleware.ts#L9-L98" },
+        { "label": "progress threshold", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/send-message-reminder-middleware.ts#L1-L42" },
+        { "label": "prompt switch", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/system-prompt.ts#L9-L12" },
+        { "label": "middleware bypass", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-agent-composition.ts#L185-L205" },
+        { "label": "ack obligations", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/ack-obligations.ts#L158-L292" },
+        { "label": "persistent obligation store", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/sand-ack-obligation-store.ts#L48-L127" },
+        { "label": "boot redrive", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/sand-host.ts#L563-L568" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-44",
+      "kind": "source-code",
+      "layer": "持久化与恢复",
+      "confidence": "高",
+      "statement": "Settle 使用 transcript mirror prepare → AgentStore checkpoint → mirror commit 的双存储顺序；checkpoint 后 append 失败被标为不可重试。",
+      "locator": "source/host/runner/turn-settle.ts:231-290; source/host/transcript-mirror/transcript-mirror.ts:23-42; source/host/runner/transient-stream-error.ts:43-47",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-settle.ts#L231-L290",
+      "links": [
+        { "label": "settle ordering", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-settle.ts#L231-L290" },
+        { "label": "mirror journal", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/transcript-mirror/transcript-mirror.ts#L23-L42" },
+        { "label": "nonretry classification", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/transient-stream-error.ts#L43-L47" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-45",
+      "kind": "source-code",
+      "layer": "持久化与恢复",
+      "confidence": "高",
+      "statement": "createStreamAttempt 与 ResumeAction projection 实现了 durable-checkpoint retry 设计，但固定 Host composition 明说该 option dormant；production adapter 只启动一次 stream。",
+      "locator": "source/host/runner/stream-attempt.ts:18-186; source/host/host-runner-composition.ts:1593-1604; source/host/runner/production-turn-run-shell-adapter.ts:303-329; source/host/runner/turn-agent-composition.ts:1133-1153",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/stream-attempt.ts#L18-L186",
+      "links": [
+        { "label": "retry owner", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/stream-attempt.ts#L18-L186" },
+        { "label": "dormant composition", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/host-runner-composition.ts#L1593-L1604" },
+        { "label": "production one-shot", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/production-turn-run-shell-adapter.ts#L303-L329" },
+        { "label": "Resume projection", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-agent-composition.ts#L1133-L1153" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-46",
+      "kind": "source-code",
+      "layer": "持久化与恢复",
+      "confidence": "高",
+      "statement": "用户打断和异步提问完成会被重建成模型协议完整的 synthetic tool call/result；shell partial output 与重复 completion receipt 均被处理。",
+      "locator": "source/packages/agent/actions/user-message-action/interrupted-tool-reconstruction.ts:45-194; source/packages/agent/actions/ask-question-completion.ts:95-209",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/actions/user-message-action/interrupted-tool-reconstruction.ts#L45-L194",
+      "links": [
+        { "label": "interrupted tool reconstruction", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/actions/user-message-action/interrupted-tool-reconstruction.ts#L45-L194" },
+        { "label": "question completion receipt", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/actions/ask-question-completion.ts#L95-L209" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-47",
+      "kind": "source-code",
+      "layer": "Harness 内核",
+      "confidence": "中高",
+      "statement": "循环检测预算 500ms，超时直接 fail open；只有检测到 loop 后才注入隐藏 reminder 并 retry。Goal continuation 连续三次无工具调用才以 anti_spin 暂停。",
+      "locator": "source/packages/agent/loop-detection/agent-loop-detector.ts:23-35,122-175; source/packages/agent/actions/user-message-action/abstract-user-message-action-handler.ts:2341-2355; source/packages/agent/actions/goal-continuation-action-handler.ts:17-18,84-149",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/loop-detection/agent-loop-detector.ts#L23-L175",
+      "links": [
+        { "label": "detector timeout", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/loop-detection/agent-loop-detector.ts#L23-L175" },
+        { "label": "detected-loop retry", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/actions/user-message-action/abstract-user-message-action-handler.ts#L2341-L2355" },
+        { "label": "anti-spin", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/actions/goal-continuation-action-handler.ts#L84-L149" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-48",
+      "kind": "source-code",
+      "layer": "子 Agent",
+      "confidence": "高",
+      "statement": "Background Agent 是 Host 内 child runner；session/steer 多驻内存，shell/cloud revival 依赖 transcript、terminal path 与最长五小时 watcher。",
+      "locator": "source/packages/agent/tools/task.ts:157-349; source/host/host-runner-composition.ts:2441-2480; source/host/runner/subagent-runtime.ts:61-317; source/packages/agent-exec/background-work-registry.ts:54-373",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/subagent-runtime.ts#L61-L317",
+      "links": [
+        { "label": "Task child creation", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/task.ts#L157-L349" },
+        { "label": "Host child wiring", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/host-runner-composition.ts#L2441-L2480" },
+        { "label": "subagent runtime", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/subagent-runtime.ts#L61-L317" },
+        { "label": "background registry", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent-exec/background-work-registry.ts#L54-L373" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-49",
+      "kind": "source-code",
+      "layer": "多 Agent 协作",
+      "confidence": "中高",
+      "statement": "Agent messaging 支持私信、群聊、priority wake 与 admin broadcast，并区分给 Agent 的 SendToAgent 和给用户的 SendMessage。",
+      "locator": "source/host/agents/agent-messaging.ts:4-128",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/agents/agent-messaging.ts#L4-L128",
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-50",
+      "kind": "source-code",
+      "layer": "Memory",
+      "confidence": "高",
+      "statement": "Memory 使用 Markdown profile/log、Unicode token 词面检索与 compaction-epoch snapshot；recall score 在 log-space 实现 30 天指数 half-life。每六轮 episode 只属于 dreaming bridge 未启用时的 legacy 路径。",
+      "locator": "source/host/runner/sand-memory.ts:1-65,76-175,195-239,310-326; source/host/runner/turn-memory.ts:42-113",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/sand-memory.ts#L1-L239",
+      "links": [
+        { "label": "recall score", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/sand-memory.ts#L1-L239" },
+        { "label": "legacy episode path", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-memory.ts#L42-L113" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-51",
+      "kind": "source-code",
+      "layer": "Memory",
+      "confidence": "高",
+      "statement": "Memory dreaming 以 evidence ID 生成提案，再经独立 verifier；fingerprint 阻止陈旧写，显式事实不可自动改删，tombstone 防止复活。",
+      "locator": "source/host/extensions/memory/memory-service.ts:50-130; source/host/extensions/memory/memory-synthesis-service.ts:66-91,243-282",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/memory/memory-synthesis-service.ts#L66-L91",
+      "links": [
+        { "label": "memory evidence store", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/memory/memory-service.ts#L50-L130" },
+        { "label": "verifier and fingerprint", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/memory/memory-synthesis-service.ts#L66-L282" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-52",
+      "kind": "source-code",
+      "layer": "产品编排",
+      "confidence": "中高",
+      "statement": "Slack/GitHub relay 走 SandTriggerHub；schedule 与其他 server fires 走 cloud sync + SandAutomationFireConsumer。所有 wake 都 hidden，但只有 external events 标 untrusted，schedule/manual 带 trusted marker。事件可经 750ms debounce 聚合最多 25 条。",
+      "locator": "source/host/extensions/automations/extension.ts:52-85; source/host/automations/automation.ts:8-70,102-105; source/host/extensions/transcript/automation-event-fires.ts:8-149; source/host/extensions/transcript/automation-run-path.ts:218-245; source/host/runner/prompt-collector-glue.ts:334-368",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/automation-event-fires.ts#L8-L149",
+      "links": [
+        { "label": "two trigger pipelines", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/automations/extension.ts#L52-L85" },
+        { "label": "routine limits", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/automations/automation.ts#L8-L105" },
+        { "label": "event merge lane", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/automation-event-fires.ts#L8-L149" },
+        { "label": "event trust flag", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/automation-run-path.ts#L218-L245" },
+        { "label": "trusted hidden marker", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/prompt-collector-glue.ts#L334-L368" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-53",
+      "kind": "source-code",
+      "layer": "产品编排",
+      "confidence": "高",
+      "statement": "Workflow store 聚合 managed/plugin/user skills 与 automations；CLAUDE.md、AGENTS.md 和 Cursor rules 在 portLocalSkills() 调用时被发现并建立 live source reference，不是持续 watcher。",
+      "locator": "source/host/workflows/workflow-library.ts:1-18; source/host/workflows/workflow-store.ts:25-55",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/workflows/workflow-store.ts#L25-L55",
+      "links": [
+        { "label": "workflow library", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/workflows/workflow-library.ts#L1-L18" },
+        { "label": "local skill porting", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/workflows/workflow-store.ts#L25-L55" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-54",
+      "kind": "source-code",
+      "layer": "Browser / Computer",
+      "confidence": "中高",
+      "statement": "remote box 有 desktop 且 available 时 ComputerUse child 才注入；BrowserUse child 另受 gate 控制。Browser driver 连接持久 Chrome CDP 并复活 discarded tab，ComputerUse 独占 GUI window 并逐动作截图。",
+      "locator": "source/host/runner/turn-agent-composition.ts:1692-1699; source/host/runner/tools/sand-browser-driver-source.ts:204-349,817-824; source/host/runner/tools/sand-computer-tool.ts:22-87,225-291; source/host/runner/computer-use.ts:61-136",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/sand-browser-driver-source.ts#L204-L349",
+      "links": [
+        { "label": "child gates", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-agent-composition.ts#L1692-L1699" },
+        { "label": "Browser CDP driver", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/sand-browser-driver-source.ts#L204-L349" },
+        { "label": "playwright import", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/sand-browser-driver-source.ts#L817-L824" },
+        { "label": "Computer actions", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/sand-computer-tool.ts#L225-L291" },
+        { "label": "window allocation", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/computer-use.ts#L61-L136" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-55",
+      "kind": "source-code",
+      "layer": "MCP",
+      "confidence": "高",
+      "statement": "MCP 使用 GetMcpTools → CallMcpTool 两阶段发现协议，但 unread 结果未形成执行硬门。Desktop 提供 UI catalog/auth，Host 也构造 SandMcpManager 与管理工具；Router 扩展另走 desktop bridge。",
+      "locator": "source/packages/agent/tools/mcp/get-mcp-tools.ts:150-367; source/packages/agent/tools/mcp/mcp.ts:438-535; source/packages/agent/tools/mcp/mcp-execution-guards.ts:40-65; source/host/extensions/mcp/mcp-service.ts:91-159; source/host/runner/turn-agent-composition.ts:1236-1265; source/electron-main/mcp/desktop-mcp-manager.ts:73-160",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/mcp/get-mcp-tools.ts#L150-L367",
+      "links": [
+        { "label": "GetMcpTools", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/mcp/get-mcp-tools.ts#L150-L367" },
+        { "label": "CallMcpTool", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/mcp/mcp.ts#L438-L535" },
+        { "label": "unread guard", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/mcp/mcp-execution-guards.ts#L40-L65" },
+        { "label": "Host MCP manager", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/mcp/mcp-service.ts#L91-L159" },
+        { "label": "needsAuth card dedupe", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-agent-composition.ts#L1236-L1265" },
+        { "label": "Desktop MCP", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/mcp/desktop-mcp-manager.ts#L73-L160" }
+      ],
+      "attributions": ["reconstructed-runtime", "author-extensions"]
+    },
+    {
+      "id": "GB-56",
+      "kind": "source-code",
+      "layer": "文件与附件",
+      "confidence": "高",
+      "statement": "附件按 SHA-256 内容寻址，Host read API 单次 chunk 上限 8MiB；desktop staging、durable attachment、best-effort Host→box staging 与 .sand/tools spill 属于不同位置/失败域。",
+      "locator": "source/electron-main/attachments/attachments.ts:6-106; source/host/extensions/attachments/attachments-service.ts:22-65,145-223; source/host/extensions/attachments/box-staging.ts:6-29; source/host/runner/large-output-spill.ts:11-59; source/packages/agent-exec/agent-tools-file.ts:10-13,58-80",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/attachments/attachments-service.ts#L22-L223",
+      "links": [
+        { "label": "Desktop staging", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/attachments/attachments.ts#L6-L106" },
+        { "label": "durable attachments", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/attachments/attachments-service.ts#L22-L223" },
+        { "label": "best-effort box staging", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/attachments/box-staging.ts#L6-L29" },
+        { "label": "Sand tool spill", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/large-output-spill.ts#L11-L59" },
+        { "label": "shared spill thresholds", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent-exec/agent-tools-file.ts#L10-L80" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-57",
+      "kind": "source-code",
+      "layer": "Shell",
+      "confidence": "高",
+      "statement": "模型侧 host_machine 与 isolated_box 两个 Shell surface 共用 factory 与 stream 协议；固定 Host 未注入 optional preflight。approval fingerprint 绑定命令、cwd、surface、sandbox 和执行计划；默认前台 30 秒、硬上限 24 小时。",
+      "locator": "source/host/runner/turn-agent-composition.ts:451-509; source/host/runner/tools/turn-toolset.ts:338-390; source/packages/agent/tools/core/shell/create-shell-tool.ts:224-253,303-314,574-703",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/core/shell/create-shell-tool.ts#L224-L314",
+      "links": [
+        { "label": "two surfaces", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-agent-composition.ts#L451-L509" },
+        { "label": "live Host options", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/turn-toolset.ts#L338-L390" },
+        { "label": "factory constants and approval", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/core/shell/create-shell-tool.ts#L224-L703" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-58",
+      "kind": "source-code",
+      "layer": "Context",
+      "confidence": "高",
+      "statement": "Host 在剩余约 10%/10k tokens 时启动后台总结，通常到剩余约 5%/5k 才持久化；届时原 messages 进入 SummaryArchive 并改用 summary + tail。production handler 未开启 deterministic fallback。",
+      "locator": "source/host/runner/turn-agent-composition.ts:209-216,255-290,870-892; source/packages/agent-summarization/background-summarization.ts:23-61; source/packages/agent-summarization/summarization-handler.ts:895-918; source/packages/agent/self-summary/constants.ts:1-102; source/packages/agent/summarization-orchestrator.ts:307-380,593-765",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/self-summary/constants.ts#L1-L102",
+      "links": [
+        { "label": "Host summarization wiring", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-agent-composition.ts#L209-L290" },
+        { "label": "production handler", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-agent-composition.ts#L870-L892" },
+        { "label": "start and persist thresholds", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent-summarization/background-summarization.ts#L23-L61" },
+        { "label": "fallback default off", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent-summarization/summarization-handler.ts#L895-L918" },
+        { "label": "compaction constants", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/self-summary/constants.ts#L1-L102" },
+        { "label": "orchestrator", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/summarization-orchestrator.ts#L307-L765" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-59",
+      "kind": "source-code",
+      "layer": "安全边界",
+      "confidence": "高",
+      "statement": "Local permission、Auto-review 与 Spotlight 分别处理本机访问、人工副作用审批和不可信内容 fence，三者不可互相替代。",
+      "locator": "source/shared/local-tool-permission.ts:1-24; source/host/runner/sand-auto-review.ts:3-21,57-170; source/shared/sand-spotlight.ts:1-18",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/sand-auto-review.ts#L3-L170",
+      "links": [
+        { "label": "local permission", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/local-tool-permission.ts#L1-L24" },
+        { "label": "Auto-review", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/sand-auto-review.ts#L3-L170" },
+        { "label": "Spotlight fence", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/sand-spotlight.ts#L1-L18" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-60",
+      "kind": "source-code",
+      "layer": "通知与可见性",
+      "confidence": "高",
+      "statement": "Agent 可设置 hidden_from_sidebar 后继续运行；隐藏/前台 Agent 被共用 transition decider 抑制，OS needs-input 可 critical、done 可 silent，mobile 只复用 transition。Dock badge 排除隐藏 Agent 并用 epoch/seq 拒绝陈旧 roster。",
+      "locator": "source/host/runner/system-prompt-assembly.ts:100-116; source/shared/os-notification.ts:1-11; source/electron-main/notifications/os-notification-manager.ts:38-98; source/host/extensions/notifications/mobile-push-notifier.ts:1-5; source/electron-main/notifications/dock-badge.ts:1-14; source/electron-main/notifications/dock-badge-manager.ts:12-79; source/electron-main/coordinator/coordinator-resync.ts:7-7",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/system-prompt-assembly.ts#L100-L116",
+      "links": [
+        { "label": "self-hide tool", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/system-prompt-assembly.ts#L100-L116" },
+        { "label": "transition and throttle", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/os-notification.ts#L1-L11" },
+        { "label": "notification transition", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/notifications/os-notification-manager.ts#L38-L98" },
+        { "label": "mobile transition reuse", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/notifications/mobile-push-notifier.ts#L1-L5" },
+        { "label": "Dock visibility", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/notifications/dock-badge.ts#L1-L14" },
+        { "label": "epoch fencing", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/notifications/dock-badge-manager.ts#L12-L79" },
+        { "label": "global setting shim", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/coordinator/coordinator-resync.ts#L7" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-61",
+      "kind": "source-code",
+      "layer": "隐藏实验",
+      "confidence": "高",
+      "statement": "Teach by demonstration 用 HMAC 队列与 0600 key 保护最长十分钟、15fps H.264 的私有录屏，并注入隐藏学习 prompt；REC UI 来自 reconstructed frontend。",
+      "locator": "source/shared/agents/teach-recording.ts:1-7; source/host/extensions/teach-recording/extension.ts:10-47; source/host/extensions/teach-recording/teach-recording-service.ts:43-48,103-178; frontend/src/recovered/features/computer/teach-recording/view.tsx:110-145",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/teach-recording/teach-recording-service.ts#L103-L161",
+      "links": [
+        { "label": "10 minute cap", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/agents/teach-recording.ts#L1-L7" },
+        { "label": "0600 key and gate", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/teach-recording/extension.ts#L10-L47" },
+        { "label": "HMAC and recording", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/teach-recording/teach-recording-service.ts#L43-L178" },
+        { "label": "reconstructed REC UI", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/frontend/src/recovered/features/computer/teach-recording/view.tsx#L110-L145" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-62",
+      "kind": "source-code",
+      "layer": "源码彩蛋",
+      "confidence": "高",
+      "statement": "Wallpaper extension 按时区调度 tone，并以正确 UID/GID 给每个 live X display 重绘；两个 /usr/local/bin helper 缺失时 extension 明确禁用。",
+      "locator": "source/host/host-production-extensions.ts:120-130; source/host/extensions/wallpaper/extension.ts:1-3; source/host/extensions/wallpaper/wallpaper-service.ts:1-4; source/host/extensions/wallpaper/box-wallpaper-commands.ts:2-8",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/wallpaper/wallpaper-service.ts#L1-L4",
+      "links": [
+        { "label": "production extension table", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/host-production-extensions.ts#L120-L130" },
+        { "label": "availability gate", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/wallpaper/extension.ts#L1-L3" },
+        { "label": "tone scheduler", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/wallpaper/wallpaper-service.ts#L1-L4" },
+        { "label": "helper commands", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/wallpaper/box-wallpaper-commands.ts#L2-L8" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-63",
+      "kind": "source-code",
+      "layer": "源码彩蛋",
+      "confidence": "高",
+      "statement": "SandReaction 允许 Agent 对一条用户消息做单 emoji tapback，同 emoji 再发会 toggle off，并记录 landed/timeout telemetry。",
+      "locator": "source/host/runner/tools/sand-reaction-tool.ts:6-40; source/electron-main/telemetry/reaction-ack-telemetry.ts:1-4",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/sand-reaction-tool.ts#L6-L40",
+      "links": [
+        { "label": "reaction tool", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/sand-reaction-tool.ts#L6-L40" },
+        { "label": "reaction telemetry", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/telemetry/reaction-ack-telemetry.ts#L1-L4" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-64",
+      "kind": "source-code",
+      "layer": "实验控制面",
+      "confidence": "高",
+      "statement": "Statsig bootstrap 带 x-ghost-mode、自制 machine checksum 与 config cache，并把非 /rgstr 日志 endpoint 伪装成 204。",
+      "locator": "source/shared/node/experiments/statsig-bootstrap.ts:11-50",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/statsig-bootstrap.ts#L11-L50",
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-65",
+      "kind": "source-code",
+      "layer": "实验控制面",
+      "confidence": "高",
+      "statement": "打包版 DevTools 与 24 小时本地 feature override 只向 dev build 或 Anysphere 内部账号开放。",
+      "locator": "source/electron-main/devtools-gate.ts:8-56; source/shared/node/experiments/cursor-experiments.ts:30-54; source/shared/node/experiments/feature-flag-overrides.ts:8-26",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/devtools-gate.ts#L8-L56",
+      "links": [
+        { "label": "DevTools gate", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/devtools-gate.ts#L8-L56" },
+        { "label": "internal user check", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/cursor-experiments.ts#L30-L54" },
+        { "label": "24h override", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/feature-flag-overrides.ts#L8-L26" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-66",
+      "kind": "source-code",
+      "layer": "重建边界",
+      "confidence": "中高",
+      "statement": "多个恢复 registry 注释写默认关闭，literal 却为 true；另有可替换整窗并阻止连接的 pause cover kill switch。",
+      "locator": "source/shared/node/experiments/experiment-config.gen.ts:124-138,345-400,693-707; source/electron-main/box/box-client-pause.ts:19-61",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/experiment-config.gen.ts#L345-L400",
+      "links": [
+        { "label": "flag defaults", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/experiment-config.gen.ts#L124-L707" },
+        { "label": "pause cover", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/box/box-client-pause.ts#L19-L61" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-67",
+      "kind": "source-code",
+      "layer": "Browser / Computer",
+      "confidence": "高",
+      "statement": "Browser UA owner stamp 由 JWT sub 的 SHA-256 前 16 hex 生成，并可通过 /tmp 文件 kill switch 即时关闭。",
+      "locator": "source/host/extensions/browser-ua/ua-owner-stamp-service.ts:6-26; source/host/extensions/browser-ua/ua-token-kill-switch-service.ts:3-18",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/browser-ua/ua-owner-stamp-service.ts#L6-L26",
+      "links": [
+        { "label": "owner stamp", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/browser-ua/ua-owner-stamp-service.ts#L6-L26" },
+        { "label": "UA kill switch", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/browser-ua/ua-token-kill-switch-service.ts#L3-L18" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-68",
+      "kind": "source-code",
+      "layer": "模型实验",
+      "confidence": "中高",
+      "statement": "共享模型实验 control 固定 Claude Opus 4.8；Computer/Browser fallback 则关闭 thinking、effort low，以 see-act latency 优先。",
+      "locator": "source/shared/node/experiments/sand-model-experiment.ts:2-5; source/shared/node/experiments/experiment-config.gen.ts:3620-3633,5169-5193",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/sand-model-experiment.ts#L2-L5",
+      "links": [
+        { "label": "Opus control", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/sand-model-experiment.ts#L2-L5" },
+        { "label": "Jacob comment", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/experiment-config.gen.ts#L3620-L3633" },
+        { "label": "Computer Browser fallback", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/experiment-config.gen.ts#L5169-L5193" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-69",
+      "kind": "source-code",
+      "layer": "持久化与恢复",
+      "confidence": "高",
+      "statement": "Conversation 一旦写入 .journal-mode marker 就 sticky 使用 WAL journal；atomic write、fsync 与 pending hash/inode 用于 crash recovery。",
+      "locator": "source/host/transcript-mirror/transcript-mirror-router.ts:44-80; source/host/transcript-mirror/transcript-mirror.ts:23-42",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/transcript-mirror/transcript-mirror-router.ts#L44-L80",
+      "links": [
+        { "label": "journal-mode router", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/transcript-mirror/transcript-mirror-router.ts#L44-L80" },
+        { "label": "journal recovery", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/transcript-mirror/transcript-mirror.ts#L23-L42" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-70",
+      "kind": "source-code",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "statement": "非 Cursor Router 每 250ms 伪造 roster 活动脉冲，并在完成前硬等 1200ms 兼容 renderer composing row。",
+      "locator": "source/node-agent-coordinator/inference-router.ts:80-180",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/node-agent-coordinator/inference-router.ts#L80-L180",
+      "attributions": ["author-extensions"]
+    },
+    {
+      "id": "GB-71",
+      "kind": "source-code",
+      "layer": "UI 重构",
+      "confidence": "中",
+      "statement": "Partial reconstructed character UI 用 AgentId 稳定哈希选 10 色×8 形，并实现多种隐藏情绪、指针眼神与 spin/bounce/burst 动画。",
+      "locator": "frontend/src/recovered/features/onboarding/signed-in/character.tsx:24-57,234-309",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/frontend/src/recovered/features/onboarding/signed-in/character.tsx#L24-L57",
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-72",
+      "kind": "source-code",
+      "layer": "共享代码谱系",
+      "confidence": "高",
+      "statement": "all-tools inventory 标注 agent-quality、async、bugbot、core、data-infra、extensibility owner，但真实 turn 仍由 capability projection 过滤。",
+      "locator": "source/packages/agent/tools/all-tools.ts:1-122; source/host/runner/tools/turn-toolset.ts:1293-1531",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/all-tools.ts#L1-L122",
+      "links": [
+        { "label": "tool owner inventory", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/tools/all-tools.ts#L1-L122" },
+        { "label": "runtime projection", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/turn-toolset.ts#L1293-L1531" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-73",
+      "kind": "source-code",
+      "layer": "共享代码谱系",
+      "confidence": "中高",
+      "statement": "Multitask 通过 prompt 强制 fork async self-resume child；旧 auto-run 被迁移为 default + isRunEverything，而非独立调度器模式。",
+      "locator": "source/packages/agent/multitask-action-prompt.ts:10-48; source/packages/agent-kv/agent-store.ts:141-178; source/packages/agent/mode-processing.ts:55-175",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/multitask-action-prompt.ts#L10-L48",
+      "links": [
+        { "label": "multitask fork prompt", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/multitask-action-prompt.ts#L10-L48" },
+        { "label": "mode storage", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent-kv/agent-store.ts#L141-L178" },
+        { "label": "mode migration", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/packages/agent/mode-processing.ts#L55-L175" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-74",
+      "kind": "source-code",
+      "layer": "Channels",
+      "confidence": "中高",
+      "statement": "Inbound/outbound wake 与 secret 分离存储骨架存在，但 Slack/Discord 仍标 coming-soon，可读树未证明完整 live transport。",
+      "locator": "source/shared/channels.ts:13-50; source/shared/channel-messaging.ts:157-239; source/host/extensions/session/channel-store.ts:7-25; source/host/extensions/session/connector-secret-store.ts:9-30; source/host/extensions/transcript/background-wakes.ts:90-307",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/channels.ts#L13-L50",
+      "links": [
+        { "label": "channel status", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/channels.ts#L13-L50" },
+        { "label": "message contract", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/channel-messaging.ts#L157-L239" },
+        { "label": "metadata store", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/session/channel-store.ts#L7-L25" },
+        { "label": "secret store", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/session/connector-secret-store.ts#L9-L30" },
+        { "label": "background wakes", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/background-wakes.ts#L90-L307" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-75",
+      "kind": "source-code",
+      "layer": "持久化与恢复",
+      "confidence": "中高",
+      "statement": "state/store.db 可选复制到 S3/object-store backstop，5 秒 debounce、64MB 上限，并受 SAND_STATE_S3_BACKSTOP gate 控制。",
+      "locator": "source/host/extensions/state-backstop/state-backstop-service.ts:1-6",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/state-backstop/state-backstop-service.ts#L1-L6",
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-76",
+      "kind": "source-code",
+      "layer": "本机执行",
+      "confidence": "高",
+      "statement": "远端 Host 操作用户本机不是开放入站端口，而由桌面 local-exec daemon 主动通过 SSE 反连 Gateway，并 POST 批次结果。",
+      "locator": "source/host/local-exec/local-exec-provider.ts:51-64,85-134; source/host/extensions/local-exec/gateway-local-exec-sand-box.ts:37-84",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/local-exec/local-exec-provider.ts#L51-L134",
+      "links": [
+        { "label": "desktop reverse SSE", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/local-exec/local-exec-provider.ts#L51-L134" },
+        { "label": "Gateway result POST", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/local-exec/gateway-local-exec-sand-box.ts#L37-L84" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-77",
+      "kind": "source-code",
+      "layer": "实验控制面",
+      "confidence": "高",
+      "statement": "Agent network、browser/computer、teach、multitask、Spotlight 等能力由集中 experiments extension 与静态/动态 gate 控制。",
+      "locator": "source/host/extensions/experiments/extension.ts:22-24; source/shared/node/experiments/experiment-config.gen.ts",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/experiments/extension.ts#L22-L24",
+      "links": [
+        { "label": "experiments extension", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/experiments/extension.ts#L22-L24" },
+        { "label": "gate registry", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/node/experiments/experiment-config.gen.ts" }
+      ],
+      "attributions": ["reconstructed-runtime"]
+    },
+    {
+      "id": "GB-78",
+      "kind": "source-code",
+      "layer": "并发与恢复",
+      "confidence": "高",
+      "statement": "soft-exclusive 先等旧 run 120 秒、interrupt 后再等 30 秒，仍未退出则移入 zombie。scheduler generation 只保护 queue slot 的 late-settle，active-run identity 另护 final state；固定代码未证明 escaped zombie 的 late step checkpoint 全被隔离。",
+      "locator": "source/host/extensions/transcript/run-lifecycle.ts:26-27; source/host/extensions/transcript/run-scheduler.ts:259-366; source/host/runner/turn-run-shell.ts:568-592,720-738,777-792; source/host/runner/sand-agent-runner.ts:642-649,896-909",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/run-scheduler.ts#L259-L366",
+      "links": [
+        { "label": "timeout constants", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/run-lifecycle.ts#L26-L27" },
+        { "label": "scheduler fencing", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/transcript/run-scheduler.ts#L259-L366" },
+        { "label": "generation capture", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-run-shell.ts#L568-L592" },
+        { "label": "step and final persistence", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/turn-run-shell.ts#L720-L792" },
+        { "label": "Host generation mutations", "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/sand-agent-runner.ts#L642-L909" }
+      ],
+      "attributions": ["reconstructed-runtime"]
     }
   ]
 }

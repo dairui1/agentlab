@@ -7,6 +7,17 @@
 
   const claimKinds = new Set(["official", "author-claim", "community-interpretation", "correction"]);
   const repositoryKinds = new Set(["source-code", "repository-doc", "manifest"]);
+  const deepDiveStatuses = new Set([
+    "live-path",
+    "recovery-path",
+    "gated",
+    "shared-package",
+    "reconstructed-ui",
+    "reconstruction-drift",
+    "author-extension",
+    "dormant",
+    "partial",
+  ]);
 
   function normalized(value) {
     return String(value || "").trim().toLocaleLowerCase();
@@ -14,6 +25,11 @@
 
   function evidenceById(data) {
     return new Map((data?.evidence || []).map((item) => [item.id, item]));
+  }
+
+  function evidenceSourceLinks(item) {
+    if (Array.isArray(item?.links) && item.links.length > 0) return item.links;
+    return item?.url ? [{ label: item.id || "source", url: item.url }] : [];
   }
 
   function hasValidAttributions(item, layerIds) {
@@ -27,12 +43,21 @@
     return (ids || []).map((id) => labels.get(id)).filter(Boolean);
   }
 
+  function deepDiveCollections(data) {
+    return {
+      architecture: data?.deepDive?.architecture?.nodes || [],
+      harness: data?.deepDive?.harness || [],
+      features: data?.deepDive?.features || [],
+      curiosities: data?.deepDive?.curiosities || [],
+    };
+  }
+
   function validateDossier(data) {
     const errors = [];
     const commit = data?.sourceRevision?.commit || "";
     const layerIds = new Set((data?.layers || []).map((layer) => layer.id));
     const receipt = data?.verification?.receipt;
-    if (data?.schemaVersion !== 1) errors.push("schemaVersion 必须为 1");
+    if (data?.schemaVersion !== 2) errors.push("schemaVersion 必须为 2");
     if (!/^[0-9a-f]{40}$/.test(commit)) errors.push("源码提交必须固定为 40 位 SHA");
     if (data?.researchModel !== "gpt-5.6-sol") errors.push("研究模型必须记录为 gpt-5.6-sol");
     if (!Array.isArray(data?.layers) || data.layers.length !== 3) errors.push("必须明确区分三层事实");
@@ -50,12 +75,18 @@
       if (!item.id || evidenceIds.has(item.id)) errors.push(`证据 ID 无效或重复：${item.id || "空"}`);
       evidenceIds.add(item.id);
       if (!hasValidAttributions(item, layerIds)) errors.push("证据 " + (item.id || "未知") + " 缺少三层归因");
-      if (item.kind === "local-verification" && !String(item.url).startsWith((receipt?.url || "") + "#")) {
+      const sourceLinks = evidenceSourceLinks(item);
+      if (item.kind === "local-verification" && sourceLinks.some((link) => !String(link.url).startsWith((receipt?.url || "") + "#"))) {
         errors.push("本地验证 " + (item.id || "未知") + " 未指向验证收据");
       }
       if (!item.statement || !item.layer || !item.kind || !item.url) errors.push(`证据 ${item.id || "未知"} 缺少必要字段`);
-      if (repositoryKinds.has(item.kind) && !String(item.url).includes(`/blob/${commit}/`)) {
+      if (sourceLinks.some((link) => !link?.label || !link?.url)) errors.push(`证据 ${item.id || "未知"} 的源码链接无效`);
+      if (repositoryKinds.has(item.kind) && sourceLinks.some((link) => !String(link.url).includes(`/blob/${commit}/`))) {
         errors.push(`仓库证据 ${item.id || "未知"} 未固定到源码提交`);
+      }
+      const locatorParts = String(item.locator || "").split(";").map((part) => part.trim()).filter(Boolean);
+      if (repositoryKinds.has(item.kind) && locatorParts.length > 1 && sourceLinks.length < locatorParts.length) {
+        errors.push(`复合证据 ${item.id || "未知"} 未暴露全部源码锚点`);
       }
     });
 
@@ -68,6 +99,28 @@
       if (!Array.isArray(mechanism.evidence) || mechanism.evidence.length < 2) errors.push(`机制 ${mechanism.id || "未知"} 证据不足`);
       (mechanism.evidence || []).forEach((id) => {
         if (!evidenceIds.has(id)) errors.push(`机制 ${mechanism.id || "未知"} 引用了不存在的证据 ${id}`);
+      });
+    });
+
+    const collections = deepDiveCollections(data);
+    const minimums = { architecture: 7, harness: 8, features: 8, curiosities: 12 };
+    Object.entries(collections).forEach(([name, items]) => {
+      if (items.length < minimums[name]) errors.push(`源码考古 ${name} 不得少于 ${minimums[name]} 项`);
+      const ids = new Set();
+      items.forEach((item) => {
+        if (!item.id || ids.has(item.id)) errors.push(`源码考古 ${name} ID 无效或重复：${item.id || "空"}`);
+        ids.add(item.id);
+        if (!hasValidAttributions(item, layerIds)) errors.push(`源码考古 ${item.id || "未知"} 缺少三层归因`);
+        if (!deepDiveStatuses.has(item.status)) errors.push(`源码考古 ${item.id || "未知"} 缺少能力状态`);
+        if (!item.title || !item.summary || !item.whyItMatters || !item.boundary) errors.push(`源码考古 ${item.id || "未知"} 缺少结论或边界`);
+        if (!Array.isArray(item.evidence) || item.evidence.length < 1) errors.push(`源码考古 ${item.id || "未知"} 缺少证据`);
+        item.evidence?.forEach((id) => {
+          if (!evidenceIds.has(id)) errors.push(`源码考古 ${item.id || "未知"} 引用了不存在的证据 ${id}`);
+        });
+        if (name === "architecture" && (!item.role || !item.transport || !item.state || !item.failureBoundary)) {
+          errors.push(`架构节点 ${item.id || "未知"} 缺少进程边界`);
+        }
+        if (name !== "architecture" && !item.mechanism) errors.push(`源码考古 ${item.id || "未知"} 缺少实现机制`);
       });
     });
 
@@ -103,5 +156,17 @@
     }[kind] || "来源未分类";
   }
 
-  return { claimKinds, repositoryKinds, attributionLabels, evidenceById, validateDossier, mechanismById, filterEvidence, xClaimLabel };
+  return {
+    claimKinds,
+    repositoryKinds,
+    deepDiveStatuses,
+    attributionLabels,
+    evidenceById,
+    evidenceSourceLinks,
+    deepDiveCollections,
+    validateDossier,
+    mechanismById,
+    filterEvidence,
+    xClaimLabel,
+  };
 });

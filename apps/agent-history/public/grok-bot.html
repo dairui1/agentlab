@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="固定源码、官方材料与 X 讨论，深度拆解 Grok Bot 0.18 非官方重建的 Agent runner、Router、状态、安全与证据边界。">
+  <meta name="description" content="固定源码、官方材料与 X 讨论，深挖 Grok Bot 0.18 非官方重建的进程架构、Agent Harness、关键功能、隐藏实验与证据边界。">
   <title>Grok Bot 0.18 重建雷达 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
@@ -89,6 +89,17 @@
             <div class="grok-unknown"><span>仍未知</span><ul id="mechanismUnknowns"></ul></div>
             <nav id="mechanismEvidence" class="grok-inline-evidence" aria-label="当前机制证据"></nav>
           </article>
+        </div>
+      </section>
+
+      <section class="grok-deep-dive-section" aria-labelledby="deepDiveTitle">
+        <header class="grok-section-heading">
+          <div><span>SOURCE ARCHAEOLOGY</span><h2 id="deepDiveTitle">源码考古室</h2></div>
+          <p>沿真实调用链拆开进程、Harness 原语、产品能力与隐藏实验；“有代码”不自动等于“线上已启用”。</p>
+        </header>
+        <div class="grok-deep-dive-shell">
+          <div id="deepDiveTabs" class="grok-deep-dive-tabs" role="tablist" aria-label="源码考古视图"></div>
+          <div id="deepDivePanel" class="grok-deep-dive-panel" role="tabpanel" tabindex="0" aria-live="polite"></div>
         </div>
       </section>
 

@@ -2,7 +2,15 @@
   "use strict";
 
   const core = window.grokBotCore;
-  const state = { data: null, selected: "", evidenceQuery: "", evidenceLayer: "all", evidenceKind: "all" };
+  const state = {
+    data: null,
+    selected: "",
+    deepDiveView: "architecture",
+    deepDiveSelection: {},
+    evidenceQuery: "",
+    evidenceLayer: "all",
+    evidenceKind: "all",
+  };
   const $ = (id) => document.getElementById(id);
   const kindLabels = {
     "source-code": "固定源码",
@@ -10,6 +18,23 @@
     manifest: "重建清单",
     "official-doc": "官方文档",
     "local-verification": "本地复跑",
+  };
+  const deepDiveViews = [
+    { id: "architecture", label: "架构拓扑", icon: "network" },
+    { id: "harness", label: "Harness 内核", icon: "cpu" },
+    { id: "features", label: "关键功能", icon: "blocks" },
+    { id: "curiosities", label: "小彩蛋", icon: "sparkles" },
+  ];
+  const statusLabels = {
+    "live-path": "主路径",
+    "recovery-path": "恢复路径",
+    gated: "实验 Gate",
+    "shared-package": "共享代码",
+    "reconstructed-ui": "UI 重构",
+    "reconstruction-drift": "重构漂移",
+    "author-extension": "扩展路径",
+    dormant: "未接线路径",
+    partial: "半成品",
   };
 
   function el(tag, className, text) {
@@ -53,6 +78,20 @@
 
   function fillList(id, values) {
     $(id).replaceChildren(...(values || []).map((value) => el("li", "", value)));
+  }
+
+  function evidenceLinks(ids) {
+    const evidenceMap = core.evidenceById(state.data);
+    return (ids || []).flatMap((idValue) => {
+      const evidence = evidenceMap.get(idValue);
+      const sources = core.evidenceSourceLinks(evidence);
+      return sources.map((source, index) => {
+        const label = sources.length > 1 ? idValue + "." + (index + 1) : idValue;
+        const link = externalLink(source.url, "", label);
+        link.title = (source.label ? source.label + "：" : "") + (evidence?.statement || idValue);
+        return link;
+      });
+    });
   }
 
   function renderHeader() {
@@ -137,19 +176,169 @@
     fillList("mechanismFacts", mechanism.facts);
     fillList("mechanismBoundaries", mechanism.boundaries);
     fillList("mechanismUnknowns", mechanism.unknowns);
-    const evidenceMap = core.evidenceById(state.data);
-    $("mechanismEvidence").replaceChildren(...mechanism.evidence.map((idValue) => {
-      const evidence = evidenceMap.get(idValue);
-      const link = externalLink(evidence?.url, "", idValue);
-      link.title = evidence?.statement || idValue;
-      return link;
-    }));
+    $("mechanismEvidence").replaceChildren(...evidenceLinks(mechanism.evidence));
     if (updateUrl) {
       const url = new URL(location.href);
       url.hash = mechanism.id;
       history.replaceState(null, "", url);
     }
     refreshIcons();
+  }
+
+  function moveDeepDiveTab(event, currentId) {
+    const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = deepDiveViews.findIndex((view) => view.id === currentId);
+    let nextIndex = currentIndex;
+    if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = deepDiveViews.length - 1;
+    else if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % deepDiveViews.length;
+    else nextIndex = (currentIndex - 1 + deepDiveViews.length) % deepDiveViews.length;
+    const next = deepDiveViews[nextIndex];
+    selectDeepDiveView(next.id);
+    document.getElementById("deep-dive-tab-" + next.id)?.focus();
+  }
+
+  function renderDeepDiveTabs() {
+    $("deepDiveTabs").replaceChildren(...deepDiveViews.map((view) => {
+      const button = el("button", "grok-deep-dive-tab");
+      const selected = view.id === state.deepDiveView;
+      button.type = "button";
+      button.role = "tab";
+      button.id = "deep-dive-tab-" + view.id;
+      button.dataset.view = view.id;
+      button.tabIndex = selected ? 0 : -1;
+      button.setAttribute("aria-selected", String(selected));
+      button.setAttribute("aria-controls", "deepDivePanel");
+      button.append(icon(view.icon), el("span", "", view.label));
+      button.addEventListener("click", () => selectDeepDiveView(view.id));
+      button.addEventListener("keydown", (event) => moveDeepDiveTab(event, view.id));
+      return button;
+    }));
+  }
+
+  function deepDiveMeta(item) {
+    const meta = el("div", "grok-deep-meta");
+    meta.append(
+      el("span", "", statusLabels[item.status] || item.status),
+      el("span", "", attributionText(item)),
+      el("span", "", (item.evidence || []).length + " 条源码证据")
+    );
+    return meta;
+  }
+
+  function deepDiveInspector(item, architecture = false) {
+    const inspector = el("article", "grok-deep-inspector");
+    inspector.dataset.status = item.status;
+    inspector.append(deepDiveMeta(item), el("h3", "", item.title), el("p", "grok-deep-summary", item.summary));
+
+    if (architecture) {
+      const details = el("dl", "grok-architecture-details");
+      [
+        ["职责", item.role],
+        ["Transport", item.transport],
+        ["状态", item.state],
+        ["故障边界", item.failureBoundary],
+      ].forEach(([label, value]) => {
+        const row = el("div");
+        row.append(el("dt", "", label), el("dd", "", value));
+        details.append(row);
+      });
+      inspector.append(details);
+    } else {
+      const mechanism = el("section", "grok-deep-mechanism");
+      mechanism.append(el("h4", "", "实现机制"), el("p", "", item.mechanism));
+      inspector.append(mechanism);
+    }
+
+    const implications = el("div", "grok-deep-implications");
+    const why = el("section");
+    why.append(el("h4", "", "为什么值得注意"), el("p", "", item.whyItMatters));
+    const boundary = el("section");
+    boundary.append(el("h4", "", "证据边界"), el("p", "", item.boundary));
+    implications.append(why, boundary);
+    const evidence = el("nav", "grok-inline-evidence");
+    evidence.setAttribute("aria-label", item.title + "的源码证据");
+    evidence.append(...evidenceLinks(item.evidence));
+    inspector.append(implications, evidence);
+    return inspector;
+  }
+
+  function selectDeepDiveItem(viewId, itemId) {
+    const collection = viewId === "architecture"
+      ? state.data.deepDive.architecture.nodes
+      : state.data.deepDive[viewId];
+    const item = collection.find((candidate) => candidate.id === itemId) || collection[0];
+    state.deepDiveSelection[viewId] = item.id;
+    document.querySelectorAll("[data-deep-item]").forEach((button) => {
+      const selected = button.dataset.deepItem === item.id;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    });
+    const existing = $("deepDivePanel").querySelector(".grok-deep-inspector");
+    existing?.replaceWith(deepDiveInspector(item, viewId === "architecture"));
+    refreshIcons();
+  }
+
+  function deepDiveItemButton(item, viewId, className) {
+    const button = el("button", className);
+    const selected = state.deepDiveSelection[viewId] === item.id;
+    button.type = "button";
+    button.dataset.deepItem = item.id;
+    button.setAttribute("aria-pressed", String(selected));
+    button.classList.toggle("is-selected", selected);
+    button.append(el("span", "", item.index), el("strong", "", item.title));
+    if (item.process) button.append(el("small", "", item.process));
+    else if (item.kicker) button.append(el("small", "", item.kicker));
+    button.addEventListener("click", () => selectDeepDiveItem(viewId, item.id));
+    return button;
+  }
+
+  function renderArchitecture() {
+    const architecture = state.data.deepDive.architecture;
+    const selected = architecture.nodes.find((item) => item.id === state.deepDiveSelection.architecture) || architecture.nodes[0];
+    state.deepDiveSelection.architecture = selected.id;
+    const intro = el("div", "grok-architecture-intro");
+    intro.append(el("strong", "", architecture.title), el("p", "", architecture.summary));
+    const map = el("div", "grok-architecture-map");
+    map.setAttribute("role", "group");
+    map.setAttribute("aria-label", "从桌面到持久化的调用链");
+    map.append(...architecture.nodes.map((item) => deepDiveItemButton(item, "architecture", "grok-architecture-node")));
+    $("deepDivePanel").replaceChildren(intro, map, deepDiveInspector(selected, true));
+  }
+
+  function renderDeepDiveCollection(viewId) {
+    const items = state.data.deepDive[viewId];
+    const selected = items.find((item) => item.id === state.deepDiveSelection[viewId]) || items[0];
+    state.deepDiveSelection[viewId] = selected.id;
+    const layout = el("div", "grok-deep-collection");
+    const rail = el("div", "grok-deep-rail");
+    rail.setAttribute("role", "group");
+    rail.setAttribute("aria-label", deepDiveViews.find((view) => view.id === viewId)?.label || viewId);
+    rail.append(...items.map((item) => deepDiveItemButton(item, viewId, "grok-deep-item")));
+    layout.append(rail, deepDiveInspector(selected));
+    if (viewId === "curiosities") layout.classList.add("is-curiosities");
+    $("deepDivePanel").replaceChildren(layout);
+  }
+
+  function selectDeepDiveView(viewId) {
+    if (!deepDiveViews.some((view) => view.id === viewId)) return;
+    state.deepDiveView = viewId;
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      const selected = button.dataset.view === viewId;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    });
+    $("deepDivePanel").setAttribute("aria-labelledby", "deep-dive-tab-" + viewId);
+    if (viewId === "architecture") renderArchitecture();
+    else renderDeepDiveCollection(viewId);
+    refreshIcons();
+  }
+
+  function renderDeepDive() {
+    renderDeepDiveTabs();
+    selectDeepDiveView(state.deepDiveView);
   }
 
   function renderProviders() {
@@ -237,7 +426,7 @@
       return;
     }
     $("evidenceGrid").replaceChildren(...items.map((item) => {
-      const link = externalLink(item.url, "grok-evidence-item", "");
+      const card = el("article", "grok-evidence-item");
       const meta = el("div");
       meta.append(
         el("strong", "", item.id),
@@ -245,8 +434,16 @@
         el("span", "", item.layer),
         el("span", "grok-attribution", attributionText(item))
       );
-      link.append(meta, el("p", "", item.statement), el("code", "", item.locator), icon("arrow-up-right"));
-      return link;
+      const sources = el("nav", "grok-evidence-sources");
+      sources.setAttribute("aria-label", item.id + " 的固定源码锚点");
+      core.evidenceSourceLinks(item).forEach((source, index, all) => {
+        const label = all.length > 1 ? String(index + 1).padStart(2, "0") + " " + source.label : "打开源码";
+        const link = externalLink(source.url, "", label);
+        link.append(icon("arrow-up-right"));
+        sources.append(link);
+      });
+      card.append(meta, el("p", "", item.statement), el("code", "", item.locator), sources);
+      return card;
     }));
     refreshIcons();
   }
@@ -282,6 +479,7 @@
     renderHeader();
     renderLayers();
     renderMechanismList();
+    renderDeepDive();
     renderProviders();
     renderXSignals();
     renderRisks();
