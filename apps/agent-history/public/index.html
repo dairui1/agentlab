@@ -8,6 +8,7 @@
   <title>AgentLab · Agent 更新情报</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
+  <script src="/site-navigation.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -20,20 +21,7 @@
         </span>
       </a>
 
-      <div id="modeSwitch" class="segmented mode-switch" role="group" aria-label="页面视图">
-        <button id="intelligenceModeButton" type="button" aria-pressed="true">
-          <i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span>
-        </button>
-        <button id="compareModeButton" type="button" aria-pressed="false">
-          <i data-lucide="file-diff" aria-hidden="true"></i><span>版本比较</span>
-        </button>
-        <a href="/capabilities.html">
-          <i data-lucide="library" aria-hidden="true"></i><span>专题研究</span>
-        </a>
-        <a href="/grok-bot.html">
-          <i data-lucide="bot" aria-hidden="true"></i><span>Grok Bot</span>
-        </a>
-      </div>
+      <agentlab-navigation id="modeSwitch" current="intelligence" interactive></agentlab-navigation>
 
       <div class="header-links">
         <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库">

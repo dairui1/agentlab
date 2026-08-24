@@ -151,6 +151,10 @@ ul {
   border-bottom: 1px solid var(--border);
 }
 
+.topbar agentlab-navigation {
+  display: contents;
+}
+
 .brand {
   min-width: 0;
   display: inline-flex;

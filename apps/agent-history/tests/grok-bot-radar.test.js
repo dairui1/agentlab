@@ -119,14 +119,16 @@ test("mechanism conclusions lead while the evidence ledger stays collapsed", () 
   assert.match(script, /tabIndex = selected \? 0 : -1/);
 });
 
-test("Grok Bot is a dedicated tab without hijacking the canonical Grok feed identity", () => {
+test("Grok Bot is a dedicated shared tab without hijacking the canonical Grok feed identity", () => {
+  const navigation = require(path.join(publicRoot, "site-navigation.js"));
+  assert.ok(navigation.items.some((item) => item.id === "grok" && item.href === "/grok-bot.html"));
   const navigationFiles = fs.readdirSync(publicRoot, { recursive: true })
     .filter((relativePath) => relativePath.endsWith(".html"))
-    .filter((relativePath) => fs.readFileSync(path.join(publicRoot, relativePath), "utf8").includes('class="segmented mode-switch'));
+    .filter((relativePath) => fs.readFileSync(path.join(publicRoot, relativePath), "utf8").includes("<agentlab-navigation"));
   assert.ok(navigationFiles.length >= 9);
   navigationFiles.forEach((relativePath) => {
     const navigationHtml = fs.readFileSync(path.join(publicRoot, relativePath), "utf8");
-    assert.match(navigationHtml, /href="\/grok-bot\.html"/, relativePath);
+    assert.match(navigationHtml, /src="\/site-navigation\.js"/, relativePath);
   });
   assert.doesNotMatch(app, /\/grok-bot\.html/);
   assert.match(app, /grok:\s*"\/agent-icons\/grok\.png"/);

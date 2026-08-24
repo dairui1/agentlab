@@ -48,7 +48,9 @@ function internalCompareUrls() {
 
 test("legacy comparison URLs retain the evidence workbench behind the unified research index", () => {
   const index = read("index.html");
-  assert.match(index, /href="\/capabilities\.html"[\s\S]*>专题研究</);
+  const navigation = require("../public/site-navigation.js");
+  assert.ok(navigation.items.some((item) => item.id === "research" && item.href === "/capabilities.html"));
+  assert.match(index, /<agentlab-navigation[^>]+interactive/);
   assert.doesNotMatch(index, /href="\/mechanisms\.html"|>机制档案<|>能力拆解</);
   assert.match(html, /id="contractApp"/);
   assert.match(html, /id="sharpEdgeStrip"[^>]*hidden/);

@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/deepseek-harness.css">
+  <script src="/site-navigation.js"></script>
 </head>
 <body class="dsh-page">
   <div class="app-shell dsh-shell">
@@ -17,13 +18,7 @@
         <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
         <span class="brand-copy"><strong>AgentLab</strong><span>Harness 追踪</span></span>
       </a>
-      <nav class="segmented mode-switch radar-switch" aria-label="页面视图">
-        <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
-        <a href="/?mode=compare&agent=deepseek-harness"><i data-lucide="file-diff" aria-hidden="true"></i><span>请求比较</span></a>
-        <a href="/deepseek-harness.html" aria-current="page"><i data-lucide="radar" aria-hidden="true"></i><span>DSH 雷达</span></a>
-        <a href="/capabilities/deepseek-harness-architecture.html"><i data-lucide="library" aria-hidden="true"></i><span>架构研究</span></a>
-        <a href="/grok-bot.html"><i data-lucide="bot" aria-hidden="true"></i><span>Grok Bot</span></a>
-      </nav>
+      <agentlab-navigation current="dsh" compare-agent="deepseek-harness"></agentlab-navigation>
       <div class="header-links">
         <a class="icon-button" href="https://github.com/deepseek-ai/deepseek-harness" target="_blank" rel="noopener noreferrer" aria-label="打开 DeepSeek Harness GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
       </div>

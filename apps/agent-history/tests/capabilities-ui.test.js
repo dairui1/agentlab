@@ -12,6 +12,7 @@ const capabilitiesHtml = read("capabilities.html");
 const researchStyles = read("research.css");
 const researchScript = read("research.js");
 const researchNavigation = require("../public/research-navigation-core.js");
+const siteNavigation = require("../public/site-navigation.js");
 const researchIndex = JSON.parse(read("research-index.json"));
 const articleStyles = read("capability-article.css");
 const articleScript = read("capability-article.js");
@@ -42,7 +43,7 @@ const studies = {
 };
 
 function navFragment(html) {
-  return html.match(/<div\b[^>]*class="[^"]*\bmode-switch\b[^"]*"[^>]*>[\s\S]*?<\/div>/)?.[0] || "";
+  return html.match(/<agentlab-navigation\b[^>]*><\/agentlab-navigation>/)?.[0] || "";
 }
 
 function parseAttributes(source) {
@@ -145,7 +146,9 @@ function assertEvidence(study, prefix) {
 }
 
 test("all public surfaces expose one shared research section instead of two competing modules", () => {
-  const labels = ["更新情报", "版本比较", "专题研究"];
+  const expectedItems = ["更新情报", "版本比较", "专题研究", "DSH 雷达", "Grok Bot"];
+  assert.deepEqual(siteNavigation.items.map((item) => item.label), expectedItems);
+  assert.equal(siteNavigation.items.find((item) => item.id === "research").href, "/capabilities.html");
   const pages = [
     ["index", indexHtml],
     ["mechanisms", mechanismsHtml],
@@ -156,13 +159,12 @@ test("all public surfaces expose one shared research section instead of two comp
   for (const [name, html] of pages) {
     const navigation = navFragment(html);
     assert.ok(navigation, `${name} is missing the top-level navigation`);
-    for (const label of labels) assert.match(navigation, new RegExp(`>${label}<`), `${name} is missing ${label}`);
-    assert.match(navigation, /href="\/capabilities\.html"/);
+    assert.match(html, /src="\/site-navigation\.js"/, `${name} is missing the shared navigation script`);
     assert.doesNotMatch(navigation, />机制档案<|>能力拆解<|href="\/mechanisms\.html"/);
   }
 
   for (const html of [mechanismsHtml, capabilitiesHtml, ...Object.values(articles)]) {
-    assert.match(html, /href="\/capabilities\.html" aria-current="page"/);
+    assert.match(html, /<agentlab-navigation[^>]+current="research"/);
   }
 });
 

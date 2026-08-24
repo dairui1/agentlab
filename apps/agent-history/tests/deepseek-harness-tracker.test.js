@@ -9,6 +9,7 @@ const html = fs.readFileSync(path.join(root, "public/deepseek-harness.html"), "u
 const app = fs.readFileSync(path.join(root, "public/app.js"), "utf8");
 const architecture = fs.readFileSync(path.join(root, "public/capabilities/deepseek-harness-architecture.html"), "utf8");
 const tracker = fs.readFileSync(path.join(root, "public/deepseek-harness.js"), "utf8");
+const navigation = require(path.join(root, "public/site-navigation.js"));
 
 test("DeepSeek Harness tracker models platform evolution instead of prompt-only change", () => {
   assert.equal(core.domains.length, 7);
@@ -63,5 +64,6 @@ test("release classification keeps DSH cross-plane changes visible", () => {
 test("DSH feed entries route to the dedicated tracker", () => {
   assert.match(app, /item\.agent\.id === "deepseek-harness"/);
   assert.match(app, /\/deepseek-harness\.html/);
-  assert.match(architecture, /href="\/deepseek-harness\.html"/);
+  assert.ok(navigation.items.some((item) => item.id === "dsh" && item.href === "/deepseek-harness.html"));
+  assert.match(architecture, /<agentlab-navigation[^>]+current="research"/);
 });
