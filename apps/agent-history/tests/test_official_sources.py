@@ -471,10 +471,11 @@ class OfficialSourceTests(unittest.TestCase):
         samples = {
             "antigravity": ("1.1.11", "1.1.11"),
             "cline": ("cli-v3.0.52", "3.0.52"),
+            "crush": ("v0.91.0", "0.91.0"),
             "goose": ("v1.45.0", "v1.45.0"),
             "hermes": ("v2026.7.7.2", "v2026.7.7.2"),
-            "kimi": ("1.49.0", "1.49.0"),
             "kimi-code": ("@moonshot-ai/kimi-code@0.34.0", "0.34.0"),
+            "maka": ("v0.1.11", "0.1.11"),
             "mimo": ("v0.1.10", "0.1.10"),
             "omp": ("v17.2.12", "17.2.12"),
             "openclaw": ("v2026.7.1-2", "2026.7.1-2"),
@@ -493,6 +494,10 @@ class OfficialSourceTests(unittest.TestCase):
             self.assertIsNotNone(match, agent)
             self.assertEqual(match.group(1), version)
             official.version_key(version)
+
+    def test_retired_kimi_cli_points_to_maintained_successor(self) -> None:
+        self.assertNotIn("kimi", official.OFFICIAL_REPOSITORIES)
+        self.assertEqual(official.RETIRED_AGENTS["kimi"]["replacement"], "kimi-code")
 
     def test_extracts_bounded_key_files_from_official_compare_diff(self) -> None:
         body = (FIXTURES / "official_codex_compare.diff").read_bytes()

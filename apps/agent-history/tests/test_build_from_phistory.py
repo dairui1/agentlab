@@ -256,6 +256,20 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(set(builder.AGENT_DEFINITIONS), classified)
         self.assertEqual(set(builder.NO_PUBLIC_SOURCE_AGENTS), {"minimax-code"})
 
+    def test_curated_catalog_replaces_wound_down_kimi_cli(self) -> None:
+        self.assertNotIn("kimi", builder.AGENT_DEFINITIONS)
+        self.assertNotIn("kimi", builder.PREFERRED_AGENT_ORDER)
+        self.assertEqual(builder.RETIRED_AGENTS["kimi"]["replacement"], "kimi-code")
+        self.assertIn("maka", builder.AGENT_DEFINITIONS)
+        self.assertIn("crush", builder.AGENT_DEFINITIONS)
+
+    def test_discovery_ignores_retired_agent_capture_directories(self) -> None:
+        self._capture("kimi", "1.49.0", CLAUDE_OLD, "2026-07-16T10:23:29Z")
+
+        manifest = self._build()
+
+        self.assertNotIn("kimi", [item["id"] for item in manifest["agents"]])
+
     def test_builds_two_agents_in_semver_order_with_sections_and_tools(self) -> None:
         manifest = self._build()
 
@@ -288,8 +302,8 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(changed["stats"]["toolsModified"], ["Read"])
 
     def test_discovers_all_agents_and_accepts_vendor_version_schemes(self) -> None:
-        self._capture("kimi", "1.6", CLAUDE_OLD, "2026-02-02T12:00:00Z")
-        self._capture("kimi", "1.35.0", CLAUDE_NEW, "2026-04-02T12:00:00Z")
+        self._capture("legacy-agent", "1.6", CLAUDE_OLD, "2026-02-02T12:00:00Z")
+        self._capture("legacy-agent", "1.35.0", CLAUDE_NEW, "2026-04-02T12:00:00Z")
         self._capture("hermes", "v2026.7.7", CLAUDE_OLD, "2026-07-07T12:00:00Z")
         self._capture("hermes", "v2026.7.7.2", CLAUDE_NEW, "2026-07-08T12:00:00Z")
         self._capture("future-agent", "1.0.0", CLAUDE_OLD, "2026-08-01T12:00:00Z")
@@ -301,23 +315,21 @@ class BuildFromPhistoryTests(unittest.TestCase):
         ids = [item["id"] for item in manifest["agents"]]
         self.assertEqual(
             ids,
-            ["claude-code", "codex", "openclaw", "hermes", "kimi", "future-agent"],
+            ["claude-code", "codex", "openclaw", "hermes", "future-agent", "legacy-agent"],
         )
-        kimi = self._json(self.public / "data/agents/kimi/history.json")
+        legacy = self._json(self.public / "data/agents/legacy-agent/history.json")
         hermes = self._json(self.public / "data/agents/hermes/history.json")
         openclaw = self._json(self.public / "data/agents/openclaw/history.json")
-        self.assertEqual([item["version"] for item in kimi["versions"]], ["1.6", "1.35.0"])
+        self.assertEqual([item["version"] for item in legacy["versions"]], ["1.6", "1.35.0"])
         self.assertEqual(
             [item["version"] for item in hermes["versions"]],
             ["v2026.7.7", "v2026.7.7.2"],
         )
         self.assertEqual(openclaw["versions"][-1]["version"], "2026.7.1-2")
-        kimi_manifest = next(item for item in manifest["agents"] if item["id"] == "kimi")
-        self.assertEqual(kimi_manifest["officialSourceStatus"], "not-synced")
-        self.assertEqual(
-            kimi_manifest["officialSourceUrl"],
-            "https://github.com/MoonshotAI/kimi-cli",
+        legacy_manifest = next(
+            item for item in manifest["agents"] if item["id"] == "legacy-agent"
         )
+        self.assertEqual(legacy_manifest["officialSourceStatus"], "not-collected")
         future = next(item for item in manifest["agents"] if item["id"] == "future-agent")
         self.assertEqual(future["label"], "fixture")
 

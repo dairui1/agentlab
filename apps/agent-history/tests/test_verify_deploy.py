@@ -102,6 +102,18 @@ class VerifyDeployTests(unittest.TestCase):
 
         self.assertEqual(self._verify(), 2)
 
+    def test_ignores_retired_agent_captures(self) -> None:
+        capture = self.phistory / "captures/kimi/1.49.0/meta.json"
+        capture.parent.mkdir(parents=True)
+        capture.write_text("{}\n", encoding="utf-8")
+        subprocess.run(["git", "-C", str(self.phistory), "add", "."], check=True)
+        subprocess.run(
+            ["git", "-C", str(self.phistory), "commit", "-qm", "add retired agent"],
+            check=True,
+        )
+
+        self.assertEqual(self._verify(), 2)
+
     def test_rejects_focused_build_even_when_process_environment_was_reset(self) -> None:
         self._write_manifest(["deepseek-harness"])
         with self.assertRaisesRegex(deploy.DeployDataError, "missing=codex"):

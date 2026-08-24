@@ -15,7 +15,7 @@ from typing import Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from build_from_phistory import PREFERRED_AGENT_ORDER
-from official_release_sources import OFFICIAL_REPOSITORIES, canonical_agent_id
+from official_release_sources import OFFICIAL_REPOSITORIES, RETIRED_AGENTS, canonical_agent_id
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -51,7 +51,7 @@ def capture_catalog(phistory_root: Path, overlay_root: Path) -> set[str]:
     agents.update(
         canonical_agent_id(line.strip())
         for line in result.stdout.splitlines()
-        if line.strip()
+        if line.strip() and canonical_agent_id(line.strip()) not in RETIRED_AGENTS
     )
     overlay_captures = overlay_root / "captures"
     if overlay_captures.exists():
@@ -62,7 +62,9 @@ def capture_catalog(phistory_root: Path, overlay_root: Path) -> set[str]:
         agents.update(
             canonical_agent_id(child.name)
             for child in overlay_captures.iterdir()
-            if child.is_dir() and not child.is_symlink()
+            if child.is_dir()
+            and not child.is_symlink()
+            and canonical_agent_id(child.name) not in RETIRED_AGENTS
         )
     invalid = sorted(agent for agent in agents if not AGENT_ID_RE.fullmatch(agent))
     if invalid:

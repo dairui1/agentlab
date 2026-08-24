@@ -12,10 +12,11 @@ SPECIAL_OFFICIAL_REPOSITORIES = {
 GITHUB_RELEASE_SOURCES = {
     "antigravity": {"repository": "google-antigravity/antigravity-cli", "label": "Antigravity CLI", "tagPattern": r"^(\d+\.\d+\.\d+)$"},
     "cline": {"repository": "cline/cline", "label": "Cline", "tagPattern": r"^cli-v(\d+\.\d+\.\d+)$"},
+    "crush": {"repository": "charmbracelet/crush", "label": "Crush", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "goose": {"repository": "aaif-goose/goose", "label": "Goose", "tagPattern": r"^(v\d+\.\d+\.\d+)$"},
     "hermes": {"repository": "NousResearch/hermes-agent", "label": "Hermes Agent", "tagPattern": r"^(v\d+\.\d+\.\d+(?:\.\d+)?)$"},
-    "kimi": {"repository": "MoonshotAI/kimi-cli", "label": "Kimi CLI", "tagPattern": r"^(\d+\.\d+\.\d+)$"},
     "kimi-code": {"repository": "MoonshotAI/kimi-code", "label": "Kimi Code", "tagPattern": r"^@moonshot-ai/kimi-code@(\d+\.\d+\.\d+)$"},
+    "maka": {"repository": "apache/maka", "label": "Apache Maka", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "mimo": {"repository": "XiaomiMiMo/MiMo-Code", "label": "MiMo Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "omp": {"repository": "can1357/oh-my-pi", "label": "Oh My Pi", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "openclaw": {"repository": "openclaw/openclaw", "label": "OpenClaw", "tagPattern": r"^v(\d+\.\d+\.\d+(?:-\d+)?)$"},
@@ -53,6 +54,16 @@ NO_PUBLIC_SOURCE_AGENTS = {
     "minimax-code": {
         "reason": "official-repository-is-issue-tracker-only",
         "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
+    },
+}
+
+# Retired catalog entries remain explicit so an upstream capture directory cannot
+# silently add them back during an "all" build.
+RETIRED_AGENTS = {
+    "kimi": {
+        "reason": "upstream-project-is-being-wound-down",
+        "replacement": "kimi-code",
+        "sourceUrl": "https://github.com/MoonshotAI/kimi-cli",
     },
 }
 

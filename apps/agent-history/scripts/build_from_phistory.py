@@ -29,6 +29,7 @@ from official_release_sources import (
     NPM_RELEASE_SOURCES,
     NO_PUBLIC_SOURCE_AGENTS,
     OFFICIAL_REPOSITORIES,
+    RETIRED_AGENTS,
     SOURCE_CODE_COMPARISON_WINDOW,
     canonical_agent_id,
     phistory_agent_ids,
@@ -75,6 +76,16 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "OpenAI Codex CLI Runtime Prompt 与工具的版本历史。",
         "projectUrl": "https://github.com/openai/codex",
     },
+    "maka": {
+        "label": "Apache Maka",
+        "description": "Apache Maka 本地优先 Agent Runtime、执行日志与工具系统的版本历史。",
+        "projectUrl": "https://github.com/apache/maka",
+    },
+    "crush": {
+        "label": "Crush",
+        "description": "Crush 终端 Coding Agent 的官方发布与源码演进历史。",
+        "projectUrl": "https://github.com/charmbracelet/crush",
+    },
     "antigravity": {
         "label": "Antigravity CLI",
         "description": "Google Antigravity CLI Runtime Prompt 与工具的版本历史。",
@@ -104,11 +115,6 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "label": "Hermes Agent",
         "description": "Nous Research Hermes Agent Runtime Prompt 与工具的版本历史。",
         "projectUrl": "https://github.com/NousResearch/hermes-agent",
-    },
-    "kimi": {
-        "label": "Kimi CLI",
-        "description": "Moonshot AI Kimi CLI Runtime Prompt 与工具的版本历史。",
-        "projectUrl": "https://github.com/MoonshotAI/kimi-cli",
     },
     "opencode": {
         "label": "opencode",
@@ -159,13 +165,14 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
 PREFERRED_AGENT_ORDER = (
     "claude-code",
     "codex",
+    "maka",
+    "crush",
     "antigravity",
     "grok",
     "kimi-code",
     "mimo",
     "openclaw",
     "hermes",
-    "kimi",
     "opencode",
     "pi",
     "omp",
@@ -389,7 +396,9 @@ def discover_agents(capture_roots: Sequence[CaptureRoot]) -> tuple[str, ...]:
                 raise ValueError(
                     f"invalid {root.label} agent directory: {path.name!r}"
                 )
-            discovered.add(canonical_agent_id(path.name))
+            agent = canonical_agent_id(path.name)
+            if agent not in RETIRED_AGENTS:
+                discovered.add(agent)
     if not discovered:
         raise ValueError("no agent capture directories found in configured capture roots")
     return tuple(sorted(discovered, key=agent_sort_key))
@@ -2908,6 +2917,9 @@ def build(
     invalid = [agent for agent in agents if not AGENT_ID_RE.fullmatch(agent)]
     if invalid:
         raise ValueError(f"invalid agent ids: {', '.join(invalid)}")
+    retired = [agent for agent in agents if agent in RETIRED_AGENTS]
+    if retired:
+        raise ValueError(f"retired agent ids: {', '.join(retired)}")
 
     commit = capture_roots[0].commit
     ingestion_by_agent = {
@@ -3234,6 +3246,9 @@ def parse_agents(value: str) -> tuple[str, ...] | None:
         raise argparse.ArgumentTypeError(f"invalid agent ids: {', '.join(invalid)}")
     if len(agents) != len(set(agents)):
         raise argparse.ArgumentTypeError("agents must not contain duplicates")
+    retired = [agent for agent in agents if agent in RETIRED_AGENTS]
+    if retired:
+        raise argparse.ArgumentTypeError(f"retired agent ids: {', '.join(retired)}")
     return agents
 
 
