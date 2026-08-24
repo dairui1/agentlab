@@ -1,0 +1,1122 @@
+{
+  "schemaVersion": 1,
+  "id": "grok-bot-0.18-reconstruction",
+  "title": "Grok Bot 0.18 Reconstruction Radar",
+  "verifiedAt": "2026-08-24",
+  "researchModel": "gpt-5.6-sol",
+  "sourceRevision": {
+    "repository": "b-nnett/grok-bot-0.18-reconstructed",
+    "commit": "a9f633e09d49a85829b8236331b9e21f7e612634",
+    "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/tree/a9f633e09d49a85829b8236331b9e21f7e612634"
+  },
+  "hero": {
+    "src": "/assets/grok-bot-router-settings.png",
+    "sha256": "7a42abb8c760cfd804978a9a2549bd4dbffdbbe6ebfbf9e0371eafa54044eb6a",
+    "sourceUrl": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/docs/assets/router-settings.png",
+    "alt": "Grok Bot 0.18 重建仓库中的 Router 设置界面，模型提供方选择为 Codex",
+    "caption": "仓库文档中的 Router 设置截图。Codex、Claude 与 OpenRouter 路由和这个设置页是重建作者添加的实验，不是已证明的上游 Grok Bot 原生界面。"
+  },
+  "thesis": "公开仓库恢复了一个相当完整的桌面 Agent 运行骨架，但交付物仍是“可读 runtime + 固定上游 renderer + 定向补丁”的 hybrid。更关键的是，作者新增的非 Cursor 路由绕开了完整 Agent runner：界面连续，不代表模型上下文、工具、安全门与状态也连续。",
+  "layers": [
+    {
+      "id": "official-product",
+      "index": "01",
+      "label": "官方产品",
+      "title": "Grok Bot",
+      "tone": "official",
+      "summary": "官方资料描述的是有持久云电脑、浏览器、文件系统、终端、Routine 与协作能力的桌面 Agent 产品。",
+      "boundary": "官方产品能力不能反推这个非官方仓库已准确恢复同一实现。",
+      "url": "https://x.ai/bot"
+    },
+    {
+      "id": "reconstructed-runtime",
+      "index": "02",
+      "label": "重建运行时",
+      "title": "Recovered Runtime",
+      "tone": "reconstructed",
+      "summary": "Electron main、host、coordinator、runner、browser/computer、memory 与工具框架由作者依据发行物证据重建。",
+      "boundary": "大型 forensic workspace、source capsules 与 rejected evidence 没有公开，外部无法完整重放恢复过程。",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed"
+    },
+    {
+      "id": "author-extensions",
+      "index": "03",
+      "label": "作者扩展",
+      "title": "Router Experiments",
+      "tone": "extension",
+      "summary": "Inference Router、Claude、Codex、OpenRouter、usage、本地 Docker 与 Router 设置 UI 是作者后加的实验。",
+      "boundary": "这些能力不能写成 Grok Bot 上游原生机制，尤其不能用 Router 截图证明上游支持 Codex。",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/README.md#what-is-reconstructed-vs-added"
+    }
+  ],
+  "mechanisms": [
+    {
+      "id": "artifact",
+      "index": "01",
+      "icon": "package-search",
+      "title": "交付物到底是什么",
+      "question": "“源码重建”是否等于拿到了完整上游源码？",
+      "layer": "重建边界",
+      "confidence": "高",
+      "verdict": "不是。默认包是 hybrid：可读 runtime 被重新编译，上游 renderer 仍以校验和固定的已打包产物保留，再对两个压缩 chunk 注入 Router UI。",
+      "steps": [
+        "固定 DMG 与 app.asar 哈希",
+        "编译可读 runtime",
+        "保留 shipped renderer",
+        "定向改写 Router chunks",
+        "产出 hybrid 应用"
+      ],
+      "facts": [
+        "仓库明确自称 unofficial reconstruction。",
+        "frontend 目录只是部分重构，不是原始 authored frontend。",
+        "README 与实际打包脚本存在表述漂移，应以执行代码为准。"
+      ],
+      "boundaries": [
+        "未公开的 forensic workspace 让第三方无法完整重复重建过程。",
+        "无上游源码许可证，构建成功不等于具备再分发权。"
+      ],
+      "unknowns": [
+        "没有原生 macOS 打包与启动 smoke 的本次独立验证。"
+      ],
+      "evidence": [
+        "GB-01",
+        "GB-02",
+        "GB-03",
+        "GB-27",
+        "GB-28",
+        "GB-29"
+      ],
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "full-runner",
+      "index": "02",
+      "icon": "workflow",
+      "title": "Cursor / Grok 完整回合",
+      "question": "默认模型的一次 turn 如何穿过桌面、box 与 Agent runner？",
+      "layer": "上游重建",
+      "confidence": "中高",
+      "verdict": "Renderer 经 preload/RPC 进入 Electron main，再连接 remote box 或本地 box，穿过 coordinator 与 host，最终由完整 runner 绑定 SQLite conversation、memory、routines、workflows、channels、MCP、附件和工具。",
+      "steps": [
+        "Renderer 发送 prompt",
+        "Electron RPC 进入 box",
+        "Coordinator 转发请求",
+        "Host 组合 turn",
+        "Runner 调用模型与工具",
+        "SendMessage 交付结果"
+      ],
+      "facts": [
+        "默认模型标识是 grok-4.5。",
+        "每个 turn 动态组装系统 prompt 与可用工具。",
+        "完整路径的工具面、状态面与 routed provider 路径不同。"
+      ],
+      "boundaries": [
+        "静态源码能说明职责路径，不能证明远端服务在每次请求中的实际行为。"
+      ],
+      "unknowns": [
+        "未取得生产请求 trace 或服务端实现。"
+      ],
+      "evidence": [
+        "GB-08",
+        "GB-09",
+        "GB-11",
+        "GB-30",
+        "GB-31"
+      ],
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "delivery-contract",
+      "index": "03",
+      "icon": "message-square-more",
+      "title": "隐藏思考与消息交付",
+      "question": "为什么模型输出不一定直接出现在用户界面？",
+      "layer": "Agent Loop",
+      "confidence": "高",
+      "verdict": "普通 assistant 文本被当成用户不可见的工作区；只有真实 SendMessage 工具调用才是可见回复。Prompt 同时要求先回应、执行中播报进度、最后交付结果。",
+      "steps": [
+        "模型获得长系统 Prompt",
+        "内部文本保持不可见",
+        "调用工具执行工作",
+        "SendMessage 发送状态",
+        "SendMessage 交付最终结果"
+      ],
+      "facts": [
+        "消息交付是工具合同，不是渲染层把所有 assistant token 直接展示。",
+        "Prompt 注入 profile、用户、时区、memory、routine、workflow、channel、Agent directory、MCP 与 computer。"
+      ],
+      "boundaries": [
+        "Prompt 约束是行为政策，不是不可绕过的权限隔离。"
+      ],
+      "unknowns": [
+        "模型服务端是否还有额外系统指令无法从公开仓库确认。"
+      ],
+      "evidence": [
+        "GB-08",
+        "GB-09",
+        "GB-10"
+      ],
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "browser-computer",
+      "index": "04",
+      "icon": "monitor-cog",
+      "title": "浏览器与 Computer Use",
+      "question": "主 Agent 怎样操作一个已经登录的网页，包括 X？",
+      "layer": "工具与子 Agent",
+      "confidence": "高",
+      "verdict": "主 Agent 不直接获得 browser/computer mutation 工具，而是委派专用后台子 Agent。Browser driver 通过 Playwright/CDP 接入持久 Chrome，因此可能继承登录态；X 只是通用网页，不存在仓库自带的 X connector。",
+      "steps": [
+        "主 Agent 创建专用子任务",
+        "BrowserUse 接入现有 Chrome",
+        "读取 DOM snapshot 与短期 ref",
+        "单步执行页面动作",
+        "回读界面确认结果"
+      ],
+      "facts": [
+        "DOM snapshot 最多 400 个元素，密码字段值被隐藏。",
+        "Cookie、Storage、Target、Input 等 CDP 方法被拒绝。",
+        "原生 channel 只列 Discord 与 Slack，且都标记 coming soon。"
+      ],
+      "boundaries": [
+        "登录态继承扩大了便利性，也扩大了账户副作用风险。",
+        "没有站点级 X 发帖规则；是否放行主要依赖通用 Prompt 与 Auto Review。"
+      ],
+      "unknowns": [
+        "未做真实 X 发帖或删除操作测试。"
+      ],
+      "evidence": [
+        "GB-11",
+        "GB-12",
+        "GB-14",
+        "GB-15"
+      ],
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "approval",
+      "index": "05",
+      "icon": "shield-check",
+      "title": "审批与 Prompt Injection",
+      "question": "网页内容能否偷偷推动发送、删除、支付或泄露凭据？",
+      "layer": "安全门",
+      "confidence": "中",
+      "verdict": "这些门是可配置的，不是无条件保护。Spotlight gate 开启时，工具输出才套入不可信数据 fence；Browser Auto Review 只有 enforce 模式会阻断、重检页面并在需要时请求 approval，off 会直接放行，shadow 只观察分类结果。截图、滚动和 snapshot 等只读动作不进入这套审批。",
+      "steps": [
+        "解析 Spotlight gate",
+        "解析 Auto Review mode",
+        "enforce 模式分类动作",
+        "执行前重检页面 fingerprint",
+        "必要时请求 approval"
+      ],
+      "facts": [
+        "Spotlight 开启时，Prompt 明确禁止 fenced content 自行触发发送、删除、花钱或使用 secrets。",
+        "Browser Auto Review 的 enforce 模式用 TOCTOU 重检防止审批后页面发生变化；off 与 shadow 不提供同样的阻断保证。"
+      ],
+      "boundaries": [
+        "公开代码证明机制存在，不证明 0.18 发行环境实际启用了 Spotlight 或 enforce 模式。",
+        "Routed MCP 路径没有发现同一套 full-runner Spotlight/Auto Review 包装。"
+      ],
+      "unknowns": [
+        "生产 gate、默认 mode 与后端是否另有审核层都没有本次独立运行证据。"
+      ],
+      "evidence": [
+        "GB-10",
+        "GB-13",
+        "GB-22"
+      ],
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "router-divergence",
+      "index": "06",
+      "icon": "git-fork",
+      "title": "非 Cursor Router 断层",
+      "question": "切到 Codex、Claude 或 OpenRouter 后，还是同一个 Agent 吗？",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "verdict": "不是同一路径。Coordinator 会截获非 Cursor sendPrompt，在本地 Router 直接调用 provider，不进入完整 host Agent runner。UI 合并远端与本地 transcript，但模型只吃本地 Router 历史，所以“界面连续”与“上下文连续”是两回事。",
+      "steps": [
+        "Renderer 发送 prompt",
+        "Coordinator 检测非 Cursor provider",
+        "读取本地 Router transcript",
+        "以四行 generic prompt 调模型",
+        "只开放 routed MCP",
+        "合并 transcript 回显 UI"
+      ],
+      "facts": [
+        "Cursor 与非 Cursor 模型上下文发生分叉。",
+        "Codex、Claude、OpenRouter 共享最多 200 entries 的本地 Router 历史。",
+        "Routed provider 没有完整 memory、routines、shell、browser、SendMessage 与 Spotlight 工具面。"
+      ],
+      "boundaries": [
+        "Router 是作者实验，不能用它评价上游 Grok Bot 的原生多模型设计。"
+      ],
+      "unknowns": [
+        "不同 provider 间切换后长会话的真实语义回归尚无端到端测试。"
+      ],
+      "evidence": [
+        "GB-16",
+        "GB-17",
+        "GB-18",
+        "GB-19",
+        "GB-20"
+      ],
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "state",
+      "index": "07",
+      "icon": "database",
+      "title": "状态、Memory 与会话",
+      "question": "对话、长期记忆与 Router 历史分别存在哪里？",
+      "layer": "状态模型",
+      "confidence": "高",
+      "verdict": "主数据根位于 ~/.grokbot；每个 Agent 有 SQLite store、conversation blobs、profile 与 Markdown memory，并有用户/项目 memory shards。Router transcript 是独立 JSON，不进入主 conversation store。",
+      "steps": [
+        "主会话写 SQLite",
+        "附件写 conversation blobs",
+        "Memory 分 user/project shard",
+        "Router 另写本地 JSON",
+        "UI 查询时合并显示"
+      ],
+      "facts": [
+        "持久化了多种状态，但它们不是同一个一致性域。",
+        "Router UI 的历史连续感由查询时合并得到。"
+      ],
+      "boundaries": [
+        "界面能看到旧消息，不证明当前 provider 收到了同一份上下文。"
+      ],
+      "unknowns": [
+        "崩溃恢复与并发写入一致性未做独立故障注入。"
+      ],
+      "evidence": [
+        "GB-17",
+        "GB-18",
+        "GB-23",
+        "GB-24"
+      ],
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "local-docker",
+      "index": "08",
+      "icon": "container",
+      "title": "Local Docker 的安全边界",
+      "question": "“本地沙箱”是否足以安全承载真实 Codex / Claude 凭据？",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "verdict": "不应默认信任。容器使用未固定 digest 的 mutable image，并把整个 ~/.codex 与 ~/.claude 只读挂入 /root。只读阻止容器修改宿主文件，却不阻止读取凭据后通过网络外传。",
+      "steps": [
+        "拉取 sand-box-latest",
+        "启动容器",
+        "只读挂载两份凭据目录",
+        "Agent 在容器内执行",
+        "网络边界未见显式收紧"
+      ],
+      "facts": [
+        "未见 read-only root、cap-drop 或 egress deny 参数。",
+        "Electron 同时使用全局 no-sandbox 与 BrowserWindow sandbox:false。",
+        "Connector secrets 以 JSON 写入，权限依赖系统 umask。"
+      ],
+      "boundaries": [
+        "“本地运行”不等于“最小权限”，也不等于“无网络外传能力”。"
+      ],
+      "unknowns": [
+        "没有真实攻击性容器或凭据外传测试。"
+      ],
+      "evidence": [
+        "GB-07",
+        "GB-22",
+        "GB-25",
+        "GB-26"
+      ],
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "channels-automation",
+      "index": "09",
+      "icon": "radio-tower",
+      "title": "Routine、Automation 与 Channel",
+      "question": "多 Bot 协作、定时任务和外部事件接入到了哪一层？",
+      "layer": "产品编排",
+      "confidence": "中高",
+      "verdict": "完整 runner 会把 routines、workflows、channels 与 Agent directory 注入上下文；事件监听代码覆盖 Slack、GitHub、Teams、Linear、Sentry 与 PagerDuty。仓库没有 X/Twitter connector 或 listener。",
+      "steps": [
+        "保存 Routine 或监听器",
+        "外部事件触发 Automation",
+        "Host 创建/恢复任务",
+        "Agent directory 协调协作者",
+        "通过 Channel 交付"
+      ],
+      "facts": [
+        "官方资料称多个 Bot 共享账户级云电脑，各自拥有屏幕。",
+        "仓库静态代码不能证明官方云端调度的完整语义。"
+      ],
+      "boundaries": [
+        "社区把它称为“X Bot”容易产生歧义；这里的 Grok Bot 不是 X 平台机器人接口。"
+      ],
+      "unknowns": [
+        "Discord 与 Slack channel 在静态声明中仍标为 coming soon。"
+      ],
+      "evidence": [
+        "GB-09",
+        "GB-14",
+        "GB-15",
+        "GB-32",
+        "GB-33"
+      ],
+      "attributions": [
+        "official-product",
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "confidence",
+      "index": "10",
+      "icon": "scan-search",
+      "title": "重建可信度与缺口",
+      "question": "能构建、能 typecheck，是否足以证明与上游等价且可安全使用？",
+      "layer": "验证边界",
+      "confidence": "高",
+      "verdict": "不足。仓库自审仍有 56 个 medium runner parity findings；renderer closure 另有 703 个未关联 reviewed evidence 的 JSX candidates。独立验证能证明依赖安装、typecheck 与 frontend build，不证明原生包可启动、行为等价或凭据安全。",
+      "steps": [
+        "固定源码 SHA",
+        "复跑依赖安装",
+        "执行 typecheck/build",
+        "读取 parity manifests",
+        "记录失败测试与未覆盖面"
+      ],
+      "facts": [
+        "18 个测试通过 17 个，唯一失败由 clone 中缺少 Git LFS 的 155 MB DMG 实体导致。",
+        "当前 npm audit 快照为 29 个 advisories，其中 5 个 high、0 个 critical。",
+        "测试集中在 Router transport、MCP JSON、Codex SSE 与打包静态合同。"
+      ],
+      "boundaries": [
+        "npm advisory 不能直接等同于可利用漏洞。",
+        "没有 browser/X、真实 MCP 写操作、Automation、Docker 凭据隔离或端到端 macOS 启动测试。"
+      ],
+      "unknowns": [
+        "需要有 Git LFS、已接受 Xcode license 的 macOS 环境继续 package/smoke。"
+      ],
+      "evidence": [
+        "GB-04",
+        "GB-05",
+        "GB-06",
+        "GB-34",
+        "GB-35",
+        "GB-36"
+      ],
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    }
+  ],
+  "providers": [
+    {
+      "id": "cursor",
+      "label": "Cursor / grok-4.5",
+      "origin": "上游重建路径",
+      "path": "完整 host Agent runner",
+      "context": "主 conversation + memory + routines + workflows + channels",
+      "tools": "SendMessage、shell、web、MCP、专用 browser/computer 子 Agent",
+      "auth": "Cursor session",
+      "continuity": "主会话状态域",
+      "tone": "full"
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "origin": "作者扩展",
+      "path": "Coordinator 本地直连 ChatGPT Codex Responses",
+      "context": "仅本地 Router transcript + 四行 generic prompt",
+      "tools": "routed MCP；最多 8 个工具步骤",
+      "auth": "读取 ~/.codex/auth.json，401 时刷新并原子改写",
+      "continuity": "与 Cursor 分叉；和其他 routed provider 共用最多 200 条历史",
+      "tone": "routed"
+    },
+    {
+      "id": "claude",
+      "label": "Claude",
+      "origin": "作者扩展",
+      "path": "Coordinator 本地调用 Claude Agent SDK",
+      "context": "仅本地 Router transcript + 四行 generic prompt",
+      "tools": "routed MCP",
+      "auth": "本机 Claude 凭据/SDK",
+      "continuity": "与 Cursor 分叉；共享 Router 历史",
+      "tone": "routed"
+    },
+    {
+      "id": "openrouter",
+      "label": "OpenRouter",
+      "origin": "作者扩展",
+      "path": "Coordinator 本地调用 OpenRouter",
+      "context": "仅本地 Router transcript + 四行 generic prompt",
+      "tools": "routed MCP",
+      "auth": "OpenRouter API key",
+      "continuity": "与 Cursor 分叉；共享 Router 历史",
+      "tone": "routed"
+    }
+  ],
+  "xSignals": [
+    {
+      "id": "X-01",
+      "claimKind": "official",
+      "author": "Grok Bot",
+      "handle": "@bot",
+      "publishedAt": "2026-08-12",
+      "title": "官方发布",
+      "summary": "官方账号发布 Grok Bot，并把它呈现为可以在持久电脑上完成实际工作的 Agent 产品。",
+      "boundary": "产品发布说明不是重建仓库的实现证据。",
+      "url": "https://x.com/bot/status/2087224798078517251",
+      "attributions": [
+        "official-product"
+      ]
+    },
+    {
+      "id": "X-02",
+      "claimKind": "official",
+      "author": "Grok Bot",
+      "handle": "@bot",
+      "publishedAt": "2026-08-22",
+      "title": "扩大可用范围",
+      "summary": "官方账号宣布产品进一步开放，说明讨论热度发生在快速扩张期。",
+      "boundary": "传播范围会变化，本页不把浏览量或点赞量当作机制证据。",
+      "url": "https://x.com/bot/status/2090852881373311369",
+      "attributions": [
+        "official-product"
+      ]
+    },
+    {
+      "id": "X-03",
+      "claimKind": "author-claim",
+      "author": "Ben",
+      "handle": "@b_nnett",
+      "publishedAt": "2026-08-24",
+      "title": "Runtime sourcemap 发现",
+      "summary": "重建作者称发行物携带了 runtime sourcemaps，并公开了由此整理出的重建仓库。",
+      "boundary": "这是作者对发现过程的陈述；公开仓库未包含完整 forensic workspace，仍需用固定源码逐项复核。",
+      "url": "https://x.com/b_nnett/status/2091630242792112480",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "X-04",
+      "claimKind": "author-claim",
+      "author": "Ben",
+      "handle": "@b_nnett",
+      "publishedAt": "2026-08-24",
+      "title": "明确哪些是后加能力",
+      "summary": "作者明确称 Codex/OpenRouter 路由与本地 VM 是自己添加的实验。",
+      "boundary": "这个声明用于分层归因，不证明扩展路径具备上游完整能力或安全门。",
+      "url": "https://x.com/b_nnett/status/2091630244486680925",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "X-05",
+      "claimKind": "author-claim",
+      "author": "Ben",
+      "handle": "@b_nnett",
+      "publishedAt": "2026-08-24",
+      "title": "Frontend 与存续边界",
+      "summary": "作者说明没有原始 authored frontend，默认交付使用 packaged renderer 并做修改，同时预期仓库可能被归档或移除。",
+      "boundary": "仓库当时仍可访问；对未来存续的判断不是已发生事实。",
+      "url": "https://x.com/b_nnett/status/2091630246558577066",
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "X-06",
+      "claimKind": "community-interpretation",
+      "author": "Theo",
+      "handle": "@theo",
+      "publishedAt": "2026-08-24",
+      "title": "“普通软件事故”视角",
+      "summary": "讨论把事件归因于 sourcemap 打包失误，而不是一次特殊的模型或 Agent 泄露机制。",
+      "boundary": "这是社区归因，不代替对实际发行 pipeline 与内部决策的证据。",
+      "url": "https://x.com/theo/status/2091752587100086328",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "X-07",
+      "claimKind": "correction",
+      "author": "Logic",
+      "handle": "@0xLogicrw",
+      "publishedAt": "2026-08-24",
+      "title": "纠正“完整源码泄露”",
+      "summary": "讨论者指出仓库并非完整 authored source，尤其 frontend 仍是 packaged renderer，这与仓库 README 的 hybrid 边界相符。",
+      "boundary": "纠偏帖提供阅读方向；实现结论仍以固定提交中的文件与脚本为准。",
+      "url": "https://x.com/0xLogicrw/status/2091812179699970287",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "X-08",
+      "claimKind": "community-interpretation",
+      "author": "Max For AI",
+      "handle": "@MaxForAI",
+      "publishedAt": "2026-08-24",
+      "title": "把焦点放到 Harness 核心",
+      "summary": "讨论认为真正有研究价值的是 Agent runner、工具、状态与浏览器等 harness 机制，而不是把仓库简化为一个 UI 泄露故事。",
+      "boundary": "这是价值判断；具体机制仍需回到源码证据。",
+      "url": "https://x.com/MaxForAI/status/2091816696978010355",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    }
+  ],
+  "verification": {
+    "environment": "macOS · Node v26.5.0 · clean temporary clone",
+    "checks": [
+      {
+        "label": "依赖安装",
+        "command": "npm ci --ignore-scripts --no-audit --no-fund",
+        "result": "通过",
+        "tone": "pass"
+      },
+      {
+        "label": "Frontend TypeScript",
+        "command": "tsc --project frontend/tsconfig.json",
+        "result": "通过",
+        "tone": "pass"
+      },
+      {
+        "label": "Source TypeScript",
+        "command": "tsc --project source/tsconfig.json",
+        "result": "通过",
+        "tone": "pass"
+      },
+      {
+        "label": "Frontend Build",
+        "command": "npm run frontend:build",
+        "result": "通过，有 1.509 MB chunk 等构建警告",
+        "tone": "warn"
+      },
+      {
+        "label": "测试",
+        "command": "node --test tests/*.test.mjs",
+        "result": "17 / 18；DMG 仍是 134-byte Git LFS pointer",
+        "tone": "warn"
+      },
+      {
+        "label": "npm audit 快照",
+        "command": "npm audit --json",
+        "result": "29 advisories：5 high、20 moderate、4 low、0 critical",
+        "tone": "warn"
+      },
+      {
+        "label": "原生 package / smoke",
+        "command": "npm run package",
+        "result": "未完成：LFS installer 缺失；publication check 另受 Xcode license 阻断",
+        "tone": "blocked"
+      }
+    ],
+    "boundary": "这些结果只证明固定提交在当前环境中的静态与构建表现，不证明发布物与上游等价、真实凭据安全或生产后端行为。",
+    "receipt": {
+      "label": "内容寻址验证收据",
+      "url": "/dossiers/grok-bot-verification-6bfa0aa3465093f2899c9c805b1b7a0b942c32ff2a07ba0b46b54c03d69b24b4.json",
+      "sha256": "6bfa0aa3465093f2899c9c805b1b7a0b942c32ff2a07ba0b46b54c03d69b24b4"
+    }
+  },
+  "risks": [
+    {
+      "id": "R-01",
+      "severity": "critical",
+      "title": "不要先放真实凭据",
+      "summary": "本地 Docker 会读取完整 Codex/Claude 凭据目录，Codex Router 还会直接刷新 auth.json。未完成容器与网络隔离审计前，应使用一次性、低权限身份。"
+    },
+    {
+      "id": "R-02",
+      "severity": "high",
+      "title": "Router 不是完整 Grok Bot",
+      "summary": "Codex、Claude、OpenRouter 绕开完整 runner。它们缺少同一套 prompt、memory、工具与安全包装，不能因为 UI 一样就认为能力与风险相同。"
+    },
+    {
+      "id": "R-03",
+      "severity": "high",
+      "title": "重建与上游等价性未闭环",
+      "summary": "Parity 与 renderer closure 清单仍有大量 medium/candidate 缺口，且 forensic capsule 未公开。"
+    },
+    {
+      "id": "R-04",
+      "severity": "high",
+      "title": "法律与分发边界未解决",
+      "summary": "仓库没有声明上游源码许可证。研究、构建和再分发是三件不同的事。"
+    },
+    {
+      "id": "R-05",
+      "severity": "medium",
+      "title": "依赖 advisories 需要可达性分析",
+      "summary": "当前 npm audit 有 5 个 high advisories；数量不是 exploit 结论，但足以阻止把真实账户直接交给它。"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "GB-01",
+      "kind": "repository-doc",
+      "layer": "重建边界",
+      "confidence": "高",
+      "statement": "README 将项目定义为非官方重建，并把 Router、第三方 provider、usage、本地 Docker 与设置 UI 列为作者扩展。",
+      "locator": "README.md:5-24",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/README.md#L5-L24",
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-02",
+      "kind": "repository-doc",
+      "layer": "重建边界",
+      "confidence": "高",
+      "statement": "PROVENANCE 固定 bundle ID、Electron 版本、DMG/app.asar 哈希，并声明不隐含上游许可证。",
+      "locator": "PROVENANCE.md:3-29",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/PROVENANCE.md#L3-L29",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-03",
+      "kind": "repository-doc",
+      "layer": "重建边界",
+      "confidence": "高",
+      "statement": "默认交付是可读 runtime、checksum-pinned shipped renderer 与窄补丁组成的 hybrid；没有原始 authored frontend。",
+      "locator": "README.md:38-64",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/README.md#L38-L64",
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-04",
+      "kind": "repository-doc",
+      "layer": "验证边界",
+      "confidence": "高",
+      "statement": "大型 forensic workspace、source capsules 与 rejected evidence 没有公开，限制了第三方完整重放。",
+      "locator": "docs/ARCHITECTURE.md:9-16",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/docs/ARCHITECTURE.md#L9-L16",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-05",
+      "kind": "manifest",
+      "layer": "验证边界",
+      "confidence": "高",
+      "statement": "Runner parity 自审记录 56 个 medium findings，包括 omitted symbols、unevidenced exports/defaults 与 source-only modules。",
+      "locator": "manifests/reconstruction/runner-parity-audit.json:52-149",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/manifests/reconstruction/runner-parity-audit.json#L52-L149",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-06",
+      "kind": "manifest",
+      "layer": "验证边界",
+      "confidence": "高",
+      "statement": "Renderer closure 同时记录 703 个未与 reviewed evidence 关联的 JSX candidates 与 33 个 orphan clean modules。",
+      "locator": "manifests/reconstruction/renderer-closure.json:19-58",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/manifests/reconstruction/renderer-closure.json#L19-L58",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-07",
+      "kind": "source-code",
+      "layer": "安全边界",
+      "confidence": "高",
+      "statement": "Electron 全局启用 no-sandbox，BrowserWindow 设 sandbox:false 且开放 webviewTag，同时保留 contextIsolation。",
+      "locator": "source/electron-main/main.ts:232-246,298-310",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/main.ts#L232-L310",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-08",
+      "kind": "source-code",
+      "layer": "Agent Loop",
+      "confidence": "高",
+      "statement": "系统 Prompt 把普通 assistant 文本设为不可见工作区，要求通过 SendMessage 才能向用户显示，并定义 reply-first、进度和最终交付。",
+      "locator": "source/host/runner/system-prompt.ts:6-12,80-111",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/system-prompt.ts#L6-L111",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-09",
+      "kind": "source-code",
+      "layer": "Agent Loop",
+      "confidence": "高",
+      "statement": "完整 Prompt 从 profile、用户、时区、memory、routines、workflows、channels、Agent directory、MCP、box 与 computer 动态组装。",
+      "locator": "source/host/runner/system-prompt-assembly.ts:249-265",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/system-prompt-assembly.ts#L249-L265",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-10",
+      "kind": "source-code",
+      "layer": "安全边界",
+      "confidence": "高",
+      "statement": "Spotlight 在环境覆盖或 Statsig gate 开启时，用 untrusted fence 包装工具输出，并在 Prompt 中禁止 fenced content 自行触发发送、删除、消费或使用 secrets。",
+      "locator": "source/shared/sand-spotlight.ts:1-18",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/sand-spotlight.ts#L1-L18",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-11",
+      "kind": "source-code",
+      "layer": "工具与子 Agent",
+      "confidence": "高",
+      "statement": "主 Agent 获得 Task、SendMessage、shell、web 与 MCP；browser/computer mutation 工具只交给专用子 Agent。",
+      "locator": "source/host/runner/tools/turn-toolset.ts:1324-1494",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/turn-toolset.ts#L1324-L1494",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-12",
+      "kind": "source-code",
+      "layer": "工具与子 Agent",
+      "confidence": "高",
+      "statement": "Browser driver 通过 Playwright/CDP 接入持久 Chrome，限制 DOM ref 数量、隐藏密码，并拒绝 Cookie、Storage、Target 与 Input 等 CDP 域。",
+      "locator": "source/host/runner/tools/sand-browser-driver-source.ts:378-482,771-830",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/tools/sand-browser-driver-source.ts#L378-L830",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-13",
+      "kind": "source-code",
+      "layer": "安全边界",
+      "confidence": "高",
+      "statement": "Browser Auto Review 的 off 模式直接返回、shadow 模式只观察；只有 enforce 模式对 mutation 执行 classifier、页面 fingerprint 重检与必要时 approval。只读 snapshot、screenshot 与 scroll 不走同一审批。",
+      "locator": "source/host/runner/sand-browser-auto-review.ts:77-134",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/runner/sand-browser-auto-review.ts#L77-L134",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-14",
+      "kind": "source-code",
+      "layer": "产品编排",
+      "confidence": "高",
+      "statement": "Channel 声明只有 Discord 与 Slack，且二者都标记 coming soon；没有 X/Twitter connector。",
+      "locator": "source/shared/channels.ts:1-30",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/shared/channels.ts#L1-L30",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-15",
+      "kind": "source-code",
+      "layer": "产品编排",
+      "confidence": "高",
+      "statement": "Automation listeners 覆盖 Slack、GitHub、Teams、Linear、Sentry 与 PagerDuty，不含 X/Twitter。",
+      "locator": "source/host/automations/automation.ts:29-54",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/automations/automation.ts#L29-L54",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-16",
+      "kind": "source-code",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "statement": "Coordinator 对非 Cursor provider 的 sendPrompt 进行本地截获，不再进入远端完整 Agent runner。",
+      "locator": "source/node-agent-coordinator/main.ts:213-229",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/node-agent-coordinator/main.ts#L213-L229",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-17",
+      "kind": "source-code",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "statement": "Router 只用本地 transcript 构造模型 messages；远端 transcript 仅帮助计算 turn id。",
+      "locator": "source/node-agent-coordinator/inference-router.ts:121-180",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/node-agent-coordinator/inference-router.ts#L121-L180",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-18",
+      "kind": "source-code",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "statement": "UI 查询 transcript 时合并远端与本地记录，造成界面连续但模型上下文可能分叉。",
+      "locator": "source/node-agent-coordinator/inference-router.ts:202-225",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/node-agent-coordinator/inference-router.ts#L202-L225",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-19",
+      "kind": "source-code",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "statement": "Routed provider 仅收到四行 generic system prompt，而非完整 Grok Bot Prompt。",
+      "locator": "source/host/extensions/inference/provider-session.ts:24-56",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/inference/provider-session.ts#L24-L56",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-20",
+      "kind": "source-code",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "statement": "Codex 路径读取 ~/.codex/auth.json，在 401 时刷新凭据，并直连 ChatGPT Codex Responses。",
+      "locator": "source/host/extensions/inference/provider-session.ts:67-131,167-200",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/inference/provider-session.ts#L67-L200",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-21",
+      "kind": "source-code",
+      "layer": "作者扩展",
+      "confidence": "高",
+      "statement": "Codex direct route 使用 store:false，并把 routed MCP 工具循环限制为最多八步。",
+      "locator": "source/host/extensions/inference/codex-direct-responses.ts:111-182",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/inference/codex-direct-responses.ts#L111-L182",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-22",
+      "kind": "source-code",
+      "layer": "安全边界",
+      "confidence": "中高",
+      "statement": "Routed MCP 直接进入 desktop MCP discovery/execute；公开本地链上未见 full-runner Auto Review 或 Spotlight 包装。",
+      "locator": "source/electron-main/mcp/desktop-mcp-manager.ts:145-156",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/mcp/desktop-mcp-manager.ts#L145-L156",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-23",
+      "kind": "source-code",
+      "layer": "状态模型",
+      "confidence": "高",
+      "statement": "主数据根是 ~/.grokbot，每个 Agent 拥有独立路径与存储文件。",
+      "locator": "source/host/host-paths.ts:9-20,59-89",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/host-paths.ts#L9-L89",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-24",
+      "kind": "source-code",
+      "layer": "状态模型",
+      "confidence": "高",
+      "statement": "Memory service 把 Markdown memory 分成用户与项目 shards，并维护独立索引。",
+      "locator": "source/host/extensions/memory/memory-service.ts:9-18,31-87,133-151",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/memory/memory-service.ts#L9-L151",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-25",
+      "kind": "source-code",
+      "layer": "安全边界",
+      "confidence": "高",
+      "statement": "Local Docker 使用 mutable sand-box-latest，并把 ~/.codex 与 ~/.claude 整体只读挂载到容器 /root。",
+      "locator": "source/electron-main/box/local-docker-host-connector.ts:13-19,157-201",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/electron-main/box/local-docker-host-connector.ts#L13-L201",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-26",
+      "kind": "source-code",
+      "layer": "安全边界",
+      "confidence": "中高",
+      "statement": "Connector secrets 写入 JSON 时未显式指定 0600，最终权限依赖进程 umask。",
+      "locator": "source/host/extensions/session/connector-secret-store.ts:19-24",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/session/connector-secret-store.ts#L19-L24",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-27",
+      "kind": "source-code",
+      "layer": "重建边界",
+      "confidence": "高",
+      "statement": "Clean build 脚本编译 runtime，再使用 fidelity renderer 并执行 Router renderer patch。",
+      "locator": "scripts/clean-build.mjs:252-278",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/scripts/clean-build.mjs#L252-L278",
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-28",
+      "kind": "source-code",
+      "layer": "重建边界",
+      "confidence": "高",
+      "statement": "macOS package 脚本实际调用 fidelity hybrid 路径，和 frontend README 的默认 editable renderer 说法不一致。",
+      "locator": "scripts/package-macos.mjs:9-22",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/scripts/package-macos.mjs#L9-L22",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-29",
+      "kind": "source-code",
+      "layer": "重建边界",
+      "confidence": "高",
+      "statement": "Router patch 会实际改写两个 minified renderer chunks，并记录前后哈希。",
+      "locator": "scripts/lib/router-renderer-patch.mjs:39-93",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/scripts/lib/router-renderer-patch.mjs#L39-L93",
+      "attributions": [
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-30",
+      "kind": "source-code",
+      "layer": "上游重建",
+      "confidence": "高",
+      "statement": "Cursor inference session 的默认模型标识为 grok-4.5。",
+      "locator": "source/host/extensions/inference/cursor-session.ts:19-34",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/extensions/inference/cursor-session.ts#L19-L34",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-31",
+      "kind": "source-code",
+      "layer": "上游重建",
+      "confidence": "中高",
+      "statement": "Host runner composition 把 conversation、memory、routines、workflows、channels、MCP、附件与 runner 绑定到一次完整 turn。",
+      "locator": "source/host/host-runner-composition.ts:2394-2537,2586-2605",
+      "url": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/blob/a9f633e09d49a85829b8236331b9e21f7e612634/source/host/host-runner-composition.ts#L2394-L2605",
+      "attributions": [
+        "reconstructed-runtime"
+      ]
+    },
+    {
+      "id": "GB-32",
+      "kind": "official-doc",
+      "layer": "官方产品",
+      "confidence": "高",
+      "statement": "xAI 官方产品页称 Bot 拥有电脑、工具和应用，可执行 routine 并并行协作。",
+      "locator": "x.ai/bot · 2026-08-24 访问",
+      "url": "https://x.ai/bot",
+      "attributions": [
+        "official-product"
+      ]
+    },
+    {
+      "id": "GB-33",
+      "kind": "official-doc",
+      "layer": "官方产品",
+      "confidence": "高",
+      "statement": "官方安全文档说明 Bots 共享账户级云电脑，并提供 approvals、Auto Review 与密码/CAPTCHA/支付的人类接管。",
+      "locator": "Approvals, security, and privacy · 2026-08-24 访问",
+      "url": "https://docs.x.ai/grok-bot/approvals-security-and-privacy",
+      "attributions": [
+        "official-product"
+      ]
+    },
+    {
+      "id": "GB-34",
+      "kind": "local-verification",
+      "layer": "验证边界",
+      "confidence": "高",
+      "statement": "固定提交上 npm ci、frontend/source TypeScript 与 frontend build 通过。",
+      "locator": "AgentLab 独立复跑 · 2026-08-24",
+      "url": "/dossiers/grok-bot-verification-6bfa0aa3465093f2899c9c805b1b7a0b942c32ff2a07ba0b46b54c03d69b24b4.json#npm-ci",
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-35",
+      "kind": "local-verification",
+      "layer": "验证边界",
+      "confidence": "高",
+      "statement": "18 个测试通过 17 个；失败项要求 155,793,020-byte DMG，而普通 clone 中仅有 134-byte Git LFS pointer。",
+      "locator": "tests/research-archives.test.mjs:17-39 · 2026-08-24",
+      "url": "/dossiers/grok-bot-verification-6bfa0aa3465093f2899c9c805b1b7a0b942c32ff2a07ba0b46b54c03d69b24b4.json#tests",
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    },
+    {
+      "id": "GB-36",
+      "kind": "local-verification",
+      "layer": "验证边界",
+      "confidence": "中",
+      "statement": "npm audit 当前快照为 29 个 advisories：5 high、20 moderate、4 low、0 critical；尚未做可达性与 exploit 分析。",
+      "locator": "npm audit --json · 2026-08-24",
+      "url": "/dossiers/grok-bot-verification-6bfa0aa3465093f2899c9c805b1b7a0b942c32ff2a07ba0b46b54c03d69b24b4.json#npm-audit",
+      "attributions": [
+        "reconstructed-runtime",
+        "author-extensions"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="固定源码、官方材料与 X 讨论，深度拆解 Grok Bot 0.18 非官方重建的 Agent runner、Router、状态、安全与证据边界。">
+  <title>Grok Bot 0.18 重建雷达 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/grok-bot.css">
+</head>
+<body class="grok-page">
+  <div class="app-shell grok-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>重建研究</span></span>
+      </a>
+      <nav class="segmented mode-switch radar-switch" aria-label="页面视图">
+        <a href="/"><i data-lucide="newspaper" aria-hidden="true"></i><span>更新情报</span></a>
+        <a href="/capabilities.html"><i data-lucide="library" aria-hidden="true"></i><span>专题研究</span></a>
+        <a href="/deepseek-harness.html"><i data-lucide="radar" aria-hidden="true"></i><span>DSH 雷达</span></a>
+        <a href="/grok-bot.html" aria-current="page"><i data-lucide="bot" aria-hidden="true"></i><span>Grok Bot</span></a>
+      </nav>
+      <div class="header-links">
+        <a class="icon-button" href="https://github.com/b-nnett/grok-bot-0.18-reconstructed" target="_blank" rel="noopener noreferrer" aria-label="打开 Grok Bot 重建仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
+      </div>
+    </header>
+
+    <main id="grokRadar" class="grok-main" aria-busy="true">
+      <header class="grok-product-header">
+        <div class="grok-product-copy">
+          <span class="grok-kicker">RECONSTRUCTION RADAR · 0.18.0</span>
+          <h1>Grok Bot</h1>
+          <p>把上游产品、重建 runtime 和作者扩展拆开，追踪完整 Agent 路径在哪里断开。</p>
+        </div>
+        <dl class="grok-snapshot" aria-label="研究快照">
+          <div><dt>源码</dt><dd id="sourceCommit">a9f633e09d49</dd></div>
+          <div><dt>核验</dt><dd id="verifiedAt">2026-08-24</dd></div>
+          <div><dt>模型</dt><dd id="researchModel">GPT-5.6 Sol</dd></div>
+        </dl>
+      </header>
+
+      <section class="grok-hero" aria-labelledby="heroTitle">
+        <div class="grok-hero-copy">
+          <span>先说结论</span>
+          <h2 id="heroTitle">界面连续，不代表 Agent 连续</h2>
+          <p id="thesis">正在读取固定源码结论。</p>
+          <div class="grok-hero-tags" aria-label="研究边界">
+            <span><i data-lucide="git-commit-horizontal" aria-hidden="true"></i>固定提交</span>
+            <span><i data-lucide="layers-3" aria-hidden="true"></i>三层归因</span>
+            <span><i data-lucide="messages-square" aria-hidden="true"></i>X 讨论纠偏</span>
+          </div>
+        </div>
+        <figure class="grok-hero-figure">
+          <a id="heroSource" href="https://github.com/b-nnett/grok-bot-0.18-reconstructed" target="_blank" rel="noopener noreferrer" aria-label="查看截图来源">
+            <img id="heroImage" src="/assets/grok-bot-router-settings.png" alt="Grok Bot 0.18 重建仓库中的 Router 设置界面，模型提供方选择为 Codex">
+          </a>
+          <figcaption><strong>注意归因</strong><span id="heroCaption">这张 Router 截图展示作者后加的实验，不是已证明的上游原生 UI。</span></figcaption>
+        </figure>
+      </section>
+
+      <section class="grok-layer-band" aria-labelledby="layerTitle">
+        <header class="grok-section-heading">
+          <div><span>ATTRIBUTION BEFORE INTERPRETATION</span><h2 id="layerTitle">先把三层事实拆开</h2></div>
+          <p>所有机制、风险和 X 讨论都先归层，再下结论。</p>
+        </header>
+        <div id="layerGrid" class="grok-layer-grid"></div>
+      </section>
+
+      <section class="grok-mechanism-section" aria-labelledby="mechanismTitle">
+        <header class="grok-section-heading">
+          <div><span>MECHANISM INSPECTOR</span><h2 id="mechanismTitle">机制雷达</h2></div>
+          <p>从交付物一路追到 Router 断层、凭据边界与验证缺口。</p>
+        </header>
+        <div class="grok-mechanism-layout">
+          <aside class="grok-mechanism-rail" aria-label="机制列表">
+            <div id="mechanismList" class="grok-mechanism-list" role="tablist" aria-orientation="vertical"></div>
+          </aside>
+          <article id="mechanismInspector" class="grok-mechanism-inspector" role="tabpanel" tabindex="0" aria-live="polite">
+            <header class="grok-inspector-header">
+              <div><span id="mechanismMeta">读取中</span><h3 id="mechanismName">正在整理固定源码</h3></div>
+              <span id="mechanismConfidence" class="grok-confidence">—</span>
+            </header>
+            <p id="mechanismQuestion" class="grok-question"></p>
+            <p id="mechanismVerdict" class="grok-verdict"></p>
+            <ol id="mechanismFlow" class="grok-flow" aria-label="运行路径"></ol>
+            <div class="grok-mechanism-details">
+              <section><header><i data-lucide="check-circle-2" aria-hidden="true"></i><h4>已确认</h4></header><ul id="mechanismFacts"></ul></section>
+              <section><header><i data-lucide="shield-alert" aria-hidden="true"></i><h4>边界</h4></header><ul id="mechanismBoundaries"></ul></section>
+            </div>
+            <div class="grok-unknown"><span>仍未知</span><ul id="mechanismUnknowns"></ul></div>
+            <nav id="mechanismEvidence" class="grok-inline-evidence" aria-label="当前机制证据"></nav>
+          </article>
+        </div>
+      </section>
+
+      <section class="grok-provider-section" aria-labelledby="providerTitle">
+        <header class="grok-section-heading">
+          <div><span>PATH DIVERGENCE</span><h2 id="providerTitle">Provider 不是换一个模型名</h2></div>
+          <p>完整 runner 与作者 Router 的上下文、工具、身份和连续性并不等价。</p>
+        </header>
+        <div class="grok-table-wrap">
+          <table class="grok-provider-table">
+            <thead><tr><th>Provider</th><th>执行路径</th><th>模型上下文</th><th>工具面</th><th>身份与连续性</th></tr></thead>
+            <tbody id="providerRows"></tbody>
+          </table>
+        </div>
+        <p class="grok-provider-callout"><i data-lucide="split" aria-hidden="true"></i><strong>最容易误判：</strong>UI 会合并远端与 Router transcript；模型收到的 history 却已经分叉。</p>
+      </section>
+
+      <section class="grok-x-section" aria-labelledby="xTitle">
+        <header class="grok-section-heading">
+          <div><span>X DISCUSSION MAP</span><h2 id="xTitle">X 上在讨论什么</h2></div>
+          <p>发布、作者陈述、社区解释和纠偏分开显示；讨论热度不升级为源码事实。</p>
+        </header>
+        <div class="grok-x-lead">
+          <strong>讨论的核心不是“拿到完整源码”</strong>
+          <p>更准确的读法是：公开发行物暴露了足够多 runtime 证据，让人恢复 Agent harness 的大块结构；但 authored frontend、forensic workspace、服务端行为和上游许可证仍然缺失。</p>
+        </div>
+        <div id="xSignalGrid" class="grok-x-grid"></div>
+      </section>
+
+      <section class="grok-risk-section" aria-labelledby="riskTitle">
+        <header class="grok-section-heading">
+          <div><span>USE-AT-YOUR-OWN-RISK GATE</span><h2 id="riskTitle">能构建，不等于该放真实账号</h2></div>
+          <p>风险按凭据、路径等价性、重建可信度、分发与依赖分别列出。</p>
+        </header>
+        <div id="riskList" class="grok-risk-list"></div>
+      </section>
+
+      <section class="grok-verification-section" aria-labelledby="verificationTitle">
+        <header class="grok-section-heading">
+          <div><span>INDEPENDENT RE-RUN</span><h2 id="verificationTitle">本地复跑结果</h2></div>
+          <p id="verificationEnvironment">正在读取验证环境。</p>
+        </header>
+        <div id="verificationGrid" class="grok-verification-grid"></div>
+        <p class="grok-verification-boundary">
+          <a id="verificationReceipt" href="#" target="_blank" rel="noopener noreferrer"><i data-lucide="file-check-2" aria-hidden="true"></i><span>查看验证收据</span></a>
+          <span id="verificationBoundary"></span>
+        </p>
+      </section>
+
+      <details id="evidenceLedger" class="grok-evidence-ledger">
+        <summary>
+          <span><i data-lucide="list-filter" aria-hidden="true"></i><strong>证据账本</strong><small id="evidenceCount">固定源码、官方文档与本地复跑</small></span>
+          <i data-lucide="chevron-down" aria-hidden="true"></i>
+        </summary>
+        <div class="grok-evidence-content">
+          <div class="grok-evidence-controls">
+            <label><span>搜索</span><input id="evidenceSearch" type="search" placeholder="ID、文件、结论" aria-label="搜索证据"></label>
+            <label><span>归层</span><select id="evidenceLayerFilter" aria-label="按归层筛选"><option value="all">全部归层</option></select></label>
+            <label><span>类型</span><select id="evidenceKindFilter" aria-label="按证据类型筛选"><option value="all">全部类型</option></select></label>
+            <button id="resetEvidenceFilters" class="icon-button" type="button" aria-label="重置证据筛选" title="重置筛选" disabled><i data-lucide="rotate-ccw" aria-hidden="true"></i></button>
+          </div>
+          <div id="evidenceGrid" class="grok-evidence-grid"></div>
+        </div>
+      </details>
+
+      <div id="grokStatus" class="grok-status" role="status" aria-live="polite">
+        <span class="loading-spinner" aria-hidden="true"></span><span>正在读取研究数据</span>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
+  <script src="/grok-bot-core.js"></script>
+  <script src="/grok-bot.js"></script>
+</body>
+</html>

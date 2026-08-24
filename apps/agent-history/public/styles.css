@@ -2569,6 +2569,22 @@ a.source-layer:hover {
     justify-content: center;
   }
 
+  .radar-switch {
+    max-width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .radar-switch::-webkit-scrollbar {
+    display: none;
+  }
+
+  .radar-switch a,
+  .radar-switch button {
+    flex: 0 0 auto;
+  }
+
   .header-links {
     grid-column: 2;
     grid-row: 1;

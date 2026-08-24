@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "grok-bot-0.18-reconstruction-local-verification",
+  "recordedBy": "AgentLab",
+  "verifiedAt": "2026-08-24",
+  "researchModel": "gpt-5.6-sol",
+  "sourceRevision": {
+    "repository": "b-nnett/grok-bot-0.18-reconstructed",
+    "commit": "a9f633e09d49a85829b8236331b9e21f7e612634"
+  },
+  "environment": {
+    "platform": "macOS",
+    "node": "v26.5.0",
+    "clone": "clean temporary clone",
+    "gitLfsAvailable": false,
+    "xcodeLicenseAccepted": false
+  },
+  "checks": [
+    {
+      "id": "npm-ci",
+      "command": "npm ci --ignore-scripts --no-audit --no-fund",
+      "exitCode": 0,
+      "result": "Dependencies installed successfully."
+    },
+    {
+      "id": "frontend-typecheck",
+      "command": "node_modules/typescript/bin/tsc --project frontend/tsconfig.json",
+      "exitCode": 0,
+      "result": "Frontend TypeScript check passed."
+    },
+    {
+      "id": "source-typecheck",
+      "command": "node_modules/typescript/bin/tsc --project source/tsconfig.json",
+      "exitCode": 0,
+      "result": "Source TypeScript check passed."
+    },
+    {
+      "id": "frontend-build",
+      "command": "npm run frontend:build",
+      "exitCode": 0,
+      "result": "Build passed with an invalid dynamic import warning and a 1.509 MB main chunk warning."
+    },
+    {
+      "id": "tests",
+      "command": "node --test tests/*.test.mjs",
+      "exitCode": 1,
+      "result": "17 of 18 tests passed. research-archives.test.mjs expected a 155793020-byte DMG, but the clone contained a 134-byte Git LFS pointer because git-lfs was unavailable."
+    },
+    {
+      "id": "npm-audit",
+      "command": "npm audit --json",
+      "exitCode": 1,
+      "result": "Snapshot reported 29 advisories: 5 high, 20 moderate, 4 low, and 0 critical. No reachability or exploitability analysis was performed."
+    },
+    {
+      "id": "native-package",
+      "command": "npm run package",
+      "exitCode": null,
+      "result": "Not completed. The missing Git LFS installer blocks the package gate; publication:check was also blocked by an unaccepted Xcode license."
+    }
+  ],
+  "corroboratingRun": "https://github.com/b-nnett/grok-bot-0.18-reconstructed/actions/runs/32665811916",
+  "boundary": "This receipt summarizes commands and observed outcomes from one local environment. It does not prove upstream equivalence, production service behavior, credential safety, vulnerability reachability, or a successful native application smoke test."
+}
