@@ -147,10 +147,14 @@ function assertEvidence(study, prefix) {
 }
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
-  const expectedItems = ["更新情报", "版本比较", "Goal 模式", "DSH 雷达", "Grok Bot"];
-  assert.deepEqual(siteNavigation.items.map((item) => item.label), expectedItems);
-  assert.equal(siteNavigation.items.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
+  assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "DSH 雷达", "Grok Bot"]);
+  assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
+  assert.match(siteNavigationSource, /aria-haspopup", "menu"/);
+  assert.match(siteNavigationSource, /event\.key !== "ArrowDown"/);
+  assert.match(siteNavigationSource, /event\.key !== "Escape"/);
+  assert.match(siteNavigationSource, /removeEventListener\("click", this\._closeResearchMenu\)/);
   const pages = [
     ["index", indexHtml],
     ["mechanisms", mechanismsHtml],
