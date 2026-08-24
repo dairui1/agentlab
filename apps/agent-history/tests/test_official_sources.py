@@ -498,6 +498,9 @@ class OfficialSourceTests(unittest.TestCase):
     def test_retired_kimi_cli_points_to_maintained_successor(self) -> None:
         self.assertNotIn("kimi", official.OFFICIAL_REPOSITORIES)
         self.assertEqual(official.RETIRED_AGENTS["kimi"]["replacement"], "kimi-code")
+        self.assertEqual(
+            official.RETIRED_AGENTS["kimi"]["repository"], "MoonshotAI/kimi-cli"
+        )
 
     def test_extracts_bounded_key_files_from_official_compare_diff(self) -> None:
         body = (FIXTURES / "official_codex_compare.diff").read_bytes()

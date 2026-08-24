@@ -62,6 +62,7 @@ NO_PUBLIC_SOURCE_AGENTS = {
 RETIRED_AGENTS = {
     "kimi": {
         "reason": "upstream-project-is-being-wound-down",
+        "repository": "MoonshotAI/kimi-cli",
         "replacement": "kimi-code",
         "sourceUrl": "https://github.com/MoonshotAI/kimi-cli",
     },

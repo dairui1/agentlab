@@ -1497,8 +1497,15 @@ def load_normalized_generation(
 
     values: dict[str, dict[str, object]] = {}
     expected_paths: set[Path] = set()
+    known_repositories = {
+        **OFFICIAL_REPOSITORIES,
+        **{
+            agent: str(config["repository"])
+            for agent, config in RETIRED_AGENTS.items()
+        },
+    }
     for agent, descriptor in descriptors.items():
-        if agent not in OFFICIAL_REPOSITORIES or not isinstance(descriptor, dict):
+        if agent not in known_repositories or not isinstance(descriptor, dict):
             raise OfficialSyncError(f"normalized manifest agent is invalid: {agent!r}")
         expected_url = f"agents/{descriptor.get('sourceDigest')}.json"
         legacy_url = f"{agent}.json"
@@ -1514,7 +1521,7 @@ def load_normalized_generation(
         if (
             value.get("schemaVersion") != SCHEMA_VERSION
             or value.get("agent") != agent
-            or value.get("repository") != OFFICIAL_REPOSITORIES[agent]
+            or value.get("repository") != known_repositories[agent]
             or not isinstance(value.get("documents"), list)
             or not isinstance(value.get("releases"), dict)
         ):
@@ -1593,7 +1600,11 @@ def sync(
     root = cache_root.expanduser().resolve()
     cache = HttpCache(root / "http", token=token)
     normalized_root = root / "normalized"
-    previous_values = load_normalized_generation(normalized_root)
+    previous_values = {
+        agent: value
+        for agent, value in load_normalized_generation(normalized_root).items()
+        if agent not in RETIRED_AGENTS
+    }
     captured = discover_capture_sequences(capture_roots)
     selected = set(agents or OFFICIAL_REPOSITORIES)
     selected.intersection_update(OFFICIAL_REPOSITORIES)
