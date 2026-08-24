@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -63,6 +64,9 @@ MAX_NORMALIZED_RELEASE_BYTES = 64 * 1024
 MAX_NORMALIZED_INDEX_BYTES = 16 * 1024 * 1024
 MAX_NORMALIZED_MANIFEST_BYTES = 1024 * 1024
 MAX_CAPTURE_META_BYTES = 64 * 1024
+HTTP_FETCH_ATTEMPTS = 3
+HTTP_RETRY_DELAYS = (1.0, 3.0)
+TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 VERSION_RE = re.compile(
     r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
@@ -331,54 +335,92 @@ class HttpCache:
         elif cached and cached.last_modified:
             headers["If-Modified-Since"] = cached.last_modified
         request = Request(url, headers=headers)
-        try:
-            with urlopen(request, timeout=timeout) as response:
-                body = response.read(max_bytes + 1)
-                truncated = len(body) > max_bytes
-                body = body[:max_bytes]
-                if truncated and not allow_truncated:
-                    raise OfficialSyncError(
-                        f"official response exceeds {max_bytes} bytes: {url}"
-                    )
-                if transform is not None:
-                    try:
-                        body = transform(body)
-                    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
-                        if allow_stale_on_error and cached is not None:
-                            self._record_stale(
-                                url=url,
-                                cached=cached,
-                                reason=f"normalize-failure:{type(error).__name__}",
-                            )
-                            return cached
+        for attempt in range(HTTP_FETCH_ATTEMPTS):
+            try:
+                with urlopen(request, timeout=timeout) as response:
+                    body = response.read(max_bytes + 1)
+                    truncated = len(body) > max_bytes
+                    body = body[:max_bytes]
+                    if truncated and not allow_truncated:
                         raise OfficialSyncError(
-                            f"cannot normalize official response from {url}: {error}"
-                        ) from error
-                return self._store(
-                    key,
-                    url=url,
-                    accept=accept,
-                    body=body,
-                    etag=response.headers.get("ETag"),
-                    last_modified=response.headers.get("Last-Modified"),
-                    truncated=truncated,
-                )
-        except HTTPError as error:
-            if error.code == 304 and cached is not None:
-                return cached
-            if allow_stale_on_error and cached is not None:
-                self._record_stale(
-                    url=url, cached=cached, reason=f"http-{error.code}"
-                )
-                return cached
-            raise OfficialSyncError(f"HTTP {error.code} while fetching {url}") from error
-        except (OSError, TimeoutError, URLError) as error:
-            if allow_stale_on_error and cached is not None:
-                self._record_stale(
-                    url=url, cached=cached, reason=f"fetch-failure:{type(error).__name__}"
-                )
-                return cached
-            raise OfficialSyncError(f"cannot fetch {url}: {error}") from error
+                            f"official response exceeds {max_bytes} bytes: {url}"
+                        )
+                    if transform is not None:
+                        try:
+                            body = transform(body)
+                        except (
+                            UnicodeDecodeError,
+                            json.JSONDecodeError,
+                            ValueError,
+                        ) as error:
+                            if allow_stale_on_error and cached is not None:
+                                self._record_stale(
+                                    url=url,
+                                    cached=cached,
+                                    reason=(
+                                        f"normalize-failure:{type(error).__name__}"
+                                    ),
+                                )
+                                return cached
+                            raise OfficialSyncError(
+                                f"cannot normalize official response from {url}: {error}"
+                            ) from error
+                    return self._store(
+                        key,
+                        url=url,
+                        accept=accept,
+                        body=body,
+                        etag=response.headers.get("ETag"),
+                        last_modified=response.headers.get("Last-Modified"),
+                        truncated=truncated,
+                    )
+            except HTTPError as error:
+                if error.code == 304 and cached is not None:
+                    return cached
+                retryable = error.code in TRANSIENT_HTTP_STATUS
+                if retryable and attempt + 1 < HTTP_FETCH_ATTEMPTS:
+                    delay = HTTP_RETRY_DELAYS[attempt]
+                    LOG.warning(
+                        "transient HTTP %s fetching %s; retrying in %.1fs (%s/%s)",
+                        error.code,
+                        url,
+                        delay,
+                        attempt + 2,
+                        HTTP_FETCH_ATTEMPTS,
+                    )
+                    time.sleep(delay)
+                    continue
+                if allow_stale_on_error and cached is not None:
+                    self._record_stale(
+                        url=url, cached=cached, reason=f"http-{error.code}"
+                    )
+                    return cached
+                raise OfficialSyncError(
+                    f"HTTP {error.code} while fetching {url}"
+                ) from error
+            except (OSError, TimeoutError, URLError) as error:
+                if attempt + 1 < HTTP_FETCH_ATTEMPTS:
+                    delay = HTTP_RETRY_DELAYS[attempt]
+                    LOG.warning(
+                        "transient %s fetching %s; retrying in %.1fs (%s/%s)",
+                        type(error).__name__,
+                        url,
+                        delay,
+                        attempt + 2,
+                        HTTP_FETCH_ATTEMPTS,
+                    )
+                    time.sleep(delay)
+                    continue
+                if allow_stale_on_error and cached is not None:
+                    self._record_stale(
+                        url=url,
+                        cached=cached,
+                        reason=f"fetch-failure:{type(error).__name__}",
+                    )
+                    return cached
+                raise OfficialSyncError(f"cannot fetch {url}: {error}") from error
+
+        raise AssertionError("HTTP fetch retry loop exhausted without a result")
 
 
 def parse_markdown_changelog(text: str) -> dict[str, str]:

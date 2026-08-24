@@ -737,7 +737,10 @@ class OfficialSourceTests(unittest.TestCase):
                     timeout=1,
                     allow_stale_on_error=False,
                 )
-            with mock.patch.object(official, "urlopen", side_effect=URLError("offline")):
+            with (
+                mock.patch.object(official, "urlopen", side_effect=URLError("offline")),
+                mock.patch.object(official.time, "sleep"),
+            ):
                 second = cache.fetch(
                     "https://example.test/releases",
                     accept="application/json",
@@ -750,6 +753,29 @@ class OfficialSourceTests(unittest.TestCase):
             self.assertEqual(second.body, body)
             self.assertEqual(first.sha256, second.sha256)
             self.assertTrue((Path(directory) / "index.json").is_file())
+            self.assertEqual(len(cache.warnings), 1)
+
+    def test_http_cache_retries_transient_fetch_before_using_stale_body(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cache = official.HttpCache(Path(directory))
+            body = b'{"fixture":true}'
+            responses = [URLError("transient"), FakeResponse(body)]
+            with (
+                mock.patch.object(official, "urlopen", side_effect=responses) as fetch,
+                mock.patch.object(official.time, "sleep") as sleep,
+            ):
+                response = cache.fetch(
+                    "https://example.test/releases",
+                    accept="application/json",
+                    max_bytes=1024,
+                    timeout=1,
+                    allow_stale_on_error=True,
+                )
+
+            self.assertEqual(response.body, body)
+            self.assertEqual(fetch.call_count, 2)
+            sleep.assert_called_once_with(official.HTTP_RETRY_DELAYS[0])
+            self.assertEqual(cache.warnings, [])
 
     def test_http_cache_uses_verified_stale_body_after_normalization_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -790,7 +816,10 @@ class OfficialSourceTests(unittest.TestCase):
     def test_http_cache_without_existing_body_fails_offline(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             cache = official.HttpCache(Path(directory))
-            with mock.patch.object(official, "urlopen", side_effect=URLError("offline")):
+            with (
+                mock.patch.object(official, "urlopen", side_effect=URLError("offline")),
+                mock.patch.object(official.time, "sleep"),
+            ):
                 with self.assertRaisesRegex(official.OfficialSyncError, "cannot fetch"):
                     cache.fetch(
                         "https://example.test/releases",
