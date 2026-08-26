@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
@@ -29,6 +30,7 @@ DEFAULT_AGENTS = "all"
 AGENT_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 SHA_RE = re.compile(r"^[0-9a-f]{40,64}$")
 LOG = logging.getLogger("sync-phistory")
+NETWORK_RETRY_DELAYS = (2.0, 8.0)
 
 
 class SyncError(RuntimeError):
@@ -69,6 +71,25 @@ def run(
             + (f"\n{detail}" if detail else "")
         )
     return completed.stdout.strip()
+
+
+def run_network_command(
+    command: Sequence[str], *, timeout: float = 300.0
+) -> str:
+    for attempt, delay in enumerate((*NETWORK_RETRY_DELAYS, None), start=1):
+        try:
+            return run(command, timeout=timeout)
+        except SyncError:
+            if delay is None:
+                raise
+            LOG.warning(
+                "network Git command failed; retrying in %.1fs (%d/%d)",
+                delay,
+                attempt + 1,
+                len(NETWORK_RETRY_DELAYS) + 1,
+            )
+            time.sleep(delay)
+    raise AssertionError("unreachable")
 
 
 def git(repo: Path, *arguments: str, timeout: float = 300.0) -> str:
@@ -135,7 +156,7 @@ def clone_checkout(
     repo.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{repo.name}.clone-", dir=repo.parent))
     try:
-        run(
+        run_network_command(
             (
                 "git",
                 "clone",
@@ -176,14 +197,18 @@ def update_checkout(
     assert_clean(repo)
     previous = current_sha(repo)
     configure_sparse(repo, paths)
-    git(
-        repo,
-        "fetch",
-        "--prune",
-        "--depth=1",
-        "--filter=blob:none",
-        "origin",
-        f"+refs/heads/{ref}:refs/remotes/origin/{ref}",
+    run_network_command(
+        (
+            "git",
+            "-C",
+            str(repo),
+            "fetch",
+            "--prune",
+            "--depth=1",
+            "--filter=blob:none",
+            "origin",
+            f"+refs/heads/{ref}:refs/remotes/origin/{ref}",
+        ),
         timeout=timeout,
     )
     fetched = git(repo, "rev-parse", "--verify", f"origin/{ref}^{{commit}}")

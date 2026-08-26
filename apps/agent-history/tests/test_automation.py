@@ -893,6 +893,19 @@ class SyncPhistoryTests(unittest.TestCase):
             ("captures/dsh",),
         )
 
+    def test_network_git_command_retries_transient_failure(self):
+        with mock.patch.object(
+            sync,
+            "run",
+            side_effect=(sync.SyncError("temporary TLS failure"), "fetched"),
+        ) as run_command, mock.patch.object(sync.time, "sleep") as sleep:
+            result = sync.run_network_command(("git", "fetch"), timeout=12.0)
+
+        self.assertEqual(result, "fetched")
+        self.assertEqual(run_command.call_count, 2)
+        run_command.assert_called_with(("git", "fetch"), timeout=12.0)
+        sleep.assert_called_once_with(sync.NETWORK_RETRY_DELAYS[0])
+
     def test_sparse_clone_and_exact_sha_update(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
