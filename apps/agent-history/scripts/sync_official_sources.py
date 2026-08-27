@@ -65,8 +65,10 @@ MAX_NORMALIZED_RELEASE_BYTES = 64 * 1024
 MAX_NORMALIZED_INDEX_BYTES = 16 * 1024 * 1024
 MAX_NORMALIZED_MANIFEST_BYTES = 1024 * 1024
 MAX_CAPTURE_META_BYTES = 64 * 1024
-HTTP_FETCH_ATTEMPTS = 3
-HTTP_RETRY_DELAYS = (1.0, 3.0)
+# A full catalog sync makes hundreds of requests, so a short per-request retry
+# budget still makes one transient route flap likely to degrade the generation.
+HTTP_RETRY_DELAYS = (1.0, 3.0, 7.0, 15.0, 30.0)
+HTTP_FETCH_ATTEMPTS = len(HTTP_RETRY_DELAYS) + 1
 TRANSIENT_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 VERSION_RE = re.compile(

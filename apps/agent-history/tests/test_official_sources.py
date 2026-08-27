@@ -785,6 +785,38 @@ class OfficialSourceTests(unittest.TestCase):
             sleep.assert_called_once_with(official.HTTP_RETRY_DELAYS[0])
             self.assertEqual(cache.warnings, [])
 
+    def test_http_cache_retry_budget_survives_a_prolonged_route_flap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cache = official.HttpCache(Path(directory))
+            body = b'{"fixture":true}'
+            failures = [
+                URLError("transient")
+                for _ in range(official.HTTP_FETCH_ATTEMPTS - 1)
+            ]
+            with (
+                mock.patch.object(
+                    official,
+                    "urlopen",
+                    side_effect=(*failures, FakeResponse(body)),
+                ) as fetch,
+                mock.patch.object(official.time, "sleep") as sleep,
+            ):
+                response = cache.fetch(
+                    "https://example.test/releases",
+                    accept="application/json",
+                    max_bytes=1024,
+                    timeout=1,
+                    allow_stale_on_error=True,
+                )
+
+            self.assertEqual(response.body, body)
+            self.assertEqual(fetch.call_count, official.HTTP_FETCH_ATTEMPTS)
+            self.assertEqual(
+                [call.args[0] for call in sleep.call_args_list],
+                list(official.HTTP_RETRY_DELAYS),
+            )
+            self.assertEqual(cache.warnings, [])
+
     def test_http_cache_uses_verified_stale_body_after_normalization_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             cache = official.HttpCache(Path(directory))
