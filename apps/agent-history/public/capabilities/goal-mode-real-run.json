@@ -1,0 +1,231 @@
+{
+  "id": "goal-mode-real-run-2026-08-27",
+  "title": "同一句 /goal，三轮以后发生了什么",
+  "updatedAt": "2026-08-27T21:31:00+08:00",
+  "summary": "在同一个小型 Node.js 鉴权仓库、同一条完成条件上，Codex 与 Claude Code 都跑了三轮并通过外部隐藏验证。真正的区别出现在每轮结束以后：Codex 的 runtime 直接续开下一轮；Claude Code 先让独立 evaluator 决定这次能不能停。",
+  "experiment": {
+    "taskName": "把无签名 token 迁移为 HMAC-SHA256",
+    "whyThisTask": "它不是一句话就能做完的改名：要先建立基线，再修改实现与测试，最后做全量验收；但仓库只有 5 个初始文件，没有依赖，三轮内可以收束。",
+    "fixtureCommit": "cd586354c53e2b82c6e133ce0fdfedb54dd5ffa9",
+    "promptSha256": "09cc0605894e82e53b0ec65b3054d2efcef7620302cbff1ee423ad06ee1598c3",
+    "prompt": "完成这个仓库的鉴权迁移，并让以下条件全部成立。不要向用户提问。按顺序完成三个阶段，每个回合最多完成一个编号阶段；完成当前阶段后立即结束当前回合。\n\n阶段 1：只检查仓库、运行基线测试和 lint，并写 progress.md 记录计划和基线；不要修改生产代码。\n\n阶段 2：把 src/auth.js 迁移为 HMAC-SHA256 签名 token，保留 createToken/verifyToken API，新增覆盖篡改、错误 secret、格式错误、expiresAt <= now 的测试，可以运行 focused test。\n\n阶段 3：运行 npm test、npm run lint、检查 git diff，修复失败，更新 progress.md 写入最终证据。\n\n完成条件：token 为 payload.signature 两段；使用 HMAC-SHA256；拒绝篡改、错误 secret、畸形 token 和到期边界；无外部依赖；API 不变；npm test 与 npm run lint 退出 0；只允许修改 src/auth.js、test/auth.test.js、progress.md；最后回复必须列出精确验证命令和结果。",
+    "nodeVersion": "v25.6.1",
+    "hiddenVerifier": "两份结果都在运行结束后通过同一个仓库外验证器：hidden acceptance ok。验证器检查两段格式、正常回环、expiresAt === now、错误 secret、payload/signature 篡改和畸形段数。",
+    "boundary": "公开页保留全部任务相关事件和原文片段，不发布未清洗的本机会话流。与任务无关的启动噪声、个人路径、插件清单和其他用户 hook 被折叠；原始 JSONL 只在本地研究缓存中保存，并以 SHA-256 锚定。"
+  },
+  "stageLabels": [
+    { "id": "start", "number": "00", "label": "设置目标", "question": "同一句条件先落在哪里？" },
+    { "id": "baseline", "number": "01", "label": "基线结束", "question": "第一轮停下时，谁让它继续？" },
+    { "id": "migration", "number": "02", "label": "迁移完成", "question": "代码已经能跑，为什么还不能停？" },
+    { "id": "verification", "number": "03", "label": "最终验收", "question": "最后是谁说可以结束？" }
+  ],
+  "products": [
+    {
+      "id": "codex",
+      "name": "Codex",
+      "version": "0.149.1",
+      "invocation": "App Server 原生 thread/goal/set + turn/start",
+      "durationMs": 219894,
+      "goalRounds": 3,
+      "testsPassed": 5,
+      "result": "goalStatus = complete；外部隐藏验证通过",
+      "rawEventSha256": "8012ce83720b8c6c6708dbdcfcbe522d81b39bb56321a36c50c6829ac68def3d",
+      "stages": [
+        {
+          "id": "start",
+          "state": "active",
+          "heading": "目标先成为 thread 的 runtime 状态",
+          "mechanism": "客户端把完整条件写入 thread/goal/set。5.566 秒时收到 active 状态；10 毫秒后，首个正常 turn 启动。",
+          "quote": "完成这个仓库的鉴权迁移，并让以下条件全部成立。",
+          "transition": "thread/goal/updated: active → turn/started",
+          "evidence": ["5.566s · goal active", "5.576s · turn 1 started", "目标正文与用户条件逐字一致"]
+        },
+        {
+          "id": "baseline",
+          "state": "active → turn 2",
+          "heading": "第一轮结束 21 毫秒后，runtime 直接续开",
+          "mechanism": "worker 只做了基线：3 项测试、lint、progress.md。它没有宣告完成；thread 上的 goal 仍是 active，runtime 在 idle 边界启动下一轮。",
+          "quote": "阶段 1 已完成……按要求，本回合到此结束。",
+          "transition": "turn 1 completed @ 64.311s → turn 2 started @ 64.332s",
+          "evidence": ["npm test · 3 pass", "npm run lint · exit 0", "只有 progress.md 新增"]
+        },
+        {
+          "id": "migration",
+          "state": "active → turn 3",
+          "heading": "focused test 已绿，goal 仍把第三阶段留着",
+          "mechanism": "第二轮完成 HMAC-SHA256 实现并把测试扩到 5 项。worker 收尾以后，runtime 看到 goal 仍为 active，18 毫秒后开启第三轮。",
+          "quote": "阶段 2 已完成……当前改动仅涉及 src/auth.js、test/auth.test.js 和 progress.md。",
+          "transition": "turn 2 completed @ 147.389s → turn 3 started @ 147.407s",
+          "evidence": ["node --test test/auth.test.js · 5 pass", "API 未改", "无外部依赖"]
+        },
+        {
+          "id": "verification",
+          "state": "complete",
+          "heading": "同一个 worker 验收现场，再调用完成工具",
+          "mechanism": "第三轮跑全量测试、lint、diff 与 diff-check。206.670 秒时 goal 变为 complete；随后 worker 写出最终回复，turn 在 219.893 秒结束。",
+          "quote": "鉴权迁移全部完成……npm test：退出码 0，5 项通过、0 项失败。",
+          "transition": "update_goal(complete) @ 206.670s → final message → turn completed",
+          "evidence": ["npm test · 5 pass", "lint · exit 0", "git diff --check · exit 0", "外部隐藏验证通过"]
+        }
+      ],
+      "trace": [
+        {
+          "phase": "设置与阶段 1",
+          "events": [
+            { "at": "5.566s", "type": "runtime", "label": "thread/goal/updated", "detail": "status=active，保存完整 objective。" },
+            { "at": "5.576s", "type": "runtime", "label": "turn 1 started", "detail": "首轮收到与 goal 相同的任务条件。" },
+            { "at": "31.814s", "type": "command", "label": "检查仓库", "detail": "读取 package.json、src/auth.js、test/auth.test.js；确认 worktree 初始干净。" },
+            { "at": "38.895s", "type": "command", "label": "npm test", "detail": "exit 0；3 pass，0 fail。" },
+            { "at": "38.912s", "type": "command", "label": "npm run lint", "detail": "exit 0；lint ok: 3 files。" },
+            { "at": "53.225s", "type": "file", "label": "写 progress.md", "detail": "记录三阶段计划、无签名实现、过期边界问题和基线证据。" },
+            { "at": "64.238s", "type": "message", "label": "阶段 1 收尾", "detail": "明确只新增 progress.md，并按 one-phase-per-turn 规则结束。" },
+            { "at": "64.311s", "type": "runtime", "label": "turn 1 completed", "detail": "goal 仍为 active。" },
+            { "at": "64.332s", "type": "runtime", "label": "turn 2 started", "detail": "没有新的用户消息；runtime 自动续轮。" }
+          ]
+        },
+        {
+          "phase": "阶段 2",
+          "events": [
+            { "at": "87.436s", "type": "command", "label": "重读实现与进度", "detail": "以当前 worktree 为准恢复上下文。" },
+            { "at": "125.015s", "type": "file", "label": "修改 src/auth.js", "detail": "加入 node:crypto、两段 token、HMAC-SHA256 与 timingSafeEqual。" },
+            { "at": "131.587s", "type": "file", "label": "修改 test/auth.test.js", "detail": "增加篡改、错误 secret、畸形 token 与 expiresAt <= now 覆盖。" },
+            { "at": "131.716s", "type": "command", "label": "focused test", "detail": "node --test test/auth.test.js；exit 0，5 pass。" },
+            { "at": "147.326s", "type": "message", "label": "阶段 2 收尾", "detail": "报告实现、测试与改动范围，未把 goal 标成完成。" },
+            { "at": "147.389s", "type": "runtime", "label": "turn 2 completed", "detail": "goal 仍为 active。" },
+            { "at": "147.407s", "type": "runtime", "label": "turn 3 started", "detail": "runtime 自动续开最终验收轮。" }
+          ]
+        },
+        {
+          "phase": "阶段 3 与结束",
+          "events": [
+            { "at": "158.898s", "type": "command", "label": "npm test", "detail": "exit 0；5 pass。" },
+            { "at": "158.915s", "type": "command", "label": "npm run lint", "detail": "exit 0；lint ok: 3 files。" },
+            { "at": "167.958s", "type": "command", "label": "检查完整 diff", "detail": "只见 src/auth.js 与 test/auth.test.js 的预期生产改动。" },
+            { "at": "194.683s", "type": "command", "label": "git diff --check", "detail": "exit 0；同时确认只有允许的三个路径变化。" },
+            { "at": "206.670s", "type": "runtime", "label": "thread/goal/updated", "detail": "worker 调用受限工具，把 goal 状态改为 complete。" },
+            { "at": "219.614s", "type": "message", "label": "最终回复", "detail": "列出精确验证命令、退出码、测试数与 diff 范围。" },
+            { "at": "219.893s", "type": "runtime", "label": "turn 3 completed", "detail": "goal 已 complete，不再续轮。" },
+            { "at": "after run", "type": "external", "label": "隐藏验证器", "detail": "hidden acceptance ok。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "claude",
+      "name": "Claude Code",
+      "version": "2.1.227",
+      "invocation": "claude -p \"/goal <同一条件>\"",
+      "durationMs": 190999,
+      "goalRounds": 3,
+      "testsPassed": 20,
+      "result": "CLI result=success；第三次 Stop 后结束；外部隐藏验证通过",
+      "rawEventSha256": "7741bdc143fb5738a3358791a3ed719618eaa35c5ae834c74eb89decf757f775",
+      "stages": [
+        {
+          "id": "start",
+          "state": "Stop hook armed",
+          "heading": "/goal 把条件挂在这一场 session 的出口",
+          "mechanism": "CLI 直接收到 /goal 加同一条件。设置 goal 后，条件本身成为第一轮 directive；无需再发一条普通 prompt。",
+          "quote": "I'll start with Phase 1: inspect the repo, run baseline test + lint…",
+          "transition": "/goal condition → phase 1 worker turn",
+          "evidence": ["built-in skill: goal", "session-scoped Stop hook", "首轮立刻开始"]
+        },
+        {
+          "id": "baseline",
+          "state": "Stop blocked → phase 2",
+          "heading": "worker 想停，独立 evaluator 明确说还不行",
+          "mechanism": "第一轮只完成基线。Stop evaluator 只看 transcript，指出 Phase 2 与 Phase 3 均未执行，并把这条理由作为反馈送入下一轮。",
+          "quote": "Only Phase 1 is complete… Phase 2 and Phase 3 have not been executed.",
+          "transition": "Stop attempt 1 → unmet reason → phase 2",
+          "evidence": ["npm test · 3 pass", "lint · exit 0", "evaluator 明确列出缺失条件"]
+        },
+        {
+          "id": "migration",
+          "state": "Stop blocked → phase 3",
+          "heading": "20 项 focused test 通过，裁判仍然不放行",
+          "mechanism": "第二轮实现迁移并扩到 20 项测试。evaluator 没被绿色 focused test 说服：它指出全量 npm test、lint、diff 与最终证据还没有出现在 transcript。",
+          "quote": "Phase 1 and Phase 2 are complete… Phase 3 has not been executed.",
+          "transition": "Stop attempt 2 → unmet reason → phase 3",
+          "evidence": ["focused test · 20 pass", "实现/API/依赖条件已满足", "仍缺最终验收"]
+        },
+        {
+          "id": "verification",
+          "state": "Stop allowed",
+          "heading": "worker 把证据说出来，第三次出口才真正打开",
+          "mechanism": "第三轮运行全量测试、lint、diff 与范围检查，并把结果写入 progress.md 和最终回复。随后 Stop hook 不再返回 unmet 反馈，CLI 以 success 结束。",
+          "quote": "Phase 3 complete. All three phases done; the auth migration is finished and verified.",
+          "transition": "final evidence → Stop evaluator permits exit → result=success",
+          "evidence": ["npm test · 20 pass", "lint · exit 0", "改动范围正确", "外部隐藏验证通过"]
+        }
+      ],
+      "trace": [
+        {
+          "phase": "设置与阶段 1",
+          "events": [
+            { "at": "seq 01", "type": "runtime", "label": "/goal accepted", "detail": "同一条件注册为 session-scoped Stop hook，并立即开始工作。" },
+            { "at": "seq 02", "type": "message", "label": "首轮意图", "detail": "明确本轮只做检查、基线与 progress.md，不改生产代码。" },
+            { "at": "seq 03", "type": "command", "label": "检查仓库", "detail": "读取 5 个初始文件，确认无依赖、API 与现有错误语义。" },
+            { "at": "seq 04", "type": "command", "label": "npm test + lint", "detail": "3 pass；lint ok: 3 files。" },
+            { "at": "seq 05", "type": "file", "label": "写 progress.md", "detail": "记录基线、已知缺口和后续两阶段计划。" },
+            { "at": "seq 06", "type": "message", "label": "阶段 1 收尾", "detail": "worker 主动结束当前回合，并说明下一轮要做 Phase 2。" },
+            { "at": "seq 07", "type": "evaluator", "label": "Stop attempt 1: unmet", "detail": "Only Phase 1 is complete；Phase 2/3 与最终完成条件尚未出现。" },
+            { "at": "seq 08", "type": "runtime", "label": "反馈进入下一轮", "detail": "Stop hook feedback 成为新的 user text，worker 继续 Phase 2。" }
+          ]
+        },
+        {
+          "phase": "阶段 2",
+          "events": [
+            { "at": "seq 09", "type": "message", "label": "恢复阶段", "detail": "Phase 1 is complete and recorded. Proceeding to Phase 2。" },
+            { "at": "seq 10", "type": "file", "label": "修改 src/auth.js", "detail": "加入 node:crypto、两段 token、HMAC-SHA256、timingSafeEqual 和 <= 过期边界。" },
+            { "at": "seq 11", "type": "file", "label": "修改 test/auth.test.js", "detail": "测试从 3 项扩到 20 项，覆盖格式、签名、篡改、错误 secret、边界和 API。" },
+            { "at": "seq 12", "type": "command", "label": "focused test", "detail": "node --test test/auth.test.js；20 pass，0 fail。" },
+            { "at": "seq 13", "type": "message", "label": "阶段 2 收尾", "detail": "worker 报告实现细节、测试与下一阶段。" },
+            { "at": "seq 14", "type": "evaluator", "label": "Stop attempt 2: unmet", "detail": "Phase 3 尚未执行；缺全量 npm test、lint、diff 和最终证据。" },
+            { "at": "seq 15", "type": "runtime", "label": "反馈进入下一轮", "detail": "worker 收到 evaluator 的缺口清单，开始 Phase 3。" }
+          ]
+        },
+        {
+          "phase": "阶段 3 与结束",
+          "events": [
+            { "at": "seq 16", "type": "command", "label": "npm test", "detail": "exit 0；20 pass。" },
+            { "at": "seq 17", "type": "command", "label": "npm run lint", "detail": "exit 0；lint ok: 3 files。" },
+            { "at": "seq 18", "type": "command", "label": "检查 diff 与范围", "detail": "生产改动限于 auth 实现与测试；status 只列允许的三个路径。" },
+            { "at": "seq 19", "type": "file", "label": "更新 progress.md", "detail": "写入最终命令、退出码与逐项完成证据。" },
+            { "at": "seq 20", "type": "message", "label": "最终回复", "detail": "逐项列出 7 条验证命令、20 项测试与每个验收条件。" },
+            { "at": "seq 21", "type": "evaluator", "label": "Stop attempt 3: allowed", "detail": "事件流没有再出现 unmet feedback；依据 /goal 的 Stop-hook 合同与 CLI success 终态，推断 evaluator 判定条件已满足。" },
+            { "at": "190.999s", "type": "runtime", "label": "CLI result", "detail": "subtype=success。CLI 的 num_turns=20 是模型/工具循环计数，不是 /goal 的三次 Stop 判定。" },
+            { "at": "after run", "type": "external", "label": "隐藏验证器", "detail": "hidden acceptance ok。" }
+          ]
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "title": "这个任务刚好值得用 /goal",
+      "text": "如果只改一行，普通 turn 足够；如果牵涉几十个仓库，又会把模型、权限和时间变成主变量。这个 fixture 有三个天然检查点、一个明确终态和一个仓库外验证器，足以让续轮机制真的发生，又能在几分钟内复现。"
+    },
+    {
+      "title": "两边都跑了三轮，但“继续”的理由不同",
+      "text": "Codex 没有在前两轮插入一条裁判意见：goal 仍 active，runtime 就续开。Claude Code 每次都先尝试 Stop；前两次被独立 evaluator 用明确缺口驳回，理由随后进入下一轮。"
+    },
+    {
+      "title": "不能拿测试数直接判输赢",
+      "text": "Claude 写了 20 项，Codex 写了 5 项；两份结果都通过同一个隐藏验证器。这个单样本说明了行为差异，不足以证明谁整体更可靠。要回答可靠性，需要重复运行、固定模型和权限，并加入故意诱导过早完成的对抗条件。"
+    }
+  ],
+  "sources": [
+    {
+      "label": "Claude Code 官方文档：Keep Claude working toward a goal",
+      "url": "https://code.claude.com/docs/en/goal"
+    },
+    {
+      "label": "OpenAI Codex：Goal continuation prompt",
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/prompts/templates/goals/continuation.md"
+    },
+    {
+      "label": "OpenAI Codex：App Server goal protocol",
+      "url": "https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md"
+    }
+  ]
+}

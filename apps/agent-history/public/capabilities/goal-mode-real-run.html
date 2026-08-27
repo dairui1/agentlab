@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="同一条 /goal 条件在 Codex 与 Claude Code 的真实三轮轨迹：从基线、迁移到最终验收，逐帧查看两套续跑机制。">
+  <title>同一句 /goal，三轮以后发生了什么 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-navigation.js"></script>
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/goal-mode-real-run.css?v=1">
+</head>
+<body class="article-page goal-run-page" data-run-source="/capabilities/goal-mode-real-run.json">
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>真实运行</span></span>
+      </a>
+      <agentlab-navigation current="goal"></agentlab-navigation>
+      <div class="header-links">
+        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
+      </div>
+    </header>
+
+    <main>
+      <header class="run-hero">
+        <div class="run-width run-hero-inner">
+          <nav class="article-breadcrumb" aria-label="面包屑">
+            <a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i>
+            <a href="/capabilities/goal-mode.html">Goal Mode</a><i data-lucide="chevron-right" aria-hidden="true"></i>
+            <span>真实对照运行</span>
+          </nav>
+          <span class="article-series">MATCHED RUN · 2026-08-27</span>
+          <h1>同一句 <code>/goal</code>，三轮以后发生了什么</h1>
+          <p class="article-dek">两个本地 Agent 从同一个提交出发，收到逐字相同的完成条件。前两轮都故意只做一个阶段；真正要看的，是它们停下来以后，系统怎样把第三轮接上。</p>
+          <div class="run-verdict" aria-label="本次真实运行结果">
+            <span>真实结果</span>
+            <strong>两边都是 3 个 Goal 回合，也都通过了同一个仓库外验证器。</strong>
+            <small>Codex 219.9 秒 · Claude Code 191.0 秒 · 单次运行，不做胜负排名</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="run-brief-band" aria-labelledby="runBriefTitle">
+        <div class="run-width run-brief">
+          <div>
+            <span class="run-kicker">THE TASK</span>
+            <h2 id="runBriefTitle">一个小仓库，但不能一口气糊过去</h2>
+            <p>初始实现把 JSON 做成单段 base64url token，<code>secret</code> 根本没有参与签名，过期边界也写成了 <code>&lt;</code>。目标是迁移到两段式 HMAC-SHA256，同时守住 API、依赖和改动范围。</p>
+          </div>
+          <div class="run-fit-check">
+            <span>为什么适合 /goal</span>
+            <ul>
+              <li><strong>不止一步：</strong>先基线，再实现，最后验收。</li>
+              <li><strong>可以停错：</strong>focused test 绿了，不代表全量条件完成。</li>
+              <li><strong>终点可验：</strong>测试、lint、diff 与仓库外验证器都能给出硬结果。</li>
+              <li><strong>范围可控：</strong>5 个初始文件，无第三方依赖，几分钟能跑完。</li>
+            </ul>
+          </div>
+          <details class="run-prompt" data-prompt-disclosure>
+            <summary><span><i data-lucide="terminal" aria-hidden="true"></i>查看完整的同一条条件</span><small>SHA-256 · 09cc0605…1598c3</small></summary>
+            <div>
+              <div class="run-invocations">
+                <p><strong>Claude Code</strong><code>claude -p "/goal &lt;条件&gt;"</code></p>
+                <p><strong>Codex</strong><code>thread/goal/set → turn/start</code></p>
+              </div>
+              <pre data-full-prompt>正在载入条件。</pre>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="run-explorer-band" aria-labelledby="runExplorerTitle">
+        <div class="run-width run-explorer" data-run-explorer aria-busy="true">
+          <header class="run-section-heading">
+            <div>
+              <span class="run-kicker">FOUR KEYFRAMES</span>
+              <h2 id="runExplorerTitle">先看四个关键帧，不把整条 trajectory 砸到脸上</h2>
+              <p data-stage-question>正在装入真实事件。</p>
+            </div>
+            <a href="#full-trajectory">直接看完整事件<i data-lucide="arrow-down" aria-hidden="true"></i></a>
+          </header>
+
+          <div class="run-stage-tabs" role="tablist" aria-label="选择真实运行关键帧" data-stage-tabs></div>
+          <div class="run-compare" data-run-lanes aria-live="polite"></div>
+          <p class="run-loading" data-run-loading role="status">正在载入本地整理后的真实运行事件。</p>
+        </div>
+      </section>
+
+      <section class="run-findings-band" aria-labelledby="runFindingsTitle">
+        <div class="run-width">
+          <header class="run-section-heading">
+            <div>
+              <span class="run-kicker">WHAT THIS RUN SHOWS</span>
+              <h2 id="runFindingsTitle">这个单样本，能回答什么</h2>
+            </div>
+          </header>
+          <div class="run-findings" data-run-findings></div>
+        </div>
+      </section>
+
+      <section class="run-trace-band" id="full-trajectory" aria-labelledby="runTraceTitle">
+        <div class="run-width run-trace">
+          <header class="run-section-heading">
+            <div>
+              <span class="run-kicker">TASK-RELEVANT TRAJECTORY</span>
+              <h2 id="runTraceTitle">想追细节，就从这里一路展开</h2>
+              <p>默认折叠。每个阶段保留命令、退出码、文件动作、worker 原话和续轮判定；个人插件、启动清单与无关 hook 不进入公开数据。</p>
+            </div>
+            <div class="run-trace-tabs" role="tablist" aria-label="选择要查看的产品轨迹" data-trace-tabs></div>
+          </header>
+          <div class="run-trace-summary" data-trace-summary></div>
+          <div class="run-trace-groups" data-trace-groups></div>
+        </div>
+      </section>
+
+      <section class="run-evidence-band" aria-labelledby="runEvidenceTitle">
+        <div class="run-width run-evidence">
+          <header class="run-section-heading">
+            <div>
+              <span class="run-kicker">EVIDENCE RECEIPT</span>
+              <h2 id="runEvidenceTitle">怎么确认这不是一段编出来的演示</h2>
+            </div>
+          </header>
+          <dl class="run-receipt" data-run-receipt></dl>
+          <div class="run-boundary">
+            <div><span>公开边界</span><p data-run-boundary>正在载入证据边界。</p></div>
+            <div><span>外部复核</span><p data-hidden-verifier>正在载入外部验证结果。</p></div>
+          </div>
+          <nav class="run-sources" aria-label="机制与命令的官方来源" data-run-sources></nav>
+        </div>
+      </section>
+
+      <nav class="article-next" aria-label="返回完整机制研究">
+        <a href="/capabilities/goal-mode.html"><span>返回机制研究</span><strong>Goal Mode：谁有权说“做完了”？</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+      </nav>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/goal-mode-real-run.js?v=1"></script>
+</body>
+</html>

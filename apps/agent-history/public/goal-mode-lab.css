@@ -10,6 +10,17 @@
   background: var(--surface);
 }
 
+.goal-mode-page .article-byline a {
+  color: var(--article-signal);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.goal-mode-page .article-byline a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (prefers-color-scheme: dark) {
   .goal-mode-lab {
     --goal-codex: #ff8b70;
