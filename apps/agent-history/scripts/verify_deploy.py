@@ -133,8 +133,13 @@ def verify(
         raise DeployDataError("deployment agent catalog is incomplete: " + " ".join(details))
     official = public_manifest.get("officialSources")
     status = official.get("status") if isinstance(official, dict) else None
-    if status not in {"fresh", "stale"}:
-        raise DeployDataError(f"official source generation is not deployable: {status!r}")
+    sync_status = official.get("syncStatus") if isinstance(official, dict) else None
+    warning_count = official.get("warningCount") if isinstance(official, dict) else None
+    if status != "fresh" or sync_status != "current" or warning_count != 0:
+        raise DeployDataError(
+            "official source generation is not deployable: "
+            f"status={status!r} syncStatus={sync_status!r} warningCount={warning_count!r}"
+        )
     selected = official.get("selectedAgents") if isinstance(official, dict) else None
     retained = official.get("retainedAgents") if isinstance(official, dict) else None
     if (

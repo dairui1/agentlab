@@ -55,6 +55,8 @@ class VerifyDeployTests(unittest.TestCase):
             "agents": [{"id": agent, "releaseCount": 1} for agent in agents],
             "officialSources": {
                 "status": status,
+                "syncStatus": "current" if status == "fresh" else status,
+                "warningCount": 0 if status == "fresh" else 1,
                 "selectedAgents": ["codex", "deepseek-harness"],
                 "retainedAgents": [],
             },
@@ -127,6 +129,21 @@ class VerifyDeployTests(unittest.TestCase):
     def test_rejects_degraded_official_generation(self) -> None:
         self._write_manifest(["codex", "deepseek-harness"], status="degraded")
         with self.assertRaisesRegex(deploy.DeployDataError, "not deployable"):
+            self._verify()
+
+    def test_rejects_stale_official_generation(self) -> None:
+        self._write_manifest(["codex", "deepseek-harness"], status="stale")
+        with self.assertRaisesRegex(deploy.DeployDataError, "not deployable"):
+            self._verify()
+
+    def test_rejects_fresh_generation_with_warnings(self) -> None:
+        self._write_manifest(["codex", "deepseek-harness"])
+        for root in (self.public, self.dist):
+            path = root / "data/manifest.json"
+            value = json.loads(path.read_text(encoding="utf-8"))
+            value["officialSources"]["warningCount"] = 1
+            path.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaisesRegex(deploy.DeployDataError, "warningCount=1"):
             self._verify()
 
     def test_rejects_retained_official_generation(self) -> None:
