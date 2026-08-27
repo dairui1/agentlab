@@ -1,0 +1,391 @@
+<div id="agentlab-example-explainer">
+  <header class="axe-topbar">
+    <div class="axe-brand"><span>AL</span><strong>AgentLab</strong></div>
+    <nav aria-label="机制页视图">
+      <button class="is-active" type="button">用例演示</button>
+      <button type="button">架构图</button>
+      <button type="button">源码证据</button>
+      <button type="button">研究历史</button>
+    </nav>
+    <button class="axe-icon" type="button" title="搜索" aria-label="搜索"><i data-lucide="search"></i></button>
+  </header>
+
+  <main class="axe-main">
+    <div class="axe-heading">
+      <div>
+        <span class="axe-eyebrow">机制 · Goal Mode</span>
+        <h1>目标不变，每一轮都重新决定下一步</h1>
+        <p>Goal Mode 把“我要完成什么”保存下来。每轮只更新当前进展、剩余条件和下一步动作，直到完成条件真的满足。</p>
+      </div>
+      <button class="axe-evidence" type="button"><i data-lucide="braces"></i>证据</button>
+    </div>
+
+    <section class="axe-example">
+      <div class="axe-example-head">
+        <div>
+          <span class="axe-label">同一个真实任务</span>
+          <strong>修复登录接口，并让 14 项测试全部通过</strong>
+        </div>
+        <div class="axe-round-controls" aria-label="选择执行轮次">
+          <button class="axe-play" type="button" title="播放" aria-label="播放"><i data-lucide="play"></i></button>
+          <div class="axe-rounds">
+            <button class="is-active" type="button" data-round="0">第 1 轮</button>
+            <button type="button" data-round="1">第 2 轮</button>
+            <button type="button" data-round="2">第 3 轮</button>
+            <button type="button" data-round="3">第 N 轮</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="axe-goal">
+        <span>持续目标</span>
+        <strong>登录恢复正常</strong>
+        <span class="axe-plus">+</span>
+        <strong>14 / 14 测试通过</strong>
+      </div>
+
+      <div class="axe-lanes">
+        <article class="axe-lane axe-claude">
+          <header><span class="axe-product-dot"></span><strong>Claude Code</strong><small>显式目标状态</small></header>
+          <div class="axe-state">
+            <span class="axe-state-label">本轮读取</span>
+            <strong data-claude-read>目标 + 尚未完成的条件</strong>
+          </div>
+          <div class="axe-arrow"><i data-lucide="arrow-down"></i></div>
+          <div class="axe-action">
+            <span class="axe-state-label">本轮动作</span>
+            <strong data-claude-action>定位认证入口与失败测试</strong>
+            <small data-claude-detail>找到 auth middleware，确认 3 项失败集中在 refresh token。</small>
+          </div>
+          <div class="axe-arrow"><i data-lucide="arrow-down"></i></div>
+          <div class="axe-writeback">
+            <span class="axe-state-label">写回状态</span>
+            <strong data-claude-write>剩余：修复 refresh token</strong>
+          </div>
+        </article>
+
+        <article class="axe-lane axe-codex">
+          <header><span class="axe-product-dot"></span><strong>Codex</strong><small>任务生命周期</small></header>
+          <div class="axe-state">
+            <span class="axe-state-label">本轮读取</span>
+            <strong data-codex-read>任务 + 当前工作状态</strong>
+          </div>
+          <div class="axe-arrow"><i data-lucide="arrow-down"></i></div>
+          <div class="axe-action">
+            <span class="axe-state-label">本轮动作</span>
+            <strong data-codex-action>检查代码与测试反馈</strong>
+            <small data-codex-detail>从失败测试回到认证路径，建立下一步修改计划。</small>
+          </div>
+          <div class="axe-arrow"><i data-lucide="arrow-down"></i></div>
+          <div class="axe-writeback">
+            <span class="axe-state-label">推进任务</span>
+            <strong data-codex-write>下一步：修改认证逻辑</strong>
+          </div>
+        </article>
+      </div>
+
+      <div class="axe-round-result" aria-live="polite">
+        <span data-result-kicker>第 1 轮结束</span>
+        <strong data-result-title>两者都没有重新理解整个目标，只更新“现在还差什么”</strong>
+        <p data-result-detail>下一轮会带着同一个完成条件继续，而不是等待用户再次解释任务。</p>
+      </div>
+    </section>
+
+    <section class="axe-takeaway">
+      <div><span class="axe-label">一句话理解</span><strong>Goal Mode 不是“多跑几轮”，而是让目标成为每一轮都能重新读取的控制状态。</strong></div>
+      <div><span class="axe-label">真正的差异</span><strong>比较重点不是谁更勤快，而是谁保存了什么状态、如何选择下一步、怎样判断结束。</strong></div>
+    </section>
+
+    <aside class="axe-source-drawer" aria-hidden="true">
+      <header><div><span class="axe-eyebrow">证据入口</span><strong>当前演示对应的研究资产</strong></div><button class="axe-icon" type="button" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></header>
+      <button type="button"><i data-lucide="route"></i><span><strong>两种实现的运行链路</strong><small>入口 → 状态 → 下一步 → 完成判断</small></span></button>
+      <button type="button"><i data-lucide="file-code-2"></i><span><strong>固定源码位置</strong><small>按 Claim 展开，不打断用例演示</small></span></button>
+      <button type="button"><i data-lucide="test-tube-2"></i><span><strong>同任务对照实验</strong><small>输入、轮次状态与最终结果</small></span></button>
+    </aside>
+  </main>
+</div>
+
+<style>
+  #agentlab-example-explainer {
+    --axe-bg: light-dark(#f4f6f5, #111513);
+    --axe-surface: light-dark(#ffffff, #191e1b);
+    --axe-ink: light-dark(#18201c, #edf2ee);
+    --axe-muted: light-dark(#68736c, #9da9a1);
+    --axe-border: light-dark(#dbe1dd, #303933);
+    --axe-green: light-dark(#126c49, #61c897);
+    --axe-green-soft: light-dark(#e6f4ec, #18392a);
+    --axe-orange: light-dark(#a05b13, #dda15d);
+    --axe-orange-soft: light-dark(#f8eee2, #382719);
+    --axe-blue: light-dark(#306e9f, #72a9d5);
+    --axe-blue-soft: light-dark(#e7f0f7, #192e3d);
+    color-scheme: light dark;
+    position: relative;
+    width: 100%;
+    min-height: 720px;
+    overflow: hidden;
+    border: 1px solid var(--axe-border);
+    border-radius: 8px;
+    background: var(--axe-bg);
+    color: var(--axe-ink);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+  #agentlab-example-explainer * { box-sizing: border-box; }
+  #agentlab-example-explainer button { color: inherit; font: inherit; letter-spacing: 0; }
+  #agentlab-example-explainer .axe-topbar {
+    height: 56px;
+    display: grid;
+    grid-template-columns: 180px 1fr 36px;
+    align-items: center;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--axe-border);
+    background: var(--axe-surface);
+  }
+  #agentlab-example-explainer .axe-brand { display: flex; align-items: center; gap: 10px; }
+  #agentlab-example-explainer .axe-brand span {
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px;
+    background: var(--axe-ink); color: var(--axe-surface); font-size: 10px; font-weight: 800;
+  }
+  #agentlab-example-explainer .axe-topbar nav { display: flex; justify-content: center; gap: 24px; }
+  #agentlab-example-explainer .axe-topbar nav button {
+    height: 56px; padding: 0; border: 0; border-bottom: 2px solid transparent;
+    background: transparent; color: var(--axe-muted); cursor: pointer;
+  }
+  #agentlab-example-explainer .axe-topbar nav button.is-active { color: var(--axe-ink); border-bottom-color: var(--axe-green); font-weight: 650; }
+  #agentlab-example-explainer .axe-icon {
+    display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+    border: 0; border-radius: 5px; background: transparent; cursor: pointer;
+  }
+  #agentlab-example-explainer .axe-icon:hover { background: var(--axe-bg); }
+  #agentlab-example-explainer .axe-icon svg { width: 17px; }
+  #agentlab-example-explainer .axe-main { position: relative; padding: 26px clamp(18px, 4vw, 46px) 34px; }
+  #agentlab-example-explainer .axe-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; max-width: 1000px; margin: 0 auto; }
+  #agentlab-example-explainer .axe-eyebrow,
+  #agentlab-example-explainer .axe-label {
+    display: block; margin-bottom: 6px; color: var(--axe-green); font-size: 11px; font-weight: 750; text-transform: uppercase;
+  }
+  #agentlab-example-explainer h1 { margin: 0; font-size: 27px; line-height: 1.18; letter-spacing: 0; }
+  #agentlab-example-explainer .axe-heading p { max-width: 720px; margin: 9px 0 0; color: var(--axe-muted); font-size: 15px; line-height: 1.6; }
+  #agentlab-example-explainer .axe-evidence {
+    display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 11px;
+    border: 1px solid var(--axe-border); border-radius: 6px; background: var(--axe-surface); cursor: pointer;
+  }
+  #agentlab-example-explainer .axe-evidence svg { width: 15px; }
+  #agentlab-example-explainer .axe-example {
+    max-width: 1000px; margin: 24px auto 0; border: 1px solid var(--axe-border);
+    border-radius: 7px; background: var(--axe-surface); overflow: hidden;
+  }
+  #agentlab-example-explainer .axe-example-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 20px;
+    min-height: 70px; padding: 13px 17px; border-bottom: 1px solid var(--axe-border);
+  }
+  #agentlab-example-explainer .axe-example-head strong { font-size: 15px; }
+  #agentlab-example-explainer .axe-round-controls { display: flex; gap: 8px; align-items: center; }
+  #agentlab-example-explainer .axe-play {
+    display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+    border: 1px solid var(--axe-border); border-radius: 5px; background: var(--axe-surface); cursor: pointer;
+  }
+  #agentlab-example-explainer .axe-play svg { width: 15px; }
+  #agentlab-example-explainer .axe-rounds { display: flex; height: 32px; border: 1px solid var(--axe-border); border-radius: 5px; overflow: hidden; }
+  #agentlab-example-explainer .axe-rounds button {
+    min-width: 62px; padding: 0 9px; border: 0; border-right: 1px solid var(--axe-border);
+    background: transparent; color: var(--axe-muted); cursor: pointer; font-size: 12px;
+  }
+  #agentlab-example-explainer .axe-rounds button:last-child { border-right: 0; }
+  #agentlab-example-explainer .axe-rounds button.is-active { background: var(--axe-green-soft); color: var(--axe-green); font-weight: 700; }
+  #agentlab-example-explainer .axe-goal {
+    display: flex; justify-content: center; align-items: center; gap: 12px; padding: 14px 18px;
+    border-bottom: 1px solid var(--axe-border); background: var(--axe-green-soft);
+  }
+  #agentlab-example-explainer .axe-goal span:first-child { color: var(--axe-green); font-size: 11px; font-weight: 750; text-transform: uppercase; }
+  #agentlab-example-explainer .axe-plus { color: var(--axe-muted); }
+  #agentlab-example-explainer .axe-lanes { display: grid; grid-template-columns: 1fr 1fr; }
+  #agentlab-example-explainer .axe-lane { min-width: 0; padding: 16px 18px 18px; }
+  #agentlab-example-explainer .axe-lane + .axe-lane { border-left: 1px solid var(--axe-border); }
+  #agentlab-example-explainer .axe-lane > header { display: grid; grid-template-columns: 9px auto 1fr; align-items: center; gap: 8px; margin-bottom: 13px; }
+  #agentlab-example-explainer .axe-lane > header small { justify-self: end; color: var(--axe-muted); }
+  #agentlab-example-explainer .axe-product-dot { width: 8px; height: 8px; border-radius: 50%; }
+  #agentlab-example-explainer .axe-claude .axe-product-dot { background: var(--axe-orange); }
+  #agentlab-example-explainer .axe-codex .axe-product-dot { background: var(--axe-blue); }
+  #agentlab-example-explainer .axe-state,
+  #agentlab-example-explainer .axe-action,
+  #agentlab-example-explainer .axe-writeback {
+    min-height: 62px; padding: 10px 12px; border: 1px solid var(--axe-border); border-radius: 5px;
+  }
+  #agentlab-example-explainer .axe-claude .axe-state,
+  #agentlab-example-explainer .axe-claude .axe-writeback { background: var(--axe-orange-soft); }
+  #agentlab-example-explainer .axe-codex .axe-state,
+  #agentlab-example-explainer .axe-codex .axe-writeback { background: var(--axe-blue-soft); }
+  #agentlab-example-explainer .axe-state-label { display: block; margin-bottom: 5px; color: var(--axe-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  #agentlab-example-explainer .axe-state strong,
+  #agentlab-example-explainer .axe-action strong,
+  #agentlab-example-explainer .axe-writeback strong { font-size: 13px; }
+  #agentlab-example-explainer .axe-action small { display: block; margin-top: 5px; color: var(--axe-muted); font-size: 11px; line-height: 1.4; }
+  #agentlab-example-explainer .axe-arrow { height: 24px; display: grid; place-items: center; color: var(--axe-muted); }
+  #agentlab-example-explainer .axe-arrow svg { width: 15px; }
+  #agentlab-example-explainer .axe-round-result {
+    min-height: 76px; padding: 13px 18px 15px; border-top: 1px solid var(--axe-border); background: var(--axe-bg);
+  }
+  #agentlab-example-explainer .axe-round-result span { color: var(--axe-green); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+  #agentlab-example-explainer .axe-round-result strong { display: block; margin-top: 4px; font-size: 14px; }
+  #agentlab-example-explainer .axe-round-result p { margin: 4px 0 0; color: var(--axe-muted); font-size: 12px; line-height: 1.45; }
+  #agentlab-example-explainer .axe-takeaway {
+    max-width: 1000px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px;
+    margin: 22px auto 0; padding-top: 20px; border-top: 1px solid var(--axe-border);
+  }
+  #agentlab-example-explainer .axe-takeaway strong { display: block; font-size: 14px; line-height: 1.5; }
+  #agentlab-example-explainer .axe-source-drawer {
+    position: absolute; z-index: 4; top: 0; right: 0; width: min(380px, 94%); height: 100%;
+    padding: 18px; border-left: 1px solid var(--axe-border); background: var(--axe-surface);
+    box-shadow: -16px 0 40px rgba(0,0,0,.12); transform: translateX(102%); transition: transform 180ms ease;
+  }
+  #agentlab-example-explainer .axe-source-drawer.is-open { transform: translateX(0); }
+  #agentlab-example-explainer .axe-source-drawer header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--axe-border); }
+  #agentlab-example-explainer .axe-source-drawer header strong { font-size: 14px; }
+  #agentlab-example-explainer .axe-source-drawer > button {
+    width: 100%; display: flex; gap: 10px; padding: 15px 0; border: 0; border-bottom: 1px solid var(--axe-border);
+    background: transparent; text-align: left; cursor: pointer;
+  }
+  #agentlab-example-explainer .axe-source-drawer > button svg { width: 17px; color: var(--axe-green); }
+  #agentlab-example-explainer .axe-source-drawer > button strong,
+  #agentlab-example-explainer .axe-source-drawer > button small { display: block; }
+  #agentlab-example-explainer .axe-source-drawer > button small { margin-top: 4px; color: var(--axe-muted); font-size: 11px; }
+
+  @media (max-width: 720px) {
+    #agentlab-example-explainer .axe-topbar { grid-template-columns: auto 1fr; }
+    #agentlab-example-explainer .axe-topbar nav { justify-content: flex-end; gap: 14px; overflow-x: auto; }
+    #agentlab-example-explainer .axe-topbar > .axe-icon { display: none; }
+    #agentlab-example-explainer .axe-heading { display: block; }
+    #agentlab-example-explainer .axe-evidence { margin-top: 14px; }
+    #agentlab-example-explainer .axe-example-head { align-items: flex-start; flex-direction: column; }
+    #agentlab-example-explainer .axe-round-controls { width: 100%; }
+    #agentlab-example-explainer .axe-rounds { flex: 1; }
+    #agentlab-example-explainer .axe-rounds button { flex: 1; min-width: 0; padding: 0 5px; }
+    #agentlab-example-explainer .axe-lanes { grid-template-columns: 1fr; }
+    #agentlab-example-explainer .axe-lane + .axe-lane { border-left: 0; border-top: 1px solid var(--axe-border); }
+    #agentlab-example-explainer .axe-takeaway { grid-template-columns: 1fr; gap: 18px; }
+  }
+  @media (max-width: 460px) {
+    #agentlab-example-explainer .axe-topbar { grid-template-columns: 1fr; height: auto; padding-top: 10px; }
+    #agentlab-example-explainer .axe-topbar nav { justify-content: flex-start; margin-top: 4px; }
+    #agentlab-example-explainer .axe-topbar nav button { height: 40px; }
+    #agentlab-example-explainer .axe-main { padding: 20px 14px 28px; }
+    #agentlab-example-explainer h1 { font-size: 24px; }
+    #agentlab-example-explainer .axe-goal { align-items: flex-start; flex-direction: column; gap: 5px; }
+    #agentlab-example-explainer .axe-plus { display: none; }
+  }
+</style>
+
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<script>
+(() => {
+  const root = document.getElementById('agentlab-example-explainer');
+  if (!root) return;
+
+  const rounds = [
+    {
+      cr: '目标 + 尚未完成的条件',
+      ca: '定位认证入口与失败测试',
+      cd: '找到 auth middleware，确认 3 项失败集中在 refresh token。',
+      cw: '剩余：修复 refresh token',
+      xr: '任务 + 当前工作状态',
+      xa: '检查代码与测试反馈',
+      xd: '从失败测试回到认证路径，建立下一步修改计划。',
+      xw: '下一步：修改认证逻辑',
+      kicker: '第 1 轮结束',
+      title: '两者都没有重新理解整个目标，只更新“现在还差什么”',
+      detail: '下一轮会带着同一个完成条件继续，而不是等待用户再次解释任务。'
+    },
+    {
+      cr: '目标 + 剩余条件：修复 refresh token',
+      ca: '修改 token 刷新路径',
+      cd: '认证恢复，但测试仍有 1 项失败：过期 token 没有被拒绝。',
+      cw: '剩余：修复过期判断',
+      xr: '任务 + 上轮修改 + 测试结果',
+      xa: '执行修改并读取新反馈',
+      xd: '测试结果成为下一轮的工作状态，任务仍保持进行中。',
+      xw: '下一步：处理过期 token',
+      kicker: '第 2 轮结束',
+      title: '失败不是重新开始，而是缩小剩余目标',
+      detail: '两种方式都把工具结果写回状态，但组织状态和选择下一步的位置不同。'
+    },
+    {
+      cr: '目标 + 剩余条件：修复过期判断',
+      ca: '修复边界条件并重跑测试',
+      cd: '14 项测试全部通过，目标的可检查条件已经满足。',
+      cw: '候选完成：等待最终检查',
+      xr: '任务 + 最新测试结果',
+      xa: '完成最后修改并验证',
+      xd: '任务进入完成候选，下一步不再是继续改代码，而是检查是否可交付。',
+      xw: '下一步：最终验证',
+      kicker: '第 3 轮结束',
+      title: '完成由条件决定，不由“已经跑了几轮”决定',
+      detail: '只要完成条件未满足，下一轮就继续；满足后则进入最终验证。'
+    },
+    {
+      cr: '持久目标 + 当前剩余条件',
+      ca: '持续选择最能减少剩余条件的动作',
+      cd: '工具失败、上下文变化或会话恢复，都只改变当前状态。',
+      cw: '完成条件满足 → 结束',
+      xr: '任务生命周期 + 当前工作状态',
+      xa: '根据最新状态推进任务',
+      xd: '任务可以跨多轮延续，直到进入完成或阻塞状态。',
+      xw: '任务状态完成 → 结束',
+      kicker: '第 N 轮',
+      title: '持续推进的关键，是把目标和当前状态分开保存',
+      detail: '目标负责方向，当前状态负责选择下一步；两者都不依赖用户反复提醒。'
+    }
+  ];
+
+  let current = 0;
+  let timer = null;
+  const fields = {
+    cr: '[data-claude-read]', ca: '[data-claude-action]', cd: '[data-claude-detail]', cw: '[data-claude-write]',
+    xr: '[data-codex-read]', xa: '[data-codex-action]', xd: '[data-codex-detail]', xw: '[data-codex-write]',
+    kicker: '[data-result-kicker]', title: '[data-result-title]', detail: '[data-result-detail]'
+  };
+
+  function renderRound(index) {
+    current = index;
+    const data = rounds[index];
+    Object.entries(fields).forEach(([key, selector]) => {
+      const node = root.querySelector(selector);
+      if (node) node.textContent = data[key];
+    });
+    root.querySelectorAll('[data-round]').forEach((button) => button.classList.toggle('is-active', Number(button.dataset.round) === index));
+  }
+
+  root.querySelectorAll('[data-round]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (timer) { clearInterval(timer); timer = null; }
+      renderRound(Number(button.dataset.round));
+    });
+  });
+
+  const play = root.querySelector('.axe-play');
+  play.addEventListener('click', () => {
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+      play.innerHTML = '<i data-lucide="play"></i>';
+    } else {
+      play.innerHTML = '<i data-lucide="pause"></i>';
+      timer = setInterval(() => renderRound((current + 1) % rounds.length), 1500);
+    }
+    if (window.lucide) window.lucide.createIcons({ root });
+  });
+
+  const drawer = root.querySelector('.axe-source-drawer');
+  root.querySelector('.axe-evidence').addEventListener('click', () => {
+    drawer.classList.add('is-open');
+    drawer.setAttribute('aria-hidden', 'false');
+  });
+  drawer.querySelector('header .axe-icon').addEventListener('click', () => {
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+  });
+
+  if (window.lucide) window.lucide.createIcons({ root });
+})();
+</script>
