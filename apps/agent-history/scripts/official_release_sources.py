@@ -22,6 +22,7 @@ GITHUB_RELEASE_SOURCES = {
     "openclaw": {"repository": "openclaw/openclaw", "label": "OpenClaw", "tagPattern": r"^v(\d+\.\d+\.\d+(?:-\d+)?)$"},
     "opencode": {"repository": "anomalyco/opencode", "label": "opencode", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "pi": {"repository": "badlogic/pi-mono", "label": "Pi", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
+    "prime-agent": {"repository": "PrimeIntellect-ai/prime-agent", "label": "Prime Agent", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "qwen-code": {"repository": "QwenLM/qwen-code", "label": "Qwen Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "reasonix": {"repository": "esengine/DeepSeek-Reasonix", "label": "Reasonix", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
 }

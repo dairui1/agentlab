@@ -158,6 +158,7 @@
     codex: "/agent-icons/codex.png",
     maka: "/agent-icons/maka.png",
     crush: "/agent-icons/crush.png",
+    "prime-agent": "/agent-icons/prime-agent.svg",
     antigravity: "/agent-icons/antigravity.png",
     grok: "/agent-icons/grok.png",
     "kimi-code": "/agent-icons/kimi-code.png",

@@ -86,6 +86,11 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Crush 终端 Coding Agent 的官方发布与源码演进历史。",
         "projectUrl": "https://github.com/charmbracelet/crush",
     },
+    "prime-agent": {
+        "label": "Prime Agent",
+        "description": "Prime Agent 自改进 RLM Harness、持久目标与长任务运行时的版本历史。",
+        "projectUrl": "https://github.com/PrimeIntellect-ai/prime-agent",
+    },
     "antigravity": {
         "label": "Antigravity CLI",
         "description": "Google Antigravity CLI Runtime Prompt 与工具的版本历史。",
@@ -167,6 +172,7 @@ PREFERRED_AGENT_ORDER = (
     "codex",
     "maka",
     "crush",
+    "prime-agent",
     "antigravity",
     "grok",
     "kimi-code",

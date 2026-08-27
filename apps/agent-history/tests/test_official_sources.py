@@ -481,6 +481,7 @@ class OfficialSourceTests(unittest.TestCase):
             "openclaw": ("v2026.7.1-2", "2026.7.1-2"),
             "opencode": ("v1.18.15", "1.18.15"),
             "pi": ("v0.84.1", "0.84.1"),
+            "prime-agent": ("v0.8.1", "0.8.1"),
             "qwen-code": ("v0.21.8", "0.21.8"),
             "reasonix": ("v1.22.0", "1.22.0"),
         }
