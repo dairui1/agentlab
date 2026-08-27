@@ -1409,6 +1409,54 @@ class SourceCaptureSyncTests(unittest.TestCase):
             self.assertEqual((capture / "prompt.md").read_bytes(), prompt)
             self.assertEqual((capture / "meta.json").read_bytes(), metadata)
 
+    def test_preserves_phistory_variant_runtime_capture_in_overlay(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "1.0.12"
+            self.write_official_index(
+                official,
+                "grok",
+                {
+                    "repository": "xai-org/grok-build",
+                    "releases": {
+                        version: {
+                            "version": version,
+                            "sourceRef": version,
+                            "sourceUrl": f"https://www.npmjs.com/package/@xai-official/grok/v/{version}",
+                            "publishedAt": "2026-08-27T05:43:40Z",
+                        }
+                    },
+                },
+            )
+            variant = overlay / "captures/grok" / version / "variants/default"
+            variant.mkdir(parents=True)
+            (variant / "prompt.md").write_text("# Runtime prompt\n", encoding="utf-8")
+            (variant / "meta.json").write_text(
+                json.dumps(
+                    {
+                        "agent_id": "grok",
+                        "version": version,
+                        "captured_at": "2026-08-27T17:52:16Z",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("grok",),
+            )
+
+            self.assertEqual(result, {"grok": 0})
+            self.assertEqual((variant / "prompt.md").read_text(), "# Runtime prompt\n")
+
     def test_refuses_valid_json_with_invalid_non_owned_metadata(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

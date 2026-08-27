@@ -384,6 +384,22 @@ def semver_key(version: str) -> tuple[Any, ...]:
     return *padded_core, prerelease_key, version
 
 
+def capture_order_key(agent: str, capture: Capture) -> tuple[Any, ...]:
+    """Return the release order used for adjacent comparisons and latest."""
+
+    if agent == "openclaw":
+        # OpenClaw publishes maintenance lanes after newer calendar versions.
+        # Follow Phistory's package-version lane instead of making a late
+        # 2026.6.x maintenance release the product's apparent latest version.
+        match = re.fullmatch(r"(\d+\.\d+\.\d+)-(\d+)", capture.version)
+        version = f"{match.group(1)}.{match.group(2)}" if match else capture.version
+        return (semver_key(version),)
+    return (
+        capture.published_at or capture.captured_at,
+        semver_key(capture.version),
+    )
+
+
 def agent_sort_key(agent: str) -> tuple[int, str]:
     try:
         return PREFERRED_AGENT_ORDER.index(agent), ""
@@ -1200,14 +1216,9 @@ def load_agent_captures(
     if not captures:
         raise ValueError(f"no captures found for agent {agent!r}")
     # Publication time is the common ordering contract across npm, PyPI, and
-    # GitHub releases. It also handles vendor revision schemes such as
-    # ``2026.7.1-2`` that look like SemVer prereleases but were published later.
-    captures.sort(
-        key=lambda capture: (
-            capture.published_at or capture.captured_at,
-            semver_key(capture.version),
-        )
-    )
+    # GitHub releases. OpenClaw is the exception because its maintenance lanes
+    # can publish after newer calendar-version package releases.
+    captures.sort(key=lambda capture: capture_order_key(agent, capture))
     versions = [capture.version for capture in captures]
     if len(versions) != len(set(versions)):
         raise ValueError(f"duplicate versions found for agent {agent!r}")
@@ -1281,11 +1292,7 @@ def merge_agent_captures(
     if not by_version:
         raise ValueError(f"no captures found for agent {agent!r}")
     captures = sorted(
-        by_version.values(),
-        key=lambda capture: (
-            capture.published_at or capture.captured_at,
-            semver_key(capture.version),
-        ),
+        by_version.values(), key=lambda capture: capture_order_key(agent, capture)
     )
     if len(captures) > MAX_CAPTURES_PER_AGENT:
         excess = len(captures) - MAX_CAPTURES_PER_AGENT

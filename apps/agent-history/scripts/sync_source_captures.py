@@ -318,6 +318,49 @@ def capture_needs_reconciliation(
     if not children:
         return True
 
+    variants_path = children.get("variants")
+    if variants_path is not None:
+        if (
+            set(children) != {"variants"}
+            or variants_path.is_symlink()
+            or not variants_path.is_dir()
+        ):
+            raise SourceCaptureError(
+                f"refusing to preserve invalid variant runtime capture: {destination}"
+            )
+        variants = list(variants_path.iterdir())
+        if not variants:
+            raise SourceCaptureError(
+                f"refusing to preserve empty variant runtime capture: {destination}"
+            )
+        for variant in variants:
+            metadata_path = variant / "meta.json"
+            prompt_path = variant / "prompt.md"
+            if (
+                variant.is_symlink()
+                or not variant.is_dir()
+                or metadata_path.is_symlink()
+                or not metadata_path.is_file()
+                or prompt_path.is_symlink()
+                or not prompt_path.is_file()
+                or any(path.is_symlink() for path in variant.rglob("*"))
+            ):
+                raise SourceCaptureError(
+                    f"refusing to preserve invalid variant runtime capture: {destination}"
+                )
+            metadata = read_json_object(metadata_path)
+            timestamp = metadata.get("captured_at", metadata.get("published_at"))
+            if (
+                metadata.get("agent_id", agent) != agent
+                or metadata.get("version", version) != version
+                or not isinstance(timestamp, str)
+            ):
+                raise SourceCaptureError(
+                    f"refusing to preserve invalid variant runtime capture: {destination}"
+                )
+            parse_timestamp(timestamp, context=f"{agent} {version} variant capture")
+        return False
+
     metadata_path = children.get("meta.json")
     metadata: dict[str, Any] | None = None
     if metadata_path is not None and not metadata_path.is_symlink() and metadata_path.is_file():
