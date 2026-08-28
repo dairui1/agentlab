@@ -235,7 +235,11 @@ def capture_payload(
     }
     expected_package_directory = config.get("packageDirectory")
     package_directory = release.get("packageDirectory")
-    if expected_package_directory is not None:
+    artifact = release.get("artifact")
+    has_package_provenance = any(
+        key in release for key in ("packageName", "packageDirectory", "artifact")
+    )
+    if expected_package_directory is not None and has_package_provenance:
         if release.get("packageName") != config["package"]:
             raise SourceCaptureError(
                 f"official release {agent} {version} has mismatched package identity"
@@ -245,7 +249,6 @@ def capture_payload(
                 f"official release {agent} {version} has mismatched package directory"
             )
         metadata["package_directory"] = expected_package_directory
-    artifact = release.get("artifact")
     if isinstance(artifact, Mapping):
         if artifact.get("scope") != "published-package-only":
             raise SourceCaptureError(
@@ -274,7 +277,7 @@ def capture_payload(
             raise SourceCaptureError(
                 f"official release {agent} {version} has invalid artifact digest"
             )
-    elif expected_package_directory is not None:
+    elif expected_package_directory is not None and has_package_provenance:
         raise SourceCaptureError(
             f"official release {agent} {version} has no package artifact metadata"
         )

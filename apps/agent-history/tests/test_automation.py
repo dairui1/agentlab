@@ -1130,6 +1130,55 @@ class SourceCaptureSyncTests(unittest.TestCase):
                 ["deepseek-harness"],
             )
 
+    def test_materializes_github_only_prerelease_for_npm_backed_agent(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            version = "0.1.2-alpha.1"
+            self.write_official_index(
+                official,
+                "deepseek-harness",
+                {
+                    "repository": "deepseek-ai/deepseek-harness",
+                    "releases": {
+                        version: {
+                            "version": version,
+                            "tag": f"dsh-v{version}",
+                            "sourceUrl": (
+                                "https://github.com/deepseek-ai/deepseek-harness/"
+                                f"releases/tag/dsh-v{version}"
+                            ),
+                            "publishedAt": "2026-08-27T17:06:37Z",
+                        }
+                    },
+                },
+            )
+
+            result = source_sync.sync(
+                official_root=official,
+                phistory_root=phistory,
+                overlay_root=overlay,
+                agents=("deepseek-harness",),
+            )
+
+            self.assertEqual(result, {"deepseek-harness": 1})
+            metadata = json.loads(
+                (
+                    overlay
+                    / "captures/deepseek-harness"
+                    / version
+                    / "meta.json"
+                ).read_text()
+            )
+            self.assertEqual(metadata["package"], "@deepseek-ai/dsh")
+            self.assertEqual(metadata["source_ref"], f"dsh-v{version}")
+            self.assertNotIn("package_directory", metadata)
+            self.assertNotIn("tarball_url", metadata)
+
     def test_materializes_only_missing_official_releases(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
