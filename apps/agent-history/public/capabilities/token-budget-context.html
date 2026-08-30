@@ -43,9 +43,33 @@
               <a href="/mechanisms.html?mechanism=context-compaction">查看三款 Agent 的 compaction 合同</a>
             </div>
           </div>
-          <figure class="token-budget-hero-visual">
-            <img src="/assets/token-budget-compaction-table.png" alt="传统 Codex Compaction 与 TokenBudget 新路径对照表">
-          </figure>
+          <div class="token-budget-hero-visual" role="img" aria-label="当前上下文窗口写入 notes，切换到新窗口后按需查询只读 history 的结构图">
+            <div class="token-budget-hero-window" data-window="current">
+              <span>WINDOW 01</span>
+              <strong>Active context</strong>
+              <div class="token-budget-hero-meter" aria-hidden="true"><span></span></div>
+              <small>user · assistant · tool output</small>
+            </div>
+            <div class="token-budget-hero-rollover">
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+              <span>NO SUMMARY</span>
+              <small>fresh window</small>
+            </div>
+            <div class="token-budget-hero-window" data-window="fresh">
+              <span>WINDOW 02</span>
+              <strong>Canonical context</strong>
+              <div class="token-budget-hero-meter" aria-hidden="true"><span></span></div>
+              <small>initial context · world state</small>
+            </div>
+            <div class="token-budget-hero-store" data-store="notes">
+              <i data-lucide="notebook-pen" aria-hidden="true"></i>
+              <div><span>WRITABLE</span><strong>Notes</strong><small>checkpoint · decisions · references</small></div>
+            </div>
+            <div class="token-budget-hero-store" data-store="history">
+              <i data-lucide="archive-restore" aria-hidden="true"></i>
+              <div><span>READ ONLY</span><strong>History</strong><small>window_id · item_id · search</small></div>
+            </div>
+          </div>
         </div>
       </header>
 

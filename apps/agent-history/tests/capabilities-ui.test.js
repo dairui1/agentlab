@@ -526,6 +526,17 @@ test("article evidence inspectors and interactive controls expose accessible sta
   }
 });
 
+test("TokenBudget article uses an original architecture visual instead of the submitted answer table", () => {
+  const html = articles["token-budget-context"];
+  assert.match(html, /class="token-budget-hero-visual"[^>]*role="img"/);
+  assert.match(html, /data-window="current"/);
+  assert.match(html, /data-window="fresh"/);
+  assert.match(html, /data-store="notes"/);
+  assert.match(html, /data-store="history"/);
+  assert.doesNotMatch(html, /token-budget-compaction-table\.png/);
+  assert.equal(fs.existsSync(path.join(publicRoot, "assets/token-budget-compaction-table.png")), false);
+});
+
 test("Browser Use uses the new compact evidence-only schema", () => {
   const study = studies["browser-use"];
   assert.deepEqual(Object.keys(study).sort(), [
