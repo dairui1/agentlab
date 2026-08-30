@@ -12,6 +12,7 @@
 
   const researchItems = [
     { id: "goal", label: "Goal 模式", icon: "target", href: "/capabilities.html?study=goal-mode" },
+    { id: "token-budget", label: "TokenBudget", icon: "memory-stick", href: "/capabilities/token-budget-context.html" },
     { id: "dsh", label: "DSH 雷达", icon: "radar", href: "/deepseek-harness.html" },
     { id: "grok", label: "Grok Bot", icon: "bot", href: "/grok-bot.html" },
   ];

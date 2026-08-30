@@ -1,0 +1,216 @@
+{
+  "id": "token-budget-context",
+  "number": "004",
+  "title": "Codex TokenBudget",
+  "product": "Codex 0.151.0",
+  "subtitle": "Compaction 还叫 compaction，但在这条路径里已经不再生成摘要",
+  "description": "TokenBudget 不是一次普通的压缩算法替换。它先让模型看见当前窗口和剩余预算，再允许模型主动换窗；随后把手动 /compact 与自动 compaction 也接到同一套硬切生命周期；最后用 notes 保存工作状态，用只读 history 按需找回旧窗口里的具体事实。代码已经随稳定版发布，但到 0.151.0 仍处于 UnderDevelopment 且默认关闭，因此不能把它写成所有 Codex 会话已经采用的新默认。",
+  "verifiedAt": "2026-08-31",
+  "status": "active",
+  "scope": [
+    {
+      "label": "0.140.0",
+      "value": "模型主动 new_context",
+      "note": "新窗口不先总结旧对话"
+    },
+    {
+      "label": "0.143.0",
+      "value": "compact 改为硬切",
+      "note": "仅在 TokenBudget 开启时"
+    },
+    {
+      "label": "0.150.0",
+      "value": "notes + history",
+      "note": "还需扩展开关、OpenAI provider 与 Codex backend 登录"
+    },
+    {
+      "label": "0.151.0",
+      "value": "UnderDevelopment",
+      "note": "default_enabled = false"
+    },
+    {
+      "label": "核验日期",
+      "value": "2026-08-31",
+      "note": "以稳定 tag 源码为准"
+    }
+  ],
+  "boundary": "这里说的硬切，是 model-visible context window 发生 replacement，不是新建一条用户可见 task，也不是删除 rollout 或本地文件。notes/history 的工具合同证明它们可用于跨窗口恢复，但没有证明后端历史永久、无限、逐字保留，也没有证明这条路径已经优于摘要 compaction。",
+  "unknowns": [
+    {
+      "id": "TB-KU-01",
+      "title": "什么时候默认开启",
+      "text": "0.151.0 仍把 TokenBudget 标成 UnderDevelopment 且默认关闭；公开源码没有承诺哪一版会转为 Experimental 或 Stable。",
+      "needed": "后续稳定 tag 的 feature registry、官方 release note，或产品配置变更记录。"
+    },
+    {
+      "id": "TB-KU-02",
+      "title": "长任务连续性是否真的更好",
+      "text": "源码能说明状态如何切换，不能证明 notes + history 比 summary 更少丢失关键约束，也不能证明模型会及时写出高质量 checkpoint。",
+      "needed": "同任务、同模型、同预算下，对 summary compaction 与 TokenBudget rollover 做配对长程实验。"
+    },
+    {
+      "id": "TB-KU-03",
+      "title": "history 的完整性与保留期",
+      "text": "工具把 history 描述为 normalized、read-only、eventually consistent 的后端数据；公开合同没有给出所有部署下的保留期、删除策略和完整性保证。",
+      "needed": "公开的数据保留合同、故障注入 trace，以及跨版本、跨设备、删除和迁移边界测试。"
+    },
+    {
+      "id": "TB-KU-04",
+      "title": "到底能省多少 token",
+      "text": "不再额外生成 compaction summary 会省掉一次摘要请求，但新窗口的初始上下文、notes 和 history 查询同样有成本；现有源码不能推出固定百分比。",
+      "needed": "按任务长度、图片密度、窗口次数和 history 回读量分组的真实 usage 对照。"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "TB-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "模型主动换窗从 0.140.0 开始随稳定版发布",
+      "statement": "rust-v0.139.0 还没有 new_context_window handler，rust-v0.140.0 已包含它；工具返回的固定消息明确说，新 context window 会在不总结 conversation history 的情况下启动。",
+      "artifact": "codex-0.140.0/codex-rs/core/src/tools/handlers/new_context_window.rs",
+      "locator": "NEW_CONTEXT_WINDOW_MESSAGE and handler, lines 13-40",
+      "sha256": "93ffc257a98810b98761cb317a38c592d1db32e2148ad77d53a74a6731855042",
+      "boundary": "这证明能力进入 0.140.0 源码，不证明 feature 在普通用户配置中默认开启，也不证明每次换窗都由模型主动触发。",
+      "source": {
+        "label": "Codex 0.140.0 · new context handler",
+        "url": "https://github.com/openai/codex/blob/rust-v0.140.0/codex-rs/core/src/tools/handlers/new_context_window.rs#L13-L40"
+      }
+    },
+    {
+      "id": "TB-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "TokenBudget 只改写被选中的 compaction 分支",
+      "statement": "0.143.0 的 CompactTask 先检查 Feature::TokenBudget：开启时转入 compact_token_budget；未开启时仍在 remote V2、remote V1 和 local summarization 之间选择。",
+      "artifact": "codex-0.143.0/codex-rs/core/src/tasks/compact.rs",
+      "locator": "CompactTask::run implementation selector, lines 27-70",
+      "sha256": "874b988329f9f9bcb68287168da3593ba05a7a31d050df334ce673d424eeec0e",
+      "boundary": "不能据此说 Codex 已经全局取消摘要 compaction；没有开启 TokenBudget 的会话仍走传统分支。",
+      "source": {
+        "label": "Codex 0.143.0 · compaction selector",
+        "url": "https://github.com/openai/codex/blob/rust-v0.143.0/codex-rs/core/src/tasks/compact.rs#L27-L70"
+      }
+    },
+    {
+      "id": "TB-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "手动与自动 compaction 在 TokenBudget 下都变成 fresh window",
+      "statement": "0.143.0 同时提供 manual 与 inline auto 两个入口；二者都跳过 model/server summarization，最终调用 start_new_context_window 安装新窗口。0.142.x 的稳定 tag 还没有这个模块。",
+      "artifact": "codex-0.143.0/codex-rs/core/src/compact_token_budget.rs",
+      "locator": "manual and auto entry points plus start_new_context_window, lines 20-90",
+      "sha256": "1339044e5355d4634c6ddaa8109e3a6ff898db813b966ac92164ccadf0a4a268",
+      "boundary": "fresh window 会重新注入标准初始上下文和 world state；这里的无摘要指不为旧 conversation 生成 replacement summary，不是新 prompt 绝对为空。",
+      "source": {
+        "label": "Codex 0.143.0 · TokenBudget compaction",
+        "url": "https://github.com/openai/codex/blob/rust-v0.143.0/codex-rs/core/src/compact_token_budget.rs#L20-L90"
+      }
+    },
+    {
+      "id": "TB-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "名字与客户端生命周期被刻意保留",
+      "statement": "TokenBudget 路径仍运行 PreCompact/PostCompact hooks，并发出 ContextCompaction item 的 started/completed 事件；因此客户端看到的仍是 compaction，replacement 内核却已经换成新窗口。",
+      "artifact": "codex-0.143.0/codex-rs/core/src/compact_token_budget.rs",
+      "locator": "run_compact_task_inner lifecycle, lines 64-89",
+      "sha256": "1339044e5355d4634c6ddaa8109e3a6ff898db813b966ac92164ccadf0a4a268",
+      "boundary": "公开 item 类型无法单独告诉客户端内部究竟用了 summary 还是 hard reset；需要结合 feature/provider 配置或 trace 判断。",
+      "source": {
+        "label": "Codex 0.143.0 · compact lifecycle",
+        "url": "https://github.com/openai/codex/blob/rust-v0.143.0/codex-rs/core/src/compact_token_budget.rs#L64-L89"
+      }
+    },
+    {
+      "id": "TB-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "notes/history 从 0.150.0 起进入稳定版，但还有三道门",
+      "statement": "history-notes extension 首次出现在 0.150.0 稳定 tag。运行时还要求 token_budget.use_history_notes_extension 为 true、model provider 是 OpenAI，并且当前认证使用 Codex backend；任一条件不满足都会移除扩展配置。",
+      "artifact": "codex-0.150.0/codex-rs/ext/history-notes/src/extension.rs",
+      "locator": "HistoryNotesExtension::update_config, lines 41-58",
+      "sha256": "3e888d86c0554780fe757e7d5f278b2f45009811c59145aa23d55b75d310df9b",
+      "boundary": "代码随稳定版分发不等于工具会出现在每条 thread；自定义 provider、API key 认证或缺少子开关时都可能不可用。",
+      "source": {
+        "label": "Codex 0.150.0 · history/notes extension gate",
+        "url": "https://github.com/openai/codex/blob/rust-v0.150.0/codex-rs/ext/history-notes/src/extension.rs#L41-L58"
+      }
+    },
+    {
+      "id": "TB-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "notes 是可写工作集，history 是只读恢复面",
+      "statement": "0.151.0 的工具合同把 notes 定义为可跨 context-window transition 生存的私有文件，并提供 list/read/search/append/write；history 只提供 list windows、list items、read item 与 search contents，而且明确只读、最终一致。",
+      "artifact": "codex-0.151.0/codex-rs/ext/history-notes/src/tools.rs",
+      "locator": "namespace descriptions and HistoryNotesAction mapping, lines 25-139",
+      "sha256": "8008f88b6a0f5360c153328ab06189eb776e860034373056868e656e1c408427",
+      "boundary": "notes 仍是模型维护的有损工作笔记；history 可查询不等于旧内容持续占据当前 attention，也不等于所有旧状态都能被自动找回。",
+      "source": {
+        "label": "Codex 0.151.0 · history/notes tool contracts",
+        "url": "https://github.com/openai/codex/blob/rust-v0.151.0/codex-rs/ext/history-notes/src/tools.rs#L25-L139"
+      }
+    },
+    {
+      "id": "TB-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "精确回读靠 window_id + item_id",
+      "statement": "history.read_item 要求同时传入 window_id 与 item_id；list/search 可按 window、role、tool namespace 和 tool name 过滤。因此 checkpoint 里保留关键引用，比只写一段模糊摘要更利于定点恢复。",
+      "artifact": "codex-0.151.0/codex-rs/ext/history-notes/src/tools.rs",
+      "locator": "HistoryReadItem and HistorySearchContents schemas, lines 144-190",
+      "sha256": "8008f88b6a0f5360c153328ab06189eb776e860034373056868e656e1c408427",
+      "boundary": "记录 ID 是检索指针，不是语义记忆；模型仍需先知道该找什么，或通过 list/search 进行有限查询。",
+      "source": {
+        "label": "Codex 0.151.0 · history query schema",
+        "url": "https://github.com/openai/codex/blob/rust-v0.151.0/codex-rs/ext/history-notes/src/tools.rs#L144-L190"
+      }
+    },
+    {
+      "id": "TB-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "到 0.151.0 仍不是默认路径",
+      "statement": "0.151.0 的 feature registry 把 TokenBudget 标为 UnderDevelopment，default_enabled 为 false。本机安装的 Codex CLI 0.149.1 也报告 token_budget under development / false，且本机 config 没有主动开启它。",
+      "artifact": "codex-0.151.0/codex-rs/features/src/lib.rs",
+      "locator": "Feature::TokenBudget spec, lines 1484-1489; local codex features list checked 2026-08-30",
+      "sha256": "62ac7c6f6109a1e984a0257aa1096753094b5d9dca9d638d19d75dc07b0c7940",
+      "boundary": "feature 默认值与本机状态不能排除服务端实验、定制构建或其他用户显式配置；它只反驳所有 Codex 已统一切换的说法。",
+      "source": {
+        "label": "Codex 0.151.0 · feature registry",
+        "url": "https://github.com/openai/codex/blob/rust-v0.151.0/codex-rs/features/src/lib.rs#L1478-L1489"
+      }
+    },
+    {
+      "id": "TB-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "模型会拿到窗口身份与剩余 token",
+      "statement": "TokenBudget context 给模型注入 agent name、first/current/previous window ID，并单独报告当前窗口剩余 token；这让模型可以在预算耗尽前写 checkpoint，而不是只能等 runtime 事后压缩。",
+      "artifact": "codex-0.151.0/codex-rs/core/src/context/token_budget_context.rs",
+      "locator": "TokenBudgetContext::body and TokenBudgetRemainingContext::body, lines 60-74 and 150-173",
+      "sha256": "decc825306b6e5b74ffe9df288cf4630acdb6baee83b49aadf46cff646a268cf",
+      "boundary": "看见剩余预算只提供了控制信号，不保证模型一定及时或正确地写 notes，也不保证 checkpoint 覆盖所有用户约束。",
+      "source": {
+        "label": "Codex 0.151.0 · token budget context",
+        "url": "https://github.com/openai/codex/blob/rust-v0.151.0/codex-rs/core/src/context/token_budget_context.rs#L60-L74"
+      }
+    },
+    {
+      "id": "TB-10",
+      "kind": "inference",
+      "confidence": "high",
+      "title": "它把上下文从唯一记忆降成可替换工作集",
+      "statement": "把窗口预算、主动 rollover、可写 notes 与只读 history 放在一起看，TokenBudget 的核心不是更好的 summary，而是让当前 prompt 变成可替换工作集：任务连续性由 checkpoint 与可寻址历史共同承担。",
+      "artifact": "codex-0.151.0/codex-rs/ext/history-notes/src/tools.rs",
+      "locator": "combined architecture inference from TB-03, TB-06, TB-07 and TB-09",
+      "sha256": "8008f88b6a0f5360c153328ab06189eb776e860034373056868e656e1c408427",
+      "boundary": "RAM、checkpoint、cold storage 只是帮助理解的系统类比；实现仍是模型请求、rollout 持久化和后端工具，不是操作系统虚拟内存，也没有自动页面置换的同等保证。",
+      "source": {
+        "label": "Codex 0.151.0 · history/notes contracts",
+        "url": "https://github.com/openai/codex/blob/rust-v0.151.0/codex-rs/ext/history-notes/src/tools.rs#L25-L190"
+      }
+    }
+  ]
+}

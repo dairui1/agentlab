@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="拆解 Codex TokenBudget 上下文管理：从 new_context、无摘要 compaction 到 notes/history，并核对它们最早进入哪个稳定版本、现在是否默认开启。">
+  <title>Codex TokenBudget：Compaction 之后是什么？· 专题研究 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-navigation.js"></script>
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/token-budget-context.css?v=1">
+</head>
+<body class="article-page token-budget-page" data-evidence-source="/capabilities/token-budget-context.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>专题研究</span></span>
+      </a>
+      <agentlab-navigation current="token-budget"></agentlab-navigation>
+      <div class="header-links">
+        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
+      </div>
+    </header>
+
+    <main>
+      <header class="article-hero token-budget-hero">
+        <div class="article-hero-inner">
+          <div>
+            <nav class="article-breadcrumb" aria-label="面包屑">
+              <a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Codex TokenBudget</span>
+            </nav>
+            <span class="article-series">固定版本实现研究</span>
+            <h1>Codex TokenBudget</h1>
+            <p class="article-dek">Compaction 的名字还在，摘要却不一定还在。新路径把当前 prompt 从“全部记忆”改成可替换工作集，再用 notes 和 history 接住跨窗口连续性。</p>
+            <div class="article-byline">
+              <span>Codex 0.140.0 → 0.151.0</span>
+              <span>2026-08-31 核验</span>
+              <span>源码、release tag 与本机 feature 状态</span>
+              <a href="/mechanisms.html?mechanism=context-compaction">查看三款 Agent 的 compaction 合同</a>
+            </div>
+          </div>
+          <figure class="token-budget-hero-visual">
+            <img src="/assets/token-budget-compaction-table.png" alt="传统 Codex Compaction 与 TokenBudget 新路径对照表">
+          </figure>
+        </div>
+      </header>
+
+      <section class="article-scope-band" aria-label="版本结论">
+        <div class="article-scope-grid token-budget-scope-grid">
+          <div><span>0.140.0</span><strong>模型可主动换窗</strong><small><code>new_context</code> 不先做摘要</small></div>
+          <div><span>0.143.0</span><strong>compact 统一硬切</strong><small>只在 TokenBudget 开启时</small></div>
+          <div><span>0.150.0</span><strong>notes + history</strong><small>工作状态与原记录分层</small></div>
+          <div><span>0.151.0</span><strong>默认仍未开启</strong><small>UnderDevelopment · false</small></div>
+        </div>
+      </section>
+
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
+          <span>从摘要到换窗</span>
+          <ol>
+            <li><a href="#answer" data-index="01">先给答案：上了，但不是默认路径</a></li>
+            <li><a href="#not-removed" data-index="02">没有全局取消：两套 compaction 并存</a></li>
+            <li><a href="#hard-switch" data-index="03">硬切窗口：名字不变，replacement 变了</a></li>
+            <li><a href="#memory-model" data-index="04">三层状态：窗口、notes 与 history</a></li>
+            <li><a href="#recovery" data-index="05">定点恢复：window_id + item_id</a></li>
+            <li><a href="#release-map" data-index="06">版本地图：三个能力分三次落地</a></li>
+            <li><a href="#availability" data-index="07">可用性边界：发布不等于能直接用</a></li>
+            <li><a href="#conclusion" data-index="08">结论：上下文不再等于全部记忆</a></li>
+          </ol>
+          <div class="article-toc-note"><strong>先记住一句话</strong>TokenBudget 不是 Codex 当前默认 compaction；它是已经随稳定版分发、但仍默认关闭的新实现。</div>
+        </aside>
+
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">这次变化最容易被两个说法带偏：一个是“Codex 已经取消 Compaction”，另一个是“这只是换了个摘要算法”。都不准确。更精确的说法是：Codex 保留了 compaction 的命令、事件与 hook 生命周期，但在 TokenBudget 分支里，replacement 已经从“旧消息的 summary”变成“新的 canonical context window”。</p>
+
+          <section id="answer" data-article-section>
+            <span class="section-number">01 / 先给答案</span>
+            <h2>先给答案：上了，但不是默认路径</h2>
+            <p>代码已经进入 Codex 的稳定发行版。模型主动请求新窗口的 <code>new_context</code> 最早出现在 <strong>0.140.0</strong>；手动 <code>/compact</code> 与自动 compaction 在 TokenBudget 下统一改成硬切窗口，最早出现在 <strong>0.143.0</strong>；用来跨窗续接的 notes/history 扩展，最早进入 <strong>0.150.0</strong>。<button class="evidence-ref" type="button" data-evidence="TB-01 TB-03 TB-05" data-evidence-trigger>TB-01,03,05</button></p>
+            <p>但“随稳定版发布”不等于“所有会话已经在用”。在当前核验的最新稳定版 0.151.0 里，<code>TokenBudget</code> 仍标为 <code>UnderDevelopment</code>，默认值还是 <code>false</code>。这台机器安装的 Codex CLI 0.149.1 也报告同样的 feature 状态，配置文件没有主动开启它。<button class="evidence-ref" type="button" data-evidence="TB-08" data-evidence-trigger>TB-08</button></p>
+            <div class="article-callout token-budget-verdict"><strong>准确的发布结论</strong><p><b>实现已发布：</b>是。<b>完整链路从哪个版本具备：</b>0.150.0。<b>现在是不是默认新压缩方式：</b>不是。<b>普通会话还能不能做摘要 compaction：</b>能，而且默认配置仍会走传统 selector。</p></div>
+          </section>
+
+          <section id="not-removed" data-article-section>
+            <span class="section-number">02 / 两套路径</span>
+            <h2>没有全局取消：两套 compaction 并存</h2>
+            <p><code>CompactTask</code> 的第一道判断就是 <code>Feature::TokenBudget</code>。开启时，任务交给 <code>compact_token_budget</code>；没有开启时，仍会根据 provider capability 和 <code>RemoteCompactionV2</code> 在 remote V2、remote V1 与 local summarization 之间选择。也就是说，TokenBudget 是一条实现分支，不是把旧代码一刀删掉。<button class="evidence-ref" type="button" data-evidence="TB-02" data-evidence-trigger>TB-02</button></p>
+
+            <div class="article-tabs token-budget-tabs" data-article-tabs style="--tab-count: 2">
+              <div role="tablist" aria-label="切换查看两种 compaction 路径">
+                <button id="classicPath" type="button" role="tab" aria-selected="true" aria-controls="classicPathPanel">默认路径</button>
+                <button id="budgetPath" type="button" role="tab" aria-selected="false" aria-controls="budgetPathPanel">TokenBudget 路径</button>
+              </div>
+              <section id="classicPathPanel" class="article-tab-panel" role="tabpanel" aria-labelledby="classicPath">
+                <span>Summary replacement</span><h3>把旧对话浓缩成新的 active history</h3><p>到阈值后调用 local 或 remote compaction，生成 summary 或 opaque compacted item，再把 replacement history 装回当前 thread。旧消息是否还能影响模型，取决于摘要或保留尾段里有没有留下它。</p>
+                <div class="article-tab-spec"><div><small>触发</small><strong>/compact 或自动阈值</strong></div><div><small>核心动作</small><strong>summarize / compact response</strong></div><div><small>默认状态</small><strong>仍在使用</strong></div></div>
+              </section>
+              <section id="budgetPathPanel" class="article-tab-panel" role="tabpanel" aria-labelledby="budgetPath" hidden>
+                <span>Fresh window replacement</span><h3>丢掉旧 prompt，重建标准初始上下文</h3><p>同样的命令和阈值进入 TokenBudget 分支后，不再请求模型或服务器生成 conversation summary，而是安装一个新的 window ID，并重新注入 canonical initial context 与当下 world state。</p>
+                <div class="article-tab-spec"><div><small>触发</small><strong>new_context / compact / auto</strong></div><div><small>核心动作</small><strong>start_new_context_window</strong></div><div><small>默认状态</small><strong>关闭</strong></div></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="hard-switch" data-article-section>
+            <span class="section-number">03 / 硬切窗口</span>
+            <h2>硬切窗口：名字不变，replacement 变了</h2>
+            <p>0.143.0 的注释写得很直白：TokenBudget compaction 会跳过 model/server summarization，改为安装 fresh context window。手动与自动入口最后都汇合到 <code>start_new_context_window</code>。旧 user、assistant 与 tool output 不再整批进入下一次 model request；新 prompt 只从标准注入内容与当前 world state 重新起步。<button class="evidence-ref" type="button" data-evidence="TB-03" data-evidence-trigger>TB-03</button></p>
+            <figure class="article-figure token-budget-flow-figure">
+              <div class="token-budget-flow" aria-label="TokenBudget 窗口切换流程">
+                <div><span>WINDOW A</span><strong>模型工作</strong><small>持续看到剩余 token</small></div>
+                <i data-lucide="arrow-right" aria-hidden="true"></i>
+                <div><span>CHECKPOINT</span><strong>写 notes</strong><small>状态、决定、引用、下一步</small></div>
+                <i data-lucide="arrow-right" aria-hidden="true"></i>
+                <div><span>ROLLOVER</span><strong>compact lifecycle</strong><small>hooks 与 item 仍保留</small></div>
+                <i data-lucide="arrow-right" aria-hidden="true"></i>
+                <div><span>WINDOW B</span><strong>新 prompt</strong><small>从 notes 继续，按需查 history</small></div>
+              </div>
+              <figcaption>所谓“硬切”只切 model-visible context。thread、rollout、文件与外部副作用不会因此回滚。</figcaption>
+            </figure>
+            <p>客户端生命周期被刻意保留：PreCompact 与 PostCompact hook 仍会运行，<code>ContextCompaction</code> item 也照常发出 started/completed。因此从 app-server 或 UI 的表面事件看，它仍然叫 compaction；仅凭这个 item，不能判断底层究竟做了 summary 还是 fresh window。<button class="evidence-ref" type="button" data-evidence="TB-04" data-evidence-trigger>TB-04</button></p>
+          </section>
+
+          <section id="memory-model" data-article-section>
+            <span class="section-number">04 / 三层状态</span>
+            <h2>三层状态：窗口、notes 与 history</h2>
+            <p>把这套系统理解成“RAM、checkpoint、cold archive”很有帮助，但要记得它只是类比。当前 context window 是模型正在 attention 的工作集；notes 是模型主动维护、可跨窗口生存的私有工作笔记；history 是后端提供的只读、按需查询的旧窗口记录。<button class="evidence-ref" type="button" data-evidence="TB-06 TB-10" data-evidence-trigger>TB-06,10</button></p>
+            <div class="token-budget-layers">
+              <article data-layer="window"><span>01 / ACTIVE</span><i data-lucide="memory-stick" aria-hidden="true"></i><h3>Context Window</h3><p>速度最快，也最短命。只放当前推理真正需要的工作集。</p><small>会被 replacement 整体换掉</small></article>
+              <article data-layer="notes"><span>02 / CHECKPOINT</span><i data-lucide="notebook-pen" aria-hidden="true"></i><h3>Notes</h3><p>保存目标、决定、进度、关键引用与下一步。模型能读写。</p><small>跨窗口生存，但仍可能写漏</small></article>
+              <article data-layer="history"><span>03 / RECOVERY</span><i data-lucide="archive-restore" aria-hidden="true"></i><h3>History</h3><p>列窗口、列 item、定点读取或按字面搜索旧记录。</p><small>只读、最终一致，不常驻 prompt</small></article>
+            </div>
+            <div class="article-callout"><strong>notes 不是 history 的摘要副本</strong><p>好的 checkpoint 应该保存“现在处于什么状态”和“哪里能找回原始事实”，而不是试图把十几万 token 再压成一篇小作文。这样窗口 B 不必先吞回窗口 A 的全部内容，遇到具体疑问时再查对应 item。</p></div>
+          </section>
+
+          <section id="recovery" data-article-section>
+            <span class="section-number">05 / 定点恢复</span>
+            <h2>定点恢复：window_id + item_id</h2>
+            <p><code>history.read_item</code> 的参数要求非常具体：完整 <code>window_id</code> 加目标 <code>item_id</code>。不知道 ID 时，可以先 list windows、list items，或按 role、tool namespace、tool name 与字面内容搜索。它恢复的是一条有地址的记录，不是把整个旧窗口重新塞回 attention。<button class="evidence-ref" type="button" data-evidence="TB-07" data-evidence-trigger>TB-07</button></p>
+            <div class="article-code-block token-budget-note-example">Goal:
+修复 OAuth 登录超时。
+
+Decision:
+保留 token refresh API，只调整客户端 retry。
+
+Progress:
+auth/session.rs 已修改；login_test 还有 2 个失败。
+
+References:
+用户约束 → window 01… / item a83f
+失败测试 → window 01… / item e912
+
+Next:
+检查 reconnect 路径。</div>
+            <p>这个结构的关键不是格式好看，而是把两类信息拆开：决定与进度直接放在 notes，容易继续；原始要求与关键工具输出留地址，需要时精确回读。指针本身不会理解语义，模型仍要判断什么值得记、什么时候值得查。</p>
+          </section>
+
+          <section id="release-map" data-article-section>
+            <span class="section-number">06 / 版本地图</span>
+            <h2>版本地图：三个能力分三次落地</h2>
+            <div class="token-budget-timeline">
+              <article><time datetime="2026-06-15">0.140.0</time><div><h3>模型获得换窗出口</h3><p>PR #27488 加入 direct-model-only <code>new_context</code>。窗口没价值时，模型不用先花 token 做 summary。</p></div><button class="evidence-ref" type="button" data-evidence="TB-01" data-evidence-trigger>TB-01</button></article>
+              <article><time datetime="2026-07-08">0.143.0</time><div><h3>compact 生命周期换了内核</h3><p>PR #29743 把手动与自动 compaction 都接到 fresh-window replacement；0.142.x 稳定 tag 尚无该模块。</p></div><button class="evidence-ref" type="button" data-evidence="TB-03 TB-04" data-evidence-trigger>TB-03,04</button></article>
+              <article><time datetime="2026-08-26">0.150.0</time><div><h3>notes/history 接住连续性</h3><p>PR #39827 加入私有 notes 与只读 history 扩展，让新窗口不只剩一个干净 prompt。</p></div><button class="evidence-ref" type="button" data-evidence="TB-05 TB-06" data-evidence-trigger>TB-05,06</button></article>
+              <article><time datetime="2026-08-29">0.151.0</time><div><h3>代码继续迭代，默认值没变</h3><p>history ID 合同和 notes 一致性语义继续调整；TokenBudget 仍是 UnderDevelopment / false。</p></div><button class="evidence-ref" type="button" data-evidence="TB-06 TB-08" data-evidence-trigger>TB-06,08</button></article>
+            </div>
+          </section>
+
+          <section id="availability" data-article-section>
+            <span class="section-number">07 / 可用性边界</span>
+            <h2>可用性边界：发布不等于能直接用</h2>
+            <p>即使二进制版本够新，完整链路也不只一个总开关。0.151.0 的配置结构把 <code>token_budget.enabled</code>、<code>use_history_notes_extension</code>、提醒阈值、guidance message 与 fallback buffer 分开；history/notes 扩展还要求 OpenAI provider 和 Codex backend 认证。<button class="evidence-ref" type="button" data-evidence="TB-05 TB-08" data-evidence-trigger>TB-05,08</button></p>
+            <div class="article-table-wrap"><table class="article-table token-budget-availability">
+              <thead><tr><th>你看到的现象</th><th>能说明什么</th><th>还不能说明什么</th></tr></thead>
+              <tbody>
+                <tr><td>版本 ≥ 0.143.0</td><td>硬切实现已在二进制源码范围内</td><td>当前 thread 已启用 TokenBudget</td></tr>
+                <tr><td><code>/compact</code> 完成</td><td>compaction lifecycle 跑完</td><td>底层一定生成了 summary</td></tr>
+                <tr><td>版本 ≥ 0.150.0</td><td>history-notes 扩展代码已分发</td><td>provider、认证与子开关都满足</td></tr>
+                <tr><td>旧 transcript 仍在</td><td>durable record 可能可恢复</td><td>模型当前仍在 attention 它</td></tr>
+                <tr><td>notes 写得很完整</td><td>新窗口有较好 checkpoint</td><td>原始约束已被无损保存</td></tr>
+              </tbody>
+            </table></div>
+            <p>还有一个容易混在一起的数字：修复图片在 compaction 前被重复保存，和 TokenBudget 取消摘要，是两条不同优化。前者可能减少图片型任务的重复上下文成本；后者省掉摘要请求、却会增加 checkpoint 与按需回读成本。没有配对 usage 数据，不能把某个“约 10%”直接算到这条新架构头上。</p>
+          </section>
+
+          <section id="conclusion" data-article-section>
+            <span class="section-number">08 / 结论与边界</span>
+            <h2>结论：上下文不再等于全部记忆</h2>
+            <p>传统 compaction 的基本假设是：当前 prompt 快满了，就把过去浓缩成一份 replacement summary，让模型继续把它当作记忆。TokenBudget 的假设更激进：当前 prompt 只是一个会过期的工作窗口，真正需要长期保存的是任务状态和可寻址事实。模型应该提前知道预算、及时做 checkpoint、允许窗口被整体替换，再从历史里按需恢复。</p>
+            <blockquote class="article-pullquote">不是把旧窗口压得更小，而是承认旧窗口可以被丢掉。<small>连续性改由 checkpoint + addressable history 承担</small></blockquote>
+            <p>这确实更像长期任务基础设施，而不只是聊天记录压缩。但它还没有完成产品化闭环：默认开关没放开，后端 history 的保留合同不完整，checkpoint 质量依赖模型，真实 token 节省和完成率也没有公开对照。现在最合适的判断不是“Codex 已经告别 Compaction”，而是：<strong>Codex 已经把一条无摘要、可换窗、可恢复的上下文管理路径装进稳定发行版，正在等待它从开发能力变成默认产品行为。</strong><button class="evidence-ref" type="button" data-evidence="TB-08 TB-09 TB-10" data-evidence-trigger>TB-08–10</button></p>
+            <div class="article-callout"><strong>研究边界</strong><p>本页核对的是公开源码、tag 与本机 feature 状态。它没有替 OpenAI 承诺 rollout 时间，也没有把 private notes/history 当作永久存储，更没有用单次观察替代长程任务实验。待验证项保留在专题证据库。</p></div>
+          </section>
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header>
+      <div><span id="articleEvidenceKicker">证据</span><h2 id="articleEvidenceTitle">选择一条证据</h2></div>
+      <div id="articleEvidencePager" class="article-evidence-pager" hidden></div>
+      <button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关闭证据详情" title="关闭"><i data-lucide="x" aria-hidden="true"></i></button>
+    </header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>

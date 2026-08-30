@@ -35,12 +35,14 @@ const articles = {
   "computer-use": read("capabilities/computer-use.html"),
   "deepseek-harness-architecture": read("capabilities/deepseek-harness-architecture.html"),
   "goal-mode": read("capabilities/goal-mode.html"),
+  "token-budget-context": read("capabilities/token-budget-context.html"),
 };
 const studies = {
   "browser-use": JSON.parse(read("capabilities/browser-use.json")),
   "computer-use": JSON.parse(read("capabilities/computer-use.json")),
   "deepseek-harness-architecture": JSON.parse(read("capabilities/deepseek-harness-architecture.json")),
   "goal-mode": JSON.parse(read("capabilities/goal-mode.json")),
+  "token-budget-context": JSON.parse(read("capabilities/token-budget-context.json")),
 };
 
 function navFragment(html) {
@@ -148,8 +150,9 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "TokenBudget", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
+  assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
   assert.match(siteNavigationSource, /aria-haspopup", "menu"/);
   assert.match(siteNavigationSource, /event\.key !== "ArrowDown"/);
@@ -285,6 +288,7 @@ test("research navigation preserves index context and lets evidence deep links o
 test("headline evidence keeps the direct anchors selected in adversarial review", () => {
   const directAnchors = {
     "goal-mode": ["GM-04"],
+    "token-budget-context": ["TB-01", "TB-03", "TB-05", "TB-08"],
     "deepseek-harness-architecture": ["DSH-02", "DSH-04", "DSH-06", "DSH-09", "DSH-11"],
     "subagent-orchestration": ["CC-06", "CX-04", "OC-01"],
     "session-resume": ["SES-CC-05", "SES-CX-11", "SES-OC-04"],
