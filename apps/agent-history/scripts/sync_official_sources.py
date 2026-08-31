@@ -666,17 +666,26 @@ def local_git_compare(
             ["remote", "add", "origin", f"https://github.com/{repository}.git"],
             cwd=repository_dir,
         )
-    for tag in (base_tag, head_tag):
-        run_git(
-            [
-                "fetch",
-                "--depth=1",
-                "origin",
-                f"refs/tags/{tag}:refs/tags/{tag}",
-            ],
-            cwd=repository_dir,
-        )
-    range_spec = f"refs/tags/{base_tag}..refs/tags/{head_tag}"
+    resolved_refs: list[str] = []
+    for source_ref in (base_tag, head_tag):
+        if re.fullmatch(r"[0-9a-f]{40}", source_ref):
+            run_git(["fetch", "--depth=1", "origin", source_ref], cwd=repository_dir)
+            resolved_refs.append(
+                run_git(["rev-parse", "FETCH_HEAD"], cwd=repository_dir).strip()
+            )
+        else:
+            local_ref = f"refs/tags/{source_ref}"
+            run_git(
+                [
+                    "fetch",
+                    "--depth=1",
+                    "origin",
+                    f"{local_ref}:{local_ref}",
+                ],
+                cwd=repository_dir,
+            )
+            resolved_refs.append(local_ref)
+    range_spec = f"{resolved_refs[0]}..{resolved_refs[1]}"
     counts = parse_numstat(
         run_git(["diff", "--numstat", "--no-renames", range_spec], cwd=repository_dir)
     )
