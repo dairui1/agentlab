@@ -435,6 +435,56 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(change["headCommitSha"], "b" * 40)
         self.assertGreater(change["filesObserved"], 0)
 
+    def test_structured_compare_prioritizes_mechanism_source_and_samples(self) -> None:
+        body = json.dumps(
+            {
+                "total_files": 3,
+                "files": [
+                    {
+                        "filename": "docs/release.md",
+                        "status": "modified",
+                        "additions": 500,
+                        "deletions": 20,
+                        "patch": "@@ -1 +1 @@\n-old\n+new",
+                    },
+                    {
+                        "filename": "apps/web/tests/session-retry.e2e.ts",
+                        "status": "modified",
+                        "additions": 200,
+                        "deletions": 10,
+                        "patch": "@@ -1 +1 @@\n-old test\n+new test",
+                    },
+                    {
+                        "filename": "packages/runtime/src/session/reconnect.ts",
+                        "status": "modified",
+                        "additions": 12,
+                        "deletions": 4,
+                        "patch": "@@ -1 +1 @@\n-return failed\n+return retrySession(error)",
+                    },
+                ],
+            }
+        ).encode()
+
+        change = official.parse_compare_json(
+            body,
+            base_version="1.0.0",
+            head_version="1.0.1",
+            base_tag="v1.0.0",
+            head_tag="v1.0.1",
+            compare_url="https://example.test/compare",
+        )
+
+        self.assertEqual(change["schemaVersion"], 3)
+        self.assertEqual(
+            change["keyFiles"][0]["path"],
+            "packages/runtime/src/session/reconnect.ts",
+        )
+        self.assertEqual(
+            change["changeSamples"][0]["sample"],
+            ["-return failed", "+return retrySession(error)"],
+        )
+        self.assertFalse(change["truncated"])
+
     def test_comparison_pairs_do_not_jump_over_an_unmatched_capture(self) -> None:
         releases = [
             {"version": version, "commitSha": "a" * 40}
@@ -519,7 +569,7 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(value["additionsObserved"], 2)
         self.assertEqual(value["deletionsObserved"], 1)
         self.assertEqual(value["digestScope"], "complete")
-        self.assertEqual(value["keyFiles"][0]["path"], "codex-rs/protocol/src/models.rs")
+        self.assertEqual(value["keyFiles"][0]["path"], "codex-rs/core/src/tools/mod.rs")
 
     def test_normalized_output_is_deterministic_and_self_verifying(self) -> None:
         releases = [

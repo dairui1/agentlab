@@ -249,11 +249,42 @@ class AnalyzeChangelogsTests(unittest.TestCase):
         self.assertIn("high 是稀缺等级", prompt)
         self.assertIn("拿不准 high 或 medium 时必须选 medium", prompt)
         self.assertIn("仅有官方说明", prompt)
+        self.assertIn("先写机制，后写边界", prompt)
+        self.assertIn("禁止只写“官方说明新增/优化”", prompt)
         self.assertNotIn("upstreamCommit", prompt)
         self.assertNotIn("capturedAt", prompt)
         self.assertNotIn('"trace"', prompt)
         self.assertNotIn("https://example.test/official", prompt)
         self.assertNotIn('"freshness"', prompt)
+
+    def test_source_rich_analysis_cannot_lead_with_capture_disclaimer(self):
+        packet = evidence(agent="deepseek-harness")
+        packet["official"]["codeChange"] = {
+            "status": "available",
+            "changeSamples": [
+                {
+                    "path": "packages/runtime/src/session/reconnect.ts",
+                    "sample": ["+return retrySession(error)"],
+                }
+            ],
+        }
+        packet["evidenceDigest"] = analyze.evidence_digest(packet)
+        result = {
+            "schemaVersion": 1,
+            "agent": packet["agent"],
+            "version": packet["version"],
+            "evidenceDigest": packet["evidenceDigest"],
+            "title": "连接恢复",
+            "summary": "Runtime Prompt 当前不可用。源码增加了重连。",
+            "highlights": ["session/reconnect.ts 增加 retrySession 调用。"],
+            "categories": ["可靠性"],
+            "importance": "medium",
+            "implications": [],
+            "analysisStatus": "complete",
+        }
+
+        with self.assertRaisesRegex(analyze.AnalysisError, "observed source mechanisms"):
+            analyze.validate_analysis(result, packet)
 
     def test_fake_analyzer_writes_only_stale_outputs(self):
         with tempfile.TemporaryDirectory() as raw:

@@ -61,6 +61,10 @@ MAX_CHANGELOG_BYTES = 4 * 1024 * 1024
 MAX_DIFF_BYTES = 1024 * 1024
 MAX_NOTES_BYTES = 16 * 1024
 MAX_KEY_FILES = 24
+MAX_CHANGE_SAMPLES = 12
+MAX_SAMPLE_LINES = 8
+MAX_SAMPLE_LINE_LENGTH = 240
+CODE_CHANGE_SCHEMA_VERSION = 3
 MAX_NORMALIZED_RELEASE_BYTES = 64 * 1024
 MAX_NORMALIZED_INDEX_BYTES = 16 * 1024 * 1024
 MAX_NORMALIZED_MANIFEST_BYTES = 1024 * 1024
@@ -83,6 +87,12 @@ CHANGELOG_HEADING_RE = re.compile(
     r"^##[ \t]+v?(\d+\.\d+\.\d+)(?:[ \t].*)?$", re.MULTILINE
 )
 DIFF_HEADER_RE = re.compile(r"^diff --git a/(.*?) b/(.*?)$", re.MULTILINE)
+
+MECHANISM_PATH_TERMS = (
+    "agent", "context", "event", "gateway", "permission", "plugin", "preset",
+    "prompt", "queue", "reconnect", "remote", "retry", "schedule", "session",
+    "stream", "thread", "tool",
+)
 LOG = logging.getLogger("sync-official-sources")
 
 
@@ -501,14 +511,9 @@ def parse_compare_diff(
                 "deletionsObserved": deletions,
             }
         )
-    ranked = sorted(
-        files,
-        key=lambda item: (
-            -(int(item["additionsObserved"]) + int(item["deletionsObserved"])),
-            str(item["path"]),
-        ),
-    )[:MAX_KEY_FILES]
+    ranked = sorted(files, key=code_file_rank)[:MAX_KEY_FILES]
     return {
+        "schemaVersion": CODE_CHANGE_SCHEMA_VERSION,
         "status": "available",
         "baseVersion": base_version,
         "headVersion": head_version,
@@ -523,6 +528,206 @@ def parse_compare_diff(
         "additionsObserved": additions_total,
         "deletionsObserved": deletions_total,
         "keyFiles": ranked,
+    }
+
+
+def code_file_rank(item: Mapping[str, object]) -> tuple[int, int, str]:
+    path = str(item.get("path", ""))
+    lowered = f"/{path.lower()}"
+    score = 0
+    if any(token in lowered for token in ("/src/", "/lib/", "/packages/", "/crates/")):
+        score += 80
+    if lowered.endswith((".ts", ".tsx", ".js", ".jsx", ".py", ".rs", ".go")):
+        score += 30
+    score += min(60, 12 * sum(term in lowered for term in MECHANISM_PATH_TERMS))
+    if any(token in lowered for token in ("/test", "/tests/", "/fixtures/", ".expected.")):
+        score -= 70
+    if any(token in lowered for token in ("/docs/", "/.agents/", "/notes/")):
+        score -= 90
+    if lowered.endswith((".md", ".yaml", ".yml", ".lock", ".snap")):
+        score -= 40
+    churn = int(item.get("additionsObserved", 0)) + int(item.get("deletionsObserved", 0))
+    return (-score, -min(churn, 200), path)
+
+
+def patch_sample(patch: object) -> list[str]:
+    if not isinstance(patch, str):
+        return []
+    result: list[str] = []
+    for raw_line in patch.splitlines():
+        if not raw_line.startswith(("+", "-")) or raw_line.startswith(("+++", "---")):
+            continue
+        value = raw_line[:1] + raw_line[1:].strip()
+        if len(value) <= 1 or value[1:].startswith(("//", "#", "*")):
+            continue
+        result.append(value[:MAX_SAMPLE_LINE_LENGTH])
+        if len(result) >= MAX_SAMPLE_LINES:
+            break
+    return result
+
+
+def parse_compare_json(
+    body: bytes,
+    *,
+    base_version: str,
+    head_version: str,
+    base_tag: str,
+    head_tag: str,
+    compare_url: str,
+) -> dict[str, object]:
+    value = json.loads(body.decode("utf-8"))
+    if not isinstance(value, Mapping) or not isinstance(value.get("files"), list):
+        raise OfficialSyncError("GitHub compare response has no files list")
+    files: list[dict[str, object]] = []
+    for raw in value["files"]:
+        if not isinstance(raw, Mapping) or not isinstance(raw.get("filename"), str):
+            continue
+        item: dict[str, object] = {
+            "path": raw["filename"],
+            "status": str(raw.get("status", "modified")),
+            "additionsObserved": int(raw.get("additions", 0)),
+            "deletionsObserved": int(raw.get("deletions", 0)),
+        }
+        sample = patch_sample(raw.get("patch"))
+        if sample:
+            item["sample"] = sample
+        files.append(item)
+    ranked = sorted(files, key=code_file_rank)
+    key_files = [
+        {key: field for key, field in item.items() if key != "sample"}
+        for item in ranked[:MAX_KEY_FILES]
+    ]
+    change_samples = [item for item in ranked if item.get("sample")][:MAX_CHANGE_SAMPLES]
+    total_files_value = value.get("total_files")
+    total_files = int(total_files_value) if isinstance(total_files_value, int) else len(files)
+    capped = total_files_value is None and len(files) >= 300
+    return {
+        "schemaVersion": CODE_CHANGE_SCHEMA_VERSION,
+        "status": "available",
+        "baseVersion": base_version,
+        "headVersion": head_version,
+        "baseTag": base_tag,
+        "headTag": head_tag,
+        "sourceUrl": compare_url,
+        "diffSha256": sha256_bytes(body),
+        "digestScope": "prefix" if capped or total_files != len(files) else "complete",
+        "truncated": capped or total_files != len(files),
+        "bytesInspected": len(body),
+        "filesObserved": len(files),
+        "filesTotal": total_files,
+        "additionsObserved": sum(int(item["additionsObserved"]) for item in files),
+        "deletionsObserved": sum(int(item["deletionsObserved"]) for item in files),
+        "keyFiles": key_files,
+        "changeSamples": change_samples,
+    }
+
+
+def run_git(args: Sequence[str], *, cwd: Path | None = None, timeout: float = 180) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    return completed.stdout
+
+
+def parse_numstat(text: str) -> dict[str, tuple[int, int]]:
+    result: dict[str, tuple[int, int]] = {}
+    for line in text.splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) != 3:
+            continue
+        additions, deletions, path = parts
+        result[path] = (
+            int(additions) if additions.isdigit() else 0,
+            int(deletions) if deletions.isdigit() else 0,
+        )
+    return result
+
+
+def local_git_compare(
+    *,
+    cache_root: Path,
+    repository: str,
+    base_version: str,
+    head_version: str,
+    base_tag: str,
+    head_tag: str,
+    compare_url: str,
+) -> dict[str, object]:
+    repository_dir = cache_root / hashlib.sha256(repository.encode()).hexdigest()
+    if not repository_dir.exists():
+        repository_dir.parent.mkdir(parents=True, exist_ok=True)
+        run_git(["init", "--bare", str(repository_dir)])
+        run_git(
+            ["remote", "add", "origin", f"https://github.com/{repository}.git"],
+            cwd=repository_dir,
+        )
+    for tag in (base_tag, head_tag):
+        run_git(
+            [
+                "fetch",
+                "--depth=1",
+                "origin",
+                f"refs/tags/{tag}:refs/tags/{tag}",
+            ],
+            cwd=repository_dir,
+        )
+    range_spec = f"refs/tags/{base_tag}..refs/tags/{head_tag}"
+    counts = parse_numstat(
+        run_git(["diff", "--numstat", "--no-renames", range_spec], cwd=repository_dir)
+    )
+    statuses: dict[str, str] = {}
+    for line in run_git(
+        ["diff", "--name-status", "--no-renames", range_spec], cwd=repository_dir
+    ).splitlines():
+        status_code, _, path = line.partition("\t")
+        statuses[path] = {"A": "added", "D": "removed"}.get(status_code, "modified")
+    files = [
+        {
+            "path": path,
+            "status": statuses.get(path, "modified"),
+            "additionsObserved": additions,
+            "deletionsObserved": deletions,
+        }
+        for path, (additions, deletions) in counts.items()
+    ]
+    ranked = sorted(files, key=code_file_rank)
+    change_samples: list[dict[str, object]] = []
+    for item in ranked:
+        patch = run_git(
+            ["diff", "--unified=1", "--no-renames", range_spec, "--", str(item["path"])],
+            cwd=repository_dir,
+        )
+        sample = patch_sample(patch)
+        if sample:
+            change_samples.append({**item, "sample": sample})
+        if len(change_samples) >= MAX_CHANGE_SAMPLES:
+            break
+    digest = sha256_bytes(
+        json.dumps(files, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    )
+    return {
+        "schemaVersion": CODE_CHANGE_SCHEMA_VERSION,
+        "status": "available",
+        "baseVersion": base_version,
+        "headVersion": head_version,
+        "baseTag": base_tag,
+        "headTag": head_tag,
+        "sourceUrl": compare_url,
+        "diffSha256": digest,
+        "digestScope": "complete",
+        "truncated": False,
+        "filesObserved": len(files),
+        "filesTotal": len(files),
+        "additionsObserved": sum(item["additionsObserved"] for item in files),
+        "deletionsObserved": sum(item["deletionsObserved"] for item in files),
+        "keyFiles": ranked[:MAX_KEY_FILES],
+        "changeSamples": change_samples,
+        "extraction": "local-git-tags",
     }
 
 
@@ -1158,6 +1363,8 @@ def attach_code_compares(
         if (
             isinstance(existing, Mapping)
             and existing.get("status") == "available"
+            and existing.get("schemaVersion") == CODE_CHANGE_SCHEMA_VERSION
+            and existing.get("truncated") is not True
             and existing.get("baseTag") == base_tag
             and existing.get("headTag") == head_tag
         ):
@@ -1174,11 +1381,10 @@ def attach_code_compares(
         try:
             response = cache.fetch(
                 api_url,
-                accept="application/vnd.github.v3.diff",
-                max_bytes=MAX_DIFF_BYTES,
+                accept="application/vnd.github+json",
+                max_bytes=MAX_JSON_RESPONSE_BYTES,
                 timeout=timeout,
                 allow_stale_on_error=allow_stale_on_error,
-                allow_truncated=True,
             )
         except OfficialSyncError as error:
             LOG.warning(
@@ -1189,6 +1395,7 @@ def attach_code_compares(
                 error,
             )
             current["codeChange"] = {
+                "schemaVersion": CODE_CHANGE_SCHEMA_VERSION,
                 "status": "unavailable",
                 "reason": "official-compare-fetch-failed",
                 "baseVersion": base_version,
@@ -1210,15 +1417,54 @@ def attach_code_compares(
                 }
             )
             continue
-        current["codeChange"] = parse_compare_diff(
-            response.body,
-            base_version=base_version,
-            head_version=head_version,
-            base_tag=base_tag,
-            head_tag=head_tag,
-            compare_url=compare_url,
-            truncated=response.truncated,
-        )
+        try:
+            current["codeChange"] = parse_compare_json(
+                response.body,
+                base_version=base_version,
+                head_version=head_version,
+                base_tag=base_tag,
+                head_tag=head_tag,
+                compare_url=compare_url,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError, OfficialSyncError):
+            current["codeChange"] = parse_compare_diff(
+                response.body,
+                base_version=base_version,
+                head_version=head_version,
+                base_tag=base_tag,
+                head_tag=head_tag,
+                compare_url=compare_url,
+                truncated=response.truncated,
+            )
+        if (
+            current["codeChange"].get("truncated") is True
+            and isinstance(cache, HttpCache)
+        ):
+            try:
+                current["codeChange"] = local_git_compare(
+                    cache_root=cache.root.parent / "git",
+                    repository=repository,
+                    base_version=base_version,
+                    head_version=head_version,
+                    base_tag=base_tag,
+                    head_tag=head_tag,
+                    compare_url=compare_url,
+                )
+            except (OSError, subprocess.SubprocessError, ValueError) as error:
+                LOG.warning(
+                    "local source compare failed for %s %s..%s: %s",
+                    repository,
+                    base_version,
+                    head_version,
+                    error,
+                )
+                cache.warnings.append(
+                    {
+                        "type": "source-unavailable",
+                        "url": compare_url,
+                        "reason": "local-git-compare-failed",
+                    }
+                )
         current["codeChange"]["analysisEligible"] = True
         if isinstance(base_sha, str):
             current["codeChange"]["baseCommitSha"] = base_sha

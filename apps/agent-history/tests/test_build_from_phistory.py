@@ -1036,6 +1036,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         release = index["releases"]["1.10.0"]
         release["commitSha"] = "b" * 40
         release["codeChange"] = {
+            "schemaVersion": 3,
             "status": "available",
             "analysisEligible": True,
             "baseVersion": "1.2.0",
@@ -1052,6 +1053,14 @@ class BuildFromPhistoryTests(unittest.TestCase):
             "additionsObserved": 10,
             "deletionsObserved": 3,
             "keyFiles": [{"path": "src/agent.ts", "status": "modified"}],
+            "changeSamples": [
+                {
+                    "path": "src/agent.ts",
+                    "status": "modified",
+                    "sample": ["+retrySession(error)"],
+                }
+            ],
+            "extraction": "local-git-tags",
             "sourceUrl": "https://github.com/anthropics/claude-code/compare/v1.2.0...v1.10.0",
         }
         index.pop("sourceDigest")
@@ -1069,6 +1078,10 @@ class BuildFromPhistoryTests(unittest.TestCase):
         evidence = self._json(self.analysis / "evidence/claude-code/1.10.0.json")
         self.assertEqual(
             evidence["official"]["codeChange"]["baseCommitSha"], "a" * 40
+        )
+        self.assertEqual(
+            evidence["official"]["codeChange"]["changeSamples"][0]["sample"],
+            ["+retrySession(error)"],
         )
 
     def test_official_provenance_url_does_not_change_semantic_evidence_digest(self) -> None:

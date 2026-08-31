@@ -2019,6 +2019,7 @@ def official_evidence(
         semantic_code = {
             key: code_change[key]
             for key in (
+                "schemaVersion",
                 "status",
                 "reason",
                 "baseVersion",
@@ -2032,9 +2033,12 @@ def official_evidence(
                 "truncated",
                 "bytesInspected",
                 "filesObserved",
+                "filesTotal",
                 "additionsObserved",
                 "deletionsObserved",
                 "keyFiles",
+                "changeSamples",
+                "extraction",
             )
             if key in code_change
         }

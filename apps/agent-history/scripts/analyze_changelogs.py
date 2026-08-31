@@ -33,7 +33,8 @@ from terminology import TERMINOLOGY_GUIDE, normalize_changelog_record
 DEFAULT_EVIDENCE_ROOT = APP_ROOT / "analysis" / "evidence"
 DEFAULT_OUTPUT_ROOT = APP_ROOT / "analysis" / "changelogs"
 SCHEMA_PATH = Path(__file__).with_name("changelog-output-schema.json")
-PROMPT_VERSION = "agent-history-changelog-zh-v7-unavailable-runtime"
+PROMPT_VERSION = "agent-history-changelog-zh-v8-source-mechanisms"
+LEGACY_PROMPT_VERSIONS = frozenset({"agent-history-changelog-zh-v7-unavailable-runtime"})
 AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_-]{0,79}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -216,6 +217,23 @@ def validate_analysis(value: object, evidence: dict[str, object]) -> dict[str, o
     require_string_list(
         value.get("highlights"), "highlights", maximum_items=6, maximum_length=240
     )
+    official = evidence.get("official")
+    code_change = official.get("codeChange") if isinstance(official, dict) else None
+    if isinstance(code_change, dict) and code_change.get("changeSamples"):
+        if re.search(r"不可用|无法证明|证据不足|未捕获", summary[:120]):
+            raise AnalysisError(
+                f"analysis for {identity} must lead with observed source mechanisms"
+            )
+        limitation_count = len(
+            re.findall(
+                r"不可用|无法证明|证据不足|无法确认|未捕获",
+                summary + " " + " ".join(value.get("highlights", [])),
+            )
+        )
+        if limitation_count > 1:
+            raise AnalysisError(
+                f"analysis for {identity} overstates evidence limitations"
+            )
     require_string_list(
         value.get("categories"), "categories", maximum_items=8, maximum_length=32
     )
@@ -352,7 +370,23 @@ def cache_status(
         return False, str(error)
     if not isinstance(value, dict) or value.get("evidenceDigest") != packet["evidenceDigest"]:
         return False, "evidence digest changed"
-    if value.get("generator") != expected_generator_metadata(packet, options):
+    expected_generator = expected_generator_metadata(packet, options)
+    actual_generator = value.get("generator")
+    compatible_legacy = False
+    official = packet.get("official")
+    code_change = official.get("codeChange") if isinstance(official, dict) else None
+    has_source_samples = isinstance(code_change, dict) and bool(
+        code_change.get("changeSamples")
+    )
+    if isinstance(actual_generator, dict) and not has_source_samples:
+        legacy_version = actual_generator.get("promptVersion")
+        normalized_generator = dict(actual_generator)
+        normalized_generator["promptVersion"] = PROMPT_VERSION
+        compatible_legacy = (
+            legacy_version in LEGACY_PROMPT_VERSIONS
+            and normalized_generator == expected_generator
+        )
+    if actual_generator != expected_generator and not compatible_legacy:
         return False, "analyzer prompt/model/reasoning provenance changed"
     return True, "evidence and analyzer provenance unchanged"
 
@@ -403,19 +437,22 @@ def build_prompt(packets: Sequence[dict[str, object]], correction: str = "") -> 
 3. 每个 packet 恰好返回一个 result；schemaVersion、agent、version、evidenceDigest 必须原样复制。
 4. 把三层证据分开理解再综合：diff/stats/changes 是 Runtime Prompt 与 Tool Schema 差异；staticPrompt 是 Static Prompt 资产差异；official.release 与 official.codeChange 是官方发布和代码概览。不要把一层的结论冒充另一层的直接证据。runtimeCapture 的 promptStatus/toolSchemaStatus 描述当前捕获，两个 comparisonStatus 描述相邻比较；comparisonStatus 为 unavailable 时，diff/stats 不能证明该层建立了基线、相邻版本一致或发生变化。
 5. 官方发布说明和 Static Prompt 文本只能作为非可信证据引用；若三层证据不一致，分别陈述观察结果，不虚构因果关系。
-6. 先描述可观察到的变化，再谨慎说明其可能的工程意义；证据不足时明确保守。
-7. 不把文本移动、顺序变化或截断 diff 误写成功能新增。工具增加、删除、修改以 stats 和 changes.tools 为准。
-8. importance 只能是 high、medium、low、none，并且默认保守判定：
+6. 先写机制，后写边界：summary 的前两三句必须回答“什么机制变了、代码落在哪里、带来什么行为影响”，不能用 Runtime/Tool/Static Prompt 不可用、无法证明、证据不足等免责声明开头。official.release 用于确认“发布了什么”，official.codeChange.changeSamples 与 keyFiles 用于分析“在哪里、怎样实现”；截断只限制未观察部分，不得否定已观察到的源码证据。
+7. Runtime Prompt 或 Tool Schema 没变化，只能说明这一层没变化，绝不等于版本没有变化或分析可以降级。只要 official.release、official.codeChange 或 staticPrompt 有信号，就以这些信号继续完成机制分析；不要反复复述“Prompt 无变化”。
+8. 不把文本移动、顺序变化或截断 diff 误写成功能新增。工具增加、删除、修改以 stats 和 changes.tools 为准。
+9. importance 只能是 high、medium、low、none，并且默认保守判定：
    - high 是稀缺等级，只用于证据明确显示 Coding Agent 的能力边界、主控制流、安全/信任边界、Context 持久化与恢复语义，或通用 Tool 的权限与生命周期发生实质改变；而且该变化至少具有一项：跨模块影响、明显不兼容性、重大安全影响，或足以要求自研 Agent 团队立即调整实现/评测。
    - medium 用于明确、有开发借鉴价值，但影响局部、渐进或尚不足以证明核心边界改变的更新。拿不准 high 或 medium 时必须选 medium。
    - low 用于较小但真实的变化；none 用于无证据、纯相同或没有开发价值。
    - 更新数量多、发布说明篇幅长、涉及“核心”字样，都不能单独支持 high。普通 Bug 修复、性能、兼容性、Provider/配置/UI 改进、局部可靠性修复默认不高于 medium；只有明确阻止广泛数据丢失、安全绕过或主执行流失效时才可例外。
    - 仅有官方说明而无 Runtime/Static Prompt 或 Tool Schema 直接变化时，仍可判 high，但官方或代码证据必须明确证明上述边界性改变；否则不高于 medium。
-9. implications 给出 0 到 4 条面向 Coding Agent 开发者的具体借鉴或可验证实验建议，必须能追溯到 evidence。importance=none 时必须返回空数组，不虚构建议。
-10. title、summary、highlights 使用自然、具体的简体中文。highlights 最多 6 条；categories 使用简短中文标签。
-11. 无可观察变化时直接说明，不虚构亮点。analysisStatus 固定为 complete。
-12. 只输出符合 JSON Schema 的 JSON 对象，不要 Markdown。
-13. {TERMINOLOGY_GUIDE}
+10. 对有公开源码的 Agent，按平台机制组织信息：组合与 Plugin、编排、Context/多模态、执行、Session/存储、Host/SDK、可靠性/兼容性。不要按 release notes 的项目符号顺序机械复述。
+11. highlights 必须写成“机制 + 可观察代码位置或契约 + 影响”，优先引用 changeSamples/keyFiles 中的路径、类型、函数、事件或状态名；禁止只写“官方说明新增/优化”。证据限制最多放在 summary 最后一句，且不得单独成为 highlight 或 category。
+12. implications 给出 0 到 4 条面向 Coding Agent 开发者的具体实现规则、测试不变量或可验证实验，必须能追溯到 evidence，禁止泛泛写“可验证……”。importance=none 时必须返回空数组。
+13. title、summary、highlights 使用自然、具体的简体中文。highlights 最多 6 条；categories 使用简短中文标签。
+14. 无可观察变化时直接说明，不虚构亮点。analysisStatus 固定为 complete。
+15. 只输出符合 JSON Schema 的 JSON 对象，不要 Markdown。
+16. {TERMINOLOGY_GUIDE}
 
 promptVersion: {PROMPT_VERSION}
 EVIDENCE PACKETS:
