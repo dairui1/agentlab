@@ -9,6 +9,7 @@
     "claude-code": "Claude Code",
     codex: "Codex",
     "deepseek-harness": "DeepSeek Harness",
+    "exo": "Exo",
     opencode: "opencode",
     "cross-product": "跨产品",
   };

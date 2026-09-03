@@ -97,7 +97,34 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertIn("codex", complete.agents)
         self.assertIn("claude-code", complete.agents)
         self.assertIn("deepseek-harness", complete.agents)
+        self.assertIn("exo", complete.agents)
         self.assertGreater(len(complete.agents), len(focused.agents))
+
+    def test_exo_tracks_bounded_unstable_commit_snapshots(self) -> None:
+        commits = [
+            {"sha": "b" * 40, "committedAt": "2026-09-03T01:02:03Z"},
+            {"sha": "a" * 40, "committedAt": "2026-09-02T01:02:03Z"},
+        ]
+        releases = official.github_snapshot_releases(
+            FakeCache(json.dumps(commits).encode()),
+            repository="exoharness/exo",
+            product_name="Exo",
+            base_version="0.1.0",
+            count=2,
+            timeout=1,
+            allow_stale_on_error=False,
+        )
+
+        self.assertEqual(
+            [release["version"] for release in releases],
+            [
+                "0.1.0-dev.20260902010203.aaaaaaaa",
+                "0.1.0-dev.20260903010203.bbbbbbbb",
+            ],
+        )
+        self.assertEqual(releases[-1]["sourceRef"], "b" * 40)
+        self.assertEqual(releases[-1]["notes"]["sourceKind"], "github-commit-snapshot")
+        self.assertEqual(official.GITHUB_SNAPSHOT_SOURCES["exo"]["snapshotCount"], 2)
 
     def test_version_order_keeps_numeric_revision_source_specific(
         self,

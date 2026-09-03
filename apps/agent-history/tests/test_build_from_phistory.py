@@ -263,6 +263,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertIn("maka", builder.AGENT_DEFINITIONS)
         self.assertIn("crush", builder.AGENT_DEFINITIONS)
         self.assertIn("prime-agent", builder.AGENT_DEFINITIONS)
+        self.assertIn("exo", builder.AGENT_DEFINITIONS)
 
     def test_discovery_ignores_retired_agent_capture_directories(self) -> None:
         self._capture("kimi", "1.49.0", CLAUDE_OLD, "2026-07-16T10:23:29Z")

@@ -1,0 +1,143 @@
+{
+  "id": "exo-recursive-harness",
+  "number": "005",
+  "title": "Exo 递归 Harness",
+  "product": "Exo",
+  "subtitle": "一个 Agent 怎样改写自己的 Prompt、工具和 Harness，又为什么它现在还不是闭环 RSI",
+  "description": "这项研究锁定 Exo 提交 7801005e6a1ab77008a05dbba80e0a2a7a56e35d，沿 trusted substrate、executor、代码挂载、重建重启、事件日志、沙箱回滚、记忆、工具和克隆九条路径核对“fully recursive”到底落在什么实现上。结论是：Exo 已经把 Harness 自修改所需的观察、修改、激活和恢复原语接到同一个长期 Agent 上，但改进目标、实验设计、候选比较、验收和自动采用仍主要交给模型与操作规范；它是递归自修改平台，不是已经证明会持续变好的 RSI 算法。更重要的是，默认启动把整个仓库以读写方式挂进沙箱，而本地持久状态也位于仓库下的 .exo；因此官方文档所说“trusted substrate 不可触碰”需要额外的文件系统或部署隔离才能成为强安全边界。",
+  "verifiedAt": "2026-09-03",
+  "status": "active",
+  "scope": [
+    {"label": "Source", "value": "exoharness/exo", "note": "公开仓库固定提交，不跟随 main 漂移"},
+    {"label": "Commit", "value": "7801005e6a1ab77008a05dbba80e0a2a7a56e35d", "note": "2026-09-03 核验"},
+    {"label": "Manifest", "value": "workspace 0.1.0", "note": "仓库没有 tag 或 GitHub Release，不能当作稳定发布"},
+    {"label": "Core split", "value": "exoharness / executor", "note": "持久底座与可替换策略层"},
+    {"label": "Self update", "value": "edit -> build -> deferred restart", "note": "代码挂载与 guardian 激活路径"},
+    {"label": "Recovery", "value": "event log + git + sandbox snapshot", "note": "三者回滚的状态面不同"},
+    {"label": "Evidence", "value": "14 条固定文件证据", "note": "实现事实与安全推断分开记录"},
+    {"label": "Runtime experiment", "value": "未纳入", "note": "未安装依赖、未接入付费模型、未执行自改进任务"}
+  ],
+  "boundary": "本文核验固定提交中的官方文档、启动脚本、TypeScript Harness、Rust 持久层与模型可见工具。observation 表示文件直接给出的结构或控制流；inference 表示把启动配置与存储路径放在一起后得到的安全判断。没有运行 setup.sh，因为它会安装 pinned Node、pnpm、Rust 工具链并需要 Docker 与模型 API key；也没有把项目自述的游戏学习、成本优化或“持续变好”当作独立复现。仓库当前无 tag、无 GitHub Release，公共 API 明确标为不稳定。",
+  "evidence": [
+    {
+      "id": "EXO-01", "kind": "observation", "confidence": "high",
+      "title": "持久底座与策略层被明确拆开",
+      "statement": "官方架构把 exoharness 定义为持有 identity、append-only event log、artifact、secret 与 sandbox lifecycle 的有状态底座；executor 负责 Prompt、模型调用、工具调度、记忆、压缩和 approval，可被停止、升级或替换。",
+      "artifact": "website/docs-src/concepts/exoharness-and-executor.md", "locator": "layer responsibilities, lines 25-40", "sha256": "ee34064b2520162206cd970c8e8843e3c26284bc0146423c57c4417c95e4e943",
+      "boundary": "这是项目定义的信任模型；边界是否被默认部署真正强制执行，需要继续核对 mount、存储与 guardian。",
+      "source": {"label": "Exo source · exoharness and executor", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/website/docs-src/concepts/exoharness-and-executor.md#L25-L40"}
+    },
+    {
+      "id": "EXO-02", "kind": "observation", "confidence": "high",
+      "title": "模型循环属于可替换层",
+      "statement": "默认 Exo Harness 用 runResponsesHarnessTurn 驱动一轮，并把指令组装与工具注册作为参数传入；registerExoTools 每轮从 profile、配置模块和 agent-installed tools 重新构造工具面。",
+      "artifact": "exo/harness.ts", "locator": "turn and tool assembly, lines 34-58", "sha256": "f4406adabb986d8458c085b6f5261b941d5f7a6ceb6c62b6adf425d9339a6652",
+      "boundary": "可替换 executor 不等于模型会自动提出更好的 executor，也不提供候选间的独立质量比较。",
+      "source": {"label": "Exo source · harness assembly", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/exo/harness.ts#L34-L58"}
+    },
+    {
+      "id": "EXO-03", "kind": "observation", "confidence": "high",
+      "title": "默认工具面把自维护原语直接交给模型",
+      "statement": "practical profile 注册 scheduler、adapter、introspection、sandbox、memory、todo、skill 与 web 工具，再单独加入 guardian；最小 built-in 集合是 shell、inspect_tools 与 manage_tool。",
+      "artifact": "exo/profiles/practical.ts", "locator": "practical profile, lines 17-45", "sha256": "0f803d03b445bf1b7860eae26378cf71db400bf7bc6c52609a3c5be7f9f1d35a",
+      "boundary": "工具存在只证明模型有调用入口，不证明某次任务实际调用，也不证明调用顺序安全。",
+      "source": {"label": "Exo source · practical profile", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/exo/profiles/practical.ts#L17-L45"}
+    },
+    {
+      "id": "EXO-04", "kind": "observation", "confidence": "high",
+      "title": "整个源码仓库默认以读写方式进入沙箱",
+      "statement": "canonical 启动的 ensure_self_repo_mount 把 ROOT_DIR 挂到 /workspace/exo，并显式传入 --rw；因此模型通过 shell 不只可改 Prompt 和工具，也能改 crates/exoharness、guardian 脚本以及仓库内其他文件。",
+      "artifact": "exo.sh", "locator": "self repository mount, lines 634-648", "sha256": "6df5274d66e53687008c398060cbfb419e6b5852f216fc72c7f8699893842cb9",
+      "boundary": "这里确认的是默认挂载声明；容器运行时、宿主权限和外部只读文件系统仍可能施加额外限制。",
+      "source": {"label": "Exo source · canonical read-write mount", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/exo.sh#L634-L648"}
+    },
+    {
+      "id": "EXO-05", "kind": "observation", "confidence": "high",
+      "title": "自修改的激活入口是一个固定 guardian 操作",
+      "statement": "rebuild_and_restart_exo 不接受任意 host command，只生成 update id 和 queued record，然后异步调用 guardian 的 restart-all --build；当前 turn 可先结束，结果再写入 .exo/guardian-updates 并追加 host event。",
+      "artifact": "exo/tools/guardian-tools.ts", "locator": "queue and deferred handoff, lines 40-119", "sha256": "76a7438912e057f89f1414f459ce8174d051054384b31f849e33d77cd84adcff",
+      "boundary": "入口形状很窄，但它没有独立审批参数；能否激活取决于当前模型是否拥有该工具及 host 进程权限。",
+      "source": {"label": "Exo source · rebuild tool", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/exo/tools/guardian-tools.ts#L40-L119"}
+    },
+    {
+      "id": "EXO-06", "kind": "observation", "confidence": "high",
+      "title": "guardian 只构建 Exo binary 与 scheduler",
+      "statement": "guardian 的 build_all 执行 cargo build -p exo 和 scheduler-runner build，然后请求 REPL child 重启；这条路径没有自动运行完整测试、行为基准、候选对照或独立 evaluator。",
+      "artifact": "exo/scripts/exo-service-guardian", "locator": "build_all, lines 103-116", "sha256": "dc94d5e913e568f83cbc69bc6d9dfd4e0117811a8273a129fd97577cf1c917f9",
+      "boundary": "编译成功能阻止部分坏改动激活，但不能证明任务质量、安全性或长期收益提高。",
+      "source": {"label": "Exo source · guardian build", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/exo/scripts/exo-service-guardian#L103-L116"}
+    },
+    {
+      "id": "EXO-07", "kind": "observation", "confidence": "high",
+      "title": "事件、Prompt 与 artifact 是三种不同状态",
+      "statement": "事件以 UUIDv7 排序并持久追加，executor 从事件派生给模型的 Prompt；artifact 则是不可变、带版本的 bytes。压缩可以写成 custom event，但不会成为 exoharness 的硬编码语义。",
+      "artifact": "website/docs-src/concepts/data-model.md", "locator": "event and artifact model, lines 34-64", "sha256": "b3033d1cd184c2d542041ac766e479e243c43d895d72e7a33d1f43959644b8ab",
+      "boundary": "API 只追加不等于存储介质具备防篡改签名或 append-only filesystem 属性。",
+      "source": {"label": "Exo source · data model", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/website/docs-src/concepts/data-model.md#L34-L64"}
+    },
+    {
+      "id": "EXO-08", "kind": "observation", "confidence": "high",
+      "title": "文件后端把每个 event 写成普通 JSON object",
+      "statement": "BasicExoHarness 在 conversation/events 下按 event id 写单独 JSON 文件并更新 record.latest_event_id；读取时列出这些 JSON 再按 id 排序。写锁与 expected_head 保护并发顺序，但没有哈希链或签名验证历史完整性。",
+      "artifact": "crates/exoharness/src/basic.rs", "locator": "event append and load, lines 4462-4513 and 4592-4597", "sha256": "a0ec5c136f74f0e804082bd98be0442c3b5187c795156abb583654d6227c9d88",
+      "boundary": "这是默认 BasicObjectStore 的代码路径；远端 object store 可以有额外保留策略，但当前数据模型没有要求密码学防篡改。",
+      "source": {"label": "Exo source · file-backed event append", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/crates/exoharness/src/basic.rs#L4462-L4513"}
+    },
+    {
+      "id": "EXO-09", "kind": "inference", "confidence": "high",
+      "title": "默认部署的 trusted substrate 不是强制不可触碰",
+      "statement": "官方文档说 canonical state 位于宿主 .exo，启动脚本又把包含 .exo 与 crates/exoharness 的整个 ROOT_DIR 以 --rw 挂进模型可执行 shell 的沙箱。按这组默认路径推断，模型可破坏事件文件或修改底座源码；“trusted”目前更多是架构责任与建议边界，不是同一份默认配置中的不可变隔离。",
+      "artifact": "exo.sh + website/docs-src/concepts/lifecycles.md", "locator": "read-write root mount and host state location", "sha256": "6df5274d66e53687008c398060cbfb419e6b5852f216fc72c7f8699893842cb9",
+      "boundary": "这项推断没有在本机安装并运行 Exo 做破坏性验证；若部署方把 .exo 放到未挂载位置、使用只读 checkout、MAC policy 或独立远端 storage，这个风险会缩小。",
+      "source": {"label": "Exo source · read-write root mount", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/exo.sh#L645-L648"}
+    },
+    {
+      "id": "EXO-10", "kind": "observation", "confidence": "high",
+      "title": "沙箱回滚不会回滚全部 Agent 状态",
+      "statement": "snapshot_sandbox 与 rewind_sandbox 只操作所选沙箱的文件系统；conversation event、artifact、adapter、scheduler、secret 与 git 工作树属于其他状态面。项目自己的自控文档明确把 git restore/revert、manage_tool 与 disable_adapter 列为不同回滚路径。",
+      "artifact": "docs/SELF-CONTROL.md", "locator": "sandbox and rollback contracts, lines 104-118 and 180-189", "sha256": "7fbca83caf8313b30076b1f3bf4141cdfc4e6077f8b2a99ef0ec2f123454d559",
+      "boundary": "snapshot 支持依赖 backend；attached sandbox 与远端 provider 不保证同等能力。",
+      "source": {"label": "Exo source · self-control rollback", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/docs/SELF-CONTROL.md#L180-L189"}
+    },
+    {
+      "id": "EXO-11", "kind": "observation", "confidence": "high",
+      "title": "持久记忆很小、可审计，但并发会丢更新",
+      "statement": "remember 把最多 200 条、每条最多 600 字符的事实写入 agent artifact，并在每轮完整注入；源码 TODO 明确指出跨 conversation 的 read-modify-write 没有 compare-and-swap，两轮并发可能都从 N 写 N+1，丢掉其中一次更新。",
+      "artifact": "exo/tools/memory-tools.ts", "locator": "memory bounds and write race, lines 15-22 and 71-84", "sha256": "5ffe2002f87ac6ab9385cbb30bae471fb823a0ced52f215b53fdda90f22a64a5",
+      "boundary": "这是事实记忆工具，不是针对长历史的语义检索，也不是学习参数或自动经验归纳。",
+      "source": {"label": "Exo source · durable memory", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/exo/tools/memory-tools.ts#L15-L84"}
+    },
+    {
+      "id": "EXO-12", "kind": "observation", "confidence": "high",
+      "title": "工具与 Prompt 可以演化，但没有统一候选实验协议",
+      "statement": "工具可以通过 manage_tool 从 workspace-relative source 安装，Prompt 与 tool schema 则通过普通代码修改后 commit、build、restart 生效。项目规范要求先检查、优先可逆、风险操作前 snapshot，但这些是 Prompt 和操作流程，不是自动生成候选、评分并择优的优化器。",
+      "artifact": "docs/SELF-CONTROL.md", "locator": "tools and prompt evolution, lines 120-162", "sha256": "7fbca83caf8313b30076b1f3bf4141cdfc4e6077f8b2a99ef0ec2f123454d559",
+      "boundary": "受约束的工具 manifest 和 git history 提高可审计性，不等同于证明修改带来性能提升。",
+      "source": {"label": "Exo source · extension and prompt evolution", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/docs/SELF-CONTROL.md#L120-L162"}
+    },
+    {
+      "id": "EXO-13", "kind": "observation", "confidence": "high",
+      "title": "conversation fork 已有，完整 Agent 克隆仍未完成",
+      "statement": "公开文档的 time travel 允许从历史 event fork 新 conversation；但 SELF-CONTROL 把完整 cloning and migration 标为 not yet built，并指出新 sandbox 从旧 snapshot 并行启动、secret reprovision 与 external identity handoff 仍缺少完整产品路径。",
+      "artifact": "docs/SELF-CONTROL.md", "locator": "cloning and migration gaps, lines 164-178", "sha256": "7fbca83caf8313b30076b1f3bf4141cdfc4e6077f8b2a99ef0ec2f123454d559",
+      "boundary": "底层已有 conversation fork、sandbox fork/restore 等 primitive；这里说的是 canonical Agent 没有把代码、状态、凭据、沙箱与外部身份打包成完整 clone。",
+      "source": {"label": "Exo source · cloning gap", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/docs/SELF-CONTROL.md#L164-L178"}
+    },
+    {
+      "id": "EXO-14", "kind": "inference", "confidence": "high",
+      "title": "目前更准确的分类是 RSM 平台，而不是闭环 RSI",
+      "statement": "Exo 已实现 recursive self-modification 所需的可见源码、可写 Prompt/工具/Harness、可重建激活、持久历史与多种回滚原语；但 main 中没有统一 improvement objective、自动候选生成、隔离 canary、独立 evaluator、统计比较、adoption gate 或跨代收益曲线。",
+      "artifact": "docs/SELF-CONTROL.md + exo/scripts/exo-service-guardian", "locator": "implemented primitives and stated canary gap", "sha256": "7fbca83caf8313b30076b1f3bf4141cdfc4e6077f8b2a99ef0ec2f123454d559",
+      "boundary": "项目分支或作者私有实验可能有额外评测；固定 main 只能支持“能改自己并恢复”，不能支持“已经递归地产生可测净改进”。",
+      "source": {"label": "Exo source · self-verification gap", "url": "https://github.com/exoharness/exo/blob/7801005e6a1ab77008a05dbba80e0a2a7a56e35d/docs/SELF-CONTROL.md#L180-L189"}
+    }
+  ],
+  "unknowns": [
+    {"id": "EXO-KU-01", "title": "默认 trusted substrate 能否抵抗模型直接写文件", "text": "静态配置显示 ROOT_DIR 以读写方式进入沙箱，尚未在真实安装中确认 .exo 是否被额外遮蔽、重定位或受宿主策略保护。", "needed": "在隔离测试机完成默认安装，检查 mount namespace、.exo 可见性和对 event 文件的写权限，只做可恢复的 canary。"},
+    {"id": "EXO-KU-02", "title": "自修改是否真的提高任务表现", "text": "仓库描述了游戏学习与成本优化，但固定 main 没有一套可审计的基线、候选、重复试验和 adoption receipt。", "needed": "选择一个稳定任务集，冻结模型与预算，保存改写前后多次运行、成本、失败率和独立 evaluator 结果。"},
+    {"id": "EXO-KU-03", "title": "完整 Agent clone 的产品合同", "text": "conversation fork 和 sandbox primitive 已存在，但 code、.exo state、secret、sandbox 与 adapter identity 的整体 lineage 仍没有已发布合同。", "needed": "实现并验证 export/import receipt、secret reprovision、外部身份单主切换与 cloned_from event。"},
+    {"id": "EXO-KU-04", "title": "改坏 executor 后谁来判定与回滚", "text": "guardian 能记录 build 成败，但 build 通过后的行为退化、静默错误或错误完成没有独立观察者自动判定。", "needed": "加入旧版本外部 supervisor、隔离 canary、健康探针、任务 verifier 与超时自动回退。"},
+    {"id": "EXO-KU-05", "title": "event log 的防篡改与灾备强度", "text": "append-only 是 API 语义；普通 JSON object 缺少哈希链、签名、WORM storage 与异机副本的公开保证。", "needed": "定义 threat model，增加 content hash chain、外部 checkpoint、只写凭证与恢复演练。"},
+    {"id": "EXO-KU-06", "title": "成本与多 Agent lineage 如何收敛", "text": "代码已有 per-turn cost annotation 与 fork primitive，但 main 尚未给出 clone 数、总预算、冲突合并和停止条件的默认政策。", "needed": "为 lineage 定义预算树、贡献归因、合并规则、重复劳动检测和硬停止 receipt。"}
+  ]
+}

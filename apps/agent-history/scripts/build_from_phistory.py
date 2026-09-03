@@ -91,6 +91,11 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Prime Agent 自改进 RLM Harness、持久目标与长任务运行时的版本历史。",
         "projectUrl": "https://github.com/PrimeIntellect-ai/prime-agent",
     },
+    "exo": {
+        "label": "Exo",
+        "description": "Exo 可递归改写 Agent Harness、持久事件日志与沙箱恢复机制的源码快照历史。",
+        "projectUrl": "https://github.com/exoharness/exo",
+    },
     "antigravity": {
         "label": "Antigravity CLI",
         "description": "Google Antigravity CLI Runtime Prompt 与工具的版本历史。",
@@ -173,6 +178,7 @@ PREFERRED_AGENT_ORDER = (
     "maka",
     "crush",
     "prime-agent",
+    "exo",
     "antigravity",
     "grok",
     "kimi-code",

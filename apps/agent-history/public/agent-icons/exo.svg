@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 266" role="img" aria-labelledby="title">
+  <title id="title">Exo</title>
+  <g fill="#111827">
+    <path d="M0 0 87 45v90L0 75Z"/>
+    <path d="m0 266 87-45v-90L0 191Z"/>
+    <path d="m200 0-87 45v90l87-60Z"/>
+    <path d="m200 266-87-45v-90l87 60Z"/>
+  </g>
+</svg>

@@ -174,6 +174,7 @@
     "qwen-code": "/agent-icons/qwen-code.svg",
     reasonix: "/agent-icons/reasonix.svg",
     "deepseek-harness": "/agent-icons/deepseek-harness.svg",
+    exo: "/agent-icons/exo.svg",
   };
 
   const sourceLayerIcons = {

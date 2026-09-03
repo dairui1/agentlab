@@ -20,7 +20,7 @@ import sys
 import tempfile
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
@@ -30,6 +30,7 @@ from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import (
     GITHUB_RELEASE_SOURCES,
+    GITHUB_SNAPSHOT_SOURCES,
     NPM_RELEASE_SOURCES,
     NO_PUBLIC_SOURCE_AGENTS,
     OFFICIAL_REPOSITORIES,
@@ -1073,6 +1074,70 @@ def github_commits(
     return sorted(commits, key=lambda item: parse_capture_timestamp(item["committedAt"]))
 
 
+def github_snapshot_releases(
+    cache: HttpCache,
+    *,
+    repository: str,
+    product_name: str,
+    base_version: str,
+    count: int,
+    timeout: float,
+    allow_stale_on_error: bool,
+) -> list[dict[str, object]]:
+    """Represent the newest untagged commits as explicitly unstable snapshots."""
+    if count < 1 or count > 20:
+        raise OfficialSyncError(f"invalid GitHub snapshot count for {repository}: {count}")
+    version_key(base_version)
+    url = f"https://api.github.com/repos/{repository}/commits?per_page={count}&page=1"
+    response = cache.fetch(
+        url,
+        accept="application/vnd.github+json",
+        max_bytes=MAX_JSON_RESPONSE_BYTES,
+        timeout=timeout,
+        allow_stale_on_error=allow_stale_on_error,
+        cache_variant="github-commit-snapshot-minimal-v1",
+        transform=minimize_github_commits,
+    )
+    value = github_json(response, url=url)
+    if not isinstance(value, list) or not value:
+        raise OfficialSyncError(f"GitHub snapshot source has no commits: {repository}")
+
+    releases: list[dict[str, object]] = []
+    for raw in value:
+        if not isinstance(raw, dict):
+            continue
+        sha = raw.get("sha")
+        committed_at = raw.get("committedAt")
+        if (
+            not isinstance(sha, str)
+            or not re.fullmatch(r"[0-9a-f]{40}", sha)
+            or not isinstance(committed_at, str)
+        ):
+            raise OfficialSyncError(f"invalid GitHub snapshot commit: {repository}")
+        parsed = datetime.fromisoformat(committed_at.replace("Z", "+00:00"))
+        stamp = parsed.astimezone(timezone.utc).strftime("%Y%m%d%H%M%S")
+        version = f"{base_version}-dev.{stamp}.{sha[:8]}"
+        version_key(version)
+        source_url = f"https://github.com/{repository}/commit/{sha}"
+        releases.append(
+            {
+                "version": version,
+                "sourceRef": sha,
+                "tag": sha,
+                "commitSha": sha,
+                "title": f"{product_name} snapshot {sha[:8]}",
+                "sourceUrl": source_url,
+                "publishedAt": committed_at,
+                "notes": notes_value(
+                    "",
+                    source_kind="github-commit-snapshot",
+                    source_url=source_url,
+                ),
+            }
+        )
+    return sorted(releases, key=lambda item: version_key(str(item["version"])))
+
+
 def github_releases(
     cache: HttpCache,
     *,
@@ -1990,6 +2055,47 @@ def sync(
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
             previous_value=previous_values.get(agent),
+        )
+        normalized_values[agent] = normalized_agent(
+            agent=agent,
+            repository=repository,
+            releases=retained,
+            documents=[],
+        )
+
+    for agent, config in GITHUB_SNAPSHOT_SOURCES.items():
+        if agent not in selected:
+            continue
+        repository = str(config["repository"])
+        complete = github_snapshot_releases(
+            cache,
+            repository=repository,
+            product_name=str(config["label"]),
+            base_version=str(config["baseVersion"]),
+            count=int(config.get("snapshotCount", 2)),
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        retained = [
+            dict(release)
+            for release in retained_release_history(
+                normalized_root,
+                agent,
+                complete,
+                previous_value=previous_values.get(agent),
+            )
+        ]
+        attach_code_compares(
+            retained,
+            cache,
+            repository=repository,
+            pairs=comparison_pairs(
+                retained,
+                captured.get(agent, ()),
+                newest_count=max_comparisons,
+            ),
+            timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
         )
         normalized_values[agent] = normalized_agent(
             agent=agent,

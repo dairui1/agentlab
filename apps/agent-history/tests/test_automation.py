@@ -1091,6 +1091,7 @@ class SourceCaptureSyncTests(unittest.TestCase):
             set(source_sync.SOURCE_CAPTURE_SOURCES),
         )
         self.assertIn("deepseek-harness", source_sync.SOURCE_AGENTS)
+        self.assertIn("exo", source_sync.SOURCE_AGENTS)
 
     def test_materializes_npm_release_with_artifact_provenance(self):
         with tempfile.TemporaryDirectory() as raw:

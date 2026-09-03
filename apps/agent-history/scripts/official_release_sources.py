@@ -27,6 +27,18 @@ GITHUB_RELEASE_SOURCES = {
     "reasonix": {"repository": "esengine/DeepSeek-Reasonix", "label": "Reasonix", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
 }
 
+# Some active harnesses publish directly from main without tags or Releases.
+# Keep a bounded commit-snapshot lane for them rather than pretending a source
+# commit is a stable release.
+GITHUB_SNAPSHOT_SOURCES = {
+    "exo": {
+        "repository": "exoharness/exo",
+        "label": "Exo",
+        "baseVersion": "0.1.0",
+        "snapshotCount": 2,
+    },
+}
+
 NPM_RELEASE_SOURCES = {
     "grok": {
         "repository": "xai-org/grok-build",
@@ -97,6 +109,7 @@ SOURCE_CAPTURE_SINCE = "2026-06-09T00:00:00Z"
 OFFICIAL_REPOSITORIES = {
     **SPECIAL_OFFICIAL_REPOSITORIES,
     **{agent: str(config["repository"]) for agent, config in GITHUB_RELEASE_SOURCES.items()},
+    **{agent: str(config["repository"]) for agent, config in GITHUB_SNAPSHOT_SOURCES.items()},
     **{agent: str(config["repository"]) for agent, config in NPM_RELEASE_SOURCES.items()},
 }
 
@@ -108,6 +121,14 @@ SOURCE_CAPTURE_SOURCES = {
             "package": str(config["repository"]),
         }
         for agent, config in GITHUB_RELEASE_SOURCES.items()
+    },
+    **{
+        agent: {
+            "repository": str(config["repository"]),
+            "label": str(config["label"]),
+            "package": str(config["repository"]),
+        }
+        for agent, config in GITHUB_SNAPSHOT_SOURCES.items()
     },
     **{
         agent: {

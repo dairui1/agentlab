@@ -34,6 +34,7 @@ const articles = {
   "browser-use": read("capabilities/browser-use.html"),
   "computer-use": read("capabilities/computer-use.html"),
   "deepseek-harness-architecture": read("capabilities/deepseek-harness-architecture.html"),
+  "exo-recursive-harness": read("capabilities/exo-recursive-harness.html"),
   "goal-mode": read("capabilities/goal-mode.html"),
   "token-budget-context": read("capabilities/token-budget-context.html"),
 };
@@ -41,6 +42,7 @@ const studies = {
   "browser-use": JSON.parse(read("capabilities/browser-use.json")),
   "computer-use": JSON.parse(read("capabilities/computer-use.json")),
   "deepseek-harness-architecture": JSON.parse(read("capabilities/deepseek-harness-architecture.json")),
+  "exo-recursive-harness": JSON.parse(read("capabilities/exo-recursive-harness.json")),
   "goal-mode": JSON.parse(read("capabilities/goal-mode.json")),
   "token-budget-context": JSON.parse(read("capabilities/token-budget-context.json")),
 };
@@ -150,7 +152,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "TokenBudget", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
@@ -174,6 +176,7 @@ test("all public surfaces expose Goal Mode as the shared current research entry"
 
   assert.match(capabilitiesHtml, /<agentlab-navigation[^>]+current="auto"/);
   assert.match(articles["goal-mode"], /<agentlab-navigation[^>]+current="goal"/);
+  assert.match(articles["exo-recursive-harness"], /<agentlab-navigation[^>]+current="exo"/);
   for (const html of [mechanismsHtml, articles["browser-use"], articles["computer-use"], articles["deepseek-harness-architecture"]]) {
     assert.doesNotMatch(html, /<agentlab-navigation[^>]+current=/);
   }
@@ -290,6 +293,7 @@ test("headline evidence keeps the direct anchors selected in adversarial review"
     "goal-mode": ["GM-04"],
     "token-budget-context": ["TB-01", "TB-03", "TB-05", "TB-08"],
     "deepseek-harness-architecture": ["DSH-02", "DSH-04", "DSH-06", "DSH-09", "DSH-11"],
+    "exo-recursive-harness": ["EXO-01", "EXO-04", "EXO-06", "EXO-09", "EXO-14"],
     "subagent-orchestration": ["CC-06", "CX-04", "OC-01"],
     "session-resume": ["SES-CC-05", "SES-CX-11", "SES-OC-04"],
     "context-compaction": ["CMP-CC-06", "CMP-CX-05", "CMP-OC-06"],
@@ -665,6 +669,28 @@ test("DeepSeek Harness architecture pins one public source revision and keeps in
   assert.match(html, /<td>Headless<\/td><td>最后一条非空 assistant text<\/td><td>无会话级入口<\/td>/);
   assert.doesNotMatch(html, /<td>Headless<\/td>[\s\S]*?<td>终止进程<\/td>/);
   assert.match(articles["goal-mode"], /href="\/capabilities\/deepseek-harness-architecture\.html"/);
+});
+
+test("Exo study pins source, separates self-modification from RSI, and exposes the trust gap", () => {
+  const study = studies["exo-recursive-harness"];
+  assert.deepEqual(Object.keys(study).sort(), [
+    "boundary", "description", "evidence", "id", "number", "product", "scope",
+    "status", "subtitle", "title", "unknowns", "verifiedAt",
+  ]);
+  assert.equal(study.id, "exo-recursive-harness");
+  assert.equal(study.number, "005");
+  assertEvidence(study, "EXO");
+  assertUnknowns(study, "EXO");
+
+  const revision = "7801005e6a1ab77008a05dbba80e0a2a7a56e35d";
+  for (const claim of study.evidence) {
+    assert.match(claim.source.url, new RegExp(`^https://github\\.com/exoharness/exo/blob/${revision}/`));
+  }
+  assert.match(study.description, /递归自修改平台，不是已经证明会持续变好的 RSI 算法/);
+  assert.match(study.evidence.find((claim) => claim.id === "EXO-09").statement, /trusted/);
+  assert.match(articles[study.id], /RSM 平台/);
+  assert.match(articles[study.id], /clone canary/);
+  assert.match(articles[study.id], /data-evidence="EXO-01 EXO-04 EXO-09"/);
 });
 
 test("Goal Mode publishes product conclusions without exposing the local research trail", () => {
@@ -1117,7 +1143,7 @@ test("Goal Mode lab renders with safe DOM APIs, keyboard traversal, URL state, a
   assert.doesNotMatch(goalModeLabStyles, /font-size:\s*clamp\([^;]*(?:vw|vmin|vmax)/);
 });
 
-test("Computer Use, Goal Mode, and DeepSeek Harness copy follow the de-ai-ify writing contract", () => {
+test("research articles follow the de-ai-ify writing contract", () => {
   assert.match(deAiSkill, /^name: de-ai-ify$/m);
   assert.match(deAiSkill, /不要编/);
   assert.match(deAiSkill, /HTML[\s\S]*JavaScript[\s\S]*JSON/);
@@ -1137,6 +1163,8 @@ test("Computer Use, Goal Mode, and DeepSeek Harness copy follow the de-ai-ify wr
     goalModeLabScript,
     articles["deepseek-harness-architecture"],
     JSON.stringify(studies["deepseek-harness-architecture"]),
+    articles["exo-recursive-harness"],
+    JSON.stringify(studies["exo-recursive-harness"]),
     articleScript,
   ].join("\n");
 
