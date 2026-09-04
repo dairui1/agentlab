@@ -154,7 +154,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "Kimi Computer Use", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "Computer Use", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
@@ -179,8 +179,9 @@ test("all public surfaces expose Goal Mode as the shared current research entry"
   assert.match(capabilitiesHtml, /<agentlab-navigation[^>]+current="auto"/);
   assert.match(articles["goal-mode"], /<agentlab-navigation[^>]+current="goal"/);
   assert.match(articles["exo-recursive-harness"], /<agentlab-navigation[^>]+current="exo"/);
-  assert.match(articles["kimi-computer-use"], /<agentlab-navigation[^>]+current="kimi-cu"/);
-  for (const html of [mechanismsHtml, articles["browser-use"], articles["computer-use"], articles["deepseek-harness-architecture"]]) {
+  assert.match(articles["kimi-computer-use"], /<agentlab-navigation[^>]+current="computer-use"/);
+  assert.match(articles["computer-use"], /<agentlab-navigation[^>]+current="computer-use"/);
+  for (const html of [mechanismsHtml, articles["browser-use"], articles["deepseek-harness-architecture"]]) {
     assert.doesNotMatch(html, /<agentlab-navigation[^>]+current=/);
   }
 });
@@ -377,43 +378,37 @@ test("all full implementation notes keep semantic navigation and evidence contro
   }
 });
 
-test("Computer Use headings form one implementation map instead of unrelated editorial hooks", () => {
+test("Computer Use headings form one cross-implementation map instead of unrelated editorial hooks", () => {
   const html = articles["computer-use"];
   const toc = html.match(/<aside\b[^>]*id="articleToc"[^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
   const tocTitles = [...toc.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => plainText(match[1]));
   const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
     .map((match) => plainText(match[1]));
 
-  assert.match(html, /<span class="article-series">固定构建实现研究<\/span>/);
-  assert.match(html, /<h1>Codex Computer Use<\/h1>/);
+  assert.match(html, /<span class="article-series">多实现源码研究<\/span>/);
+  assert.match(html, /<h1>Computer Use 实现地图<\/h1>/);
   assert.deepEqual(articleSectionIds(html), [
-    "thesis",
-    "two-entries",
-    "trusted-runtime",
-    "permission-stack",
-    "policy-roundtrip",
-    "observation-model",
-    "action-surface",
-    "feedback-loop",
-    "failure-model",
-    "adjacent-channels",
-    "release-anatomy",
-    "open-questions",
+    "verdict",
+    "four-stacks",
+    "state-contract",
+    "action-contract",
+    "permissions",
+    "recovery",
+    "choice",
+    "codex-trace",
+    "evidence-boundary",
   ]);
   assert.deepEqual(tocTitles, sectionTitles, "TOC and section headings should use the same implementation labels");
   assert.deepEqual(sectionTitles.map((title) => title.split("：")[0]), [
-    "整体架构",
-    "调用入口",
-    "信任边界",
-    "权限模型",
-    "App Policy",
-    "状态观察",
-    "动作接口",
-    "执行闭环",
-    "故障恢复",
-    "相邻组件",
-    "证据范围",
-    "结论与边界",
+    "核心判断",
+    "四套栈",
+    "观察合同",
+    "动作合同",
+    "权限边界",
+    "失败恢复",
+    "怎么选",
+    "Codex 追踪器",
+    "证据边界",
   ]);
 
   assert.doesNotMatch(

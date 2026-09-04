@@ -74,28 +74,6 @@
       "legacyHref": "/capabilities/deepseek-harness-architecture.html"
     },
     {
-      "id": "kimi-computer-use",
-      "title": "Kimi Computer Use",
-      "question": "Kimi Code 为什么能在后台操作桌面，又是谁真正持有系统权限？",
-      "implication": "把 Plugin 就绪、MCP 连接、后台服务、系统权限和动作验证分开观察；界面变化或弱回读后必须重新取状态，不能复用旧 index，也不能让执行者自证成功。",
-      "boundary": "研究锁定 Kimi Code 提交 b184b31497949ac019ac43d5a3dfe2ab87dbebc4，以及 2026-09-04 下载并记录 SHA-256 的 KimiCU 0.5.8 macOS 发行包。没有安装、授权或执行真实 GUI 任务；原生执行层为专有二进制。",
-      "editorialRank": 4,
-      "verifiedAt": "2026-09-04",
-      "kind": "fixed-build",
-      "kindLabel": "源码与发行包",
-      "topic": "界面自动化",
-      "products": [
-        { "id": "kimi-code", "label": "Kimi Code", "version": "0.33+ / KimiCU 0.5.8" }
-      ],
-      "fact": "Kimi Code 管理 capability 生命周期和 MCP 接线，独立 KimiCU launchd/XPC 服务持有 macOS 权限，并组合 AX 快照、截图与窗口定向输入完成后台操作。",
-      "sourceKinds": ["固定版本源码", "官方 Plugin", "签名发行包"],
-      "headlineEvidence": ["KCU-03", "KCU-04", "KCU-06", "KCU-07", "KCU-09"],
-      "evidenceCount": 12,
-      "unknownCount": 5,
-      "data": "/capabilities/kimi-computer-use.json",
-      "legacyHref": "/capabilities/kimi-computer-use.html"
-    },
-    {
       "id": "subagent-orchestration",
       "title": "Sub-agent 编排",
       "question": "把任务交给 Sub-agent，究竟隔离了什么？",
@@ -316,23 +294,26 @@
     },
     {
       "id": "computer-use",
-      "title": "Computer Use",
-      "question": "从模型意图到系统输入，中间谁真正拥有权限？",
-      "implication": "把客户端请求、策略判定、服务回执和系统权限分开记录。动作结果不确定时先重新观察界面，不要把重发当成无害操作。",
-      "boundary": "研究锁定 Codex for macOS build 6234 的静态发行包。原生服务没有完整源码，静态证据也不能确认当前会话实际走 node_repl 还是相邻 MCP 入口。",
-      "editorialRank": 14,
-      "verifiedAt": "2026-08-10",
-      "kind": "fixed-build",
-      "kindLabel": "固定构建",
+      "title": "Computer Use 实现地图",
+      "question": "Codex、Kimi、Pi 与 DSH 都会点屏幕，为什么状态合同才决定它们是否可靠？",
+      "implication": "动作必须绑定一份可识别的观察；把事件投递、结果验证和后继状态分开记录。结果不确定时先重新观察，不能把自动重发当成无害操作。",
+      "boundary": "Codex 与 Kimi 的原生执行层仍受闭源边界限制；Pi v0.5.1 与 AzaiSakura DSH 固定到公开 commit 做源码核验。本次没有安装 helper、授予系统权限或运行同任务 GUI 基准。",
+      "editorialRank": 4,
+      "verifiedAt": "2026-09-04",
+      "kind": "comparison",
+      "kindLabel": "实现对照",
       "topic": "界面自动化",
       "products": [
-        { "id": "codex", "label": "Codex for macOS", "version": "build 6234" }
+        { "id": "codex", "label": "Codex", "version": "build 6234" },
+        { "id": "kimi-code", "label": "Kimi Code", "version": "KimiCU 0.5.8" },
+        { "id": "pi", "label": "Pi", "version": "pi-computer-use 0.5.1" },
+        { "id": "deepseek-harness", "label": "DSH", "version": "a572908" }
       ],
-      "fact": "主追踪链为 node_repl → @oai/sky → framed JSON-RPC → CUAService → macOS；安装包另带 MCP 入口，但静态证据不能确认当前会话走哪条。",
-      "sourceKinds": ["发行包", "固定文件摘要", "公开接口"],
-      "headlineEvidence": ["CU-09", "CU-11", "CU-13", "CU-16", "CU-19"],
-      "evidenceCount": 23,
-      "unknownCount": 9,
+      "fact": "四套实现都有 AX、截图与输入链；Pi 进一步用 immutable stateId、resource epoch、事务验证和 successor state 把观察与副作用连成可审计合同，是当前最完整的开源设计参考。",
+      "sourceKinds": ["固定发行包", "签名二进制", "固定版本源码", "协议合同"],
+      "headlineEvidence": ["CU-09", "CU-19", "CU-25", "CU-27", "CU-32"],
+      "evidenceCount": 34,
+      "unknownCount": 13,
       "data": "/capabilities/computer-use.json",
       "legacyHref": "/capabilities/computer-use.html"
     }

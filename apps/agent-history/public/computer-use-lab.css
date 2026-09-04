@@ -359,6 +359,19 @@
 }
 
 @media (max-width: 720px) {
+  .cua-scope-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+
+  .cua-scope-grid > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .cua-scope-grid > div:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+
   .cua-trace-header {
     grid-template-columns: minmax(0, 1fr);
     gap: 18px;

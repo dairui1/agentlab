@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="拆解 Codex Computer Use 的实现链路：node_repl、@oai/sky、App Policy、本地 IPC、CUAService，以及 macOS 截图、AX 与输入能力怎样衔接。">
-  <title>Codex Computer Use：从 node_repl 到 CUAService · 专题研究 · AgentLab</title>
+  <meta name="description" content="对照 Codex、Kimi、Pi 与 DSH 的 Computer Use 实现：状态身份、原生执行、权限、验证和失败恢复。">
+  <title>Computer Use 实现地图：Codex、Kimi、Pi 与 DSH · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
   <script src="/site-navigation.js"></script>
@@ -16,288 +16,117 @@
   <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
   <div class="app-shell article-shell">
     <header class="topbar">
-      <a class="brand" href="/" aria-label="AgentLab 首页">
-        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
-        <span class="brand-copy"><strong>AgentLab</strong><span>专题研究</span></span>
-      </a>
-      <agentlab-navigation></agentlab-navigation>
-      <div class="header-links">
-        <a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a>
-      </div>
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><span class="brand-copy"><strong>AgentLab</strong><span>专题研究</span></span></a>
+      <agentlab-navigation current="computer-use"></agentlab-navigation>
+      <div class="header-links"><a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a></div>
     </header>
-
     <main>
       <header class="article-hero">
         <div class="article-hero-inner">
           <div>
-            <nav class="article-breadcrumb" aria-label="面包屑">
-              <a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Computer Use</span>
-            </nav>
-            <span class="article-series">固定构建实现研究</span>
-            <h1>Codex Computer Use</h1>
-            <p class="article-dek">沿 Codex for macOS 的固定构建，拆开 Computer Use 的两种入口、App Policy、本地 IPC，以及截图、Accessibility 和动作原语怎样连接到 CUAService。</p>
-            <div class="article-byline">
-              <span>这次拆的是 26.730.61639 (6234)</span>
-              <span>2026-08-10 首次核验</span>
-              <span>静态实现拆解</span>
-            </div>
+            <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Computer Use</span></nav>
+            <span class="article-series">多实现源码研究</span>
+            <h1>Computer Use 实现地图</h1>
+            <p class="article-dek">Codex 和 Kimi 告诉我们成熟产品怎样把模型接到系统权限；Pi 和 DSH 把关键机制摊成源码。四套实现放在一起，真正拉开差距的不是“会不会点”，而是动作能否绑定一份没有过期的观察，并留下可验证的后继状态。</p>
+            <div class="article-byline"><span>Codex · Kimi · Pi · DSH</span><span>2026-09-04 核验</span><span>34 条固定证据</span></div>
           </div>
           <div class="article-product-mark" aria-hidden="true"><img src="/assets/capability-computer-use.svg" alt=""></div>
         </div>
       </header>
-
-      <section class="article-scope-band" aria-label="文章核验范围">
-        <div class="article-scope-grid">
-          <div><span>产品</span><strong>Codex for macOS</strong><small>版本 26.730.61639 · arm64</small></div>
-          <div><span>插件</span><strong>computer-use 1.0.1000621</strong><small>随包内置 · 专有组件</small></div>
-          <div><span>运行时</span><strong>Node 24.14.0 · @oai/sky 0.6.2</strong><small>cua_node 0.0.6</small></div>
-          <div><span>原生服务</span><strong>CUAService 26.803.1000621</strong><small>23 条固定文件证据</small></div>
+      <section class="article-scope-band" aria-label="研究样本">
+        <div class="article-scope-grid cua-scope-grid">
+          <div><span>闭源基线</span><strong>Codex build 6234</strong><small>node_repl · @oai/sky · CUAService</small></div>
+          <div><span>产品样本</span><strong>KimiCU 0.5.8</strong><small>Plugin · MCP · launchd/XPC</small></div>
+          <div><span>开源主样本</span><strong>Pi v0.5.1</strong><small>immutable state · epoch · transaction</small></div>
+          <div><span>早期复刻</span><strong>DSH a572908</strong><small>10 tools · JSON-RPC · Swift daemon</small></div>
         </div>
       </section>
-
       <div class="capability-reading">
         <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
-          <span>实现链与证据边界</span>
+          <span>先读结论，再进实现</span>
           <ol>
-            <li><a href="#thesis" data-index="01">整体架构：从模型调用到 macOS 原生能力</a></li>
-            <li><a href="#two-entries" data-index="02">调用入口：stdio MCP 与 node_repl</a></li>
-            <li><a href="#trusted-runtime" data-index="03">信任边界：@oai/sky 如何取得宿主特权</a></li>
-            <li><a href="#permission-stack" data-index="04">权限模型：动作确认、App Policy 与 macOS TCC</a></li>
-            <li><a href="#policy-roundtrip" data-index="05">App Policy：权限查询为什么也要经过 socket</a></li>
-            <li><a href="#observation-model" data-index="06">状态观察：截图与 AX 树如何组合成 AppState</a></li>
-            <li><a href="#action-surface" data-index="07">动作接口：十个 Window 原语如何进入 IPC</a></li>
-            <li><a href="#feedback-loop" data-index="08">执行闭环：观察、动作与结果验证</a></li>
-            <li><a href="#failure-model" data-index="09">故障恢复：按失败层判断能否重试</a></li>
-            <li><a href="#adjacent-channels" data-index="10">相邻组件：History、Skysight、PIP 与主动控制的边界</a></li>
-            <li><a href="#release-anatomy" data-index="11">证据范围：固定构建、文件摘要与推断强度</a></li>
-            <li><a href="#open-questions" data-index="12">结论与边界：这套实现能确认到哪一步</a></li>
+            <li><a href="#verdict" data-index="01">核心判断：Computer Use 是状态机，不是遥控器</a></li>
+            <li><a href="#four-stacks" data-index="02">四套栈：相似的外形，不同的责任边界</a></li>
+            <li><a href="#state-contract" data-index="03">观察合同：临时 index 和 stateId 差在哪里</a></li>
+            <li><a href="#action-contract" data-index="04">动作合同：送出事件不等于任务成功</a></li>
+            <li><a href="#permissions" data-index="05">权限边界：谁获准看，谁获准动</a></li>
+            <li><a href="#recovery" data-index="06">失败恢复：先判断副作用，再决定重试</a></li>
+            <li><a href="#choice" data-index="07">怎么选：产品使用与工程参考不是一回事</a></li>
+            <li><a href="#codex-trace" data-index="08">Codex 追踪器：沿旧逆向证据判断故障层</a></li>
+            <li><a href="#evidence-boundary" data-index="09">证据边界：这次确认了什么，还缺什么</a></li>
           </ol>
-          <div class="article-toc-note"><strong>证据范围</strong>manifest、JavaScript 和 IPC schema 可以直接读取；CUAService 的内部控制流只能根据签名二进制、链接框架、符号和字符串推断。下面描述的是固定构建里的静态实现关系，不是一次真实会话的运行 trace。</div>
+          <div class="article-toc-note"><strong>没有安装或授权</strong>这次锁定源码和发行包做静态研究，没有安装 Pi、DSH 或 Kimi helper，也没有新增 Accessibility 或 Screen Recording 权限。源码完整度与真实任务成功率是两回事。</div>
         </aside>
-
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">先看主线。在 <code>node_repl</code> 路径里，模型生成 JavaScript，可信 <code>@oai/sky</code> 把 Window 调用交给 typed client；App Policy 查询与状态、动作请求都经本地 socket 进入 CUAService，服务再连接 macOS 的屏幕捕获、Accessibility 和输入能力。安装包还保留 stdio MCP 入口，但两条入口不能画成同一条运行链。</p>
-
-          <section id="thesis" data-article-section>
-            <span class="section-number">01 / 整体架构</span>
-            <h2>整体架构：从模型调用到 macOS 原生能力</h2>
-            <p>只看界面，“模型在控制 Mac”这句话很顺口，却把中间最重要的几层全抹掉了。实际更像一场接力：模型说出意图，封装层（wrapper）找到目标 App，客户端（client）检查参数，传输层（transport）把请求塞进本地协议，最后才轮到 CUAService 和 macOS 处理屏幕、辅助功能与输入权限。原生二进制链接的框架和静态符号，确实都指向 macOS 辅助功能（Accessibility，简称 AX）、屏幕捕获和合成输入。不过要说清楚：这是静态证据支持的推断，不是已经还原出来的 Swift 控制流。<button class="evidence-ref" type="button" data-evidence="CU-05 CU-06 CU-07 CU-12 CU-13 CU-18 CU-19" data-evidence-trigger>CU-05–07,12–13,18–19</button></p>
-            <figure class="article-figure">
-              <div class="article-flow" style="--flow-count: 6">
-                <div><span>01</span><strong>模型调用</strong><small>node_repl 中的 root cell</small></div>
-                <div><span>02</span><strong>@oai/sky wrapper</strong><small>进入可信包并处理 App Policy</small></div>
-                <div><span>03</span><strong>typed client</strong><small>校验 policy / state / action 请求</small></div>
-                <div><span>04</span><strong>本地 transport</strong><small>framed JSON-RPC over Unix socket</small></div>
-                <div><span>05</span><strong>CUAService</strong><small>策略、状态捕获与动作执行</small></div>
-                <div><span>06</span><strong>macOS 原生能力</strong><small>ScreenCaptureKit / AX / CGEvent</small></div>
-              </div>
-              <figcaption>这是固定发行包里能核对出的静态实现关系，不是一次真实会话的运行 trace。stdio MCP 会从另一条入口进入原生侧，后文单独说明。</figcaption>
-            </figure>
-            <p>这条路看着绕，恰恰因为绕，出了问题才有地方查。App 没找到、策略拒绝、socket 超时、屏幕锁住、系统权限没开、AX 读不到，这些情况没必要都挤进一句“点击没反应”。这个固定构建列出了 21 类原生错误，wrapper 和 transport 也各自保留失败信号。先认出坏在哪一层，再谈重试。顺序不能反。<button class="evidence-ref" type="button" data-evidence="CU-16" data-evidence-trigger>CU-16</button></p>
-            <blockquote class="article-pullquote">靠近用户意图的那一层，不该顺手攥住系统权限；真正碰系统输入的那一层，也不该替模型猜用户到底想要什么。<small>我更愿意这样理解这套分工</small></blockquote>
+          <p class="article-lead">如果只记一句：可靠的 CUA（Computer-Using Agent）必须能回答四个问题：我刚才看的是哪一份界面？手里的元素还属于它吗？动作到底产生了什么结果？不知道时，系统会停下还是猜一个“成功”？</p>
+          <section id="verdict" data-article-section>
+            <span class="section-number">01 / 核心判断</span><h2>核心判断：Computer Use 是状态机，不是遥控器</h2>
+            <p>四套实现都能列窗口、读 Accessibility（AX）树、截屏、点击和输入。这只能说明它们有相似的“手脚”。真正决定可靠性的，是模型拿什么证明这只手正在操作刚才看见的那个界面。Codex 与 Kimi 的公开合同都反复要求动作后重新观察；DSH 也会保存最近一棵 AX 树；Pi 则更进一步，把根、元素、资源版本和后继状态写进公开协议。<button class="evidence-ref" type="button" data-evidence="CU-05 CU-15 CU-26 CU-28 CU-30 CU-31" data-evidence-trigger>CU-05,15,26,28,30–31</button></p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count: 5"><div><span>01</span><strong>找到根</strong><small>App / window / page</small></div><div><span>02</span><strong>固定观察</strong><small>AX + image + identity</small></div><div><span>03</span><strong>基于状态动作</strong><small>element ref / coordinate</small></div><div><span>04</span><strong>检查结果</strong><small>worked / didnt / unknown</small></div><div><span>05</span><strong>保存后继状态</strong><small>diff 或完整新观察</small></div></div><figcaption>前两步让动作有根据，后两步让副作用可追。缺任何一段，Agent 都可能拿旧地图操作新界面。</figcaption></figure>
+            <blockquote class="article-pullquote">“成功调用了点击工具”和“用户要的结果已经出现”，是两句完全不同的话。<small>这也是本专题选择 Pi 作为开源主样本的原因</small></blockquote>
           </section>
-
-          <section id="two-entries" data-article-section>
-            <span class="section-number">02 / 调用入口</span>
-            <h2>调用入口：stdio MCP 与 node_repl</h2>
-            <p>包里能找到两种入口。一种是走标准输入输出（stdio）的 MCP 客户端，由 <code>.mcp.json</code> 拉起安装后的 <code>SkyComputerUseClient</code>；另一种是 <code>node_repl</code>，也就是一个会保持状态的 Node JavaScript 控制台。模型只需导入一次 <code>@oai/sky</code>，后面可以继续复用同一份绑定。两边都认识 IPC-2 这套进程间通信 schema，但请求从哪儿来、会话能活多久，完全不是一回事。<button class="evidence-ref" type="button" data-evidence="CU-01 CU-02 CU-03 CU-05 CU-23" data-evidence-trigger>CU-01–03,05,23</button></p>
-            <div class="article-table-wrap"><table class="article-table">
-              <thead><tr><th>从哪儿进</th><th>上层怎么调用</th><th>能保持多久</th><th>在实现链中的位置</th></tr></thead>
-              <tbody>
-                <tr><td>node_repl + @oai/sky</td><td>模型生成 JavaScript，再调用 window 门面</td><td>内核会保持；客户端用到时才创建</td><td>主分析路径</td></tr>
-                <tr><td>stdio MCP 客户端</td><td>独立进程接收 MCP 请求</td><td>跟随 sidecar 辅助进程</td><td>并列入口</td></tr>
-              </tbody>
-            </table></div>
-            <p>安装包能证明两扇门都在，也足够让我们看清 <code>node_repl</code> 这一路怎么调用。它证明不了的，是某次真实会话里的功能开关（feature gate）最后选了哪一扇。所以看到“这个能力在包里”，先停一下，别顺手写成“这次调用肯定走过它”。</p>
-          </section>
-
-          <section id="trusted-runtime" data-article-section>
-            <span class="section-number">03 / 信任边界</span>
-            <h2>信任边界：@oai/sky 如何取得宿主特权</h2>
-            <p><code>cua_node</code> 把平台固定在 darwin-arm64，用的是 Node 24.14.0，还有自己那套 <code>node_repl</code>。模型写出的根单元（root cell）先待在不可信域里。只有包依赖图（package graph）通过路径或内容的信任规则，代码才会跨进可信上下文，拿到被冻结的特权桥（privileged bridge）。像 <code>nativePipe</code>、LaunchServices、<code>createElicitation</code>，甚至暂停外层超时计时器的能力，都藏在这条边界后面。会写代码，不等于能越过它。<button class="evidence-ref" type="button" data-evidence="CU-06 CU-09" data-evidence-trigger>CU-06,09</button></p>
-            <figure class="article-figure">
-              <div class="article-flow" style="--flow-count: 4">
-                <div><span>01</span><strong>模型写出的 root cell</strong><small>先待在不可信域</small></div>
-                <div><span>02</span><strong>可信导入器</strong><small>核对路径与内容摘要</small></div>
-                <div><span>03</span><strong>@oai/sky</strong><small>被冻结的特权桥</small></div>
-                <div><span>04</span><strong>原生服务</strong><small>握着 socket 与系统权限</small></div>
-              </div>
-              <figcaption>普通 root cell 就算能写 JavaScript，也不会自动拿到 <code>nativePipe</code>、LaunchServices 或用户询问（elicitation）能力。至于普通网络访问，还另受宿主沙箱约束；只看可信域规则，推不出那一层。</figcaption>
-            </figure>
-            <p>这里还有一个容易想多的地方：<code>@oai/sky</code> 并不是一只装着完整智能体的黑盒。第一次访问它的属性时，它才读取可信平台配置、创建 Mac 目标，随后把客户端缓存起来。那十个 window 原语做的事相当具体：把 snake_case 参数翻成 typed client 能吃的输入。它们不替模型规划任务，也不会直接去碰 AX 或 CGEvent。<button class="evidence-ref" type="button" data-evidence="CU-08 CU-10" data-evidence-trigger>CU-08,10</button></p>
-          </section>
-
-          <section id="permission-stack" data-article-section>
-            <span class="section-number">04 / 权限模型</span>
-            <h2>权限模型：动作确认、App Policy 与 macOS TCC</h2>
-            <p>把它想成三道各管各的门，会比较好懂。App policy 问的是：“这个会话能不能接触目标 App？”动作时确认问的是：“用户同意这次有风险的副作用了吗？”最后，macOS 的隐私权限系统 TCC 才决定服务能不能读屏幕、访问 Accessibility，或者发送输入。第一道门开了，另外两道不会跟着自动弹开。<button class="evidence-ref" type="button" data-evidence="CU-04 CU-11 CU-18 CU-19" data-evidence-trigger>CU-04,11,18,19</button></p>
-            <div class="article-table-wrap"><table class="article-table">
-              <thead><tr><th>哪道门</th><th>它在管什么</th><th>谁来做决定</th><th>拒绝时会看到什么</th></tr></thead>
-              <tbody>
-                <tr><td>动作确认</td><td>眼前这个有风险的动作</td><td>模型与用户的对话</td><td>动作发生前没有拿到确认</td></tr>
-                <tr><td>App policy</td><td>目标 bundle / App 路径</td><td>CUAService + 可信询问流程</td><td>denied / forbidden</td></tr>
-                <tr><td>macOS 系统权限</td><td>屏幕、AX 与输入</td><td>TCC + 原生服务</td><td>permissionsPending / notGranted</td></tr>
-              </tbody>
-            </table></div>
-            <p>遥测不是偷偷藏着的第四张通行证。适配器会尽力记下 client 启动、批准请求及结果、工具耗时和最终状态（terminal status）；就算记录失败，主调用也会继续。反过来，只看见这些事件，仍然推不出服务端会留存多久、怎样采样、何时删除。证据到哪，就说到哪。<button class="evidence-ref" type="button" data-evidence="CU-17" data-evidence-trigger>CU-17</button></p>
-          </section>
-
-          <section id="policy-roundtrip" data-article-section>
-            <span class="section-number">05 / App Policy</span>
-            <h2>App Policy：权限查询为什么也要经过 socket</h2>
-            <p>假设只是读取某个 App 当前的画面，JavaScript 也没资格在本地自说自话地判一句“允许”。wrapper 会调用 <code>MacComputerUseClient.getAppPolicy()</code>；typed client 再把 <code>ComputerUseIPCAppPolicyRequest</code> 交给 <code>MacNativePipeTransport</code>，经 socket 送进 CUAService。等服务回了 allowed、denied 或 forbidden，后面的路才知道能不能走。说白了，应用访问策略（App policy）不是 socket 前面那个轻飘飘的 <code>if</code>。光是问“能不能访问”，就已经跨过 socket 了。<button class="evidence-ref" type="button" data-evidence="CU-11 CU-12 CU-13" data-evidence-trigger>CU-11–13</button></p>
-            <figure class="article-figure">
-              <div class="article-flow" style="--flow-count: 6">
-                <div><span>01</span><strong>发起 window 调用</strong><small>参数指向某个 App</small></div>
-                <div><span>02</span><strong>wrapper 查策略</strong><small>先校验 data 属性</small></div>
-                <div><span>03</span><strong>socket 发问</strong><small>送出 AppPolicyRequest</small></div>
-                <div><span>04</span><strong>服务作决定</strong><small>允许 / 拒绝 / 禁止</small></div>
-                <div><span>05</span><strong>再询问用户</strong><small>只有策略准许时才出现</small></div>
-                <div><span>06</span><strong>读取或动作</strong><small>仍走同一条传输通道</small></div>
-              </div>
-              <figcaption>查询策略和真正读取状态、执行动作，走的是同一条传输通道。可见实现里的可信 <code>createElicitation</code> 负责询问 App 访问权；它不是一个替删除、付款或敏感数据传输自动分级的原生分类器。</figcaption>
-            </figure>
-            <p>服务只有在允许“去问用户”时，wrapper 才会打开可信批准流程，并把规范化的 App 路径（canonical appPath）写进一份新的冻结参数。组织规则拒绝了，或安全策略给出 forbidden，多点几次也不会翻篇。更重要的是，App 获准访问以后，高风险动作照样要单独确认。“可以看这个 App”和“可以替我发送、删除、付款”，根本就是两道题。<button class="evidence-ref" type="button" data-evidence="CU-04 CU-11" data-evidence-trigger>CU-04,11</button></p>
-          </section>
-
-          <section id="observation-model" data-article-section>
-            <span class="section-number">06 / 状态观察</span>
-            <h2>状态观察：截图与 AX 树如何组合成 AppState</h2>
-            <p><code>get_app_state</code> 一次会带回两份视角。skyshot 是窗口截图，保住按钮在哪、面板怎么排这些视觉关系；辅助功能文本（accessibility text）则给出控件角色、名称和临时索引。适配器把两份材料拼成 AppState。第一次碰某个 App 时，它还可能顺带附上这个 App 的操作提示；以后再读，则可以只回传 AX 的变化，少重复一大段没变的内容。<button class="evidence-ref" type="button" data-evidence="CU-14 CU-15" data-evidence-trigger>CU-14,15</button></p>
-            <p>两份材料，缺哪份都别扭。比如找一个有明确标签的按钮，优先看 AX，角色（role）、标签（label）和元素索引（element index）通常比一组坐标稳。可碰上画布或自定义控件，AX 也可能一片空白，这时就得回到同一轮截图。要是差量（diff）已经零碎到看不懂上下文，<code>disableDiff</code> 可以重新要一棵完整树。还有个细节很容易踩坑：窗口视口（viewport）里的坐标，不能和窗口外的桌面坐标混着算。</p>
-            <div class="article-callout"><strong>元素索引会过期，别把它当门牌号</strong><p>它只指向最近一次 <code>get_app_state</code> 返回的那个元素。点过按钮、切过页面，甚至界面自己刷新以后，都该重新观察。至于服务会不会把每一种过期索引都强制拒掉，目前没有直接证据。别替它补上这层保证。</p></div>
-          </section>
-
-          <section id="action-surface" data-article-section>
-            <span class="section-number">07 / 动作接口</span>
-            <h2>动作接口：十个 Window 原语如何进入 IPC</h2>
-            <p>Mac 侧的对外门面（facade）总共露出十个原语：<code>list_apps</code> 和 <code>get_app_state</code> 负责观察，另外八类负责动作。client 会分别检查 App、坐标、元素、滚动页数、按键和枚举值，再把它们翻成不同的 IPC 请求。底下虽然都挤进同一条 transport，上面却不能偷懒。一次滚动和一次文本输入，不该套同一份风险判断；出错以后，也不能不分青红皂白地自动重试。<button class="evidence-ref" type="button" data-evidence="CU-10 CU-12" data-evidence-trigger>CU-10,12</button></p>
-
+          <section id="four-stacks" data-article-section>
+            <span class="section-number">02 / 四套栈</span><h2>四套栈：相似的外形，不同的责任边界</h2>
+            <p>Codex 和 Kimi 的原生执行层没有完整开源，所以最硬的结论来自公开接线、工具合同、签名产物和静态符号；DSH 与 Pi 可以一路读进 daemon。它们不是同等证据下的跑分，也不是四个可以直接互换的安装包。<button class="evidence-ref" type="button" data-evidence="CU-09 CU-19 CU-24 CU-25 CU-27 CU-34" data-evidence-trigger>CU-09,19,24–25,27,34</button></p>
             <div class="article-tabs" data-article-tabs style="--tab-count: 4">
-              <div role="tablist" aria-label="按动作类型翻看 Computer Use 原语">
-                <button id="cuaObserve" type="button" role="tab" aria-selected="true" aria-controls="cuaPanelObserve">先看清</button>
-                <button id="cuaPoint" type="button" role="tab" aria-selected="false" aria-controls="cuaPanelPoint">点与拖</button>
-                <button id="cuaNavigate" type="button" role="tab" aria-selected="false" aria-controls="cuaPanelNavigate">键盘与滚动</button>
-                <button id="cuaEdit" type="button" role="tab" aria-selected="false" aria-controls="cuaPanelEdit">改文本</button>
-              </div>
-              <section id="cuaPanelObserve" class="article-tab-panel" role="tabpanel" aria-labelledby="cuaObserve">
-                <span>读界面</span><h3>list_apps / get_app_state</h3><p>先找出正在运行的 App，再拿窗口截图和 AX 文本。注意，“只是看看”也要经过 App policy；只读，不代表可以绕开目标 App 的授权。</p>
-                <div class="article-tab-spec"><div><small>找谁</small><strong>显示名称 / bundle id</strong></div><div><small>拿回什么</small><strong>截图 + AX 文本</strong></div><div><small>要留心</small><strong>画面里可能有敏感内容</strong></div></div>
-              </section>
-              <section id="cuaPanelPoint" class="article-tab-panel" role="tabpanel" aria-labelledby="cuaPoint" hidden>
-                <span>动指针</span><h3>click / drag / secondary action</h3><p>可以拿最新的元素索引，也可以拿窗口坐标来定位。secondary action 还要看服务和 AX 控件公开了什么动作名，不能因为“右键大概有这个选项”就凭空猜一个。</p>
-                <div class="article-tab-spec"><div><small>点哪里</small><strong>elementIndex / 坐标</strong></div><div><small>拿回什么</small><strong>动作响应</strong></div><div><small>要留心</small><strong>位置过期 / 动作有副作用</strong></div></div>
-              </section>
-              <section id="cuaPanelNavigate" class="article-tab-panel" role="tabpanel" aria-labelledby="cuaNavigate" hidden>
-                <span>走键盘</span><h3>press_key / scroll</h3><p>组合键会查枚举，滚动页数会查范围。参数过关还不算完，因为焦点可能已经跑了，滚动容器也可能不是刚才那个，当前窗口更会随时变化。</p>
-                <div class="article-tab-spec"><div><small>作用在哪</small><strong>当前焦点 / 滚动区域</strong></div><div><small>拿回什么</small><strong>原生输入响应</strong></div><div><small>要留心</small><strong>焦点漂移 / 快捷键副作用</strong></div></div>
-              </section>
-              <section id="cuaPanelEdit" class="article-tab-panel" role="tabpanel" aria-labelledby="cuaEdit" hidden>
-                <span>改内容</span><h3>set_value / select_text / type_text</h3><p>直接设值、选择文字、模拟键入，对控件的要求各不相同。尤其别小看一个换行：它可能直接把表单交出去，所以给模型的动作约定（contract）会在动作发生时把这类输入纳入风险判断。</p>
-                <div class="article-tab-spec"><div><small>改哪里</small><strong>可编辑的 AX 元素</strong></div><div><small>拿回什么</small><strong>设值 / 输入响应</strong></div><div><small>要留心</small><strong>敏感数据外传 / 意外提交</strong></div></div>
-              </section>
+              <div role="tablist" aria-label="查看四套 Computer Use 实现"><button id="stackCodex" type="button" role="tab" aria-selected="true" aria-controls="panelCodex">Codex</button><button id="stackKimi" type="button" role="tab" aria-selected="false" aria-controls="panelKimi">Kimi</button><button id="stackPi" type="button" role="tab" aria-selected="false" aria-controls="panelPi">Pi</button><button id="stackDsh" type="button" role="tab" aria-selected="false" aria-controls="panelDsh">DSH</button></div>
+              <section id="panelCodex" class="article-tab-panel" role="tabpanel" aria-labelledby="stackCodex"><span>闭源产品基线</span><h3>node_repl → @oai/sky → CUAService</h3><p>模型代码先留在不可信 realm，受信包才能取得 nativePipe、LaunchServices 和批准桥；App Policy 查询、状态与动作再经 framed JSON-RPC 进入原生服务。安装包另有 stdio MCP 入口，静态证据不能证明某次会话选了哪条。</p><div class="article-tab-spec"><div><small>状态</small><strong>AppState + 最新 index</strong></div><div><small>策略</small><strong>App Policy + TCC</strong></div><div><small>缺口</small><strong>原生控制流不可见</strong></div></div></section>
+              <section id="panelKimi" class="article-tab-panel" role="tabpanel" aria-labelledby="stackKimi" hidden><span>产品化接线</span><h3>Plugin → stdio MCP → launchd/XPC</h3><p>Kimi Code 把 Plugin、App、后台服务和系统权限拆成四种 capability 状态；独立 KimiCU.app 才持有 AX 与屏幕录制权限。原生层显式认识 stale snapshot，但公开工具仍以 app 和临时 index 为主。</p><div class="article-tab-spec"><div><small>状态</small><strong>快照 + 临时 index</strong></div><div><small>运维</small><strong>安装、服务、权限 doctor</strong></div><div><small>缺口</small><strong>执行层 proprietary</strong></div></div></section>
+              <section id="panelPi" class="article-tab-panel" role="tabpanel" aria-labelledby="stackPi" hidden><span>开源主样本</span><h3>Pi extension → state contract → platform backend</h3><p>Pi 不再公开一堆彼此松散的 click/type 工具，而是让 <code>act_ui</code> 消费一份不可变 state。macOS、Windows、Linux 和 CDP page 都进入同一 root forest，平台差异留在 backend 后面。</p><div class="article-tab-spec"><div><small>状态</small><strong>stateId + @e + epoch</strong></div><div><small>验证</small><strong>事务 + postcondition</strong></div><div><small>边界</small><strong>三平台能力并不对称</strong></div></div></section>
+              <section id="panelDsh" class="article-tab-panel" role="tabpanel" aria-labelledby="stackDsh" hidden><span>早期 clean-room 复刻</span><h3>Cordis tools → Unix socket → Swift daemon</h3><p>DSH 把 Codex 风格的十工具、长度前缀 JSON-RPC、Swift AX/截图/输入 daemon 和 turn 生命周期写得很直白，是理解协议的好教材。它的 actionPerformed 仍主要表示请求没抛错，状态和验证合同明显比 Pi 薄。</p><div class="article-tab-spec"><div><small>价值</small><strong>实现小、协议透明</strong></div><div><small>护栏</small><strong>peer UID + App approval</strong></div><div><small>短板</small><strong>无 stateId / postcondition</strong></div></div></section>
             </div>
           </section>
-
-          <section id="feedback-loop" data-article-section>
-            <span class="section-number">08 / 执行闭环</span>
-            <h2>执行闭环：观察、动作与结果验证</h2>
-            <p>靠谱的做法其实很朴素。先拿 AppState，用最新的 element index 找目标；实在没有 AX 节点，再退回同一轮截图的坐标。做完一步，或一小组紧挨着的动作，马上再读一次状态。为什么这么谨慎？因为窗口会换，焦点会跑，AX 树也会更新。几秒前的界面，不是永久有效的地图。<button class="evidence-ref" type="button" data-evidence="CU-05 CU-14 CU-15" data-evidence-trigger>CU-05,14,15</button></p>
-            <figure class="article-figure">
-              <div class="article-flow" style="--flow-count: 6">
-                <div><span>选路</span><strong>专用接口优先</strong><small>GUI 留作后备</small></div>
-                <div><span>认目标</span><strong>解析出目标 App</strong><small>拿到规范化身份</small></div>
-                <div><span>问权限</span><strong>策略走一个来回</strong><small>允许 / 拒绝 / 询问</small></div>
-                <div><span>看现场</span><strong>skyshot + AX</strong><small>只信刚拿到的状态</small></div>
-                <div><span>做一步</span><strong>局部 typed action</strong><small>把副作用圈小</small></div>
-                <div><span>回头看</span><strong>再次观察</strong><small>确认目标真的达成</small></div>
-              </div>
-              <figcaption>action 回了成功，只能说明服务接受或完成了这一步。用户真正要的结果有没有出现？得看重新观察后，界面上到底变了什么。</figcaption>
-            </figure>
-
+          <section id="state-contract" data-article-section>
+            <span class="section-number">03 / 观察合同</span><h2>观察合同：临时 index 和 stateId 差在哪里</h2>
+            <p>Codex、Kimi 与早期 DSH 都把模型引向“先取状态，再用最新 element index”。这比纯坐标稳，但 index 自己不说明来自哪次观察。DSH 的 Swift daemon 只在当前 AppSession 保存 <code>lastTree</code>；同一回合若界面更新或并发动作抢先发生，旧 index 仍可能指向另一棵树上的同一数字。turn/end 清理只能挡住跨回合泄漏，挡不住回合内部竞争。<button class="evidence-ref" type="button" data-evidence="CU-15 CU-26 CU-28" data-evidence-trigger>CU-15,26,28</button></p>
+            <p>Pi 的关键进步不是换了命名，而是把所有权写进协议：<code>@e12</code> 只属于一个 <code>stateId</code>；每个物理资源还有单调递增的 epoch。缓存查询可以并行，真正读写同一 App 进程则进入同一 lane；一份旧状态发起写操作时，会在事件送出前被拒绝。动作返回的新 <code>stateId</code> 才是下一步的合法起点。<button class="evidence-ref" type="button" data-evidence="CU-30 CU-31" data-evidence-trigger>CU-30–31</button></p>
+            <div class="article-callout"><strong>小白版区别</strong><p>临时 index 像“刚才画面里的第 12 个控件”；<code>stateId + @e12 + epoch</code> 像“照片 A 上的第 12 个控件，而且拍照后没人先改过这扇窗口”。后者才足够让系统在出手前发现地图过期。</p></div>
+          </section>
+          <section id="action-contract" data-article-section>
+            <span class="section-number">04 / 动作合同</span><h2>动作合同：送出事件不等于任务成功</h2>
+            <p>早期 DSH 的 TypeScript 工具只要 daemon request 没报错，就固定返回 <code>actionPerformed: true</code>；点击、拖拽、键入等路径还会先激活目标进程。调用方当然可以再取状态，但“执行”和“验证”没有被同一个合同锁住。Codex 的旧专题也暴露了类似风险：transport timeout 后看不到 exactly-once 回执，动作可能没发生，也可能发生了但响应丢了。<button class="evidence-ref" type="button" data-evidence="CU-13 CU-29" data-evidence-trigger>CU-13,29</button></p>
+            <p>Pi 的 <code>act_ui</code> 把一组依赖动作做成一项事务：先检查 base state，再按顺序 preflight、delivery、verification；可附上“Saved 出现”之类的语义 postcondition。helper 报 <code>worked</code>、<code>didnt</code> 或 <code>unknown</code>，bridge 保存完整后继状态，只有身份匹配可信时才显示紧凑 diff。事件被系统接受，不再自动等于业务结果成立。<button class="evidence-ref" type="button" data-evidence="CU-32" data-evidence-trigger>CU-32</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>结果</th><th>它真正表示什么</th><th>下一步</th></tr></thead><tbody><tr><td>worked</td><td>有可核对证据支持动作生效</td><td>使用返回的后继 state</td></tr><tr><td>didnt</td><td>已检查且没有达到要求</td><td>根据无副作用证据决定是否换策略</td></tr><tr><td>unknown</td><td>无法证明成功或失败</td><td>停止重放，重新观察</td></tr></tbody></table></div>
+          </section>
+          <section id="permissions" data-article-section>
+            <span class="section-number">05 / 权限边界</span><h2>权限边界：谁获准看，谁获准动</h2>
+            <p>四套实现最终都绕不开操作系统权限。Codex 还在上层加了受信 realm 与 App Policy；Kimi 把 Plugin、App、service 和 TCC 权限做成可诊断的独立状态；DSH 用 <code>ctx.approval</code> 管 App 首次访问，并用 <code>getpeereid</code> 与 0600 socket 限制本机同用户；Pi 的 <code>headless</code> 则把“不抢焦点、不动真实键鼠”提升为执行策略。<button class="evidence-ref" type="button" data-evidence="CU-09 CU-11 CU-18 CU-25 CU-28 CU-33" data-evidence-trigger>CU-09,11,18,25,28,33</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>门</th><th>回答的问题</th><th>不能替代什么</th></tr></thead><tbody><tr><td>模型/动作确认</td><td>这项副作用是否符合用户意图</td><td>不能授予操作系统权限</td></tr><tr><td>App 范围</td><td>Agent 是否可以接触这个目标</td><td>不能证明某次点击安全</td></tr><tr><td>本地进程认证</td><td>谁能连接原生 daemon</td><td>不能判断业务意图</td></tr><tr><td>TCC / OS capability</td><td>进程能否读屏、访问 AX、合成输入</td><td>不能替用户决定该不该做</td></tr></tbody></table></div>
+          </section>
+          <section id="recovery" data-article-section>
+            <span class="section-number">06 / 失败恢复</span><h2>失败恢复：先判断副作用，再决定重试</h2>
+            <p>UI Agent 最危险的默认值不是“失败”，而是把未知当失败后自动再做一次。按钮可能已经按下，只是 AX 没及时变化；文本可能已经输入，只是回执超时。Codex 的 21 类原生错误和 transport 错误必须分层读；Kimi 静态合同也明确区分 stale、弱回读与缓存失效；Pi 则禁止对模糊的 pointer 结果盲目重放。<button class="evidence-ref" type="button" data-evidence="CU-13 CU-16 CU-26 CU-32" data-evidence-trigger>CU-13,16,26,32</button></p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count: 4"><div><span>定位</span><strong>失败在哪层</strong><small>目标 / policy / TCC / transport</small></div><div><span>判断</span><strong>可能有副作用吗</strong><small>没有证据就按 unknown</small></div><div><span>观察</span><strong>取得新状态</strong><small>不要复用旧 ref</small></div><div><span>继续</span><strong>只执行必要一步</strong><small>附验证条件</small></div></div><figcaption>“重试”不是恢复策略。先确认世界现在是什么样，再决定下一步。</figcaption></figure>
+          </section>
+          <section id="choice" data-article-section>
+            <span class="section-number">07 / 怎么选</span><h2>怎么选：产品使用与工程参考不是一回事</h2>
+            <p><strong>想直接在 Kimi Code 里用：</strong>KimiCU 的安装、服务和权限检测更产品化，但执行层闭源，应把敏感动作确认、telemetry 和真实 App 兼容性留作风险项。单产品的安装链与二进制边界在<a href="/capabilities/kimi-computer-use.html"> Kimi 专项附录</a>里保留。<button class="evidence-ref" type="button" data-evidence="CU-24 CU-25 CU-26" data-evidence-trigger>CU-24–26</button></p>
+            <p><strong>想学习或二次开发：</strong>优先读 Pi v0.5.1。理由不是 star 多，而是它把不可变状态、陈旧写拒绝、并发资源调度、动作事务、语义验证、bounded output 与三平台 backend 一起开源，并有对应的 schema、lifecycle、concurrency 和 platform tests。<button class="evidence-ref" type="button" data-evidence="CU-30 CU-31 CU-32 CU-33 CU-34" data-evidence-trigger>CU-30–34</button></p>
+            <p><strong>想看 Codex 风格的最小复刻：</strong>AzaiSakura 的 DSH 仓库很适合读协议和 daemon 边界，但不应当作今天最成熟的可靠性基线。它的价值是“看得懂”，不是已经解决了所有 stale state、后台输入和结果验证问题。<button class="evidence-ref" type="button" data-evidence="CU-27 CU-28 CU-29" data-evidence-trigger>CU-27–29</button></p>
+          </section>
+          <section id="codex-trace" data-article-section>
+            <span class="section-number">08 / Codex 追踪器</span><h2>Codex 追踪器：沿旧逆向证据判断故障层</h2>
+            <p>下面保留此前 Codex 固定构建逆向中的交互追踪器。它专门回答一个实用问题：看到“没反应”时，故障究竟卡在目标、App Policy、系统权限、观察、动作还是 transport，以及这时为什么不能直接再点一次。它不是四方跑分，也不是原生服务模拟器。</p>
             <div class="cua-trace-lab" data-cua-trace-lab aria-label="沿调用链判断 Computer Use 故障该怎么恢复" aria-busy="true">
-              <header class="cua-trace-header">
-                <div><span>沿链路做判断</span><h3>没反应。现在能直接重试吗？</h3><p data-cua-trace-context>先别猜。同样是“没反应”，卡在不同层，处理办法可能正好相反。这里会拿固定构建的证据一步步推演；它不是，也不会假装成一台真实服务模拟器。</p></div>
-                <label><span>刚才发生了什么</span><select data-cua-trace-select aria-label="选择一种故障现场"><option>正在载入…</option></select></label>
-              </header>
-              <div class="cua-trace-overview" data-cua-trace-overview></div>
-              <div class="cua-trace-body">
-                <div class="cua-trace-rail" data-cua-trace-rail role="tablist" aria-label="调用链步骤"></div>
-                <section id="cuaTraceDetail" class="cua-trace-detail" data-cua-trace-detail role="tabpanel" aria-live="polite"></section>
-              </div>
-              <div class="cua-trace-loading" data-cua-trace-loading>正在把固定构建里的故障路径摊开…</div>
+              <header class="cua-trace-header"><div><span>沿链路做判断</span><h3>没反应。现在能直接重试吗？</h3><p data-cua-trace-context>先别猜。同样是“没反应”，卡在不同层，处理办法可能正好相反。</p></div><label><span>刚才发生了什么</span><select data-cua-trace-select aria-label="选择一种故障现场"><option>正在载入…</option></select></label></header>
+              <div class="cua-trace-overview" data-cua-trace-overview></div><div class="cua-trace-body"><div class="cua-trace-rail" data-cua-trace-rail role="tablist" aria-label="调用链步骤"></div><section id="cuaTraceDetail" class="cua-trace-detail" data-cua-trace-detail role="tabpanel" aria-live="polite"></section></div><div class="cua-trace-loading" data-cua-trace-loading>正在把固定构建里的故障路径摊开…</div>
             </div>
-
-            <p>到这里，Computer Use 和 Record & Replay 的区别也清楚了。前者跟着状态走：做一步，看结果，再决定。后者可以把一次演示变成工作流（workflow），但真想让它经得起界面变化，保存的就该是稳定目标和验证条件，而不是一长串迟早会过期的坐标。</p>
           </section>
-
-          <section id="failure-model" data-article-section>
-            <span class="section-number">09 / 故障恢复</span>
-            <h2>故障恢复：按失败层判断能否重试</h2>
-            <p>原生错误枚举分得很细：<code>appNotAllowed</code>、<code>runningApplicationNotFound</code>、<code>permissionsPending</code>、<code>screenLocked</code>、<code>blockedURL</code>、<code>accessibilityError</code>，各有各的名字。可 policy wrapper 返回的 denied / forbidden 只是普通 Error，不能硬给它套上 <code>-10006 appNotAllowed</code>。transport 还有自己那组问题：连不上、超时、管道关闭、数据帧过大、JSON-RPC 格式坏了，或版本对不上。表面都像“没反应”，根因差得很远。<button class="evidence-ref" type="button" data-evidence="CU-11 CU-13 CU-16" data-evidence-trigger>CU-11,13,16</button></p>
-            <div class="article-table-wrap"><table class="article-table">
-              <thead><tr><th>坏在哪一层</th><th>常见信号</th><th>接下来怎么查</th><th>这时最忌讳什么</th></tr></thead>
-              <tbody>
-                <tr><td>找目标</td><td>ambiguous / not found</td><td>从 <code>list_apps</code> 拿规范 ID，再试一次</td><td>盲猜另一个相似 App 名</td></tr>
-                <tr><td>应用策略</td><td>denied / forbidden</td><td>把边界说清楚，或者就此停下</td><td>改坐标、换别名，绕去更低层硬做</td></tr>
-                <tr><td>系统权限</td><td>pending / not granted</td><td>等用户把系统设置处理完</td><td>什么都看不见时继续盲操作</td></tr>
-                <tr><td>传输通道</td><td>timeout / closed / malformed</td><td>重新拿状态，先查副作用有没有发生</td><td>认定请求没执行，然后自动重放</td></tr>
-                <tr><td>观察现场</td><td>AX failure / stale index</td><td>重读完整 AX 树，或退回截图</td><td>抓着旧索引一直用</td></tr>
-              </tbody>
-            </table></div>
-            <p>socket 第一次没连上时，client 会先尝试确保宿主已经启动（ensure/start host），再给自己 5 秒重连。每个数据帧前面都有 4-byte 小端序长度，整帧上限是 8 MiB。这些设计让连接更耐用，但有件关键的事仍然看不到：它没有露出“副作用只执行一次”（exactly-once）的回执。于是 timeout 最麻烦。动作可能根本没发生，也可能已经发生，只是回执堵在路上。恢复时先重新观察。不要直接重放 click 或 type。<button class="evidence-ref" type="button" data-evidence="CU-13" data-evidence-trigger>CU-13</button></p>
-          </section>
-
-          <section id="adjacent-channels" data-article-section>
-            <span class="section-number">10 / 相邻组件</span>
-            <h2>相邻组件：History、Skysight、PIP 与主动控制的边界</h2>
-            <p>CUAService bundle 里面还能翻到 Computer History / Skysight 事件流、记忆管线（memory pipeline）和历史控制项；<code>native/sky.node</code> 与 Codex shell 里，也露出了 remote-hosted PIP 的显示和设置字符串。它们确实和 Computer Use 挨得很近。但“挨得近”只能证明组件存在，不能证明每一次主动 click 都要经过历史捕获或 PIP。眼下没有这份证据。<button class="evidence-ref" type="button" data-evidence="CU-20 CU-21 CU-22" data-evidence-trigger>CU-20–22</button></p>
-            <p>这条界线一定要守住。不然看见一个 event stream 字符串，很容易脑补成“每次动作都会长期记录”；看见一个 PIP 组件，又顺手把它当成动作传输通道。现有证据只能确认这些组件存在，并给出部分职责线索。采集是否开启、数据留多久、会不会上传、怎样和会话关联，安装包没有回答。</p>
-          </section>
-
-          <section id="release-anatomy" data-article-section>
-            <span class="section-number">11 / 证据范围</span>
-            <h2>证据范围：固定构建、文件摘要与推断强度</h2>
-            <p>这份档案把证据根目录锁在 <code>Codex.app/Contents/Resources</code>。插件清单（manifest）和 skill 文件、cua_node 清单、<code>@oai/sky</code> 编译后的 JavaScript、Codex Computer Use.app、签名 Mach-O 元数据、<code>app.asar</code>，还有旁边的原生扩展（native addon），全部回到同一份安装包。每条证据都留着完整 SHA-256、文件位置和能外推到哪一步的边界。这样换个版本，才知道到底是哪一块变了。</p>
-            <p>有两组看起来很像的东西，尤其不能混。<code>app.asar</code> 整个文件的摘要，不是 Info.plist 里的 ElectronAsarIntegrity 元数据；眼前能直接读的编译后 JavaScript，也不是上游 TypeScript 源码。深挖不是把编译产物叫得更响亮。先把别人能复核的对象钉牢，才算真的往下走了一层。</p>
-            <div class="article-callout"><strong>哪部分证据最硬？</strong><p>JavaScript 这一层可以直接读到 policy wrapper、typed client、transport、AppState 的组合方式和遥测适配器。到了原生层，就只能把 bundle 身份、链接库、符号、静态字符串和错误枚举拼在一起推断。两边的确定程度不一样，所以结论也不会故意写成一样硬。</p></div>
-          </section>
-
-          <section id="open-questions" data-article-section>
-            <span class="section-number">12 / 结论与边界</span>
-            <h2>结论与边界：这套实现能确认到哪一步</h2>
-            <p>把整条链收回来，Codex Computer Use 并不是模型直接接管 Mac。沿 <code>node_repl</code> 这条主路，模型生成调用，可信的 <code>@oai/sky</code> 负责绑定目标和检查参数，App Policy 与系统权限逐层放行，本地 transport 再把请求交给 CUAService。截图和 AX 树提供观察，动作执行完还要重新读取界面，才能知道用户要的结果是否真的出现。</p>
-            <p>这套分层会直接改变排错方式。看得到 App，不代表有权操作；调用超时，不代表动作没有发生；安装包里出现 History、PIP 或 telemetry，也不代表一次主动控制必然经过它们。权限问题、重试策略和隐私判断，都得沿各自的链路找证据，不能混成一句“Computer Use 做的”。</p>
-            <div class="article-callout"><strong>仍然不能确认的部分</strong><p>现有安装包还回答不了几件事：CUAService 怎样保存和合并 App Policy；AX 树、截图裁剪与输入合成在原生层怎样衔接；过期的 element id 是否一定会被拒绝；timeout 或断线发生时，动作究竟执行到了哪一步；历史捕获、PIP 与主动会话之间是否存在运行时关联。没有动态 trace 或完整的原生实现，这些都只能留在未知项里。</p></div>
+          <section id="evidence-boundary" data-article-section>
+            <span class="section-number">09 / 证据边界</span><h2>证据边界：这次确认了什么，还缺什么</h2>
+            <p>Codex 样本固定在 build 6234，能直接读到模型合同、可信 runtime、typed client 和 transport，原生层仍主要依赖 Mach-O 元数据与符号。Kimi 固定到 Kimi Code 提交 <code>b184b314</code> 和带哈希的 KimiCU 0.5.8，公开接线完整，动作内部仍是专有实现。DSH 固定到 <code>a572908</code>，Pi 固定到 v0.5.1 的 <code>4b8dbd7</code>，两者可以直接检查源码。<button class="evidence-ref" type="button" data-evidence="CU-19 CU-25 CU-27 CU-34" data-evidence-trigger>CU-19,25,27,34</button></p>
+            <p>尚未完成的是同任务动态基准。我们还不能说 Pi 的真实成功率一定高于 Kimi 或 Codex，也不能把其他同名 DSH fork 的新能力算进 AzaiSakura 这份早期实现。下一步真正有价值的实验，是在隔离用户下让四套系统完成相同的原生 App、Electron、浏览器和画布任务，并注入 stale state、焦点漂移、回执超时与权限中断。届时比较的是可复现行为，不是 README 形容词。</p>
+            <div class="article-callout"><strong>当前推荐结论</strong><p>把 Pi 当作今天最值得读的开源设计参考；把 DSH 当作 Codex-style 最小实现教材；把 Codex 和 Kimi 当作产品级但证据受闭源边界限制的样本。使用产品时看权限与体验，设计系统时优先抄状态合同，不要只抄十个工具名。</p></div>
           </section>
         </article>
-
-        <aside class="article-margin" aria-label="读到这里可以随时回看的侧注">
-          <div class="article-margin-block"><span>主线就这一条</span><strong>node_repl → @oai/sky → socket 策略查询 → 状态/动作 → CUAService → macOS</strong><small>别忘了，光查询策略就已经跨过 transport。</small></div>
-          <div class="article-margin-block"><span>最容易混淆的地方</span><strong>App 获准访问，不等于动作获准，也不等于 macOS TCC 放行。</strong><small>三个“允许”，回答的是三个问题。</small></div>
-          <div class="article-margin-block"><span>证据边界</span><strong>23 条文件证据，9 个明确未知。</strong><small>每份证据都保留相对 bundle 的路径和完整摘要。</small></div>
-        </aside>
+        <aside class="article-margin" aria-label="读到这里可以随时回看的侧注"><div class="article-margin-block"><span>先看什么</span><strong>stateId、epoch、successor state</strong><small>工具名相似，不代表状态安全性相似。</small></div><div class="article-margin-block"><span>开源首选</span><strong>pi-computer-use v0.5.1</strong><small>这次按源码完整度与合同成熟度选择，不按热度。</small></div><div class="article-margin-block"><span>最大缺口</span><strong>还没有同任务动态基准</strong><small>静态实现研究不能冒充成功率测评。</small></div></aside>
       </div>
-
-      <nav class="article-next" aria-label="阅读下一篇专题研究">
-        <a href="/capabilities/goal-mode.html"><span>下一篇专题研究</span><strong>Goal Mode：同一句 /goal，两套系统怎么让任务继续</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-      </nav>
+      <nav class="article-next" aria-label="继续阅读"><a href="/capabilities/kimi-computer-use.html"><span>查看产品附录</span><strong>Kimi Computer Use：Plugin、MCP 与原生服务</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
     </main>
   </div>
-
   <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
-  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
-    <header>
-      <div><span id="articleEvidenceKicker">回到原文件</span><h2 id="articleEvidenceTitle">这句话凭什么这么说</h2></div>
-      <div id="articleEvidencePager" class="article-evidence-pager" hidden></div>
-      <button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button>
-    </header>
-    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
-  </aside>
-
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert><header><div><span id="articleEvidenceKicker">回到原文件</span><h2 id="articleEvidenceTitle">这句话凭什么这么说</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header><div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div></aside>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="/computer-use-lab-core.js"></script>
-  <script src="/computer-use-lab.js"></script>
-  <script src="/capability-article.js"></script>
+  <script src="/computer-use-lab-core.js"></script><script src="/computer-use-lab.js"></script><script src="/capability-article.js"></script>
 </body>
 </html>

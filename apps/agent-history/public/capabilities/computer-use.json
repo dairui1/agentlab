@@ -2,11 +2,16 @@
   "id": "computer-use",
   "number": "002",
   "title": "Computer Use",
-  "product": "Codex for macOS",
-  "subtitle": "从调用入口到 macOS 原生服务的实现链",
-  "description": "这份档案沿 Codex for macOS 26.730.61639 的固定构建拆解 Computer Use。主线从 node_repl 中的模型 JavaScript 开始，经过受信任的 @oai/sky、App Policy wrapper、typed client 与 framed JSON-RPC，进入 CUAService，最终接到 macOS 的屏幕捕获、Accessibility 和输入能力。安装包还保留 stdio MCP 入口；两条入口并列，不会被合并成同一条运行链。后文按入口、信任边界、权限、观察、动作、验证和故障恢复展开。",
-  "verifiedAt": "2026-08-10",
+  "product": "Codex · Kimi · Pi · DSH",
+  "subtitle": "四套桌面 Agent 实现，真正拉开差距的是状态合同",
+  "description": "这份专题把此前对 Codex Computer Use 固定构建的逆向、KimiCU 0.5.8 的公开接线与签名发行包，和两套 MIT 开源实现放进同一张实现图。AzaiSakura/dsh-computer-use 解释了怎样以较薄的 TypeScript 插件加 Swift daemon clean-room 复刻 Codex 的十工具与本地协议；更成熟的 pi-computer-use v0.5.1 则把接口重构为不可变 stateId、资源 epoch、事务动作、结果验证与跨平台 backend。结论不是谁“会点击”，而是谁能证明动作基于哪份观察、是否过期、产生了什么后继状态，以及结果不确定时怎样停下。",
+  "verifiedAt": "2026-09-04",
   "scope": [
+    {
+      "label": "比较问题",
+      "value": "Observe → Act → Verify",
+      "note": "不按工具数量排高低，比较状态身份、执行权、验证与恢复"
+    },
     {
       "label": "Build",
       "value": "26.730.61639 (6234)",
@@ -38,6 +43,21 @@
       "note": "它的 bundle id 是 com.openai.sky.CUAService"
     },
     {
+      "label": "Kimi sample",
+      "value": "KimiCU 0.5.8 · macOS arm64",
+      "note": "公开 capability 接线 + 固定哈希的专有签名 App；未安装运行"
+    },
+    {
+      "label": "Open source main",
+      "value": "pi-computer-use v0.5.1",
+      "note": "commit 4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62 · MIT"
+    },
+    {
+      "label": "Clean-room baseline",
+      "value": "AzaiSakura/dsh-computer-use",
+      "note": "commit a572908cd3840278952a4d60126e43e121b93917 · MIT"
+    },
+    {
       "label": "App archive",
       "value": "app.asar · sha256 3fea92820c0fb7a69473e7a8308a8e5b8e91524289a84181a33533ec6cb51d45",
       "note": "这是 whole-file digest；它管桌面设置与工具呈现，不是主动动作的 transport"
@@ -53,7 +73,7 @@
       "note": "下文所有 artifact 路径都从这个目录算起"
     }
   ],
-  "boundary": "先把边界说清楚。这次我只核验本机 Resources 里的插件合同、cua_node 运行时、已编译 JavaScript、Mach-O 元数据和静态字符串。能从固定文件直接读到的记作 observation；靠链接库、符号或相邻产物判断的记作 inference，并把推断止步在哪里单独写出来。evidence.sha256 都是对应文件完整的 64 位小写 SHA-256。手上没有完整的原生 Swift 源码，所以这里不会顺势猜服务端模型、组织策略怎么下发、数据会留多久，也不会把静态代码当成全部运行时行为。正文主追这条 node_repl 路线：node_repl → @oai/sky wrapper → computeruse.sock / CUAService policy 查询 → trusted elicitation / 决策 → 同一 socket 上的状态或动作请求 → CUAService → macOS。发行包里确实还有 MCP 入口，但静态证据回答不了当前会话究竟选了哪一条。Computer History / Skysight 和 Codex PIP 也在附近，不过它们不属于这条主动动作链。",
+  "boundary": "四个样本的证据强度并不相同。Codex 锁定本机 build 6234 的插件合同、编译后 JavaScript、Mach-O 元数据和静态字符串；Kimi 锁定公开 Kimi Code 提交及 2026-09-04 下载、记录 SHA-256 的 KimiCU 0.5.8 发行包；Pi 与 DSH 锁定 Git commit 并直接阅读 TypeScript、Swift、Rust 和文档。能从固定文件直接读到的记作 observation，跨层连接才记作 inference。此次没有安装任何新增 Computer Use runtime，没有授予 TCC 权限，也没有在同一套 GUI 任务上跑四方基准。因此源码完整不等于运行效果已获验证，专有二进制中出现字符串也不等于某条路径必然执行。",
   "views": {
     "architecture": {
       "label": "架构",
@@ -827,6 +847,138 @@
       "locator": "static strings: mcp.transport.stdio, CodexComputerUseIPC-2, ComputerUseIPC*",
       "sha256": "f31a9e837920df1dfc6238501945bceaae6588009fb24409ece7777cacb38ea4",
       "boundary": "这些静态符号能证明 sidecar 同时懂两端协议。可当前会话到底选了它，还是走 node_repl route，依然没有运行时证据。"
+    },
+    {
+      "id": "CU-24",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Kimi 把十工具放在标准 stdio MCP 后面",
+      "statement": "KimiCU 0.5.8 Plugin manifest 声明一个 macOS stdio MCP server，wrapper 最终执行 KimiCU.app 内的 kimi-cu mcp；十个工具覆盖列 App、取状态、点击、拖拽、按键、滚动、选字、设值、输入与辅助动作。",
+      "artifact": "kimi-cu-plugin.zip/kimi.plugin.json + bin/kimi-cu-mcp",
+      "locator": "plugin manifest and wrapper",
+      "sha256": "fc3d317021c1d4fc9b5caca268d75429b44cea8d08f7fbe4c43293c1d80a5ac2",
+      "boundary": "manifest 能证明公开工具面和启动入口，不能证明某一回合实际调用或成功执行。",
+      "source": {"label": "Kimi Computer Use 官方 Plugin", "url": "https://cdn.kimi.com/kimi-computer-use/latest/kimi-cu-plugin.zip"}
+    },
+    {
+      "id": "CU-25",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Kimi 的系统权限归独立 launchd/XPC 服务",
+      "statement": "KimiCU.app 内置 LaunchAgent，以 kimi-cu service 启动并发布 Mach service；二进制链接 Swift XPC、ApplicationServices、CoreGraphics 与 ScreenCaptureKit。Kimi Code 的 capability detect 会分别检查 Plugin、App、service 和 AX/屏幕录制权限。",
+      "artifact": "KimiCU.app 0.5.8 + kimiCu.ts",
+      "locator": "LaunchAgent plist, Mach-O imports, capability detect lines 308-369",
+      "sha256": "6c0460eee45831c434b0e50305f1cd0bbef631d45d275892f96457932a3a8c90",
+      "boundary": "执行层是专有二进制；静态元数据无法替代函数控制流或真实权限实验。",
+      "source": {"label": "Kimi Code capability source", "url": "https://github.com/MoonshotAI/kimi-code/blob/b184b31497949ac019ac43d5a3dfe2ab87dbebc4/packages/agent-core-v2/src/app/capability/entries/kimiCu.ts#L308-L369"}
+    },
+    {
+      "id": "CU-26",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Kimi 原生层知道快照会过期，但状态身份没有公开成 stateId",
+      "statement": "KimiCU 0.5.8 的工具说明与错误文本要求先 get_app_state，并区分 AX tree 改变、元素 identity 改变、菜单重排和缓存过期；官方 Skill 要求重要动作后重新观察。公开十工具仍以 app 与临时 element index 为主，没有暴露可跨调用验证的 stateId/epoch。",
+      "artifact": "KimiCU.app/Contents/MacOS/kimi-cu + Plugin Skill",
+      "locator": "embedded MCP schemas, stale-state strings and workflow rules",
+      "sha256": "6c0460eee45831c434b0e50305f1cd0bbef631d45d275892f96457932a3a8c90",
+      "boundary": "没有运行时 probe，不能断言每一种界面变化都会被拒绝；只能确认公开合同和错误分支存在。",
+      "source": {"label": "Kimi Computer Use 官方 App", "url": "https://cdn.kimi.com/kimi-computer-use/latest/KimiCU.app.zip"}
+    },
+    {
+      "id": "CU-27",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "DSH 早期复刻把 Codex 的协议形状完整摊开",
+      "statement": "AzaiSakura/dsh-computer-use 在 Cordis 插件中注册十个 computer_use_* 工具，经 4-byte little-endian length prefix 的 JSON-RPC 2.0 Unix socket 把 ListApps、GetState、PerformAction 与 TurnEnded 请求交给 Swift daemon。",
+      "artifact": "src/index.ts + src/daemon.ts + src/tools.ts",
+      "locator": "tool registration, DSHComputerUseIPC-1 framing and requestType mapping",
+      "sha256": "1ebfb6a0d491146746d561f199f85bef45eff07c79415538ee943e2cc191f42f",
+      "boundary": "这是独立 clean-room 实现自己的协议兼容设计，不是 OpenAI 原始源码，也不证明行为完全等价。",
+      "source": {"label": "DSH daemon client source", "url": "https://github.com/AzaiSakura/dsh-computer-use/blob/a572908cd3840278952a4d60126e43e121b93917/packages/computer-use/dsh-computer-use/src/daemon.ts"}
+    },
+    {
+      "id": "CU-28",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "DSH 有本地安全边界，却没有细粒度状态版本",
+      "statement": "Swift daemon 用 0600 socket 和 getpeereid 限制同一用户连接；插件可经 ctx.approval 持久批准 App，并在 turn/end 清空 AppSession。元素索引只查当前 session.lastTree，动作后没有携带 observation id 或 resource epoch。",
+      "artifact": "src/index.ts + approval.ts + native main.swift + AppSession.swift",
+      "locator": "turn/end handler, peer UID check, session.lastTree element lookup",
+      "sha256": "faac0aa4b3c832fd9455f8cbaaa67cd3c17929aaf3cd7d27e33970476d0553e5",
+      "boundary": "turn 结束清理能防跨回合泄漏，但同一回合里的并发更新与旧 index 竞争仍没有 epoch 级拒绝。",
+      "source": {"label": "DSH AppSession source", "url": "https://github.com/AzaiSakura/dsh-computer-use/blob/a572908cd3840278952a4d60126e43e121b93917/native/Sources/CUADaemon/AppSession.swift"}
+    },
+    {
+      "id": "CU-29",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "DSH 的动作成功只代表调用没抛错",
+      "statement": "TypeScript performAction 在 daemon request 返回后固定给出 actionPerformed: true；Swift click、drag、pressKey 与 type 会先 activate 目标进程，动作结束只记录 lastActionAt，随后 getState 最多等待约一秒再捕获。没有 postcondition、successor state 或 worked/didnt/unknown 结果。",
+      "artifact": "src/tools.ts + native/AppSession.swift",
+      "locator": "performAction return shape and native action implementations",
+      "sha256": "f5362f4c821523bc33ead7144163ff00b2948a6062240af6409a21e122fe8991",
+      "boundary": "源码能确认缺少内建语义验证，不能据此断言所有应用都不可靠；调用方仍可以自行再次观察。",
+      "source": {"label": "DSH tool source", "url": "https://github.com/AzaiSakura/dsh-computer-use/blob/a572908cd3840278952a4d60126e43e121b93917/packages/computer-use/dsh-computer-use/src/tools.ts"}
+    },
+    {
+      "id": "CU-30",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Pi 把 observation 变成不可变、带作用域的状态",
+      "statement": "pi-computer-use v0.5.1 的 find_roots 返回 @r 根；observe_ui 生成不可变 element tree 与 stateId，@e 元素只属于该状态。search、expand、inspect 查询完整缓存树，不依赖会被并发请求覆盖的 session-wide current UI。",
+      "artifact": "docs/architecture.md + src/state.ts + src/view.ts",
+      "locator": "state-scoped contract, bounded immutable state store",
+      "sha256": "479a2b8870a6ef338f6a0771d52a29096f8baf1d66ac4b6753330a74f3e59101",
+      "boundary": "这是固定源码和合同事实；本次没有安装 helper 或实测内存边界与 UI 命中率。",
+      "source": {"label": "Pi architecture", "url": "https://github.com/injaneity/pi-computer-use/blob/4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62/docs/architecture.md"}
+    },
+    {
+      "id": "CU-31",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Pi 用 resource epoch 在动作送出前拒绝旧写入",
+      "statement": "Pi 按物理资源调度实时操作：桌面以进程、CDP 以 page target 分 lane；每个资源有单调递增 epoch。mutating call 必须带观察时的 epoch，若并发写入先一步完成，旧调用在 dispatch 前被拒绝。",
+      "artifact": "docs/architecture.md + src/bridge.ts",
+      "locator": "resource scheduler and stale-write rejection",
+      "sha256": "4a206d8e714e910e00f83746524f8ffefaa72219966da89c3dde5af48213f34b",
+      "boundary": "按进程串行是保守策略，不代表所有跨进程系统 UI 副作用都能被该资源键覆盖。",
+      "source": {"label": "Pi bridge source", "url": "https://github.com/injaneity/pi-computer-use/blob/4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62/src/bridge.ts"}
+    },
+    {
+      "id": "CU-32",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Pi 把动作、验证和后继状态收进一个事务",
+      "statement": "act_ui 接受一个或多个顺序动作，可附 semantic postcondition。helper 逐步 preflight、delivery、verification，返回 worked/didnt/unknown；bridge 保存完整后继状态，只在 identity 可信时渲染 diff。失败或部分执行会给出停止边界并要求重新观察。",
+      "artifact": "docs/architecture.md + src/actions.ts + src/bridge.ts",
+      "locator": "Acting and batching, successor diffs, performAct",
+      "sha256": "1f6aaf9a1cc51ee9ac640f2cb2c31426c522f90cc8b338f5c9dde1ed462de0bb",
+      "boundary": "语义 postcondition 比事件投递更强，但仍只验证调用方明确表达的可观察条件，不等于理解了完整业务结果。",
+      "source": {"label": "Pi actions source", "url": "https://github.com/injaneity/pi-computer-use/blob/4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62/src/actions.ts"}
+    },
+    {
+      "id": "CU-33",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Pi 用同一状态合同包住三套平台机制",
+      "statement": "v0.5.1 同时实现 macOS AX/ScreenCaptureKit helper、Windows UIA/Rust helper 与 Linux AT-SPI2/Rust helper，并把 CDP page 纳入同一 root forest。headless 模式禁止前台聚焦和物理输入；Wayland 明确保持 semantic-only。",
+      "artifact": "docs/architecture.md + src/platform/* + native/*",
+      "locator": "platform backends, native transports and design invariants",
+      "sha256": "adb5a4eb6ada931a5cbc16761fec7dbe27a290900326a4142bd7f4097865a7ba",
+      "boundary": "平台共用合同不等于能力完全对称；Linux Wayland、X11 物理 fallback 与 macOS/Windows 的限制不同。",
+      "source": {"label": "Pi macOS helper", "url": "https://github.com/injaneity/pi-computer-use/blob/4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62/native/macos/bridge.swift"}
+    },
+    {
+      "id": "CU-34",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Pi 是当前四个样本里最完整的可审计参考实现",
+      "statement": "v0.5.1 以 MIT 发布，package scripts 覆盖 schema、bounded output、session lifecycle、runtime concurrency、architecture invariants、Windows/Linux platform 与本地签名路径；公开源码包含 extension、共享状态/动作层以及三套 native backend。",
+      "artifact": "package.json + repository tree + LICENSE",
+      "locator": "version, scripts, source tree and MIT grant",
+      "sha256": "009d7e870f82837a7b8e2d69e89b0d5ed522b4514bec9206e68afbb0243ff152",
+      "boundary": "测试面和源码完整度支持把它当设计参考，不代表本次已独立复现全部测试或证明它在真实应用中优于闭源产品。",
+      "source": {"label": "Pi package manifest", "url": "https://github.com/injaneity/pi-computer-use/blob/4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62/package.json"}
     }
   ],
   "unknowns": [
@@ -883,6 +1035,30 @@
       "title": "遥测发出去以后怎样处理，本地代码说不清",
       "text": "本地 adapter 只能证明 best-effort event shape 和 disable switches 存在。采样比例、失败重试、事件关联、保留周期和用户控制，都不能从客户端代码反推。",
       "needed": "还需要产品 telemetry contract、服务端 retention policy，以及关闭遥测时的 network verification"
+    },
+    {
+      "id": "CU-KU-10",
+      "title": "四套实现还没有跑过同一份行为基准",
+      "text": "本研究能比较固定源码与合同，不能从工具数量、star 或代码量推出真实任务成功率。",
+      "needed": "在隔离用户环境中，用相同 App、相同初始状态和相同任务，记录成功率、步骤数、焦点干扰、陈旧状态拒绝、重复副作用与人工接管次数"
+    },
+    {
+      "id": "CU-KU-11",
+      "title": "Kimi 的原生验证与审批强制仍不透明",
+      "text": "KimiCU 的静态字符串支持 stale 检测和弱回读结论，但看不到完整执行控制流，也没有确认高风险动作是否由宿主 policy 强制拦截。",
+      "needed": "需要签名版本的动态 AX/event/network trace，以及发送、删除、保存等动作走到审批前的受控测试"
+    },
+    {
+      "id": "CU-KU-12",
+      "title": "Pi 的设计优势还需要独立运行复现",
+      "text": "源码完整说明了 stateId、epoch、事务验证与跨平台不变量；本次为了不改动用户环境，没有安装 helper、授予 TCC 或运行 GUI E2E。",
+      "needed": "从 v0.5.1 clean checkout 运行单测和 Cubench，再对 macOS 原生、Electron、浏览器和画布应用做失败注入"
+    },
+    {
+      "id": "CU-KU-13",
+      "title": "早期 DSH 复刻与后续成熟分支不能混写",
+      "text": "AzaiSakura commit a572908 是一个清楚但较薄的 Codex-style clean-room 样本；其他同名 fork 已增加 stale-state、vision 或后台输入能力，不能倒灌成原仓库事实。",
+      "needed": "若要评估 DSH 生态的当前推荐方案，应另做 fork provenance、发布包、维护状态与同任务测试，而不是只比较 README"
     }
   ]
 }
