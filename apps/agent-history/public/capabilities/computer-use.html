@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="对照 Codex、Kimi、Pi 与 DSH 的 Computer Use 实现：状态身份、原生执行、权限、验证和失败恢复。">
-  <title>Computer Use 实现地图：Codex、Kimi、Pi 与 DSH · AgentLab</title>
+  <meta name="description" content="研究 CUA 如何在不抢占物理鼠标的前提下执行桌面动作，并用虚拟轨迹、目标高亮、点击反馈和状态回执保持可见、可停、可验证。">
+  <title>CUA：后台执行、虚拟光标与可验证交互 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
   <script src="/site-navigation.js"></script>
@@ -24,104 +24,119 @@
       <header class="article-hero">
         <div class="article-hero-inner">
           <div>
-            <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Computer Use</span></nav>
-            <span class="article-series">多实现源码研究</span>
-            <h1>Computer Use 实现地图</h1>
-            <p class="article-dek">Codex 和 Kimi 告诉我们成熟产品怎样把模型接到系统权限；Pi 和 DSH 把关键机制摊成源码。四套实现放在一起，真正拉开差距的不是“会不会点”，而是动作能否绑定一份没有过期的观察，并留下可验证的后继状态。</p>
-            <div class="article-byline"><span>Codex · Kimi · Pi · DSH</span><span>2026-09-04 核验</span><span>34 条固定证据</span></div>
+            <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>CUA</span></nav>
+            <span class="article-series">Computer-Using Agent 实现研究</span>
+            <h1>CUA：后台执行与可视化交互</h1>
+            <p class="article-dek">目标不是让 Agent 悄悄接管电脑，而是让它尽量在后台完成动作、不移动你的物理鼠标，同时把虚拟轨迹、目标、点击、输入和结果清楚地呈现出来。每一步都应该看得见、停得住、查得清。</p>
+            <div class="article-byline"><span>执行平面 · 呈现平面 · 状态回执</span><span>2026-09-04 核验</span><span>34 条固定证据</span></div>
           </div>
           <div class="article-product-mark" aria-hidden="true"><img src="/assets/capability-computer-use.svg" alt=""></div>
         </div>
       </header>
-      <section class="article-scope-band" aria-label="研究样本">
+      <section class="article-scope-band" aria-label="研究范围">
         <div class="article-scope-grid cua-scope-grid">
-          <div><span>闭源基线</span><strong>Codex build 6234</strong><small>node_repl · @oai/sky · CUAService</small></div>
-          <div><span>产品样本</span><strong>KimiCU 0.5.8</strong><small>Plugin · MCP · launchd/XPC</small></div>
-          <div><span>开源主样本</span><strong>Pi v0.5.1</strong><small>immutable state · epoch · transaction</small></div>
-          <div><span>早期复刻</span><strong>DSH a572908</strong><small>10 tools · JSON-RPC · Swift daemon</small></div>
+          <div><span>执行目标</span><strong>不抢物理鼠标</strong><small>AX 语义优先 · 定向事件兜底</small></div>
+          <div><span>呈现目标</span><strong>Agent 光标可见</strong><small>轨迹 · 目标高亮 · 点击波纹</small></div>
+          <div><span>可靠性目标</span><strong>状态与动作绑定</strong><small>stateId · epoch · successor</small></div>
+          <div><span>控制目标</span><strong>随时暂停与接管</strong><small>后台 / 前台 / 等待用户</small></div>
         </div>
       </section>
       <div class="capability-reading">
         <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
-          <span>先读结论，再进实现</span>
+          <span>从一次点击拆开 CUA</span>
           <ol>
-            <li><a href="#verdict" data-index="01">核心判断：Computer Use 是状态机，不是遥控器</a></li>
-            <li><a href="#four-stacks" data-index="02">四套栈：相似的外形，不同的责任边界</a></li>
-            <li><a href="#state-contract" data-index="03">观察合同：临时 index 和 stateId 差在哪里</a></li>
-            <li><a href="#action-contract" data-index="04">动作合同：送出事件不等于任务成功</a></li>
-            <li><a href="#permissions" data-index="05">权限边界：谁获准看，谁获准动</a></li>
-            <li><a href="#recovery" data-index="06">失败恢复：先判断副作用，再决定重试</a></li>
-            <li><a href="#choice" data-index="07">怎么选：产品使用与工程参考不是一回事</a></li>
-            <li><a href="#codex-trace" data-index="08">Codex 追踪器：沿旧逆向证据判断故障层</a></li>
-            <li><a href="#evidence-boundary" data-index="09">证据边界：这次确认了什么，还缺什么</a></li>
+            <li><a href="#thesis" data-index="01">核心模型：后台执行不等于隐形执行</a></li>
+            <li><a href="#two-planes" data-index="02">两套平面：动作与动画必须解耦</a></li>
+            <li><a href="#background-delivery" data-index="03">后台动作：语义、定向事件与前台降级</a></li>
+            <li><a href="#virtual-cursor" data-index="04">虚拟光标：显示轨迹但不移动真实指针</a></li>
+            <li><a href="#state-grounding" data-index="05">状态绑定：光标必须指向这一次观察</a></li>
+            <li><a href="#interaction-receipt" data-index="06">交互回执：点击已送达不等于目标完成</a></li>
+            <li><a href="#focus-fallback" data-index="07">焦点降级：什么时候不能继续装作后台</a></li>
+            <li><a href="#user-control" data-index="08">用户控制：可见、可停和可接管</a></li>
+            <li><a href="#reference-architecture" data-index="09">参考架构：一套值得实现的 CUA</a></li>
+            <li><a href="#evidence-boundary" data-index="10">证据边界：产品只作为实现样本</a></li>
           </ol>
-          <div class="article-toc-note"><strong>没有安装或授权</strong>这次锁定源码和发行包做静态研究，没有安装 Pi、DSH 或 Kimi helper，也没有新增 Accessibility 或 Screen Recording 权限。源码完整度与真实任务成功率是两回事。</div>
+          <div class="article-toc-note"><strong>研究对象是 CUA</strong>Codex、Kimi、Pi 和 DSH 只提供不同层的证据。本文不再逐个介绍产品，也不按工具数量做排行榜。</div>
         </aside>
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">如果只记一句：可靠的 CUA（Computer-Using Agent）必须能回答四个问题：我刚才看的是哪一份界面？手里的元素还属于它吗？动作到底产生了什么结果？不知道时，系统会停下还是猜一个“成功”？</p>
-          <section id="verdict" data-article-section>
-            <span class="section-number">01 / 核心判断</span><h2>核心判断：Computer Use 是状态机，不是遥控器</h2>
-            <p>四套实现都能列窗口、读 Accessibility（AX）树、截屏、点击和输入。这只能说明它们有相似的“手脚”。真正决定可靠性的，是模型拿什么证明这只手正在操作刚才看见的那个界面。Codex 与 Kimi 的公开合同都反复要求动作后重新观察；DSH 也会保存最近一棵 AX 树；Pi 则更进一步，把根、元素、资源版本和后继状态写进公开协议。<button class="evidence-ref" type="button" data-evidence="CU-05 CU-15 CU-26 CU-28 CU-30 CU-31" data-evidence-trigger>CU-05,15,26,28,30–31</button></p>
-            <figure class="article-figure"><div class="article-flow" style="--flow-count: 5"><div><span>01</span><strong>找到根</strong><small>App / window / page</small></div><div><span>02</span><strong>固定观察</strong><small>AX + image + identity</small></div><div><span>03</span><strong>基于状态动作</strong><small>element ref / coordinate</small></div><div><span>04</span><strong>检查结果</strong><small>worked / didnt / unknown</small></div><div><span>05</span><strong>保存后继状态</strong><small>diff 或完整新观察</small></div></div><figcaption>前两步让动作有根据，后两步让副作用可追。缺任何一段，Agent 都可能拿旧地图操作新界面。</figcaption></figure>
-            <blockquote class="article-pullquote">“成功调用了点击工具”和“用户要的结果已经出现”，是两句完全不同的话。<small>这也是本专题选择 Pi 作为开源主样本的原因</small></blockquote>
+          <p class="article-lead">想象 Agent 要点击一个后台窗口里的“保存”。可靠的系统必须同时完成三件事：把动作送到正确控件、让你看到它正在点哪里、再证明保存结果真的出现。动画不能代替动作，动作回执也不能代替结果。</p>
+
+          <section id="thesis" data-article-section>
+            <span class="section-number">01 / 核心模型</span><h2>核心模型：后台执行不等于隐形执行</h2>
+            <p>“不抢鼠标”描述的是执行方式，“看得见轨迹”描述的是呈现方式，两者并不矛盾。真正的点击可以通过 Accessibility（AX）动作或发给目标进程的定向事件完成；屏幕上另外画一枚虚拟光标，告诉用户目标在哪里、动作何时发生、结果是否确认。虚拟光标只解释动作，不参与输入，因此不会碰物理指针，也不该改变窗口焦点。<button class="evidence-ref" type="button" data-evidence="CU-19 CU-25 CU-29 CU-33" data-evidence-trigger>CU-19,25,29,33</button></p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count: 5"><div><span>观察</span><strong>固定界面状态</strong><small>AX + image + identity</small></div><div><span>定位</span><strong>解析目标控件</strong><small>element ref 或图像坐标</small></div><div><span>呈现</span><strong>画虚拟轨迹</strong><small>不拦截、不改焦点</small></div><div><span>执行</span><strong>后台投递动作</strong><small>semantic / targeted event</small></div><div><span>核验</span><strong>保存后继状态</strong><small>worked / didnt / unknown</small></div></div><figcaption>“呈现”与“执行”可以同时开始，但它们必须是两个独立通道。动画失败不能阻断动作，动画完成也不能证明动作成功。</figcaption></figure>
           </section>
-          <section id="four-stacks" data-article-section>
-            <span class="section-number">02 / 四套栈</span><h2>四套栈：相似的外形，不同的责任边界</h2>
-            <p>Codex 和 Kimi 的原生执行层没有完整开源，所以最硬的结论来自公开接线、工具合同、签名产物和静态符号；DSH 与 Pi 可以一路读进 daemon。它们不是同等证据下的跑分，也不是四个可以直接互换的安装包。<button class="evidence-ref" type="button" data-evidence="CU-09 CU-19 CU-24 CU-25 CU-27 CU-34" data-evidence-trigger>CU-09,19,24–25,27,34</button></p>
+
+          <section id="two-planes" data-article-section>
+            <span class="section-number">02 / 两套平面</span><h2>两套平面：动作与动画必须解耦</h2>
+            <p>执行平面掌握真正的系统能力：读取 AX、截取目标窗口、解析控件、发送输入、等待变化。呈现平面只消费执行平面已经算出的目标点和状态，在透明、click-through 的 overlay 上画路径、高亮和反馈。Pi 的开源实现把 agent cursor 放在原生 helper 内，是因为最终屏幕坐标也在那里产生；同时明确规定 cursor rendering 不能延迟 action delivery，新动作可以替换仍在播放的旧动画。<button class="evidence-ref" type="button" data-evidence="CU-30 CU-31 CU-32 CU-33" data-evidence-trigger>CU-30–33</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>平面</th><th>拥有的状态</th><th>可以影响什么</th><th>绝不能声称什么</th></tr></thead><tbody><tr><td>执行平面</td><td>root、state、element、资源 epoch</td><td>AX、截图、目标 App 输入</td><td>事件送出就等于业务成功</td></tr><tr><td>呈现平面</td><td>轨迹、目标点、动作阶段</td><td>透明叠层、虚拟光标、状态提示</td><td>动画播完就等于点击生效</td></tr><tr><td>用户控制面</td><td>暂停、批准、前台降级选择</td><td>允许、拒绝、接管或终止</td><td>系统权限等于用户意图</td></tr></tbody></table></div>
+            <blockquote class="article-pullquote">可视化不是把真实鼠标借给 Agent，而是为后台动作制作一份实时、不可冒充成功的解释层。</blockquote>
+          </section>
+
+          <section id="background-delivery" data-article-section>
+            <span class="section-number">03 / 后台动作</span><h2>后台动作：语义、定向事件与前台降级</h2>
+            <p>后台动作应该按能力阶梯选择，而不是所有控件都模拟鼠标。按钮可先尝试 <code>AXPress</code>，文本框可尝试 AX value/editable semantics；只有 AX 不能表达的画布、Web 控件或自定义视图，才使用与观察截图绑定的坐标和定向事件。早期 DSH 的实现会在 click、drag、type 前直接激活目标 App，这能提高成功率，却已经不是纯后台；成熟合同必须把这种行为单独标出来。<button class="evidence-ref" type="button" data-evidence="CU-19 CU-26 CU-29 CU-32 CU-33" data-evidence-trigger>CU-19,26,29,32–33</button></p>
             <div class="article-tabs" data-article-tabs style="--tab-count: 4">
-              <div role="tablist" aria-label="查看四套 Computer Use 实现"><button id="stackCodex" type="button" role="tab" aria-selected="true" aria-controls="panelCodex">Codex</button><button id="stackKimi" type="button" role="tab" aria-selected="false" aria-controls="panelKimi">Kimi</button><button id="stackPi" type="button" role="tab" aria-selected="false" aria-controls="panelPi">Pi</button><button id="stackDsh" type="button" role="tab" aria-selected="false" aria-controls="panelDsh">DSH</button></div>
-              <section id="panelCodex" class="article-tab-panel" role="tabpanel" aria-labelledby="stackCodex"><span>闭源产品基线</span><h3>node_repl → @oai/sky → CUAService</h3><p>模型代码先留在不可信 realm，受信包才能取得 nativePipe、LaunchServices 和批准桥；App Policy 查询、状态与动作再经 framed JSON-RPC 进入原生服务。安装包另有 stdio MCP 入口，静态证据不能证明某次会话选了哪条。</p><div class="article-tab-spec"><div><small>状态</small><strong>AppState + 最新 index</strong></div><div><small>策略</small><strong>App Policy + TCC</strong></div><div><small>缺口</small><strong>原生控制流不可见</strong></div></div></section>
-              <section id="panelKimi" class="article-tab-panel" role="tabpanel" aria-labelledby="stackKimi" hidden><span>产品化接线</span><h3>Plugin → stdio MCP → launchd/XPC</h3><p>Kimi Code 把 Plugin、App、后台服务和系统权限拆成四种 capability 状态；独立 KimiCU.app 才持有 AX 与屏幕录制权限。原生层显式认识 stale snapshot，但公开工具仍以 app 和临时 index 为主。</p><div class="article-tab-spec"><div><small>状态</small><strong>快照 + 临时 index</strong></div><div><small>运维</small><strong>安装、服务、权限 doctor</strong></div><div><small>缺口</small><strong>执行层 proprietary</strong></div></div></section>
-              <section id="panelPi" class="article-tab-panel" role="tabpanel" aria-labelledby="stackPi" hidden><span>开源主样本</span><h3>Pi extension → state contract → platform backend</h3><p>Pi 不再公开一堆彼此松散的 click/type 工具，而是让 <code>act_ui</code> 消费一份不可变 state。macOS、Windows、Linux 和 CDP page 都进入同一 root forest，平台差异留在 backend 后面。</p><div class="article-tab-spec"><div><small>状态</small><strong>stateId + @e + epoch</strong></div><div><small>验证</small><strong>事务 + postcondition</strong></div><div><small>边界</small><strong>三平台能力并不对称</strong></div></div></section>
-              <section id="panelDsh" class="article-tab-panel" role="tabpanel" aria-labelledby="stackDsh" hidden><span>早期 clean-room 复刻</span><h3>Cordis tools → Unix socket → Swift daemon</h3><p>DSH 把 Codex 风格的十工具、长度前缀 JSON-RPC、Swift AX/截图/输入 daemon 和 turn 生命周期写得很直白，是理解协议的好教材。它的 actionPerformed 仍主要表示请求没抛错，状态和验证合同明显比 Pi 薄。</p><div class="article-tab-spec"><div><small>价值</small><strong>实现小、协议透明</strong></div><div><small>护栏</small><strong>peer UID + App approval</strong></div><div><small>短板</small><strong>无 stateId / postcondition</strong></div></div></section>
+              <div role="tablist" aria-label="查看 CUA 的动作投递方式"><button id="deliverySemantic" type="button" role="tab" aria-selected="true" aria-controls="panelSemantic">语义动作</button><button id="deliveryTargeted" type="button" role="tab" aria-selected="false" aria-controls="panelTargeted">定向事件</button><button id="deliveryForeground" type="button" role="tab" aria-selected="false" aria-controls="panelForeground">前台降级</button><button id="deliveryBlocked" type="button" role="tab" aria-selected="false" aria-controls="panelBlocked">停止</button></div>
+              <section id="panelSemantic" class="article-tab-panel" role="tabpanel" aria-labelledby="deliverySemantic"><span>首选路径</span><h3>直接操作控件语义</h3><p>利用 AX/UIA/AT-SPI 的 press、set value、editable text 等能力，不移动真实指针，也通常不需要抬升窗口。</p><div class="article-tab-spec"><div><small>优势</small><strong>目标明确、后台优先</strong></div><div><small>证据</small><strong>控件属性与回读</strong></div><div><small>限制</small><strong>画布和自绘 UI 可能缺失</strong></div></div></section>
+              <section id="panelTargeted" class="article-tab-panel" role="tabpanel" aria-labelledby="deliveryTargeted" hidden><span>第二路径</span><h3>把事件定向给目标进程</h3><p>使用从同一份截图和窗口几何得到的坐标，将点击或键盘事件投递给目标 App。它可以不移动物理鼠标，但必须防止窗口位置和观察状态已经变化。</p><div class="article-tab-spec"><div><small>优势</small><strong>覆盖自定义控件</strong></div><div><small>证据</small><strong>目标点 + 后继观察</strong></div><div><small>限制</small><strong>遮挡、焦点和坐标漂移</strong></div></div></section>
+              <section id="panelForeground" class="article-tab-panel" role="tabpanel" aria-labelledby="deliveryForeground" hidden><span>显式降级</span><h3>确实需要焦点时再前台化</h3><p>某些编辑器、系统弹窗和全局输入只能在前台可靠工作。系统应该先告知用户，再聚焦、执行并恢复，而不是偷偷抢走键盘。</p><div class="article-tab-spec"><div><small>触发</small><strong>后台路径已明确失败</strong></div><div><small>呈现</small><strong>显示“需要前台”</strong></div><div><small>限制</small><strong>不得重放模糊副作用</strong></div></div></section>
+              <section id="panelBlocked" class="article-tab-panel" role="tabpanel" aria-labelledby="deliveryBlocked" hidden><span>安全终点</span><h3>无法保证目标时停止</h3><p>没有新状态、权限不足、目标不唯一或动作结果未知时，正确选择是停下并让用户接管。</p><div class="article-tab-spec"><div><small>触发</small><strong>stale / denied / unknown</strong></div><div><small>呈现</small><strong>保留最后可信位置</strong></div><div><small>限制</small><strong>不能改成全局点击硬做</strong></div></div></section>
             </div>
           </section>
-          <section id="state-contract" data-article-section>
-            <span class="section-number">03 / 观察合同</span><h2>观察合同：临时 index 和 stateId 差在哪里</h2>
-            <p>Codex、Kimi 与早期 DSH 都把模型引向“先取状态，再用最新 element index”。这比纯坐标稳，但 index 自己不说明来自哪次观察。DSH 的 Swift daemon 只在当前 AppSession 保存 <code>lastTree</code>；同一回合若界面更新或并发动作抢先发生，旧 index 仍可能指向另一棵树上的同一数字。turn/end 清理只能挡住跨回合泄漏，挡不住回合内部竞争。<button class="evidence-ref" type="button" data-evidence="CU-15 CU-26 CU-28" data-evidence-trigger>CU-15,26,28</button></p>
-            <p>Pi 的关键进步不是换了命名，而是把所有权写进协议：<code>@e12</code> 只属于一个 <code>stateId</code>；每个物理资源还有单调递增的 epoch。缓存查询可以并行，真正读写同一 App 进程则进入同一 lane；一份旧状态发起写操作时，会在事件送出前被拒绝。动作返回的新 <code>stateId</code> 才是下一步的合法起点。<button class="evidence-ref" type="button" data-evidence="CU-30 CU-31" data-evidence-trigger>CU-30–31</button></p>
-            <div class="article-callout"><strong>小白版区别</strong><p>临时 index 像“刚才画面里的第 12 个控件”；<code>stateId + @e12 + epoch</code> 像“照片 A 上的第 12 个控件，而且拍照后没人先改过这扇窗口”。后者才足够让系统在出手前发现地图过期。</p></div>
+
+          <section id="virtual-cursor" data-article-section>
+            <span class="section-number">04 / 虚拟光标</span><h2>虚拟光标：显示轨迹但不移动真实指针</h2>
+            <p>虚拟光标适合放在原生透明叠层中：窗口不接受点击，不出现在可操作根列表里，不改变 key window；输入点由执行 helper 直接交给动画层，避免再做一次坐标转换。它可以从上一个 Agent 目标平滑移动到新目标，抵达时显示点击波纹，输入时给控件外框加状态，等待验证时则停留但改变状态，而不是假装继续忙碌。Pi v0.5.1 已经公开了这种 ghost cursor 的基本所有权和生命周期。<button class="evidence-ref" type="button" data-evidence="CU-33 CU-34" data-evidence-trigger>CU-33–34</button></p>
+            <div class="article-callout"><strong>不要追着真实鼠标画</strong><p>真实鼠标属于用户。Agent cursor 应维护自己的位置和动画队列；用户移动物理鼠标不会拖走它，Agent 动作也不会把用户指针吸过去。两者可以同时存在，视觉样式必须明显不同。</p></div>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>画面元素</th><th>表达的信息</th><th>消失条件</th></tr></thead><tbody><tr><td>轨迹</td><td>Agent 正在前往哪个已定位目标</td><td>新动作覆盖、暂停或目标失效</td></tr><tr><td>目标高亮</td><td>当前 element ref 或坐标区域</td><td>状态 epoch 改变</td></tr><tr><td>点击波纹</td><td>事件在何时送出</td><td>短动画完成，不表示成功</td></tr><tr><td>结果标记</td><td>worked、didnt 或 unknown</td><td>用户确认或下一份状态取代</td></tr></tbody></table></div>
           </section>
-          <section id="action-contract" data-article-section>
-            <span class="section-number">04 / 动作合同</span><h2>动作合同：送出事件不等于任务成功</h2>
-            <p>早期 DSH 的 TypeScript 工具只要 daemon request 没报错，就固定返回 <code>actionPerformed: true</code>；点击、拖拽、键入等路径还会先激活目标进程。调用方当然可以再取状态，但“执行”和“验证”没有被同一个合同锁住。Codex 的旧专题也暴露了类似风险：transport timeout 后看不到 exactly-once 回执，动作可能没发生，也可能发生了但响应丢了。<button class="evidence-ref" type="button" data-evidence="CU-13 CU-29" data-evidence-trigger>CU-13,29</button></p>
-            <p>Pi 的 <code>act_ui</code> 把一组依赖动作做成一项事务：先检查 base state，再按顺序 preflight、delivery、verification；可附上“Saved 出现”之类的语义 postcondition。helper 报 <code>worked</code>、<code>didnt</code> 或 <code>unknown</code>，bridge 保存完整后继状态，只有身份匹配可信时才显示紧凑 diff。事件被系统接受，不再自动等于业务结果成立。<button class="evidence-ref" type="button" data-evidence="CU-32" data-evidence-trigger>CU-32</button></p>
-            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>结果</th><th>它真正表示什么</th><th>下一步</th></tr></thead><tbody><tr><td>worked</td><td>有可核对证据支持动作生效</td><td>使用返回的后继 state</td></tr><tr><td>didnt</td><td>已检查且没有达到要求</td><td>根据无副作用证据决定是否换策略</td></tr><tr><td>unknown</td><td>无法证明成功或失败</td><td>停止重放，重新观察</td></tr></tbody></table></div>
+
+          <section id="state-grounding" data-article-section>
+            <span class="section-number">05 / 状态绑定</span><h2>状态绑定：光标必须指向这一次观察</h2>
+            <p>最危险的错觉，是动画仍然准确地飞向一个已经不存在的按钮。element index 只写“第几个”，没有写它来自哪次观察；窗口移动、菜单重排或并发动作发生后，同一个数字可能换了对象。Pi 的 <code>stateId + @e ref + resource epoch</code> 把这件事变成可检查约束：旧写入在 dispatch 前失败，坐标只属于带图像的那份状态，动作完成后返回新的 stateId。<button class="evidence-ref" type="button" data-evidence="CU-15 CU-26 CU-28 CU-30 CU-31" data-evidence-trigger>CU-15,26,28,30–31</button></p>
+            <p>呈现层也应遵守同一约束。每条轨迹必须带 <code>stateId</code>、目标 ref、屏幕坐标和 resource epoch；只要执行层发现状态过期，就立即取消动画并显示“目标已变化”，而不是让虚拟光标完成一段漂亮但错误的移动。</p>
           </section>
-          <section id="permissions" data-article-section>
-            <span class="section-number">05 / 权限边界</span><h2>权限边界：谁获准看，谁获准动</h2>
-            <p>四套实现最终都绕不开操作系统权限。Codex 还在上层加了受信 realm 与 App Policy；Kimi 把 Plugin、App、service 和 TCC 权限做成可诊断的独立状态；DSH 用 <code>ctx.approval</code> 管 App 首次访问，并用 <code>getpeereid</code> 与 0600 socket 限制本机同用户；Pi 的 <code>headless</code> 则把“不抢焦点、不动真实键鼠”提升为执行策略。<button class="evidence-ref" type="button" data-evidence="CU-09 CU-11 CU-18 CU-25 CU-28 CU-33" data-evidence-trigger>CU-09,11,18,25,28,33</button></p>
-            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>门</th><th>回答的问题</th><th>不能替代什么</th></tr></thead><tbody><tr><td>模型/动作确认</td><td>这项副作用是否符合用户意图</td><td>不能授予操作系统权限</td></tr><tr><td>App 范围</td><td>Agent 是否可以接触这个目标</td><td>不能证明某次点击安全</td></tr><tr><td>本地进程认证</td><td>谁能连接原生 daemon</td><td>不能判断业务意图</td></tr><tr><td>TCC / OS capability</td><td>进程能否读屏、访问 AX、合成输入</td><td>不能替用户决定该不该做</td></tr></tbody></table></div>
+
+          <section id="interaction-receipt" data-article-section>
+            <span class="section-number">06 / 交互回执</span><h2>交互回执：点击已送达不等于目标完成</h2>
+            <p>一次点击至少有三层结果：事件有没有送出、系统有没有证据表明控件响应、用户要求的状态有没有出现。早期 DSH 在 daemon request 不抛错后固定返回 <code>actionPerformed: true</code>，这只能覆盖第一层。Pi 的事务模型允许附上语义 postcondition，并返回 <code>worked</code>、<code>didnt</code> 或 <code>unknown</code>，再保存完整后继状态。<button class="evidence-ref" type="button" data-evidence="CU-13 CU-29 CU-32" data-evidence-trigger>CU-13,29,32</button></p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count: 4"><div><span>准备</span><strong>校验 base state</strong><small>目标仍属于当前 epoch</small></div><div><span>送达</span><strong>执行一个动作</strong><small>记录实际 delivery path</small></div><div><span>验证</span><strong>等待明确条件</strong><small>新增、消失、值变化</small></div><div><span>回执</span><strong>保存 successor</strong><small>可信 diff 或完整状态</small></div></div><figcaption>点击波纹应该在“送达”时出现，绿色完成标记只能在“验证”之后出现。二者不能共用一种动画。</figcaption></figure>
           </section>
-          <section id="recovery" data-article-section>
-            <span class="section-number">06 / 失败恢复</span><h2>失败恢复：先判断副作用，再决定重试</h2>
-            <p>UI Agent 最危险的默认值不是“失败”，而是把未知当失败后自动再做一次。按钮可能已经按下，只是 AX 没及时变化；文本可能已经输入，只是回执超时。Codex 的 21 类原生错误和 transport 错误必须分层读；Kimi 静态合同也明确区分 stale、弱回读与缓存失效；Pi 则禁止对模糊的 pointer 结果盲目重放。<button class="evidence-ref" type="button" data-evidence="CU-13 CU-16 CU-26 CU-32" data-evidence-trigger>CU-13,16,26,32</button></p>
-            <figure class="article-figure"><div class="article-flow" style="--flow-count: 4"><div><span>定位</span><strong>失败在哪层</strong><small>目标 / policy / TCC / transport</small></div><div><span>判断</span><strong>可能有副作用吗</strong><small>没有证据就按 unknown</small></div><div><span>观察</span><strong>取得新状态</strong><small>不要复用旧 ref</small></div><div><span>继续</span><strong>只执行必要一步</strong><small>附验证条件</small></div></div><figcaption>“重试”不是恢复策略。先确认世界现在是什么样，再决定下一步。</figcaption></figure>
+
+          <section id="focus-fallback" data-article-section>
+            <span class="section-number">07 / 焦点降级</span><h2>焦点降级：什么时候不能继续装作后台</h2>
+            <p>“纯后台”是目标，不是所有桌面软件都能满足的事实。原生按钮和标准文本框常能走语义路径；画布编辑器、游戏、复杂 Electron 控件、系统级弹窗和依赖 key window 的输入可能要求前台焦点。Pi 的严格 headless 模式会禁止激活窗口、移动真实指针和发送 raw input；非 headless 才允许在已证明后台键盘输入没有副作用后尝试前台降级，模糊的 pointer 结果不会重放。<button class="evidence-ref" type="button" data-evidence="CU-26 CU-32 CU-33" data-evidence-trigger>CU-26,32–33</button></p>
+            <div class="article-callout"><strong>正确的产品文案不是“始终后台”</strong><p>界面应明确显示当前动作属于“后台语义”“后台定向”“需要前台”还是“等待用户”。只有用户允许后，CUA 才能跨入会打扰当前工作的路径。</p></div>
           </section>
-          <section id="choice" data-article-section>
-            <span class="section-number">07 / 怎么选</span><h2>怎么选：产品使用与工程参考不是一回事</h2>
-            <p><strong>想直接在 Kimi Code 里用：</strong>KimiCU 的安装、服务和权限检测更产品化，但执行层闭源，应把敏感动作确认、telemetry 和真实 App 兼容性留作风险项。单产品的安装链与二进制边界在<a href="/capabilities/kimi-computer-use.html"> Kimi 专项附录</a>里保留。<button class="evidence-ref" type="button" data-evidence="CU-24 CU-25 CU-26" data-evidence-trigger>CU-24–26</button></p>
-            <p><strong>想学习或二次开发：</strong>优先读 Pi v0.5.1。理由不是 star 多，而是它把不可变状态、陈旧写拒绝、并发资源调度、动作事务、语义验证、bounded output 与三平台 backend 一起开源，并有对应的 schema、lifecycle、concurrency 和 platform tests。<button class="evidence-ref" type="button" data-evidence="CU-30 CU-31 CU-32 CU-33 CU-34" data-evidence-trigger>CU-30–34</button></p>
-            <p><strong>想看 Codex 风格的最小复刻：</strong>AzaiSakura 的 DSH 仓库很适合读协议和 daemon 边界，但不应当作今天最成熟的可靠性基线。它的价值是“看得懂”，不是已经解决了所有 stale state、后台输入和结果验证问题。<button class="evidence-ref" type="button" data-evidence="CU-27 CU-28 CU-29" data-evidence-trigger>CU-27–29</button></p>
-          </section>
-          <section id="codex-trace" data-article-section>
-            <span class="section-number">08 / Codex 追踪器</span><h2>Codex 追踪器：沿旧逆向证据判断故障层</h2>
-            <p>下面保留此前 Codex 固定构建逆向中的交互追踪器。它专门回答一个实用问题：看到“没反应”时，故障究竟卡在目标、App Policy、系统权限、观察、动作还是 transport，以及这时为什么不能直接再点一次。它不是四方跑分，也不是原生服务模拟器。</p>
+
+          <section id="user-control" data-article-section>
+            <span class="section-number">08 / 用户控制</span><h2>用户控制：可见、可停和可接管</h2>
+            <p>可视化的价值不只是好看，而是给用户一条控制回路。overlay 或 PIP 至少要显示目标 App、动作类型、当前阶段和结果强度，并提供暂停与接管。用户一旦接管，执行层应取消未送出的动作、让当前模糊结果进入 unknown、丢弃旧 refs，再从一份新观察恢复。Codex 的固定构建已经能看到 PIP、用户干预和 session 错误边界；Kimi 则把 App、service 与权限状态拆开诊断。<button class="evidence-ref" type="button" data-evidence="CU-16 CU-18 CU-22 CU-25" data-evidence-trigger>CU-16,18,22,25</button></p>
             <div class="cua-trace-lab" data-cua-trace-lab aria-label="沿调用链判断 Computer Use 故障该怎么恢复" aria-busy="true">
-              <header class="cua-trace-header"><div><span>沿链路做判断</span><h3>没反应。现在能直接重试吗？</h3><p data-cua-trace-context>先别猜。同样是“没反应”，卡在不同层，处理办法可能正好相反。</p></div><label><span>刚才发生了什么</span><select data-cua-trace-select aria-label="选择一种故障现场"><option>正在载入…</option></select></label></header>
-              <div class="cua-trace-overview" data-cua-trace-overview></div><div class="cua-trace-body"><div class="cua-trace-rail" data-cua-trace-rail role="tablist" aria-label="调用链步骤"></div><section id="cuaTraceDetail" class="cua-trace-detail" data-cua-trace-detail role="tabpanel" aria-live="polite"></section></div><div class="cua-trace-loading" data-cua-trace-loading>正在把固定构建里的故障路径摊开…</div>
+              <header class="cua-trace-header"><div><span>失败时怎么停</span><h3>没反应。现在能直接重试吗？</h3><p data-cua-trace-context>同样是“没反应”，卡在权限、观察、动作或回执，恢复办法可能正好相反。</p></div><label><span>刚才发生了什么</span><select data-cua-trace-select aria-label="选择一种故障现场"><option>正在载入…</option></select></label></header>
+              <div class="cua-trace-overview" data-cua-trace-overview></div><div class="cua-trace-body"><div class="cua-trace-rail" data-cua-trace-rail role="tablist" aria-label="调用链步骤"></div><section id="cuaTraceDetail" class="cua-trace-detail" data-cua-trace-detail role="tabpanel" aria-live="polite"></section></div><div class="cua-trace-loading" data-cua-trace-loading>正在把故障路径摊开…</div>
             </div>
           </section>
+
+          <section id="reference-architecture" data-article-section>
+            <span class="section-number">09 / 参考架构</span><h2>参考架构：一套值得实现的 CUA</h2>
+            <p>如果按你想要的体验来做，我会以 Pi 的状态合同和 ghost cursor 为骨架，再补上产品级安装、权限诊断、审批和接管。关键不是拼四个产品，而是守住下面这条链：</p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count: 6"><div><span>01</span><strong>Root registry</strong><small>窗口与页面身份</small></div><div><span>02</span><strong>Immutable state</strong><small>AX、image、epoch</small></div><div><span>03</span><strong>Intent resolver</strong><small>语义优先的动作计划</small></div><div><span>04</span><strong>Native executor</strong><small>后台投递与结果证据</small></div><div><span>05</span><strong>Agent overlay</strong><small>虚拟轨迹与点击反馈</small></div><div><span>06</span><strong>Successor receipt</strong><small>结果、diff 与接管点</small></div></div><figcaption>执行器拥有最终目标点；overlay 只读取它。状态仓库拥有 refs；模型和动画都不能私自延长其有效期。</figcaption></figure>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>必须满足的不变量</th><th>原因</th></tr></thead><tbody><tr><td>真实鼠标与 Agent cursor 分离</td><td>用户和 Agent 可以同时工作</td></tr><tr><td>动画不阻塞输入，输入不等待动画</td><td>呈现故障不能改变执行语义</td></tr><tr><td>每个目标绑定 stateId 与 epoch</td><td>拒绝漂亮但过期的轨迹</td></tr><tr><td>pointer unknown 不自动重放</td><td>避免双击、重复发送或重复删除</td></tr><tr><td>前台降级必须可见且可拒绝</td><td>不偷偷抢走用户的键盘焦点</td></tr><tr><td>完成标记必须来自 postcondition</td><td>不让执行者自己宣布成功</td></tr></tbody></table></div>
+          </section>
+
           <section id="evidence-boundary" data-article-section>
-            <span class="section-number">09 / 证据边界</span><h2>证据边界：这次确认了什么，还缺什么</h2>
-            <p>Codex 样本固定在 build 6234，能直接读到模型合同、可信 runtime、typed client 和 transport，原生层仍主要依赖 Mach-O 元数据与符号。Kimi 固定到 Kimi Code 提交 <code>b184b314</code> 和带哈希的 KimiCU 0.5.8，公开接线完整，动作内部仍是专有实现。DSH 固定到 <code>a572908</code>，Pi 固定到 v0.5.1 的 <code>4b8dbd7</code>，两者可以直接检查源码。<button class="evidence-ref" type="button" data-evidence="CU-19 CU-25 CU-27 CU-34" data-evidence-trigger>CU-19,25,27,34</button></p>
-            <p>尚未完成的是同任务动态基准。我们还不能说 Pi 的真实成功率一定高于 Kimi 或 Codex，也不能把其他同名 DSH fork 的新能力算进 AzaiSakura 这份早期实现。下一步真正有价值的实验，是在隔离用户下让四套系统完成相同的原生 App、Electron、浏览器和画布任务，并注入 stale state、焦点漂移、回执超时与权限中断。届时比较的是可复现行为，不是 README 形容词。</p>
-            <div class="article-callout"><strong>当前推荐结论</strong><p>把 Pi 当作今天最值得读的开源设计参考；把 DSH 当作 Codex-style 最小实现教材；把 Codex 和 Kimi 当作产品级但证据受闭源边界限制的样本。使用产品时看权限与体验，设计系统时优先抄状态合同，不要只抄十个工具名。</p></div>
+            <span class="section-number">10 / 证据边界</span><h2>证据边界：产品只作为实现样本</h2>
+            <p>本文用 Codex build 6234 证明可信 runtime、App Policy、本地 transport、PIP 与失败分层；用 KimiCU 0.5.8 证明 Plugin、MCP、launchd/XPC、权限 doctor 和后台输入合同；用早期 DSH clean-room 源码暴露简单实现的 session、socket 与验证缺口；用 Pi v0.5.1 的完整源码研究 stateId、epoch、transaction、successor diff、headless policy 和 ghost cursor。它们服务于同一个 CUA 问题，不再各自成为章节主角。<button class="evidence-ref" type="button" data-evidence="CU-09 CU-19 CU-25 CU-27 CU-28 CU-29 CU-30 CU-31 CU-32 CU-33 CU-34" data-evidence-trigger>CU-09,19,25,27–34</button></p>
+            <p>仍缺少的是同任务动态实验：虚拟光标是否准确落在最终 grounded point，后台动作是否真的不改变用户焦点，动画与动作在并发时会不会错配，以及前台降级后能否安全恢复。当前结论是源码与固定发行包支持的设计研究，不是已经完成的真实 App 成功率测评。</p>
+            <div class="article-callout"><strong>收束</strong><p>你要的 CUA 方向是成立的：后台执行负责不打扰，可视化负责不隐瞒，状态回执负责不自欺。三者必须由同一份观察身份连接，少一个都只是“看起来会操作电脑”。</p></div>
           </section>
         </article>
-        <aside class="article-margin" aria-label="读到这里可以随时回看的侧注"><div class="article-margin-block"><span>先看什么</span><strong>stateId、epoch、successor state</strong><small>工具名相似，不代表状态安全性相似。</small></div><div class="article-margin-block"><span>开源首选</span><strong>pi-computer-use v0.5.1</strong><small>这次按源码完整度与合同成熟度选择，不按热度。</small></div><div class="article-margin-block"><span>最大缺口</span><strong>还没有同任务动态基准</strong><small>静态实现研究不能冒充成功率测评。</small></div></aside>
+        <aside class="article-margin" aria-label="CUA 设计要点"><div class="article-margin-block"><span>执行原则</span><strong>语义后台优先，前台降级必须明示。</strong><small>不把成功率建立在偷偷抢焦点上。</small></div><div class="article-margin-block"><span>呈现原则</span><strong>虚拟光标和物理鼠标完全分离。</strong><small>轨迹解释动作，不参与动作。</small></div><div class="article-margin-block"><span>完成原则</span><strong>绿色完成来自后继状态，不来自动画。</strong><small>unknown 时停止，不自动再点一次。</small></div></aside>
       </div>
-      <nav class="article-next" aria-label="继续阅读"><a href="/capabilities/kimi-computer-use.html"><span>查看产品附录</span><strong>Kimi Computer Use：Plugin、MCP 与原生服务</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
+      <nav class="article-next" aria-label="查看实现附录"><a href="/capabilities/kimi-computer-use.html"><span>实现附录</span><strong>Kimi CU：Plugin、MCP 与原生服务</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
     </main>
   </div>
   <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>

@@ -154,7 +154,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "Computer Use", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
@@ -378,36 +378,38 @@ test("all full implementation notes keep semantic navigation and evidence contro
   }
 });
 
-test("Computer Use headings form one cross-implementation map instead of unrelated editorial hooks", () => {
+test("Computer Use headings stay focused on background execution and observable interaction", () => {
   const html = articles["computer-use"];
   const toc = html.match(/<aside\b[^>]*id="articleToc"[^>]*>[\s\S]*?<\/aside>/i)?.[0] || "";
   const tocTitles = [...toc.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((match) => plainText(match[1]));
   const sectionTitles = [...html.matchAll(/<section\b[^>]*data-article-section[^>]*>[\s\S]*?<h2>([\s\S]*?)<\/h2>/gi)]
     .map((match) => plainText(match[1]));
 
-  assert.match(html, /<span class="article-series">多实现源码研究<\/span>/);
-  assert.match(html, /<h1>Computer Use 实现地图<\/h1>/);
+  assert.match(html, /<span class="article-series">Computer-Using Agent 实现研究<\/span>/);
+  assert.match(html, /<h1>CUA：后台执行与可视化交互<\/h1>/);
   assert.deepEqual(articleSectionIds(html), [
-    "verdict",
-    "four-stacks",
-    "state-contract",
-    "action-contract",
-    "permissions",
-    "recovery",
-    "choice",
-    "codex-trace",
+    "thesis",
+    "two-planes",
+    "background-delivery",
+    "virtual-cursor",
+    "state-grounding",
+    "interaction-receipt",
+    "focus-fallback",
+    "user-control",
+    "reference-architecture",
     "evidence-boundary",
   ]);
   assert.deepEqual(tocTitles, sectionTitles, "TOC and section headings should use the same implementation labels");
   assert.deepEqual(sectionTitles.map((title) => title.split("：")[0]), [
-    "核心判断",
-    "四套栈",
-    "观察合同",
-    "动作合同",
-    "权限边界",
-    "失败恢复",
-    "怎么选",
-    "Codex 追踪器",
+    "核心模型",
+    "两套平面",
+    "后台动作",
+    "虚拟光标",
+    "状态绑定",
+    "交互回执",
+    "焦点降级",
+    "用户控制",
+    "参考架构",
     "证据边界",
   ]);
 

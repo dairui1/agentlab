@@ -294,14 +294,14 @@
     },
     {
       "id": "computer-use",
-      "title": "Computer Use 实现地图",
-      "question": "Codex、Kimi、Pi 与 DSH 都会点屏幕，为什么状态合同才决定它们是否可靠？",
-      "implication": "动作必须绑定一份可识别的观察；把事件投递、结果验证和后继状态分开记录。结果不确定时先重新观察，不能把自动重发当成无害操作。",
+      "title": "CUA 后台执行与可视化",
+      "question": "Agent 怎样不抢物理鼠标，却仍让每一次移动、点击和结果都看得见？",
+      "implication": "把真实动作与虚拟光标分成执行、呈现两套平面，再用 stateId、资源 epoch 和后继状态绑定它们。前台降级必须明示，结果未知时必须停止重放。",
       "boundary": "Codex 与 Kimi 的原生执行层仍受闭源边界限制；Pi v0.5.1 与 AzaiSakura DSH 固定到公开 commit 做源码核验。本次没有安装 helper、授予系统权限或运行同任务 GUI 基准。",
       "editorialRank": 4,
       "verifiedAt": "2026-09-04",
       "kind": "comparison",
-      "kindLabel": "实现对照",
+      "kindLabel": "机制专题",
       "topic": "界面自动化",
       "products": [
         { "id": "codex", "label": "Codex", "version": "build 6234" },
@@ -309,7 +309,7 @@
         { "id": "pi", "label": "Pi", "version": "pi-computer-use 0.5.1" },
         { "id": "deepseek-harness", "label": "DSH", "version": "a572908" }
       ],
-      "fact": "四套实现都有 AX、截图与输入链；Pi 进一步用 immutable stateId、resource epoch、事务验证和 successor state 把观察与副作用连成可审计合同，是当前最完整的开源设计参考。",
+      "fact": "可靠 CUA 应让后台执行与可视化 overlay 解耦：Agent cursor 不移动真实鼠标，轨迹绑定当前 observation，点击波纹只表示事件送达，完成状态必须来自 postcondition 与 successor state。",
       "sourceKinds": ["固定发行包", "签名二进制", "固定版本源码", "协议合同"],
       "headlineEvidence": ["CU-09", "CU-19", "CU-25", "CU-27", "CU-32"],
       "evidenceCount": 34,

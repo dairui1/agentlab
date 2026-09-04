@@ -2,9 +2,9 @@
   "id": "computer-use",
   "number": "002",
   "title": "Computer Use",
-  "product": "Codex · Kimi · Pi · DSH",
-  "subtitle": "四套桌面 Agent 实现，真正拉开差距的是状态合同",
-  "description": "这份专题把此前对 Codex Computer Use 固定构建的逆向、KimiCU 0.5.8 的公开接线与签名发行包，和两套 MIT 开源实现放进同一张实现图。AzaiSakura/dsh-computer-use 解释了怎样以较薄的 TypeScript 插件加 Swift daemon clean-room 复刻 Codex 的十工具与本地协议；更成熟的 pi-computer-use v0.5.1 则把接口重构为不可变 stateId、资源 epoch、事务动作、结果验证与跨平台 backend。结论不是谁“会点击”，而是谁能证明动作基于哪份观察、是否过期、产生了什么后继状态，以及结果不确定时怎样停下。",
+  "product": "Computer-Using Agent",
+  "subtitle": "后台执行、虚拟光标与可验证交互",
+  "description": "这份专题只追一个 CUA 问题：Agent 怎样在不移动用户物理鼠标、不暗中抢占焦点的前提下操作桌面，同时把虚拟轨迹、目标高亮、点击反馈和结果状态呈现出来。核心结构是执行平面与呈现平面解耦，再由 immutable stateId、resource epoch 和 successor receipt 把观察、动作与验证连接起来。Codex、Kimi、Pi 与 DSH 只作为不同证据层的实现样本，不做产品功能巡礼。",
   "verifiedAt": "2026-09-04",
   "scope": [
     {
