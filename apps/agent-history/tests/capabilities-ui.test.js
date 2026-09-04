@@ -387,6 +387,9 @@ test("Computer Use headings stay focused on background execution and observable 
 
   assert.match(html, /<span class="article-series">Computer-Using Agent 实现研究<\/span>/);
   assert.match(html, /<h1>CUA：后台执行与可视化交互<\/h1>/);
+  assert.match(html, /语义后台[\s\S]*定向事件[\s\S]*隔离桌面[\s\S]*浏览器原生/);
+  assert.match(html, /confirmed[\s\S]*partial[\s\S]*unverifiable[\s\S]*suspected_noop[\s\S]*refused/);
+  assert.match(html, /Host 层借鉴 Pi[\s\S]*Native Driver 层借鉴 Qwen Code 发行的 Cua Driver/);
   assert.deepEqual(articleSectionIds(html), [
     "thesis",
     "two-planes",

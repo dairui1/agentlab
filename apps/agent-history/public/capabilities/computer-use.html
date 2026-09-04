@@ -28,7 +28,7 @@
             <span class="article-series">Computer-Using Agent 实现研究</span>
             <h1>CUA：后台执行与可视化交互</h1>
             <p class="article-dek">目标不是让 Agent 悄悄接管电脑，而是让它尽量在后台完成动作、不移动你的物理鼠标，同时把虚拟轨迹、目标、点击、输入和结果清楚地呈现出来。每一步都应该看得见、停得住、查得清。</p>
-            <div class="article-byline"><span>执行平面 · 呈现平面 · 状态回执</span><span>2026-09-04 核验</span><span>34 条固定证据</span></div>
+            <div class="article-byline"><span>执行平面 · 呈现平面 · 状态回执</span><span>2026-09-04 核验</span><span>38 条固定证据</span></div>
           </div>
           <div class="article-product-mark" aria-hidden="true"><img src="/assets/capability-computer-use.svg" alt=""></div>
         </div>
@@ -56,7 +56,7 @@
             <li><a href="#reference-architecture" data-index="09">参考架构：一套值得实现的 CUA</a></li>
             <li><a href="#evidence-boundary" data-index="10">证据边界：产品只作为实现样本</a></li>
           </ol>
-          <div class="article-toc-note"><strong>研究对象是 CUA</strong>Codex、Kimi、Pi 和 DSH 只提供不同层的证据。本文不再逐个介绍产品，也不按工具数量做排行榜。</div>
+          <div class="article-toc-note"><strong>研究对象是 CUA</strong>Codex、Kimi、Pi、DSH 与 Cua Driver 只提供不同层的证据。本文不逐个介绍产品，也不按工具数量做排行榜。</div>
         </aside>
         <article class="capability-article" id="articleBody">
           <p class="article-lead">想象 Agent 要点击一个后台窗口里的“保存”。可靠的系统必须同时完成三件事：把动作送到正确控件、让你看到它正在点哪里、再证明保存结果真的出现。动画不能代替动作，动作回执也不能代替结果。</p>
@@ -76,11 +76,13 @@
 
           <section id="background-delivery" data-article-section>
             <span class="section-number">03 / 后台动作</span><h2>后台动作：语义、定向事件与前台降级</h2>
-            <p>后台动作应该按能力阶梯选择，而不是所有控件都模拟鼠标。按钮可先尝试 <code>AXPress</code>，文本框可尝试 AX value/editable semantics；只有 AX 不能表达的画布、Web 控件或自定义视图，才使用与观察截图绑定的坐标和定向事件。早期 DSH 的实现会在 click、drag、type 前直接激活目标 App，这能提高成功率，却已经不是纯后台；成熟合同必须把这种行为单独标出来。<button class="evidence-ref" type="button" data-evidence="CU-19 CU-26 CU-29 CU-32 CU-33" data-evidence-trigger>CU-19,26,29,32–33</button></p>
+            <p>先别把所有“后台”混成一件事。语义后台直接调用控件能力；定向事件把像素输入送给确定的进程与窗口；隔离桌面让 Agent 在自己的 VM、X11 DISPLAY 或 compositor 里占据前台；浏览器原生路径则直接操作 DOM/CDP target。前两种解决本机共存，后两种靠环境或协议绕开单一物理桌面。</p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>后台类型</th><th>真正的隔离边界</th><th>适合的表面</th><th>主要风险</th></tr></thead><tbody><tr><td>语义后台</td><td>element / AX、UIA、AT-SPI</td><td>按钮、文本框、菜单</td><td>树缺失或语义不完整</td></tr><tr><td>定向事件</td><td>精确 PID + window</td><td>自绘控件、像素区域</td><td>事件被过滤、窗口目标漂移</td></tr><tr><td>隔离桌面</td><td>VM、DISPLAY、compositor</td><td>完整桌面与视觉任务</td><td>环境成本和登录态隔离</td></tr><tr><td>浏览器原生</td><td>tab / target / document generation</td><td>网页 DOM 与后台标签页</td><td>浏览器 Chrome 与系统弹窗仍需原生 CUA</td></tr></tbody></table></div>
+            <p>本机动作仍应按能力阶梯选择，而不是所有控件都模拟鼠标。按钮先尝试 <code>AXPress</code>，文本框先尝试 AX value/editable semantics；只有 AX 不能表达的区域，才使用与最新观察绑定的坐标和定向事件。早期 DSH 会在 click、drag、type 前直接激活目标 App，这能提高成功率，却已经不是纯后台；成熟 Driver 还应在目标窗口不唯一、状态过期或无法证明路由安全时直接拒绝。<button class="evidence-ref" type="button" data-evidence="CU-19 CU-26 CU-29 CU-32 CU-33 CU-35 CU-38" data-evidence-trigger>CU-19,26,29,32–33,35,38</button></p>
             <div class="article-tabs" data-article-tabs style="--tab-count: 4">
               <div role="tablist" aria-label="查看 CUA 的动作投递方式"><button id="deliverySemantic" type="button" role="tab" aria-selected="true" aria-controls="panelSemantic">语义动作</button><button id="deliveryTargeted" type="button" role="tab" aria-selected="false" aria-controls="panelTargeted">定向事件</button><button id="deliveryForeground" type="button" role="tab" aria-selected="false" aria-controls="panelForeground">前台降级</button><button id="deliveryBlocked" type="button" role="tab" aria-selected="false" aria-controls="panelBlocked">停止</button></div>
               <section id="panelSemantic" class="article-tab-panel" role="tabpanel" aria-labelledby="deliverySemantic"><span>首选路径</span><h3>直接操作控件语义</h3><p>利用 AX/UIA/AT-SPI 的 press、set value、editable text 等能力，不移动真实指针，也通常不需要抬升窗口。</p><div class="article-tab-spec"><div><small>优势</small><strong>目标明确、后台优先</strong></div><div><small>证据</small><strong>控件属性与回读</strong></div><div><small>限制</small><strong>画布和自绘 UI 可能缺失</strong></div></div></section>
-              <section id="panelTargeted" class="article-tab-panel" role="tabpanel" aria-labelledby="deliveryTargeted" hidden><span>第二路径</span><h3>把事件定向给目标进程</h3><p>使用从同一份截图和窗口几何得到的坐标，将点击或键盘事件投递给目标 App。它可以不移动物理鼠标，但必须防止窗口位置和观察状态已经变化。</p><div class="article-tab-spec"><div><small>优势</small><strong>覆盖自定义控件</strong></div><div><small>证据</small><strong>目标点 + 后继观察</strong></div><div><small>限制</small><strong>遮挡、焦点和坐标漂移</strong></div></div></section>
+              <section id="panelTargeted" class="article-tab-panel" role="tabpanel" aria-labelledby="deliveryTargeted" hidden><span>第二路径</span><h3>把事件定向给精确窗口</h3><p>使用从同一份截图和窗口几何得到的坐标，将点击或键盘事件投递给确定的 PID 与 window。它可以不移动物理鼠标，但“传给进程”不等于“落在该进程的正确窗口”，多窗口目标不唯一时应该拒绝。</p><div class="article-tab-spec"><div><small>优势</small><strong>覆盖自定义控件</strong></div><div><small>证据</small><strong>精确窗口 + 后继观察</strong></div><div><small>限制</small><strong>遮挡、焦点和坐标漂移</strong></div></div></section>
               <section id="panelForeground" class="article-tab-panel" role="tabpanel" aria-labelledby="deliveryForeground" hidden><span>显式降级</span><h3>确实需要焦点时再前台化</h3><p>某些编辑器、系统弹窗和全局输入只能在前台可靠工作。系统应该先告知用户，再聚焦、执行并恢复，而不是偷偷抢走键盘。</p><div class="article-tab-spec"><div><small>触发</small><strong>后台路径已明确失败</strong></div><div><small>呈现</small><strong>显示“需要前台”</strong></div><div><small>限制</small><strong>不得重放模糊副作用</strong></div></div></section>
               <section id="panelBlocked" class="article-tab-panel" role="tabpanel" aria-labelledby="deliveryBlocked" hidden><span>安全终点</span><h3>无法保证目标时停止</h3><p>没有新状态、权限不足、目标不唯一或动作结果未知时，正确选择是停下并让用户接管。</p><div class="article-tab-spec"><div><small>触发</small><strong>stale / denied / unknown</strong></div><div><small>呈现</small><strong>保留最后可信位置</strong></div><div><small>限制</small><strong>不能改成全局点击硬做</strong></div></div></section>
             </div>
@@ -88,7 +90,7 @@
 
           <section id="virtual-cursor" data-article-section>
             <span class="section-number">04 / 虚拟光标</span><h2>虚拟光标：显示轨迹但不移动真实指针</h2>
-            <p>虚拟光标适合放在原生透明叠层中：窗口不接受点击，不出现在可操作根列表里，不改变 key window；输入点由执行 helper 直接交给动画层，避免再做一次坐标转换。它可以从上一个 Agent 目标平滑移动到新目标，抵达时显示点击波纹，输入时给控件外框加状态，等待验证时则停留但改变状态，而不是假装继续忙碌。Pi v0.5.1 已经公开了这种 ghost cursor 的基本所有权和生命周期。<button class="evidence-ref" type="button" data-evidence="CU-33 CU-34" data-evidence-trigger>CU-33–34</button></p>
+            <p>虚拟光标适合放在原生透明叠层中：窗口不接受点击，不出现在可操作根列表里，不改变 key window；输入点由执行 helper 直接交给动画层，避免再做一次坐标转换。它可以从上一个 Agent 目标平滑移动到新目标，抵达时显示点击波纹，输入时给控件外框加状态，等待验证时则停留但改变状态，而不是假装继续忙碌。Pi 公开了 ghost cursor 的基本所有权和生命周期；Qwen Code 的 Cua Driver 又把 session 颜色、Agent 名称、background/foreground 与 AX/pixel/browser 目标类型做成 overlay 语义，同时明确它不是授权或成功指示器。<button class="evidence-ref" type="button" data-evidence="CU-33 CU-34 CU-37" data-evidence-trigger>CU-33–34,37</button></p>
             <div class="article-callout"><strong>不要追着真实鼠标画</strong><p>真实鼠标属于用户。Agent cursor 应维护自己的位置和动画队列；用户移动物理鼠标不会拖走它，Agent 动作也不会把用户指针吸过去。两者可以同时存在，视觉样式必须明显不同。</p></div>
             <div class="article-table-wrap"><table class="article-table"><thead><tr><th>画面元素</th><th>表达的信息</th><th>消失条件</th></tr></thead><tbody><tr><td>轨迹</td><td>Agent 正在前往哪个已定位目标</td><td>新动作覆盖、暂停或目标失效</td></tr><tr><td>目标高亮</td><td>当前 element ref 或坐标区域</td><td>状态 epoch 改变</td></tr><tr><td>点击波纹</td><td>事件在何时送出</td><td>短动画完成，不表示成功</td></tr><tr><td>结果标记</td><td>worked、didnt 或 unknown</td><td>用户确认或下一份状态取代</td></tr></tbody></table></div>
           </section>
@@ -101,7 +103,7 @@
 
           <section id="interaction-receipt" data-article-section>
             <span class="section-number">06 / 交互回执</span><h2>交互回执：点击已送达不等于目标完成</h2>
-            <p>一次点击至少有三层结果：事件有没有送出、系统有没有证据表明控件响应、用户要求的状态有没有出现。早期 DSH 在 daemon request 不抛错后固定返回 <code>actionPerformed: true</code>，这只能覆盖第一层。Pi 的事务模型允许附上语义 postcondition，并返回 <code>worked</code>、<code>didnt</code> 或 <code>unknown</code>，再保存完整后继状态。<button class="evidence-ref" type="button" data-evidence="CU-13 CU-29 CU-32" data-evidence-trigger>CU-13,29,32</button></p>
+            <p>一次点击至少有三层结果：事件有没有送出、Driver 有没有证据表明控件响应、用户要求的状态有没有出现。早期 DSH 在 daemon request 不抛错后固定返回 <code>actionPerformed: true</code>，这只能覆盖第一层。Pi 用 <code>worked / didnt / unknown</code> 与后继状态改善了这一点；Cua Driver 的合同又把动作事实收敛为 <code>confirmed / partial / unverifiable / suspected_noop / refused</code>，并把业务后置条件单独交给 <code>verify_state</code> 返回 <code>satisfied / unsatisfied / unknown</code>。<button class="evidence-ref" type="button" data-evidence="CU-13 CU-29 CU-32 CU-36" data-evidence-trigger>CU-13,29,32,36</button></p>
             <figure class="article-figure"><div class="article-flow" style="--flow-count: 4"><div><span>准备</span><strong>校验 base state</strong><small>目标仍属于当前 epoch</small></div><div><span>送达</span><strong>执行一个动作</strong><small>记录实际 delivery path</small></div><div><span>验证</span><strong>等待明确条件</strong><small>新增、消失、值变化</small></div><div><span>回执</span><strong>保存 successor</strong><small>可信 diff 或完整状态</small></div></div><figcaption>点击波纹应该在“送达”时出现，绿色完成标记只能在“验证”之后出现。二者不能共用一种动画。</figcaption></figure>
           </section>
 
@@ -122,14 +124,14 @@
 
           <section id="reference-architecture" data-article-section>
             <span class="section-number">09 / 参考架构</span><h2>参考架构：一套值得实现的 CUA</h2>
-            <p>如果按你想要的体验来做，我会以 Pi 的状态合同和 ghost cursor 为骨架，再补上产品级安装、权限诊断、审批和接管。关键不是拼四个产品，而是守住下面这条链：</p>
+            <p>如果按你想要的体验来做，我不会整包照搬一个项目：Host 层借鉴 Pi 的 root forest、immutable state、resource epoch 与受检查事务；Native Driver 层借鉴 Qwen Code 发行的 Cua Driver 的精确窗口路由、结构化拒绝、ActionResult、跨平台能力矩阵和 session cursor；产品层再补 Codex/Kimi 的签名 Helper、权限诊断、审批、暂停和接管。关键不是拼产品清单，而是守住下面这条链：<button class="evidence-ref" type="button" data-evidence="CU-30 CU-31 CU-32 CU-35 CU-36 CU-37 CU-38" data-evidence-trigger>CU-30–32,35–38</button></p>
             <figure class="article-figure"><div class="article-flow" style="--flow-count: 6"><div><span>01</span><strong>Root registry</strong><small>窗口与页面身份</small></div><div><span>02</span><strong>Immutable state</strong><small>AX、image、epoch</small></div><div><span>03</span><strong>Intent resolver</strong><small>语义优先的动作计划</small></div><div><span>04</span><strong>Native executor</strong><small>后台投递与结果证据</small></div><div><span>05</span><strong>Agent overlay</strong><small>虚拟轨迹与点击反馈</small></div><div><span>06</span><strong>Successor receipt</strong><small>结果、diff 与接管点</small></div></div><figcaption>执行器拥有最终目标点；overlay 只读取它。状态仓库拥有 refs；模型和动画都不能私自延长其有效期。</figcaption></figure>
             <div class="article-table-wrap"><table class="article-table"><thead><tr><th>必须满足的不变量</th><th>原因</th></tr></thead><tbody><tr><td>真实鼠标与 Agent cursor 分离</td><td>用户和 Agent 可以同时工作</td></tr><tr><td>动画不阻塞输入，输入不等待动画</td><td>呈现故障不能改变执行语义</td></tr><tr><td>每个目标绑定 stateId 与 epoch</td><td>拒绝漂亮但过期的轨迹</td></tr><tr><td>pointer unknown 不自动重放</td><td>避免双击、重复发送或重复删除</td></tr><tr><td>前台降级必须可见且可拒绝</td><td>不偷偷抢走用户的键盘焦点</td></tr><tr><td>完成标记必须来自 postcondition</td><td>不让执行者自己宣布成功</td></tr></tbody></table></div>
           </section>
 
           <section id="evidence-boundary" data-article-section>
             <span class="section-number">10 / 证据边界</span><h2>证据边界：产品只作为实现样本</h2>
-            <p>本文用 Codex build 6234 证明可信 runtime、App Policy、本地 transport、PIP 与失败分层；用 KimiCU 0.5.8 证明 Plugin、MCP、launchd/XPC、权限 doctor 和后台输入合同；用早期 DSH clean-room 源码暴露简单实现的 session、socket 与验证缺口；用 Pi v0.5.1 的完整源码研究 stateId、epoch、transaction、successor diff、headless policy 和 ghost cursor。它们服务于同一个 CUA 问题，不再各自成为章节主角。<button class="evidence-ref" type="button" data-evidence="CU-09 CU-19 CU-25 CU-27 CU-28 CU-29 CU-30 CU-31 CU-32 CU-33 CU-34" data-evidence-trigger>CU-09,19,25,27–34</button></p>
+            <p>本文用 Codex build 6234 研究可信 runtime、App Policy、本地 transport、PIP 与失败分层；用 KimiCU 0.5.8 研究 Plugin、MCP、launchd/XPC、权限 doctor 和后台输入合同；用早期 DSH clean-room 源码暴露简单实现的 session、socket 与验证缺口；用 Pi v0.5.1 研究 Agent Host 的 stateId、epoch、transaction 与 successor diff；再用 Qwen Code 的 Cua Driver 0.20.3 发行版研究更成熟的 Native Driver、ActionResult、精确拒绝和 session cursor。它们服务于同一个 CUA 问题，不各自成为产品章节。<button class="evidence-ref" type="button" data-evidence="CU-09 CU-19 CU-25 CU-27 CU-28 CU-29 CU-30 CU-31 CU-32 CU-33 CU-34 CU-35 CU-36 CU-37 CU-38" data-evidence-trigger>CU-09,19,25,27–38</button></p>
             <p>仍缺少的是同任务动态实验：虚拟光标是否准确落在最终 grounded point，后台动作是否真的不改变用户焦点，动画与动作在并发时会不会错配，以及前台降级后能否安全恢复。当前结论是源码与固定发行包支持的设计研究，不是已经完成的真实 App 成功率测评。</p>
             <div class="article-callout"><strong>收束</strong><p>你要的 CUA 方向是成立的：后台执行负责不打扰，可视化负责不隐瞒，状态回执负责不自欺。三者必须由同一份观察身份连接，少一个都只是“看起来会操作电脑”。</p></div>
           </section>

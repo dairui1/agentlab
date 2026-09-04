@@ -4,7 +4,7 @@
   "title": "Computer Use",
   "product": "Computer-Using Agent",
   "subtitle": "后台执行、虚拟光标与可验证交互",
-  "description": "这份专题只追一个 CUA 问题：Agent 怎样在不移动用户物理鼠标、不暗中抢占焦点的前提下操作桌面，同时把虚拟轨迹、目标高亮、点击反馈和结果状态呈现出来。核心结构是执行平面与呈现平面解耦，再由 immutable stateId、resource epoch 和 successor receipt 把观察、动作与验证连接起来。Codex、Kimi、Pi 与 DSH 只作为不同证据层的实现样本，不做产品功能巡礼。",
+  "description": "这份专题只追一个 CUA 问题：Agent 怎样在不移动用户物理鼠标、不暗中抢占焦点的前提下操作桌面，同时把虚拟轨迹、目标高亮、点击反馈和结果状态呈现出来。核心结构是执行平面与呈现平面解耦，再由 immutable stateId、resource epoch 和 successor receipt 把观察、动作与验证连接起来。Codex、Kimi、Pi、DSH 与 Cua Driver 只作为不同证据层的实现样本，不做产品功能巡礼。",
   "verifiedAt": "2026-09-04",
   "scope": [
     {
@@ -53,6 +53,11 @@
       "note": "commit 4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62 · MIT"
     },
     {
+      "label": "Native driver reference",
+      "value": "Qwen CUA Driver 0.20.3",
+      "note": "Qwen 维护的发行版，基于 upstream Cua Driver 0.20.0 · commit 7b10c0b · MIT"
+    },
+    {
       "label": "Clean-room baseline",
       "value": "AzaiSakura/dsh-computer-use",
       "note": "commit a572908cd3840278952a4d60126e43e121b93917 · MIT"
@@ -73,7 +78,7 @@
       "note": "下文所有 artifact 路径都从这个目录算起"
     }
   ],
-  "boundary": "四个样本的证据强度并不相同。Codex 锁定本机 build 6234 的插件合同、编译后 JavaScript、Mach-O 元数据和静态字符串；Kimi 锁定公开 Kimi Code 提交及 2026-09-04 下载、记录 SHA-256 的 KimiCU 0.5.8 发行包；Pi 与 DSH 锁定 Git commit 并直接阅读 TypeScript、Swift、Rust 和文档。能从固定文件直接读到的记作 observation，跨层连接才记作 inference。此次没有安装任何新增 Computer Use runtime，没有授予 TCC 权限，也没有在同一套 GUI 任务上跑四方基准。因此源码完整不等于运行效果已获验证，专有二进制中出现字符串也不等于某条路径必然执行。",
+  "boundary": "五组样本的证据强度并不相同。Codex 锁定本机 build 6234 的插件合同、编译后 JavaScript、Mach-O 元数据和静态字符串；Kimi 锁定公开 Kimi Code 提交及 2026-09-04 下载、记录 SHA-256 的 KimiCU 0.5.8 发行包；Pi、DSH 与 Qwen Code 的 Cua Driver 发行版锁定 Git commit 并直接阅读 TypeScript、Swift、Rust 和文档。能从固定文件直接读到的记作 observation，跨层连接才记作 inference。此次没有安装任何新增 Computer Use runtime，没有授予 TCC 权限，也没有在同一套 GUI 任务上跑五方基准。Qwen/Cua 的矩阵数字属于仓库维护者记录，不是本次独立复现；源码完整也不等于运行效果已获验证。",
   "views": {
     "architecture": {
       "label": "架构",
@@ -972,13 +977,61 @@
       "id": "CU-34",
       "kind": "observation",
       "confidence": "high",
-      "title": "Pi 是当前四个样本里最完整的可审计参考实现",
-      "statement": "v0.5.1 以 MIT 发布，package scripts 覆盖 schema、bounded output、session lifecycle、runtime concurrency、architecture invariants、Windows/Linux platform 与本地签名路径；公开源码包含 extension、共享状态/动作层以及三套 native backend。",
+      "title": "Pi 提供完整可审计的 Agent Host 与状态协议参考",
+      "statement": "v0.5.1 以 MIT 发布，package scripts 覆盖 schema、bounded output、session lifecycle、runtime concurrency、architecture invariants、Windows/Linux platform 与本地签名路径；公开源码包含 extension、共享状态/动作层以及三套 native backend。它最值得吸收的是 Host、状态和调度合同，而不是把每个平台 actuator 都当作能力上限。",
       "artifact": "package.json + repository tree + LICENSE",
       "locator": "version, scripts, source tree and MIT grant",
       "sha256": "009d7e870f82837a7b8e2d69e89b0d5ed522b4514bec9206e68afbb0243ff152",
       "boundary": "测试面和源码完整度支持把它当设计参考，不代表本次已独立复现全部测试或证明它在真实应用中优于闭源产品。",
       "source": {"label": "Pi package manifest", "url": "https://github.com/injaneity/pi-computer-use/blob/4b8dbd7eaa13328ab1a8a4b55d0be0b077de7d62/package.json"}
+    },
+    {
+      "id": "CU-35",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Qwen 将 Cua Driver 0.20 做成跨 Harness 的 Native Runtime",
+      "statement": "Qwen CUA Driver 0.20.3 是基于 upstream Cua Driver 0.20.0 的 vendored distribution，同时提供 MCP、CLI、Python/TypeScript SDK 与版本化 C ABI。公开合同包含 permission modes、snapshot-bound element token、per-action target、closed action result、verify_state 与跨平台 native backend。",
+      "artifact": "packages/cua-driver/README.md",
+      "locator": "0.20 runtime and SDK surface, permission modes",
+      "sha256": "c743bdf5bfc878d47d0f97e673a233420703b97ca650e8c2c2bcba08edc31873",
+      "boundary": "这是 Qwen 固定提交中的发行与合同说明；本次没有下载二进制、启动 daemon 或复现平台行为。",
+      "source": {"label": "Qwen CUA Driver README", "url": "https://github.com/QwenLM/qwen-code/blob/7b10c0b473ed1be959d7c40ab1356afafa4ac3dc/packages/cua-driver/README.md"}
+    },
+    {
+      "id": "CU-36",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Cua Driver 把动作事实与业务后置条件彻底分开",
+      "statement": "ActionResult 只报告 effect、route、delivery 与有限 evidence；effect 是 confirmed、partial、unverifiable、suspected_noop 或 refused。调用方定义的业务条件由独立 verify_state 返回 satisfied、unsatisfied 或 unknown，escalation 只是建议，不能触发 Driver 自动重试。",
+      "artifact": "packages/cua-driver/docs/action-result-contract.md",
+      "locator": "MCP action result, verification remains separate, escalation belongs to the harness",
+      "sha256": "43186f513515b9f86cc5d24a26e99cea193a8b614f2efa66b2ba6c30b5b885db",
+      "boundary": "closed result contract 能减少语义混淆，但它只能证明合同怎么定义；真实 evidence 是否充分仍要看平台实现与动态测试。",
+      "source": {"label": "Cua action result contract", "url": "https://github.com/QwenLM/qwen-code/blob/7b10c0b473ed1be959d7c40ab1356afafa4ac3dc/packages/cua-driver/docs/action-result-contract.md"}
+    },
+    {
+      "id": "CU-37",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Cua Driver 的虚拟光标已经成为 session 级语义呈现层",
+      "statement": "内置 cursor theme 用 session 颜色区分并行 Agent，显示经过清洗的 session 名、background/foreground delivery 与 AX/pixel/browser/desktop target；click-through overlay 不捕获用户输入，支持 reduced motion。文档明确说明它只是视觉辅助，不是授权、权限或成功证据。",
+      "artifact": "packages/cua-driver/docs/cursor-themes.md",
+      "locator": "session badge, semantic profile, visual aid boundary",
+      "sha256": "563acc4df690453a1e5a1ec9304b6c5b32c86a8d54534ba08cc2b33cca0bcbdd",
+      "boundary": "本文吸收它的呈现语义和安全边界，不照搬具体 Lottie 资产或把仓库文档当作可用性测评。",
+      "source": {"label": "Cua cursor themes", "url": "https://github.com/QwenLM/qwen-code/blob/7b10c0b473ed1be959d7c40ab1356afafa4ac3dc/packages/cua-driver/docs/cursor-themes.md"}
+    },
+    {
+      "id": "CU-38",
+      "kind": "observation",
+      "confidence": "medium",
+      "title": "成熟 Driver 把拒绝和桌面副作用也纳入能力矩阵",
+      "statement": "Qwen vendored Cua Driver 的 test matrix 按 OS、toolkit、AX/PX、background/foreground 与 delivered/refused/no_effect/error 记录结果。后台行除 fixture 状态外，还要求 focus、z-order、input leak 与可用时的 cursor preservation oracle；无法安全投递的能力以精确 refusal 保留，而不是伪装成功。",
+      "artifact": "packages/cua-driver/docs/test-matrix.md",
+      "locator": "matrix dimensions, oracle requirements, platform tables",
+      "sha256": "f2071a60939e19579d6a1efb29b9a162778278934901fa328462b513e8993e9c",
+      "boundary": "矩阵结构可由固定文档直接核验；其中列出的运行次数与通过数字是项目方记录，本次没有独立重跑，因此置信度降为 medium。",
+      "source": {"label": "Cua test matrix", "url": "https://github.com/QwenLM/qwen-code/blob/7b10c0b473ed1be959d7c40ab1356afafa4ac3dc/packages/cua-driver/docs/test-matrix.md"}
     }
   ],
   "unknowns": [
