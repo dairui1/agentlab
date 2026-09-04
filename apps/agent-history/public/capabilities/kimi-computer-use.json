@@ -1,0 +1,124 @@
+{
+  "id": "kimi-computer-use",
+  "number": "006",
+  "title": "Kimi Computer Use",
+  "product": "Kimi Code",
+  "subtitle": "Plugin、MCP、后台服务与 macOS 输入怎样接成一项本地桌面能力",
+  "description": "研究锁定 Kimi Code 提交 b184b31497949ac019ac43d5a3dfe2ab87dbebc4，并静态检查 2026-09-04 从官方 CDN 获取的 KimiCU 0.5.8 Plugin、安装脚本与签名 macOS App。结论是：Kimi Code 本身负责 capability 生命周期和 MCP 接线，独立 KimiCU launchd/XPC 服务持有辅助功能与屏幕录制权限，并组合 AX、截图与定向输入完成后台操作。当前公开源码能完整解释安装和状态检测，无法完整审计专有原生服务内部、telemetry 字段与真实 App 成功率。",
+  "verifiedAt": "2026-09-04",
+  "status": "active",
+  "scope": [
+    {"label": "Kimi Code", "value": "b184b31497949ac019ac43d5a3dfe2ab87dbebc4", "note": "固定公开 main 提交"},
+    {"label": "macOS Plugin", "value": "0.5.8", "note": "官方 CDN zip, SHA-256 fc3d317021c1d4fc9b5caca268d75429b44cea8d08f7fbe4c43293c1d80a5ac2"},
+    {"label": "macOS App", "value": "0.5.8 arm64", "note": "Developer ID 签名并公证，zip SHA-256 792a5dc3cb02e1a3ce86b8bbea617c7202189dbea7f5a2f8640da92237867c25"},
+    {"label": "首次内置", "value": "Kimi Code 0.33.0", "note": "2026-08-05"},
+    {"label": "Windows", "value": "x64 since 0.34.0", "note": "本文只核对开源安装路径与官方说明，未下载运行时"},
+    {"label": "Runtime experiment", "value": "未执行", "note": "未安装 App、未注册服务、未授予系统权限"}
+  ],
+  "boundary": "observation 表示公开源码、Plugin 文本、发行包元数据或静态字符串直接支持的事实；inference 表示把这些层连接后的架构判断。官方 Plugin 和 App 使用 latest CDN 地址，因此本文同时记录下载日期与 SHA-256，避免把未来覆盖后的文件误当成本次样本。未运行二进制、未观察网络流量、未验证真实 GUI 任务。",
+  "evidence": [
+    {
+      "id": "KCU-01", "kind": "observation", "confidence": "high",
+      "title": "Kimi Computer Use 在 0.33.0 成为内置 capability",
+      "statement": "Kimi Code 0.33.0 的官方 changelog 把 Kimi Computer Use 和 WebBridge 加入官方插件市场，并说明安装会同时配置托管 runtime、支持中断后重试；0.34.0 再加入 Windows x64。",
+      "artifact": "docs/zh/release-notes/changelog.md", "locator": "0.33.0 and 0.34.0 release notes", "sha256": "dfb012aef8562e58d74828b40772813081673980bd62ce49eb87f0354e292b35",
+      "boundary": "发布说明证明产品入口与时间线，不证明每个系统动作的内部实现。",
+      "source": {"label": "Kimi Code 官方 changelog", "url": "https://github.com/MoonshotAI/kimi-code/blob/b184b31497949ac019ac43d5a3dfe2ab87dbebc4/docs/zh/release-notes/changelog.md"}
+    },
+    {
+      "id": "KCU-02", "kind": "observation", "confidence": "high",
+      "title": "文档版本落后于当前 CDN 包",
+      "statement": "固定提交的官方文档标题仍写 Kimi Computer Use 0.5.4；2026-09-04 下载的官方 macOS Plugin manifest 与 App Info.plist 均为 0.5.8。",
+      "artifact": "docs/zh/customization/plugins.md + kimi.plugin.json + Info.plist", "locator": "docs lines 206-238 and release package metadata", "sha256": "42cabdfa923b4b6ac2e874bcb0d4e6f9bdeb5d9eaff9a5b1d4365e4f72b372c6",
+      "boundary": "latest URL 会漂移；本研究以下载日期和 zip 哈希固定本次样本。",
+      "source": {"label": "Kimi Code 官方插件文档", "url": "https://github.com/MoonshotAI/kimi-code/blob/b184b31497949ac019ac43d5a3dfe2ab87dbebc4/docs/zh/customization/plugins.md#L206-L238"}
+    },
+    {
+      "id": "KCU-03", "kind": "observation", "confidence": "high",
+      "title": "Plugin 层只声明 Skill、MCP 与工具白名单",
+      "statement": "0.5.8 manifest 声明一个 macOS stdio MCP server，wrapper 最终执行 /Applications/KimiCU.app/Contents/MacOS/kimi-cu mcp；启用的 10 个工具覆盖列 App、取状态、点击、输入、按键、滚动、设值、辅助动作、选字与拖拽。",
+      "artifact": "kimi-cu-plugin.zip/kimi.plugin.json + bin/kimi-cu-mcp", "locator": "plugin manifest and wrapper", "sha256": "fc3d317021c1d4fc9b5caca268d75429b44cea8d08f7fbe4c43293c1d80a5ac2",
+      "boundary": "manifest 证明暴露面，不证明某次 Agent 回合实际选择或成功调用了这些工具。",
+      "source": {"label": "Kimi Computer Use 官方 Plugin zip", "url": "https://cdn.kimi.com/kimi-computer-use/latest/kimi-cu-plugin.zip"}
+    },
+    {
+      "id": "KCU-04", "kind": "observation", "confidence": "high",
+      "title": "Kimi Code 把可用性拆成四个状态",
+      "statement": "macOS capability detect 分别检查 Plugin 及 MCP enabled count、App executable 与版本、service-status、以及通过 xpc-ping 返回的 accessibility 和 screenRecording 权限；最终版本优先取 App，再回退 Plugin。",
+      "artifact": "packages/agent-core-v2/src/app/capability/entries/kimiCu.ts", "locator": "detect, lines 308-369", "sha256": "84dd75875ec790f0e145e37f61a3b2e208189b48af2aaf4959902aedd67ff95e",
+      "boundary": "检测状态是就绪条件，不是一次具体 UI 任务的成功证明。",
+      "source": {"label": "Kimi Code source · macOS detect", "url": "https://github.com/MoonshotAI/kimi-code/blob/b184b31497949ac019ac43d5a3dfe2ab87dbebc4/packages/agent-core-v2/src/app/capability/entries/kimiCu.ts#L308-L369"}
+    },
+    {
+      "id": "KCU-05", "kind": "observation", "confidence": "high",
+      "title": "安装器负责 App、服务、权限和旧 MCP 迁移",
+      "statement": "内置安装先启用 Plugin/MCP，移除识别出的旧 standalone MCP 配置，再下载 App zip、停止旧进程、复制到 /Applications、注册服务并请求 AX 与屏幕录制权限。",
+      "artifact": "packages/agent-core-v2/src/app/capability/entries/kimiCu.ts", "locator": "install, lines 413-491", "sha256": "84dd75875ec790f0e145e37f61a3b2e208189b48af2aaf4959902aedd67ff95e",
+      "boundary": "用户仍需在 macOS 系统设置中亲自授予权限；代码不能绕过 TCC。",
+      "source": {"label": "Kimi Code source · capability install", "url": "https://github.com/MoonshotAI/kimi-code/blob/b184b31497949ac019ac43d5a3dfe2ab87dbebc4/packages/agent-core-v2/src/app/capability/entries/kimiCu.ts#L413-L491"}
+    },
+    {
+      "id": "KCU-06", "kind": "observation", "confidence": "high",
+      "title": "Skill 固定了观察、动作、再观察的合同",
+      "statement": "官方 Skill 要求先 list_apps，再 get_app_state 取得 AX index 和截图坐标，执行单步动作后对重要结果重新观察；界面变化后旧快照全部失效，不允许用 CLI shot 代替 MCP 快照。",
+      "artifact": "kimi-cu-plugin.zip/skills/kimi-cu/SKILL.md", "locator": "workflow and safety rules", "sha256": "b39232e5dd12ee7dfd47d9ce88ee664012bb28bb823e103d348114fd06707ad8",
+      "boundary": "这是模型可见操作规范；宿主并未把每条规范都提升成不可绕过的 policy。",
+      "source": {"label": "Kimi Computer Use 官方 Plugin zip", "url": "https://cdn.kimi.com/kimi-computer-use/latest/kimi-cu-plugin.zip"}
+    },
+    {
+      "id": "KCU-07", "kind": "observation", "confidence": "high",
+      "title": "后台 launchd 服务持有系统权限",
+      "statement": "App 内置 LaunchAgent 标签 ai.kimi.cu.service，以 kimi-cu service 启动并发布同名 Mach service；二进制链接 Swift XPC、ApplicationServices、CoreGraphics 与 ScreenCaptureKit。App 由 Moonshot 的 Developer ID 签名，启用 hardened runtime 并带公证票据。",
+      "artifact": "KimiCU.app 0.5.8", "locator": "LaunchAgent plist, Mach-O imports and code signature", "sha256": "6c0460eee45831c434b0e50305f1cd0bbef631d45d275892f96457932a3a8c90",
+      "boundary": "签名证明发布身份与完整性，不等于原生实现已经开源或通过独立安全审计。",
+      "source": {"label": "Kimi Computer Use 官方 App zip", "url": "https://cdn.kimi.com/kimi-computer-use/latest/KimiCU.app.zip"}
+    },
+    {
+      "id": "KCU-08", "kind": "inference", "confidence": "medium",
+      "title": "后台输入由 AX 与窗口定向事件组合完成",
+      "statement": "二进制导入 AXUIElementPerformAction，并暴露 CGEventSetWindowLocation、按 PID 投递与 bg-input fallback 字符串；工具说明又区分 AXPress、AXValue、渲染层焦点和后台鼠标点击。合并这些证据，可判断实现按控件类型在 AX action/value 与窗口定向输入间选择。",
+      "artifact": "KimiCU.app 0.5.8 binary + Plugin Skill", "locator": "linked symbols, embedded tool descriptions and workflow guidance", "sha256": "6c0460eee45831c434b0e50305f1cd0bbef631d45d275892f96457932a3a8c90",
+      "boundary": "未反编译函数控制流，也未运行事件探针；无法给出每个 App/动作采用哪条路径的完整映射。",
+      "source": {"label": "Kimi Computer Use 官方 App zip", "url": "https://cdn.kimi.com/kimi-computer-use/latest/KimiCU.app.zip"}
+    },
+    {
+      "id": "KCU-09", "kind": "observation", "confidence": "high",
+      "title": "原生层显式检测 stale snapshot 和弱验证",
+      "statement": "0.5.8 二进制内的工具说明与错误文本要求先 get_app_state；它会拒绝越界坐标，并区分 AX tree 改变、元素 identity 改变、菜单重排、缓存过期，以及输入已投递但 AX 无法回读等状态。",
+      "artifact": "KimiCU.app/Contents/MacOS/kimi-cu", "locator": "embedded MCP schemas and error strings", "sha256": "6c0460eee45831c434b0e50305f1cd0bbef631d45d275892f96457932a3a8c90",
+      "boundary": "静态字符串证明实现包含这些分支和用户合同，不证明所有 UI 变化都能被准确识别。",
+      "source": {"label": "Kimi Computer Use 官方 App zip", "url": "https://cdn.kimi.com/kimi-computer-use/latest/KimiCU.app.zip"}
+    },
+    {
+      "id": "KCU-10", "kind": "observation", "confidence": "high",
+      "title": "平台与 App 类型仍有明确限制",
+      "statement": "官方文档称 macOS 少量弹窗仍会前台显示，Windows 可能短暂占用真实键鼠；Plugin Skill 进一步注明 Chromium drag 不可靠、Electron/Web 的右键与输入焦点需要不同路径，并要求不可逆操作前再次确认。",
+      "artifact": "docs/zh/customization/plugins.md + Plugin Skill", "locator": "platform notes and usage preferences", "sha256": "dfb012aef8562e58d74828b40772813081673980bd62ce49eb87f0354e292b35",
+      "boundary": "这些是已知限制，不是完整兼容性矩阵。",
+      "source": {"label": "Kimi Code 官方插件文档", "url": "https://github.com/MoonshotAI/kimi-code/blob/b184b31497949ac019ac43d5a3dfe2ab87dbebc4/docs/zh/customization/plugins.md#L206-L238"}
+    },
+    {
+      "id": "KCU-11", "kind": "observation", "confidence": "high",
+      "title": "执行层是专有发行包",
+      "statement": "Plugin manifest 将 license 标为 Proprietary；Kimi Code 公开仓库包含安装器和 capability 状态机，但 KimiCU.app 的截图、输入、XPC 和验证实现只以签名 Mach-O 发行。",
+      "artifact": "kimi.plugin.json + MoonshotAI/kimi-code", "locator": "license field and repository boundary", "sha256": "42cabdfa923b4b6ac2e874bcb0d4e6f9bdeb5d9eaff9a5b1d4365e4f72b372c6",
+      "boundary": "可以从公开接口和静态元数据重建合同，不能把它描述成完整开源的 Computer Use stack。",
+      "source": {"label": "Kimi Code 官方仓库", "url": "https://github.com/MoonshotAI/kimi-code/tree/b184b31497949ac019ac43d5a3dfe2ab87dbebc4"}
+    },
+    {
+      "id": "KCU-12", "kind": "observation", "confidence": "medium",
+      "title": "二进制包含 telemetry 模块，但默认行为未知",
+      "statement": "原生二进制静态可见 TelemetryConfiguration、TelemetryEvent、URLSessionTelemetryTransport、ai.kimi.cu.telemetry 和一个事件上报 URL。当前样本中没有公开配置说明足以确定默认启用状态、字段或截图是否参与。",
+      "artifact": "KimiCU.app/Contents/MacOS/kimi-cu", "locator": "embedded telemetry symbols and endpoint string", "sha256": "6c0460eee45831c434b0e50305f1cd0bbef631d45d275892f96457932a3a8c90",
+      "boundary": "存在 telemetry 代码不等于每次动作会上报，更不等于截图离开本机；需要运行时网络观测和隐私文档才能判断。",
+      "source": {"label": "Kimi Computer Use 官方 App zip", "url": "https://cdn.kimi.com/kimi-computer-use/latest/KimiCU.app.zip"}
+    }
+  ],
+  "unknowns": [
+    {"id": "KCU-KU-01", "title": "真实 App 的后台操作覆盖率", "text": "静态合同列出原生、Electron/Web 与 Chromium 的分支和限制，但没有可审计兼容性矩阵。", "needed": "在隔离用户下对原生 App、Electron、Chromium 各运行同一组读、写、菜单、滚动与拖拽任务。"},
+    {"id": "KCU-KU-02", "title": "telemetry 的默认策略与字段", "text": "二进制包含 telemetry 模块和端点，公开材料不足以确定默认开关、payload 与截图边界。", "needed": "安装前后抓取受控网络流量，检查本地配置与隐私说明，并用无敏感内容的 canary 对照触发。"},
+    {"id": "KCU-KU-03", "title": "输入事件的精确路由", "text": "可推断 AX 与窗口定向事件并存，但每种控件、遮挡状态和弹窗到底选择哪条分支仍不透明。", "needed": "用 Quartz event tap、AX observer 与前台焦点日志做逐动作对照。"},
+    {"id": "KCU-KU-04", "title": "高风险动作能否由宿主强制拦截", "text": "当前确认的是 Skill 文字要求模型先询问，尚未看到 KimiCU 工具 schema 或 Kimi Code capability 层强制 approval。", "needed": "检查实际 tool call policy，并对发送、删除和保存按钮运行只到审批前的测试。"},
+    {"id": "KCU-KU-05", "title": "Windows 执行模型与 macOS 是否同构", "text": "公开 Kimi Code 源码只展示 PowerShell 安装、doctor 与版本检测；官方文档明确 Windows 会真实占用键鼠。", "needed": "固定 Windows Plugin 和 runtime 包，核对签名、进程、输入 API、屏幕采集与权限模型。"}
+  ]
+}

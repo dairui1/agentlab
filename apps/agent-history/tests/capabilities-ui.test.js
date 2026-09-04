@@ -36,6 +36,7 @@ const articles = {
   "deepseek-harness-architecture": read("capabilities/deepseek-harness-architecture.html"),
   "exo-recursive-harness": read("capabilities/exo-recursive-harness.html"),
   "goal-mode": read("capabilities/goal-mode.html"),
+  "kimi-computer-use": read("capabilities/kimi-computer-use.html"),
   "token-budget-context": read("capabilities/token-budget-context.html"),
 };
 const studies = {
@@ -44,6 +45,7 @@ const studies = {
   "deepseek-harness-architecture": JSON.parse(read("capabilities/deepseek-harness-architecture.json")),
   "exo-recursive-harness": JSON.parse(read("capabilities/exo-recursive-harness.json")),
   "goal-mode": JSON.parse(read("capabilities/goal-mode.json")),
+  "kimi-computer-use": JSON.parse(read("capabilities/kimi-computer-use.json")),
   "token-budget-context": JSON.parse(read("capabilities/token-budget-context.json")),
 };
 
@@ -152,7 +154,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "Kimi Computer Use", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
@@ -177,6 +179,7 @@ test("all public surfaces expose Goal Mode as the shared current research entry"
   assert.match(capabilitiesHtml, /<agentlab-navigation[^>]+current="auto"/);
   assert.match(articles["goal-mode"], /<agentlab-navigation[^>]+current="goal"/);
   assert.match(articles["exo-recursive-harness"], /<agentlab-navigation[^>]+current="exo"/);
+  assert.match(articles["kimi-computer-use"], /<agentlab-navigation[^>]+current="kimi-cu"/);
   for (const html of [mechanismsHtml, articles["browser-use"], articles["computer-use"], articles["deepseek-harness-architecture"]]) {
     assert.doesNotMatch(html, /<agentlab-navigation[^>]+current=/);
   }
@@ -294,6 +297,7 @@ test("headline evidence keeps the direct anchors selected in adversarial review"
     "token-budget-context": ["TB-01", "TB-03", "TB-05", "TB-08"],
     "deepseek-harness-architecture": ["DSH-02", "DSH-04", "DSH-06", "DSH-09", "DSH-11"],
     "exo-recursive-harness": ["EXO-01", "EXO-04", "EXO-06", "EXO-09", "EXO-14"],
+    "kimi-computer-use": ["KCU-03", "KCU-04", "KCU-06", "KCU-07", "KCU-09"],
     "subagent-orchestration": ["CC-06", "CX-04", "OC-01"],
     "session-resume": ["SES-CC-05", "SES-CX-11", "SES-OC-04"],
     "context-compaction": ["CMP-CC-06", "CMP-CX-05", "CMP-OC-06"],
@@ -691,6 +695,21 @@ test("Exo study pins source, separates self-modification from RSI, and exposes t
   assert.match(articles[study.id], /RSM 平台/);
   assert.match(articles[study.id], /clone canary/);
   assert.match(articles[study.id], /data-evidence="EXO-01 EXO-04 EXO-09"/);
+});
+
+test("Kimi Computer Use separates the open capability wiring from the proprietary desktop runtime", () => {
+  const study = studies["kimi-computer-use"];
+  assert.equal(study.id, "kimi-computer-use");
+  assert.equal(study.number, "006");
+  assert.equal(study.verifiedAt, "2026-09-04");
+  assertEvidence(study, "KCU");
+  assertUnknowns(study, "KCU");
+  assert.match(study.description, /launchd\/XPC 服务持有辅助功能与屏幕录制权限/);
+  assert.match(study.boundary, /未运行二进制/);
+  assert.match(study.evidence.find((claim) => claim.id === "KCU-11").statement, /Proprietary/);
+  assert.match(articles[study.id], /Plugin、MCP、launchd 服务和 macOS 原生输入链/);
+  assert.match(articles[study.id], /没有安装/);
+  assert.equal(fs.existsSync(path.join(publicRoot, "agent-icons/kimi-computer-use.png")), true);
 });
 
 test("Goal Mode publishes product conclusions without exposing the local research trail", () => {
@@ -1165,6 +1184,8 @@ test("research articles follow the de-ai-ify writing contract", () => {
     JSON.stringify(studies["deepseek-harness-architecture"]),
     articles["exo-recursive-harness"],
     JSON.stringify(studies["exo-recursive-harness"]),
+    articles["kimi-computer-use"],
+    JSON.stringify(studies["kimi-computer-use"]),
     articleScript,
   ].join("\n");
 

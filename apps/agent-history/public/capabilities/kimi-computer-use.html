@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="拆解 Kimi Computer Use 的 Plugin、MCP、后台服务、AX 与截图链路，核对后台操作、权限和动作验证的真实边界。">
+  <title>Kimi Computer Use · 专题研究 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-navigation.js"></script>
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+</head>
+<body class="article-page" data-evidence-source="/capabilities/kimi-computer-use.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页">
+        <span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span>
+        <span class="brand-copy"><strong>AgentLab</strong><span>专题研究</span></span>
+      </a>
+      <agentlab-navigation current="kimi-cu" compare-agent="kimi-code"></agentlab-navigation>
+      <div class="header-links"><a class="icon-button" href="https://github.com/MoonshotAI/kimi-code" target="_blank" rel="noopener noreferrer" aria-label="打开 Kimi Code GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a></div>
+    </header>
+
+    <main>
+      <header class="article-hero">
+        <div class="article-hero-inner">
+          <div>
+            <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Kimi Computer Use</span></nav>
+            <span class="article-series">官方源码 + 发行包静态研究</span>
+            <h1>Kimi Computer Use</h1>
+            <p class="article-dek">它不是给 Kimi Code 加一组截图命令，而是把 Plugin、MCP、launchd 服务和 macOS 原生输入链连成一项可安装能力。最特别的不是“能点”，而是尽量不抢鼠标、不切前台。</p>
+            <div class="article-byline"><span>Kimi Code b184b3149794</span><span>KimiCU 0.5.8</span><span>2026-09-04 核验</span></div>
+          </div>
+          <div class="article-product-mark" aria-hidden="true"><img src="/agent-icons/kimi-computer-use.png" alt=""></div>
+        </div>
+      </header>
+
+      <section class="article-scope-band" aria-label="文章核验范围">
+        <div class="article-scope-grid">
+          <div><span>首次内置</span><strong>Kimi Code 0.33.0</strong><small>2026-08-05</small></div>
+          <div><span>当前 macOS 包</span><strong>KimiCU 0.5.8</strong><small>专有二进制</small></div>
+          <div><span>Agent 接口</span><strong>Skill + MCP</strong><small>10 个 GUI 工具</small></div>
+          <div><span>系统执行</span><strong>launchd + XPC</strong><small>后台服务持有权限</small></div>
+        </div>
+      </section>
+
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
+          <span>从一句话到系统输入</span>
+          <ol>
+            <li><a href="#verdict" data-index="01">先说结论：这不是一只普通 MCP</a></li>
+            <li><a href="#release" data-index="02">这轮更新到底新在哪</a></li>
+            <li><a href="#layers" data-index="03">四层架构：Kimi Code 不直接碰桌面</a></li>
+            <li><a href="#observe" data-index="04">观察：AX 树与截图是一份快照</a></li>
+            <li><a href="#background" data-index="05">后台输入：不抢鼠标是怎么做到的</a></li>
+            <li><a href="#trust" data-index="06">权限与信任：真正有权的是谁</a></li>
+            <li><a href="#compare" data-index="07">和 Codex Computer Use 的差别</a></li>
+            <li><a href="#boundary" data-index="08">研究边界与下一步实测</a></li>
+          </ol>
+          <div class="article-toc-note"><strong>没有安装</strong>本次只下载并静态检查官方源码、Plugin zip、安装脚本和签名 App 包。没有写入 <code>/Applications</code>，没有注册服务，也没有授予辅助功能或屏幕录制权限。</div>
+        </aside>
+
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">Kimi Computer Use 最准确的定位，是一项由 Kimi Code 管理、经 MCP 暴露、由独立原生服务执行的本地桌面能力。Plugin 负责告诉模型怎么用，KimiCU.app 负责真正看见和操作 macOS；两者缺一不可。</p>
+
+          <section id="verdict" data-article-section>
+            <span class="section-number">01 / 先说结论</span>
+            <h2>先说结论：这不是一只普通 MCP</h2>
+            <p>普通 MCP 往往是一个进程加一组工具。Kimi Computer Use 被 Kimi Code 提升成了 <em>capability</em>：CLI 同时检查 Plugin、App、后台服务和系统权限，缺哪一层就补哪一层；安装中断后也能从当前状态继续。<button class="evidence-ref" type="button" data-evidence="KCU-01 KCU-04" data-evidence-trigger>KCU-01、04</button></p>
+            <p>它的主循环并不神秘：列出 App，读取 AX 树与截图，按 index 或像素坐标执行一个动作，再重新观察。真正有区分度的是执行层：macOS 版把截图和输入放进独立 launchd/XPC 服务，尝试把事件直接送进目标窗口，而不是搬动用户的真实鼠标。<button class="evidence-ref" type="button" data-evidence="KCU-03 KCU-06 KCU-08" data-evidence-trigger>KCU-03、06、08</button></p>
+            <blockquote class="article-pullquote">Kimi Code 负责把能力接进 Agent；KimiCU 服务才是桌面权限与系统输入的实际持有者。<small>本专题的核心判断</small></blockquote>
+          </section>
+
+          <section id="release" data-article-section>
+            <span class="section-number">02 / 更新时间线</span>
+            <h2>这轮更新到底新在哪</h2>
+            <div class="article-table-wrap"><table class="article-table">
+              <thead><tr><th>时间</th><th>变化</th><th>意义</th></tr></thead>
+              <tbody>
+                <tr><td>08-05 · 0.33.0</td><td>Computer Use 进入官方插件市场</td><td>从手动 MCP 配置变成内置 capability</td></tr>
+                <tr><td>08-06 · 0.34.0</td><td>新增 Windows x64</td><td>同一产品名下出现两套系统执行语义</td></tr>
+                <tr><td>08-11 · 0.5.8</td><td>当前 CDN 的 macOS Plugin 与 App</td><td>Skill 写明快照失效、写后验证与 Electron 路径</td></tr>
+              </tbody>
+            </table></div>
+            <p>所以“最近更新”判断是对的，但要分清两条版本线：Kimi Code 的 CLI 版本决定安装和生命周期管理；KimiCU 自己的版本决定桌面动作实现。官方文档标题仍写 <code>0.5.4</code>，当前官方 CDN 包已经是 <code>0.5.8</code>。<button class="evidence-ref" type="button" data-evidence="KCU-01 KCU-02" data-evidence-trigger>KCU-01、02</button></p>
+            <div class="article-tabs" data-article-tabs style="--tab-count: 2">
+              <div role="tablist" aria-label="Kimi Computer Use 平台差异">
+                <button id="kcuTabMac" type="button" role="tab" aria-selected="true" aria-controls="kcuPanelMac">macOS</button>
+                <button id="kcuTabWin" type="button" role="tab" aria-selected="false" aria-controls="kcuPanelWin">Windows</button>
+              </div>
+              <section id="kcuPanelMac" class="article-tab-panel" role="tabpanel" aria-labelledby="kcuTabMac"><span>BACKGROUND INPUT</span><h3>后台服务持有权限</h3><p>AX 与屏幕录制权限交给 KimiCU.app，目标是让输入不移动用户真实鼠标、不切换前台。</p><div class="article-tab-spec"><div><small>RUNTIME</small><strong>KimiCU.app 0.5.8</strong></div><div><small>SERVICE</small><strong>launchd + XPC</strong></div><div><small>LIMIT</small><strong>少量弹窗仍会前台显示</strong></div></div></section>
+              <section id="kcuPanelWin" class="article-tab-panel" role="tabpanel" aria-labelledby="kcuTabWin" hidden><span>INTERACTIVE DESKTOP</span><h3>真实键鼠可能被短暂占用</h3><p>Windows x64 使用单独 Plugin 与 PowerShell 安装器，需要真实桌面会话，并与目标 App 保持同等权限级别。</p><div class="article-tab-spec"><div><small>RUNTIME</small><strong>WinCU</strong></div><div><small>SYSTEM</small><strong>Windows 10 1903+</strong></div><div><small>LIMIT</small><strong>可能激活目标窗口</strong></div></div></section>
+            </div>
+          </section>
+
+          <section id="layers" data-article-section>
+            <span class="section-number">03 / 四层架构</span>
+            <h2>四层架构：Kimi Code 不直接碰桌面</h2>
+            <figure class="article-figure">
+              <div class="article-flow" style="--flow-count: 4">
+                <div><span>01</span><strong>Kimi Agent</strong><small>按 Skill 选择工作流</small></div>
+                <div><span>02</span><strong>Plugin MCP</strong><small>stdio wrapper + 10 tools</small></div>
+                <div><span>03</span><strong>KimiCU service</strong><small>launchd / XPC</small></div>
+                <div><span>04</span><strong>macOS</strong><small>AX + ScreenCaptureKit + input</small></div>
+              </div>
+              <figcaption>Plugin 里的 shell wrapper 只定位 <code>/Applications/KimiCU.app</code> 并执行 <code>kimi-cu mcp</code>；真正的系统实现不在 Kimi Code 仓库里。</figcaption>
+            </figure>
+            <p>Plugin manifest 声明 Skill、stdio MCP 和白名单工具；Kimi Code 安装器再下载 App、清理旧服务、复制到 <code>/Applications</code>、注册 launchd，最后发起权限请求。检测时，这四种状态是分开报告的，不会把“Plugin 已安装”误写成“Computer Use 已可用”。<button class="evidence-ref" type="button" data-evidence="KCU-03 KCU-04 KCU-05" data-evidence-trigger>KCU-03–05</button></p>
+          </section>
+
+          <section id="observe" data-article-section>
+            <span class="section-number">04 / 观察合同</span>
+            <h2>观察：AX 树与截图是一份快照</h2>
+            <p><code>get_app_state</code> 可以返回完整状态、只有截图，或只有 AX 文本。只要带 AX，它就把这次观察缓存起来，让后续动作通过 node index 找目标；像素坐标则以这张截图左上角为原点，执行时再映射回真实窗口。<button class="evidence-ref" type="button" data-evidence="KCU-06 KCU-09" data-evidence-trigger>KCU-06、09</button></p>
+            <p>这也带来一条硬约束：界面变化后旧 index 和旧坐标都不再可信。Skill 明确要求重新读取状态；二进制里的错误路径还会识别菜单重排、AX identity 改变、坐标越界和缓存年龄。它没有假装 locator 永远稳定。<button class="evidence-ref" type="button" data-evidence="KCU-06 KCU-09" data-evidence-trigger>KCU-06、09</button></p>
+            <div class="article-callout"><strong>动作成功不等于任务成功</strong><p>Electron/Web 输入可能已经送达，但 AX 读不回文本。这时工具会返回 <code>verified:false</code> 或要求截图验证，而不是编造一个成功回执。</p></div>
+          </section>
+
+          <section id="background" data-article-section>
+            <span class="section-number">05 / 后台输入</span>
+            <h2>后台输入：不抢鼠标是怎么做到的</h2>
+            <p>签名二进制链接了 AppKit、ApplicationServices、CoreGraphics、ScreenCaptureKit 与 Swift XPC。静态字符串同时出现 <code>AXUIElementPerformAction</code>、窗口定向事件位置、按 PID 投递输入和后台输入 fallback。结合工具说明，可以确认它至少组合了两条路：原生控件优先走 AX action/value；需要渲染层焦点时，向目标窗口做不移动实体指针的后台点击和键盘投递。<button class="evidence-ref" type="button" data-evidence="KCU-07 KCU-08" data-evidence-trigger>KCU-07、08</button></p>
+            <p>这不是“所有 App 永不切前台”的数学保证。官方文档已经保留了少量系统弹窗会唤起前台的例外；Skill 也承认 Chromium 拖拽不可靠、Electron 右键不接受同一条合成路径。Windows 更直接：它可能短暂激活窗口并占用真实键鼠。<button class="evidence-ref" type="button" data-evidence="KCU-02 KCU-10" data-evidence-trigger>KCU-02、10</button></p>
+          </section>
+
+          <section id="trust" data-article-section>
+            <span class="section-number">06 / 权限与信任</span>
+            <h2>权限与信任：真正有权的是谁</h2>
+            <p>macOS 的辅助功能与屏幕录制权限授给 <code>KimiCU.app</code>，不是 Kimi Code 的 Agent 进程。launchd 注册的 <code>ai.kimi.cu.service</code> 暴露 Mach service，MCP 端通过 XPC 问服务状态并请求动作。正因如此，从 Agent shell 运行 <code>doctor</code> 看到没权限，并不能证明后台服务没权限。<button class="evidence-ref" type="button" data-evidence="KCU-05 KCU-07" data-evidence-trigger>KCU-05、07</button></p>
+            <p>发行可信度比随手下载的脚本高一层：当前 App 由 Beijing Moonshot Technology Co., Ltd 的 Developer ID 签名，开启 hardened runtime，并带 stapled notarization ticket。但它仍是专有二进制；公开仓库只能审计安装与接线，无法完整审计截图、输入、XPC 和 telemetry 的内部实现。<button class="evidence-ref" type="button" data-evidence="KCU-07 KCU-11" data-evidence-trigger>KCU-07、11</button></p>
+            <p>另一个需要正视的边界是 telemetry。二进制静态字符串包含独立 telemetry 模块和上报端点，但静态检查不能证明默认开关、字段、触发条件或每次动作是否上报。这里应记录为待验证项，而不是直接下“会上传截图”或“完全本地”的结论。<button class="evidence-ref" type="button" data-evidence="KCU-12" data-evidence-trigger>KCU-12</button></p>
+          </section>
+
+          <section id="compare" data-article-section>
+            <span class="section-number">07 / 与 Codex 对照</span>
+            <h2>和 Codex Computer Use 的差别</h2>
+            <div class="article-table-wrap"><table class="article-table">
+              <thead><tr><th>问题</th><th>Kimi Computer Use</th><th>Codex Computer Use 专题固定构建</th></tr></thead>
+              <tbody>
+                <tr><td>Agent 接口</td><td>标准 stdio MCP + 专用 Skill</td><td>主路是 <code>node_repl</code> + <code>@oai/sky</code>，旁边另有 MCP</td></tr>
+                <tr><td>系统服务</td><td>独立 KimiCU.app / launchd / XPC</td><td>Codex 包内 CUAService / local IPC</td></tr>
+                <tr><td>观察标识</td><td>缓存快照 index + 截图坐标</td><td>AX 元素与截图状态，同样要求刷新后重取</td></tr>
+                <tr><td>前台占用</td><td>macOS 明确主打后台投递</td><td>产品合同不以“永不抢鼠标”作为核心承诺</td></tr>
+                <tr><td>可审计性</td><td>CLI 安装层开源，执行二进制专有</td><td>wrapper 可读，原生服务同样不完整开源</td></tr>
+              </tbody>
+            </table></div>
+            <p>两者最相似的不是工具名，而是恢复合同：观察必须先于动作，界面变化后不能复用旧元素，超时或弱回读时必须重新观察。Kimi 的优势是把这套规则直接写进可安装 Skill，接口也更标准；它的未知仍集中在专有原生服务里。</p>
+          </section>
+
+          <section id="boundary" data-article-section>
+            <span class="section-number">08 / 研究边界</span>
+            <h2>研究边界与下一步实测</h2>
+            <p>本次可以确认架构、安装状态机、工具面、签名身份和二进制暴露出的系统框架；不能确认真实 App 覆盖率、后台点击成功率、复杂弹窗行为、截图是否离开本机，以及 telemetry 的默认策略。要补齐这些结论，需要在隔离 macOS 用户下完成一次受控安装，再用原生 App、Electron 和 Chromium 各跑一组可逆任务。</p>
+            <p>安全上，官方 Skill 已要求删除、发送、提交、付款前再次确认，官方文档也明确不建议用于资金、账号和对外发布。实际接入 AgentLab 或日常工作时，还应把动作前确认做成宿主 policy，而不是只依赖模型读到的一段 Skill 文本。<button class="evidence-ref" type="button" data-evidence="KCU-06 KCU-10" data-evidence-trigger>KCU-06、10</button></p>
+          </section>
+        </article>
+
+        <aside class="article-margin" aria-label="读到这里可以随时回看的侧注">
+          <div class="article-margin-block"><span>一句话模型</span><strong>Kimi Code 接线，KimiCU 服务执行。</strong><small>Plugin 安装不等于系统能力已经就绪。</small></div>
+          <div class="article-margin-block"><span>关键差异</span><strong>macOS 主打窗口定向的后台输入。</strong><small>Windows 版本可能短暂占用真实键鼠。</small></div>
+          <div class="article-margin-block"><span>恢复规则</span><strong>界面一变，旧 index 和坐标就作废。</strong><small>重新观察以后才能继续动作。</small></div>
+          <div class="article-margin-block"><span>证据边界</span><strong>接线层开源，原生执行层专有。</strong><small>telemetry 和兼容率仍需运行时验证。</small></div>
+        </aside>
+      </div>
+      <nav class="article-next" aria-label="回到专题研究索引"><a href="/capabilities.html"><span>全部专题</span><strong>返回事实与证据索引</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
+    </main>
+  </div>
+
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">实现依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>
