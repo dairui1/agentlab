@@ -45,6 +45,7 @@ const studies = {
   "deepseek-harness-architecture": JSON.parse(read("capabilities/deepseek-harness-architecture.json")),
   "exo-recursive-harness": JSON.parse(read("capabilities/exo-recursive-harness.json")),
   "goal-mode": JSON.parse(read("capabilities/goal-mode.json")),
+  "gpt-prompt-evolution": JSON.parse(read("capabilities/gpt-prompt-evolution.json")),
   "kimi-computer-use": JSON.parse(read("capabilities/kimi-computer-use.json")),
   "token-budget-context": JSON.parse(read("capabilities/token-budget-context.json")),
 };
@@ -154,7 +155,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Goal 模式", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : "research"/);
@@ -295,6 +296,7 @@ test("research navigation preserves index context and lets evidence deep links o
 test("headline evidence keeps the direct anchors selected in adversarial review", () => {
   const directAnchors = {
     "goal-mode": ["GM-04"],
+    "gpt-prompt-evolution": ["GP-04", "GP-05", "GP-08", "GP-21", "GP-22"],
     "token-budget-context": ["TB-01", "TB-03", "TB-05", "TB-08"],
     "deepseek-harness-architecture": ["DSH-02", "DSH-04", "DSH-06", "DSH-09", "DSH-11"],
     "exo-recursive-harness": ["EXO-01", "EXO-04", "EXO-06", "EXO-09", "EXO-14"],

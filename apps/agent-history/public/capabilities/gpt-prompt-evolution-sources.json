@@ -1,0 +1,362 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-09-05",
+  "collectionRevision": "3713c676ab49fa0a9f58dc693a153b5c12618dd6",
+  "method": {
+    "size": "UTF-8 bytes; splitlines includes blank lines; whitespaceWords is not model tokens",
+    "diff": "Python difflib.SequenceMatcher(autojunk=False), exact lines including blanks; moves count as delete/add",
+    "normalization": "curly quotes to straight quotes; remove backticks and paired bold markers; normalize only Destructive Actions heading case; collapse whitespace",
+    "boundary": "Snapshot labels are not release dates. Template equality is not proof of a complete runtime request or model behavior."
+  },
+  "sources": [
+    {
+      "id": "gpt-5.5",
+      "path": "OpenAI/Codex/gpt-5.5.md",
+      "sha256": "c13cc50bc068912608769224bf2c5ffcb5f534856fd631f3df0ef72a8a3108a4",
+      "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.5.md",
+      "rawUrl": "https://raw.githubusercontent.com/asgeirtj/system_prompts_leaks/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.5.md",
+      "lastFileCommit": "8733d6c3ca22d7540e6e13132415de375ffb95d2",
+      "lastFileCommitAt": "2026-07-08T14:20:35Z",
+      "bytes": 19766,
+      "characters": 19754,
+      "lines": 138,
+      "nonemptyLines": 108,
+      "whitespaceWords": 3259,
+      "headings": [
+        {
+          "line": 5,
+          "level": 1,
+          "title": "General"
+        },
+        {
+          "line": 11,
+          "level": 2,
+          "title": "Engineering judgment"
+        },
+        {
+          "line": 21,
+          "level": 2,
+          "title": "Frontend guidance"
+        },
+        {
+          "line": 25,
+          "level": 3,
+          "title": "Build with empathy"
+        },
+        {
+          "line": 31,
+          "level": 3,
+          "title": "Design instructions"
+        },
+        {
+          "line": 55,
+          "level": 2,
+          "title": "Editing constraints"
+        },
+        {
+          "line": 70,
+          "level": 2,
+          "title": "Special user requests"
+        },
+        {
+          "line": 75,
+          "level": 2,
+          "title": "Autonomy and persistence"
+        },
+        {
+          "line": 80,
+          "level": 1,
+          "title": "Working with the user"
+        },
+        {
+          "line": 92,
+          "level": 2,
+          "title": "Formatting rules"
+        },
+        {
+          "line": 111,
+          "level": 2,
+          "title": "Final answer instructions"
+        },
+        {
+          "line": 125,
+          "level": 2,
+          "title": "Intermediary updates"
+        }
+      ]
+    },
+    {
+      "id": "gpt-5.6",
+      "path": "OpenAI/Codex/gpt-5.6.md",
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md",
+      "rawUrl": "https://raw.githubusercontent.com/asgeirtj/system_prompts_leaks/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md",
+      "lastFileCommit": "74a363bcdad5834bd7a27c05925dc7266f5bca24",
+      "lastFileCommitAt": "2026-09-04T20:42:15Z",
+      "bytes": 17753,
+      "characters": 17753,
+      "lines": 168,
+      "nonemptyLines": 108,
+      "whitespaceWords": 2826,
+      "headings": [
+        {
+          "line": 3,
+          "level": 1,
+          "title": "Personality"
+        },
+        {
+          "line": 11,
+          "level": 2,
+          "title": "Writing style"
+        },
+        {
+          "line": 17,
+          "level": 2,
+          "title": "Technical communication"
+        },
+        {
+          "line": 23,
+          "level": 1,
+          "title": "Working with the user"
+        },
+        {
+          "line": 33,
+          "level": 2,
+          "title": "Intermediate commentary"
+        },
+        {
+          "line": 43,
+          "level": 2,
+          "title": "Final answer"
+        },
+        {
+          "line": 47,
+          "level": 3,
+          "title": "Formatting rules"
+        },
+        {
+          "line": 60,
+          "level": 3,
+          "title": "Visualizations"
+        },
+        {
+          "line": 76,
+          "level": 1,
+          "title": "Rules for getting work done"
+        },
+        {
+          "line": 85,
+          "level": 2,
+          "title": "File editing constraints"
+        },
+        {
+          "line": 93,
+          "level": 2,
+          "title": "Autonomy and persistence"
+        },
+        {
+          "line": 114,
+          "level": 1,
+          "title": "Destructive actions"
+        },
+        {
+          "line": 133,
+          "level": 1,
+          "title": "Using skills"
+        },
+        {
+          "line": 137,
+          "level": 3,
+          "title": "How to use skills"
+        }
+      ]
+    },
+    {
+      "id": "gpt-6-astra",
+      "path": "OpenAI/Codex/gpt-6-astra.md",
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md",
+      "rawUrl": "https://raw.githubusercontent.com/asgeirtj/system_prompts_leaks/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md",
+      "lastFileCommit": "f5c8e107370e6fed7dc0342e6667f168f4e47eb1",
+      "lastFileCommitAt": "2026-09-04T20:40:39Z",
+      "bytes": 21265,
+      "characters": 21259,
+      "lines": 171,
+      "nonemptyLines": 100,
+      "whitespaceWords": 3270,
+      "headings": [
+        {
+          "line": 3,
+          "level": 1,
+          "title": "When to ask the user for permission"
+        },
+        {
+          "line": 15,
+          "level": 1,
+          "title": "Autonomy and persistence"
+        },
+        {
+          "line": 27,
+          "level": 1,
+          "title": "Personality"
+        },
+        {
+          "line": 31,
+          "level": 2,
+          "title": "Writing style"
+        },
+        {
+          "line": 45,
+          "level": 2,
+          "title": "Technical communication"
+        },
+        {
+          "line": 53,
+          "level": 3,
+          "title": "Writing PR descriptions"
+        },
+        {
+          "line": 59,
+          "level": 1,
+          "title": "Working with the user"
+        },
+        {
+          "line": 73,
+          "level": 2,
+          "title": "Intermediate commentary"
+        },
+        {
+          "line": 83,
+          "level": 2,
+          "title": "Final answer"
+        },
+        {
+          "line": 87,
+          "level": 3,
+          "title": "Formatting rules"
+        },
+        {
+          "line": 102,
+          "level": 3,
+          "title": "Visualizations"
+        },
+        {
+          "line": 112,
+          "level": 1,
+          "title": "Rules for getting work done"
+        },
+        {
+          "line": 128,
+          "level": 1,
+          "title": "Using skills"
+        },
+        {
+          "line": 140,
+          "level": 2,
+          "title": "When to use a skill"
+        },
+        {
+          "line": 146,
+          "level": 2,
+          "title": "How to use skills"
+        },
+        {
+          "line": 152,
+          "level": 1,
+          "title": "Apps (Connectors)"
+        },
+        {
+          "line": 159,
+          "level": 1,
+          "title": "Plugins"
+        },
+        {
+          "line": 163,
+          "level": 2,
+          "title": "How to use plugins"
+        }
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "before": "gpt-5.5",
+      "after": "gpt-5.6",
+      "deletedLines": 108,
+      "addedLines": 138,
+      "unchangedLines": 30
+    },
+    {
+      "before": "gpt-5.6",
+      "after": "gpt-6-astra",
+      "deletedLines": 100,
+      "addedLines": 103,
+      "unchangedLines": 68
+    }
+  ],
+  "official": {
+    "revision": "588b781ab4924ce7352488394028e63d74cf807f",
+    "path": "codex-rs/models-manager/models.json",
+    "sha256": "d7136a413cfac1b5b1686d9e0dcc5c80ca05bebed5e9fc3911376561d0ef6ee8",
+    "url": "https://github.com/openai/codex/blob/588b781ab4924ce7352488394028e63d74cf807f/codex-rs/models-manager/models.json",
+    "checks": [
+      {
+        "source": "gpt-5.5",
+        "modelSlug": "gpt-5.5",
+        "field": "models[slug=gpt-5.5].model_messages.instructions_template",
+        "templateSha256": "c13cc50bc068912608769224bf2c5ffcb5f534856fd631f3df0ef72a8a3108a4",
+        "byteEqual": true,
+        "layoutNormalizedEqual": true,
+        "normalizedLineChanges": []
+      },
+      {
+        "source": "gpt-5.6",
+        "modelSlug": "gpt-5.6-sol",
+        "field": "models[slug=gpt-5.6-sol].model_messages.instructions_template",
+        "templateSha256": "cbefa6b0bede0e332d957fca70ccacf9f12f4c0ecdf81b819e5cbe1a3b16e265",
+        "byteEqual": false,
+        "layoutNormalizedEqual": true,
+        "normalizedLineChanges": []
+      },
+      {
+        "source": "gpt-5.6",
+        "modelSlug": "gpt-5.6-terra",
+        "field": "models[slug=gpt-5.6-terra].model_messages.instructions_template",
+        "templateSha256": "cbefa6b0bede0e332d957fca70ccacf9f12f4c0ecdf81b819e5cbe1a3b16e265",
+        "byteEqual": false,
+        "layoutNormalizedEqual": true,
+        "normalizedLineChanges": []
+      },
+      {
+        "source": "gpt-5.6",
+        "modelSlug": "gpt-5.6-luna",
+        "field": "models[slug=gpt-5.6-luna].model_messages.instructions_template",
+        "templateSha256": "cbefa6b0bede0e332d957fca70ccacf9f12f4c0ecdf81b819e5cbe1a3b16e265",
+        "byteEqual": false,
+        "layoutNormalizedEqual": true,
+        "normalizedLineChanges": []
+      },
+      {
+        "source": "gpt-6-astra",
+        "modelSlug": "gpt-6-astra",
+        "field": "models[slug=gpt-6-astra].model_messages.instructions_template",
+        "templateSha256": "152dfaeeb552876190962be1c12c93d426840ff12691f648261554a7675a6698",
+        "byteEqual": false,
+        "layoutNormalizedEqual": false,
+        "normalizedLineChanges": [
+          {
+            "kind": "replace",
+            "collectionNonemptyLines": [
+              34,
+              34
+            ],
+            "officialNonemptyLines": [
+              34,
+              34
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

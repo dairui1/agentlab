@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="按 GPT-5.5 → GPT-5.6、GPT-5.6 → GPT-6 Astra 两步比较 Codex Prompt：左右逐段红绿 Diff，配简短解读与固定来源。">
+  <title>GPT-5.5 → 5.6 → 6 · Prompt Diff · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/gpt-prompt-evolution.css?v=2">
+  <script src="/site-navigation.js"></script>
+</head>
+<body class="article-page prompt-diff-page" data-prompt-diff data-evidence-source="/capabilities/gpt-prompt-evolution.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="gpt-prompt"></agentlab-navigation>
+      <div class="header-links"><a class="icon-button" href="https://github.com/dairui1/agentlab" target="_blank" rel="noopener noreferrer" aria-label="打开 AgentLab GitHub 仓库" title="GitHub 仓库"><i data-lucide="github" aria-hidden="true"></i></a></div>
+    </header>
+    <main class="prompt-diff-main">
+      <header class="prompt-diff-heading">
+        <div><img src="/agent-icons/codex.png" width="40" height="40" alt="Codex"><h1>GPT-5.5 → 5.6 → 6 <span>Prompt Diff</span></h1></div>
+        <p>Codex 固定模板 · 2026-09-05 核验 · 按主题对齐原文，保留原始行号</p>
+      </header>
+      <div class="prompt-diff-toolbar">
+        <label class="prompt-pair-label" for="promptPair">比较
+          <select id="promptPair">
+            <option value="5.5-5.6">GPT-5.5 → GPT-5.6</option>
+            <option value="5.6-6">GPT-5.6 → GPT-6 Astra</option>
+          </select>
+        </label>
+        <div class="prompt-diff-options">
+          <button id="promptWrap" class="icon-button" type="button" aria-label="长行换行" title="长行换行" aria-pressed="true"><i data-lucide="wrap-text" aria-hidden="true"></i></button>
+          <label><input id="promptUnchanged" type="checkbox">显示相同段落</label>
+        </div>
+        <span class="prompt-diff-legend"><span class="prompt-deleted">− 旧版</span><span class="prompt-added">+ 新版</span></span>
+      </div>
+      <div id="promptDiffStatus" class="prompt-diff-status" role="status">正在载入 Prompt…</div>
+      <div class="prompt-diff-layout">
+        <aside class="prompt-diff-toc" aria-label="变化分组"><nav id="promptDiffToc"></nav></aside>
+        <article id="promptDiffSections" class="capability-article prompt-diff-sections" aria-label="分段 Prompt 差异"></article>
+      </div>
+      <details class="prompt-diff-sources" id="sources">
+        <summary>来源与核验</summary>
+        <p>来自 <a href="https://github.com/asgeirtj/system_prompts_leaks/tree/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex" target="_blank" rel="noopener noreferrer">固定收集版本</a>，并对照 <a href="https://github.com/openai/codex/blob/588b781ab4924ce7352488394028e63d74cf807f/codex-rs/models-manager/models.json" target="_blank" rel="noopener noreferrer">OpenAI Codex 模板</a>。这是模板文本比较，非完整运行时或模型行为测试。</p>
+        <p>5.5 与官方字节一致；5.6 仅有排版差异。Astra 的异步提问段仍有差异：收集版等待示例 30 秒，官方对照为 60 秒，并调整工具入口与附件限制。
+          <button class="evidence-ref" type="button" data-evidence="GP-21 GP-22" data-evidence-trigger>GP-21 / GP-22</button>
+        </p>
+        <p><a href="/capabilities/gpt-prompt-evolution-sources.json">来源、哈希与统计</a> · <a href="/capabilities.html?study=gpt-prompt-evolution">完整证据</a></p>
+      </details>
+      <noscript><p>启用 JavaScript 后可查看逐段 Diff。<a href="/capabilities/gpt-prompt-evolution-diff.json">读取固定原文</a></p></noscript>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">证据</span><h2 id="articleEvidenceTitle">选择一条证据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关闭证据详情" title="关闭"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/monaco-view.js"></script>
+  <script src="/capability-article.js"></script>
+  <script src="/gpt-prompt-evolution.js?v=2"></script>
+</body>
+</html>

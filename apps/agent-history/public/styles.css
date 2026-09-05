@@ -199,20 +199,9 @@ ul {
 
 .brand-copy {
   min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
   white-space: nowrap;
-}
-
-.brand-copy strong {
   font-size: 20px;
   font-weight: 680;
-}
-
-.brand-copy span {
-  color: var(--muted);
-  font-size: 12px;
 }
 
 .segmented {
@@ -2633,16 +2622,7 @@ a.source-layer:hover {
   }
 
   .brand-copy {
-    display: grid;
-    gap: 1px;
-  }
-
-  .brand-copy strong {
     font-size: 18px;
-  }
-
-  .brand-copy span {
-    font-size: 11px;
   }
 
   .mode-switch {

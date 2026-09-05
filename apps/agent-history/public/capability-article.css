@@ -25,10 +25,6 @@
   background: var(--article-paper);
 }
 
-.article-shell .topbar .brand-copy > span {
-  color: var(--muted);
-}
-
 .article-shell .segmented a[aria-current="page"] {
   color: var(--text);
 }

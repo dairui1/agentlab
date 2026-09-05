@@ -1,0 +1,848 @@
+{
+  "id": "gpt-prompt-evolution",
+  "number": "008",
+  "title": "GPT-5.5 → 5.6 → 6：Codex Prompt 演进",
+  "product": "Codex",
+  "subtitle": "左右逐段红绿 Diff，按变化讲解",
+  "description": "按 GPT-5.5 → GPT-5.6、GPT-5.6 → GPT-6 Astra 两步比较 Codex 模板原文。每组保留原始行号、红绿差异和简短解读，仅比较相邻版本；固定来源与官方模板差异单独保留。",
+  "verifiedAt": "2026-09-05",
+  "status": "active",
+  "scope": [
+    {
+      "label": "主样本",
+      "value": "GPT-5.5 / GPT-5.6 / GPT-6 Astra",
+      "note": "三份 Codex 模板；不是 ChatGPT 全套 system prompt"
+    },
+    {
+      "label": "收集仓库",
+      "value": "3713c676ab49fa0a9f58dc693a153b5c12618dd6",
+      "note": "asgeirtj/system_prompts_leaks 固定提交"
+    },
+    {
+      "label": "官方对照",
+      "value": "588b781ab4924ce7352488394028e63d74cf807f",
+      "note": "openai/codex 的 instructions_template"
+    },
+    {
+      "label": "研究类型",
+      "value": "静态文本比较 + 源码交叉核验",
+      "note": "未做配对模型实验；推断不当作运行结果"
+    }
+  ],
+  "boundary": "system prompt 沿用用户与收集仓库的称呼；严格来说，本页核验的是 Codex instructions_template 及其收集文本，没有取得完整请求的 role、developer instructions、tool schema、Skill、客户端配置和权限层。主样本的最后修改时间也不是模型发布日期。段落前置只能说明写作优先级，不能推导 instruction hierarchy 改变。未读取或公开本会话隐藏指令、用户私有配置或凭据。",
+  "evidence": [
+    {
+      "id": "GP-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "工程判断是 5.5 的显式骨架",
+      "statement": "5.5 从读代码开始，要求复用已有模式、使用结构化解析、限制修改范围，并按风险扩大测试。",
+      "artifact": "OpenAI/Codex/gpt-5.5.md",
+      "locator": "固定收集版 · L5-L19",
+      "sourceId": "gpt-5.5",
+      "lines": [
+        5,
+        19
+      ],
+      "sha256": "c13cc50bc068912608769224bf2c5ffcb5f534856fd631f3df0ef72a8a3108a4",
+      "boundary": "这些是模板中的工程约束；没有运行任务验证模型是否遵守。",
+      "source": {
+        "label": "gpt-5.5 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.5.md#L5-L19"
+      }
+    },
+    {
+      "id": "GP-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.5 内嵌较长的前端设计规范",
+      "statement": "Frontend guidance 覆盖工作型界面、控件、视觉素材、3D 验收和本地预览；后两份收集版没有这一整节。",
+      "artifact": "OpenAI/Codex/gpt-5.5.md",
+      "locator": "固定收集版 · L21-L53",
+      "sourceId": "gpt-5.5",
+      "lines": [
+        21,
+        53
+      ],
+      "sha256": "c13cc50bc068912608769224bf2c5ffcb5f534856fd631f3df0ef72a8a3108a4",
+      "boundary": "缺少同名段落仅是模板层面的观察；它可能在别的注入层出现，也可能不再注入，本文没有查明。",
+      "source": {
+        "label": "gpt-5.5 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.5.md#L21-L53"
+      }
+    },
+    {
+      "id": "GP-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.5 已要求端到端执行和压缩后续做",
+      "statement": "Autonomy and persistence 默认把非纯咨询请求推进到实现与验收；后续消息不冲突时要兼顾原请求，询问进度后继续，压缩后不要重开。",
+      "artifact": "OpenAI/Codex/gpt-5.5.md",
+      "locator": "固定收集版 · L75-L90",
+      "sourceId": "gpt-5.5",
+      "lines": [
+        75,
+        90
+      ],
+      "sha256": "c13cc50bc068912608769224bf2c5ffcb5f534856fd631f3df0ef72a8a3108a4",
+      "boundary": "GPT-6 的持久性不是从零新增；这里也没有持久 goal 或独立验收器的工具合同。",
+      "source": {
+        "label": "gpt-5.5 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.5.md#L75-L90"
+      }
+    },
+    {
+      "id": "GP-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.6 用请求类别划定执行边界",
+      "statement": "5.6 将回答、诊断、修改与监控分开，特别要求诊断先解释、未经请求不修；持续完成的要求不会自动扩大权限。",
+      "artifact": "OpenAI/Codex/gpt-5.6.md",
+      "locator": "固定收集版 · L93-L112",
+      "sourceId": "gpt-5.6",
+      "lines": [
+        93,
+        112
+      ],
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "boundary": "这并非所有行动都要先问。原文仍允许范围内的只读检查与正常实现步骤。",
+      "source": {
+        "label": "gpt-5.6 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md#L93-L112"
+      }
+    },
+    {
+      "id": "GP-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 把已有授权和批准时机前置",
+      "statement": "开篇要求跨轮沿用已有授权、先完成可审阅的已授权工作，再请求必要批准；给他人发消息仍需明确授权，并需交代批准请求或自动审查拒绝的来源。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L3-L13",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        3,
+        13
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "描述的是 prompt 的行动准则，不是扩大 OS 权限或绕过审批；可逆性也不自动消除用户显式禁止。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L3-L13"
+      }
+    },
+    {
+      "id": "GP-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 强化按用户意图推进",
+      "statement": "明确把“能否帮我”等表达按行动请求处理，要求完成目标，信息不足时先做独立工作，并在依据会话判断后处理本地规范的例外。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L15-L25",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        15,
+        25
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "这是对意图推断与完成责任的强化。模糊表达、不可逆操作与权限缺口仍可能要求暂停相关动作。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L15-L25"
+      }
+    },
+    {
+      "id": "GP-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.6 的压缩段存在最近消息偏置",
+      "statement": "未压缩时，5.6 要判断新消息是替换还是补充；压缩段却让模型默认最后一个用户请求有效、先前请求已过时但可作背景。",
+      "artifact": "OpenAI/Codex/gpt-5.6.md",
+      "locator": "固定收集版 · L23-L31",
+      "sourceId": "gpt-5.6",
+      "lines": [
+        23,
+        31
+      ],
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "boundary": "原文也保留了不重做已完成工作与跨压缩连续执行的要求。这里分析的是两种表述之间的张力。",
+      "source": {
+        "label": "gpt-5.6 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md#L23-L31"
+      }
+    },
+    {
+      "id": "GP-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 明确保留原目标与累积约束",
+      "statement": "新消息默认用于调整当前任务；压缩后继续保留原目标、已接受修正、约束、已完成和未完成工作。异步澄清允许独立工作继续，必要答案未到则不能推进依赖动作。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L65-L71",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        65,
+        71
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "收集版的可选澄清示例是 30 秒；官方对照已改为 60 秒。都明确经过时间不等于收到答复或批准。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L65-L71"
+      }
+    },
+    {
+      "id": "GP-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.5 的人格是未展开的模板变量",
+      "statement": "文件首行仍把 Codex 描述为基于 GPT-5 的 coding agent，随后保留 personality 占位符。",
+      "artifact": "OpenAI/Codex/gpt-5.5.md",
+      "locator": "固定收集版 · L1-L3",
+      "sourceId": "gpt-5.5",
+      "lines": [
+        1,
+        3
+      ],
+      "sha256": "c13cc50bc068912608769224bf2c5ffcb5f534856fd631f3df0ef72a8a3108a4",
+      "boundary": "不能据此认定 5.5 没有人格设置。本文没有拼入某个可选 personality 变体，也没有将这个较短基线当作完整会话。",
+      "source": {
+        "label": "gpt-5.5 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.5.md#L1-L3"
+      }
+    },
+    {
+      "id": "GP-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.6 把人格与交流风格直接写进模板",
+      "statement": "Personality 写入亲近的交流、个人偏好和主动引导；写作部分偏少格式，技术沟通要求先讲结果并适应读者背景。",
+      "artifact": "OpenAI/Codex/gpt-5.6.md",
+      "locator": "固定收集版 · L3-L21",
+      "sourceId": "gpt-5.6",
+      "lines": [
+        3,
+        21
+      ],
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "boundary": "这是角色扮演和输出风格的要求，不是模型有主观体验的证据。",
+      "source": {
+        "label": "gpt-5.6 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md#L3-L21"
+      }
+    },
+    {
+      "id": "GP-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 把独立判断与可审阅表达写得更具体",
+      "statement": "人格段强调有理由时反对、证据变化时修正，避免奉承；写作强调连贯段落、具体动词，PR 描述从问题和最终行为出发。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L27-L57",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        27,
+        57
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "语气变化不证明推理能力提高。偏少标题是默认写作取向，后文仍允许适合比较的表格和图示。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L27-L57"
+      }
+    },
+    {
+      "id": "GP-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.6 的 Skill 使用规则更强制",
+      "statement": "用户点名或任务清楚符合 Skill 描述就要求使用；主 Agent 须完整读取说明和必要引用，说明使用原因，并交代阻塞与实质影响。",
+      "artifact": "OpenAI/Codex/gpt-5.6.md",
+      "locator": "固定收集版 · L133-L167",
+      "sourceId": "gpt-5.6",
+      "lines": [
+        133,
+        167
+      ],
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "boundary": "这是该模板中的 Skill 流程。Skill 文件本身和会话中别处注入的规则不在这份文件内。",
+      "source": {
+        "label": "gpt-5.6 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md#L133-L167"
+      }
+    },
+    {
+      "id": "GP-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 对未点名 Skill 改为收益判断",
+      "statement": "未显式点名时，不再仅因关键词或表面相关就加载；有真实帮助才用。Skill 导致停工或请求批准时，要指出准确文件与条款，并区分原文和自己的解释。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L128-L150",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        128,
+        150
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "用户明确点名仍要处理；缺失且完成任务确实依赖该 Skill 时仍需停下。没有全局禁止完整阅读。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L128-L150"
+      }
+    },
+    {
+      "id": "GP-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.5 把并行读取绑定到专用工具",
+      "statement": "5.5 指定文件读取优先并行，且只使用 multi_tool_use.parallel。",
+      "artifact": "OpenAI/Codex/gpt-5.5.md",
+      "locator": "固定收集版 · L8-L9",
+      "sourceId": "gpt-5.5",
+      "lines": [
+        8,
+        9
+      ],
+      "sha256": "c13cc50bc068912608769224bf2c5ffcb5f534856fd631f3df0ef72a8a3108a4",
+      "boundary": "工具名属于可见运行环境约定，不说明模型本体只能支持这一种并行方式。",
+      "source": {
+        "label": "gpt-5.5 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.5.md#L8-L9"
+      }
+    },
+    {
+      "id": "GP-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.6 保留并行偏好与文件保护",
+      "statement": "5.6 不再在该段绑定唯一并行工具，并继续保留 apply_patch、保护脏工作区、禁止未经要求的破坏性 Git 操作；新增 shell 转义和环境变量注意事项。",
+      "artifact": "OpenAI/Codex/gpt-5.6.md",
+      "locator": "固定收集版 · L76-L91",
+      "sourceId": "gpt-5.6",
+      "lines": [
+        76,
+        91
+      ],
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "boundary": "这些文件保护条款没有原样出现在 GPT-6 收集模板，完整运行时是否另行注入尚未确定。",
+      "source": {
+        "label": "gpt-5.6 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md#L76-L91"
+      }
+    },
+    {
+      "id": "GP-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 明写编排边界和测试停止条件",
+      "statement": "独立读取在 functions.exec 中用 Promise 批处理，依赖动作与审批保持顺序；新增结构化传递 PR 正文、shell 引用约束，以及按风险测试、通过后不无故扩测。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L112-L126",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        112,
+        126
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "该文件对写入并行的表述不是完全一致：一条明确要求 mutations 顺序处理，另一条用可顺序的措辞。本文按更明确的条款描述，不把它当作运行时调度保证。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L112-L126"
+      }
+    },
+    {
+      "id": "GP-17",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.6 有独立的破坏性操作章节",
+      "statement": "该节要求先确认目标，避免广泛目录和未解析变量、通配符，优先可恢复操作，删除后说明结果与可恢复性。",
+      "artifact": "OpenAI/Codex/gpt-5.6.md",
+      "locator": "固定收集版 · L114-L131",
+      "sourceId": "gpt-5.6",
+      "lines": [
+        114,
+        131
+      ],
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "boundary": "GPT-6 收集版不再有此独立章节，但仍提及破坏性和不可逆操作。单份模板缺段不能推出安全约束被整体删除。",
+      "source": {
+        "label": "gpt-5.6 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md#L114-L131"
+      }
+    },
+    {
+      "id": "GP-18",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 为 Apps 与 Plugins 增加路由说明",
+      "statement": "Apps 作为 MCP 工具集合可按上下文选用，也可延迟发现；Plugin 被描述为 Skill、MCP server 和 App 的本地集合，实际调用落在其底层能力上。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L152-L170",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        152,
+        170
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "模板出现发现规则不表示工具已连接、获授权或运行成功，也不能据此给插件功能定首次上线日期。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L152-L170"
+      }
+    },
+    {
+      "id": "GP-19",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "5.6 首次在三份样本中单列解释型可视化",
+      "statement": "该节偏向最小必要图表：只有关系比文字更易表达时才使用，列出比较、分支、流程和层级等情形。",
+      "artifact": "OpenAI/Codex/gpt-5.6.md",
+      "locator": "固定收集版 · L60-L74",
+      "sourceId": "gpt-5.6",
+      "lines": [
+        60,
+        74
+      ],
+      "sha256": "40f053be80a6ee153b007dc4805d9f480d3847204e80c7f643ee5725054ef42d",
+      "boundary": "这里限定为回答中的解释型可视化；5.5 本来已有网页素材、游戏和 3D 视觉要求。",
+      "source": {
+        "label": "gpt-5.6 · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-5.6.md#L60-L74"
+      }
+    },
+    {
+      "id": "GP-20",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "GPT-6 更积极选择交互式可视化",
+      "statement": "解释机制、因果和方案比较时偏向交互式表达；小型静态工程图偏向 Mermaid，科研或需分享的图表用标准绘图库产出独立文件。",
+      "artifact": "OpenAI/Codex/gpt-6-astra.md",
+      "locator": "固定收集版 · L102-L110",
+      "sourceId": "gpt-6-astra",
+      "lines": [
+        102,
+        110
+      ],
+      "sha256": "ffbf2e1b8af4d5c99bb0b78f8b71509dbf4fd645e3f1146aa4c506c671f01f11",
+      "boundary": "这不表示每次回答都应该画图，原文仍排除单个事实和简单步骤等情形。",
+      "source": {
+        "label": "gpt-6-astra · 固定收集版",
+        "url": "https://github.com/asgeirtj/system_prompts_leaks/blob/3713c676ab49fa0a9f58dc693a153b5c12618dd6/OpenAI/Codex/gpt-6-astra.md#L102-L110"
+      }
+    },
+    {
+      "id": "GP-21",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "公开 Codex 模板为收集文本提供交叉证据",
+      "statement": "固定官方 models.json 中，5.5 与收集版字节一致；5.6 的 Sol、Terra、Luna 模板哈希相同，统一引号、Markdown 标记和空白后与收集版一致；Astra 仍有一段异步提问差异。",
+      "artifact": "codex-rs/models-manager/models.json",
+      "locator": "固定官方 JSON · instructions_template · L4-L846",
+      "sourceId": "official",
+      "lines": [
+        4,
+        846
+      ],
+      "sha256": "d7136a413cfac1b5b1686d9e0dcc5c80ca05bebed5e9fc3911376561d0ef6ee8",
+      "boundary": "正文比较继续以三份指定收集模板为主。排版归一化不是语义判定算法；同模板也不能推出模型能力相同。",
+      "source": {
+        "label": "OpenAI Codex · 固定源码",
+        "url": "https://github.com/openai/codex/blob/588b781ab4924ce7352488394028e63d74cf807f/codex-rs/models-manager/models.json#L4-L846"
+      }
+    },
+    {
+      "id": "GP-22",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "官方 Astra 的异步提问段已与收集版不同",
+      "statement": "官方模板只列 request_user_input_async，增加不能用文本输入工具索取上传文件或截图的限制，并把简单可选问题的等待示例从收集版 30 秒改成 60 秒。",
+      "artifact": "codex-rs/models-manager/models.json",
+      "locator": "固定官方 JSON · instructions_template · L74-L74",
+      "sourceId": "official",
+      "lines": [
+        74,
+        74
+      ],
+      "sha256": "d7136a413cfac1b5b1686d9e0dcc5c80ca05bebed5e9fc3911376561d0ef6ee8",
+      "boundary": "这是两个固定来源之间的文本差异；没有证明某台客户端收到它的时间，也不代表 runtime 用计时器强制这些秒数。",
+      "source": {
+        "label": "OpenAI Codex · 固定源码",
+        "url": "https://github.com/openai/codex/blob/588b781ab4924ce7352488394028e63d74cf807f/codex-rs/models-manager/models.json#L74-L74"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "GP-KU-01",
+      "title": "客户端实际注入了什么",
+      "text": "官方仓库能对照模板，不能确认某次 Desktop、CLI 或 API 会话的完整组装结果。",
+      "needed": "取得获授权且可脱敏的请求捕获，记录客户端 build、模型 slug、role、模板哈希、工具和用户配置。"
+    },
+    {
+      "id": "GP-KU-02",
+      "title": "缺少的工程与安全条款去了哪里",
+      "text": "前端段在 5.6 样本已不再出现；编辑保护与破坏操作专章在 Astra 样本也缺席。",
+      "needed": "逐层比对同一构建完整请求，判断迁移到其他指令层、工具说明，还是确实不再提供。"
+    },
+    {
+      "id": "GP-KU-03",
+      "title": "行为改善和副作用",
+      "text": "减少重复确认、保持原目标和减少无效测试是预期收益，误读意图与沿用过期授权是待检风险。",
+      "needed": "固定任务、环境和审批策略，重复比较任务完成、错误动作、重复确认和遗失约束。"
+    },
+    {
+      "id": "GP-KU-04",
+      "title": "模型与 Prompt 的因果贡献",
+      "text": "同时更换模型和模板时，任务结果无法单独归因给其中一个。",
+      "needed": "在技术和政策允许时使用模型 × 模板交叉实验；无法控制时明确只做产品组合比较。"
+    },
+    {
+      "id": "GP-KU-05",
+      "title": "这些规则何时到达用户",
+      "text": "文件提交日期、仓库模板变化和服务端 rollout 是三条时间线。",
+      "needed": "补充发布记录、版本限定的客户端捕获和带时间的实验回执。"
+    },
+    {
+      "id": "GP-KU-06",
+      "title": "完成判定是否可靠",
+      "text": "更强的完成要求没有附带新的独立 verifier 合同；跨压缩继续也不保证历史约束不丢失。",
+      "needed": "使用隐藏验收条件、外部副作用回执和强制压缩场景，单独统计过早完成与错误继续。"
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "role",
+      "title": "身份与人格",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            1,
+            3
+          ]
+        ],
+        "gpt-5.6": [
+          [
+            1,
+            9
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            1,
+            1
+          ],
+          [
+            27,
+            29
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-09",
+        "GP-10",
+        "GP-11"
+      ],
+      "explanations": {
+        "5.5-5.6": "从 coding agent 改为 agent，并把 personality 占位符换成内嵌人格段。不能把占位符当作 5.5 没有人格。",
+        "5.6-6": "从亲近感与偏好，转向有理由时反对、随证据修正，并明确避免奉承。"
+      }
+    },
+    {
+      "id": "intent",
+      "title": "自主执行与授权",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            75,
+            78
+          ]
+        ],
+        "gpt-5.6": [
+          [
+            93,
+            112
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            3,
+            25
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-03",
+        "GP-04",
+        "GP-05",
+        "GP-06"
+      ],
+      "explanations": {
+        "5.5-5.6": "5.5 已偏向直接实现；5.6 改成按请求类型分流，明确区分诊断与修复，持续工作也不能扩大权限。",
+        "5.6-6": "请求分类表被改写为结合意图和已有授权推进。必要批准前先完成可审阅的准备；对外发消息仍需明确授权。"
+      }
+    },
+    {
+      "id": "continuity",
+      "title": "新消息与压缩后续做",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            80,
+            90
+          ]
+        ],
+        "gpt-5.6": [
+          [
+            23,
+            31
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            59,
+            71
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-07",
+        "GP-08"
+      ],
+      "explanations": {
+        "5.5-5.6": "一般消息仍区分追加与替换，但压缩段默认最后请求有效、旧请求过时，留下丢失原目标的风险。",
+        "5.6-6": "新消息默认调整当前任务。压缩后要保留原目标、修正、约束和未完工作；必要答复未到，相关动作仍须等待。"
+      }
+    },
+    {
+      "id": "skills",
+      "title": "Skill 的触发与解释",
+      "ranges": {
+        "gpt-5.5": [],
+        "gpt-5.6": [
+          [
+            133,
+            168
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            128,
+            150
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-12",
+        "GP-13"
+      ],
+      "explanations": {
+        "5.5-5.6": "5.6 主模板加入 Skill 流程：点名或明确匹配即用，先完整阅读，交代使用原因与阻塞。",
+        "5.6-6": "未点名 Skill 从匹配即用改成判断实际收益。Skill 导致停工时，要给出准确文件、条款及适用理由。"
+      }
+    },
+    {
+      "id": "writing",
+      "title": "写作与 PR 描述",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            92,
+            123
+          ]
+        ],
+        "gpt-5.6": [
+          [
+            11,
+            21
+          ],
+          [
+            43,
+            58
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            31,
+            57
+          ],
+          [
+            83,
+            100
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-10",
+        "GP-11"
+      ],
+      "explanations": {
+        "5.5-5.6": "删去不少逐项格式限制，改成少用格式、先讲结果，并适应读者的技术背景。",
+        "5.6-6": "增加连贯段落、具体动词与 PR 描述要求；重点从少格式，转向解释改变了什么、为什么及证据。"
+      }
+    },
+    {
+      "id": "progress",
+      "title": "进度汇报",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            125,
+            138
+          ]
+        ],
+        "gpt-5.6": [
+          [
+            33,
+            41
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            73,
+            81
+          ]
+        ]
+      },
+      "evidence": [],
+      "explanations": {
+        "5.5-5.6": "更新频率从约 30 秒改为不超过 60 秒，并缩短过程汇报的具体要求。",
+        "5.6-6": "保持 60 秒要求，强调有意义的发现与决策；用户问题转由异步输入工具承接。"
+      }
+    },
+    {
+      "id": "execution",
+      "title": "并行、Shell 与测试",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            5,
+            19
+          ]
+        ],
+        "gpt-5.6": [
+          [
+            76,
+            83
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            112,
+            126
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-01",
+        "GP-14",
+        "GP-15",
+        "GP-16"
+      ],
+      "explanations": {
+        "5.5-5.6": "不再绑定唯一并行工具，加入 Shell 转义和环境变量约束；这里也不再保留独立工程判断列表。",
+        "5.6-6": "写入 functions.exec 与 Promise 编排规则，区分独立读取和依赖步骤，并要求适度测试、通过后不无故加测。"
+      }
+    },
+    {
+      "id": "absence",
+      "title": "编辑保护与破坏性操作",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            55,
+            73
+          ]
+        ],
+        "gpt-5.6": [
+          [
+            85,
+            91
+          ],
+          [
+            114,
+            131
+          ]
+        ],
+        "gpt-6-astra": []
+      },
+      "evidence": [
+        "GP-15",
+        "GP-17"
+      ],
+      "explanations": {
+        "5.5-5.6": "保留 apply_patch、脏工作区和 Git 保护，并新增独立破坏操作章节，细化目标核验与恢复要求。",
+        "5.6-6": "这些独立段落在 Astra 主模板中缺席；破坏性和不可逆动作仍在授权段提及。是否迁到其他注入层尚未核验。"
+      }
+    },
+    {
+      "id": "frontend",
+      "title": "前端规范",
+      "ranges": {
+        "gpt-5.5": [
+          [
+            21,
+            53
+          ]
+        ],
+        "gpt-5.6": [],
+        "gpt-6-astra": []
+      },
+      "evidence": [
+        "GP-02"
+      ],
+      "explanations": {
+        "5.5-5.6": "前端设计、素材、布局与浏览器验收的长段落在 5.6 主模板中不再出现。",
+        "5.6-6": "两份主模板都没有独立前端规范；不是 GPT-6 才删除。"
+      }
+    },
+    {
+      "id": "visuals",
+      "title": "解释型可视化",
+      "ranges": {
+        "gpt-5.5": [],
+        "gpt-5.6": [
+          [
+            60,
+            74
+          ]
+        ],
+        "gpt-6-astra": [
+          [
+            102,
+            110
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-19",
+        "GP-20"
+      ],
+      "explanations": {
+        "5.5-5.6": "新增回答中的解释型可视化规则，偏好最小且确有帮助的图。5.5 的前端视觉要求在另一组。",
+        "5.6-6": "更积极使用交互式表达；小型工程图偏向 Mermaid，科研与可分享图表要求独立产物。"
+      }
+    },
+    {
+      "id": "extensions",
+      "title": "Apps 与 Plugins",
+      "ranges": {
+        "gpt-5.5": [],
+        "gpt-5.6": [],
+        "gpt-6-astra": [
+          [
+            152,
+            171
+          ]
+        ]
+      },
+      "evidence": [
+        "GP-18"
+      ],
+      "explanations": {
+        "5.5-5.6": "这两份主模板都没有独立 Apps / Plugins 章节。",
+        "5.6-6": "Astra 增加工具发现与插件路由：插件不直接执行，调用落到它暴露的 Skill、MCP 或 App 工具。"
+      }
+    }
+  ]
+}
