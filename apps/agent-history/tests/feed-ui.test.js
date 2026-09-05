@@ -38,6 +38,28 @@ test("feed paging observes a window-rooted sentinel and retains a click fallback
   assert.match(app, /dataset\.feedLoadMore = "true"/);
 });
 
+test("feed rows retain comparison links and separate metrics from provenance", () => {
+  assert.match(app, /link\.href = comparisonHref\(item\)/);
+  assert.match(app, /link\.append\(meta, content\)/);
+  assert.match(app, /image\.src = agentIconUrls\[item\.agent\.id\]/);
+  assert.match(app, /image\.alt = ""/);
+  assert.match(app, /image\.width = 24/);
+  assert.match(app, /image\.height = 24/);
+  assert.match(app, /provenance\.append\(analysisKind\)/);
+  assert.match(app, /footer\.append\(facts, provenance, action\)/);
+  assert.match(html, /id="feedImportanceToggle"[^>]+aria-pressed="false"/);
+  assert.match(html, /class="feed-toggle-switch" aria-hidden="true"/);
+});
+
+test("initial manifest failures replace the loading feed and offer a retry", () => {
+  const fatal = app.slice(app.indexOf("function handleFatalError"), app.indexOf("async function initialize"));
+  assert.match(fatal, /if \(state\.manifest\) return/);
+  assert.match(fatal, /title\.textContent = "情报数据加载失败"/);
+  assert.match(fatal, /elements\.intelligenceFeed\.replaceChildren\(empty\)/);
+  assert.match(fatal, /elements\.dataHealth\.hidden = true/);
+  assert.match(fatal, /window\.location\.reload\(\)/);
+});
+
 test("every configured agent filter option has its copied Phistory icon", () => {
   assert.match(app, /className = "feed-filter-agent-icon"/);
   const iconEntries = [...app.matchAll(/^\s*(?:"([a-z0-9-]+)"|([a-z0-9-]+)):\s*"(\/agent-icons\/[^"]+)"/gm)]

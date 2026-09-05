@@ -727,10 +727,6 @@
     link.dataset.intelligenceVersion = item.entry.version;
     link.setAttribute("aria-label", `查看 ${item.agent.label} ${displayVersion(item.entry.version)} 的证据与版本比较`);
 
-    const rail = document.createElement("span");
-    rail.className = "intelligence-rail";
-    rail.setAttribute("aria-hidden", "true");
-
     const content = document.createElement("span");
     content.className = "intelligence-content";
     const meta = document.createElement("span");
@@ -739,6 +735,15 @@
     agent.className = "agent-badge";
     agent.dataset.tone = String(agentTone(item.agent.id));
     agent.textContent = item.agent.label;
+    if (agentIconUrls[item.agent.id]) {
+      const image = document.createElement("img");
+      image.src = agentIconUrls[item.agent.id];
+      image.alt = "";
+      image.width = 24;
+      image.height = 24;
+      image.loading = "lazy";
+      agent.prepend(image);
+    }
     const version = document.createElement("span");
     version.className = "feed-version";
     version.textContent = displayVersion(item.entry.version);
@@ -762,6 +767,8 @@
     footer.className = "intelligence-footer";
     const facts = document.createElement("span");
     facts.className = "feed-facts";
+    const provenance = document.createElement("span");
+    provenance.className = "feed-provenance";
     const factGroups = feedFactLabels(item);
     factGroups.measured.forEach((label) => {
       const fact = document.createElement("span");
@@ -775,7 +782,7 @@
       fact.className = "feed-fact-source";
       fact.title = "证据来源：该来源在本版本有可追溯变化";
       fact.textContent = label;
-      facts.appendChild(fact);
+      provenance.appendChild(fact);
     });
     const analysisKind = document.createElement("span");
     analysisKind.className = "feed-analysis-kind";
@@ -787,9 +794,10 @@
     actionIcon.dataset.lucide = "arrow-right";
     actionIcon.setAttribute("aria-hidden", "true");
     action.append("查看证据", actionIcon);
-    footer.append(facts, analysisKind, action);
-    content.append(meta, title, summary, footer);
-    link.append(rail, content);
+    provenance.append(analysisKind);
+    footer.append(facts, provenance, action);
+    content.append(title, summary, footer);
+    link.append(meta, content);
     article.appendChild(link);
     return article;
   }
@@ -1968,6 +1976,23 @@
     const message = error instanceof Error ? error.message : "页面初始化失败";
     setPageError(message);
     setEditorPlaceholder(message, "error");
+    if (state.manifest) return;
+
+    const empty = document.createElement("div");
+    empty.className = "feed-empty";
+    const title = document.createElement("strong");
+    title.textContent = "情报数据加载失败";
+    const summary = document.createElement("p");
+    summary.textContent = "请检查网络连接后重试。";
+    const retry = document.createElement("button");
+    retry.className = "back-button";
+    retry.type = "button";
+    retry.textContent = "重新加载";
+    retry.addEventListener("click", () => window.location.reload());
+    empty.append(title, summary, retry);
+    elements.intelligenceFeed.replaceChildren(empty);
+    elements.dataHealth.hidden = true;
+    elements.feedFilterControls.querySelectorAll("button").forEach((button) => { button.disabled = true; });
   }
 
   async function initialize() {

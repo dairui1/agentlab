@@ -215,7 +215,7 @@ test("layout is three-pane on wide screens and row-first on mobile", () => {
   assert.match(styles, /\.operation-row \{\s*display: block;/);
   assert.match(styles, /\.operation-rail \{[\s\S]*overflow-x: auto/);
   assert.match(styles, /\.evidence-inspector \{\s*inset: auto 8px 8px/);
-  assert.match(styles, /\.resource-head \{\s*grid-template-columns: 142px repeat\(3, minmax\(0, 1fr\)\) 64px/);
+  assert.match(styles, /\.resource-head \{\s*grid-template-columns: 142px repeat\(3, minmax\(0, 1fr\)\) 120px/);
   assert.match(styles, /\.contract-workspace:not\(\[data-view="compare"\]\) \.operation-rail \{\s*display: none/);
   assert.match(styles, /\.sharp-edge-strip \{[\s\S]*display: flex/);
   assert.match(styles, /\.sharp-edge-title \{[\s\S]*position: sticky[\s\S]*flex: 0 0 184px/);

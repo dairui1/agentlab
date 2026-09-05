@@ -15,7 +15,7 @@
 .cua-agent-decision > span {
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -63,7 +63,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -104,7 +104,7 @@
   border: 0;
   background: transparent;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .cua-view-switch button[aria-pressed="true"] {
@@ -156,7 +156,7 @@
   padding: 0 14px;
   border-bottom: 1px solid rgba(23, 32, 29, 0.12);
   background: rgba(250, 252, 251, 0.9);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .cua-desktop-menu strong {
@@ -186,7 +186,7 @@
   padding: 0 10px;
   border-bottom: 1px solid #dce2df;
   background: #f3f6f5;
-  font-size: 9px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -234,7 +234,7 @@
 .cua-app-sidebar > strong {
   margin: 0 8px 6px;
   color: #6a7772;
-  font-size: 9px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 
@@ -247,7 +247,7 @@
   padding: 0 8px;
   border-radius: 5px;
   color: #53605b;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .cua-app-sidebar > span.is-active {
@@ -263,7 +263,7 @@
 
 .cua-app-sidebar b {
   color: #79857f;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -285,7 +285,7 @@
 
 .cua-task-surface > header span {
   color: #75817c;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .cua-task-surface h3 {
@@ -303,7 +303,7 @@
   border-color: #176b63;
   background: #176b63;
   color: #ffffff;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 680;
 }
 
@@ -349,13 +349,13 @@
 
 .cua-task-row strong {
   overflow-wrap: anywhere;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
 }
 
 .cua-task-row small {
   color: #7b8782;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .cua-task-row.is-done strong {
@@ -396,7 +396,7 @@
 
 .cua-task-composer label > span {
   color: #5c6964;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -407,7 +407,7 @@
   border-color: #7a9992;
   background: #fbfcfb;
   color: #17201d;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .cua-task-composer > div {
@@ -423,7 +423,7 @@
   border-color: #c9d2cf;
   background: #ffffff;
   color: #42504b;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .cua-task-composer button:last-child {
@@ -506,7 +506,7 @@
   background: #2767a6;
   color: #ffffff;
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -534,7 +534,7 @@
   border-radius: 4px;
   background: rgba(250, 252, 251, 0.88);
   color: #485650;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 680;
 }
 
@@ -552,7 +552,7 @@
   border-radius: 4px;
   background: #f7efdc;
   color: #74581d;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 680;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -587,7 +587,7 @@
 
 .cua-screen-figure figcaption span {
   color: var(--text-soft);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -618,12 +618,12 @@
 .cua-agent-panel > header span {
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .cua-agent-panel > header strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .cua-call-status {
@@ -665,7 +665,7 @@
 .cua-current-call code {
   overflow-wrap: anywhere;
   color: var(--text);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 680;
 }
 
@@ -678,7 +678,7 @@
   overflow-wrap: anywhere;
   color: var(--text-soft);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -686,7 +686,7 @@
   padding-left: 9px;
   border-left: 2px solid var(--add);
   color: var(--text-soft);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -704,7 +704,7 @@
 
 .cua-agent-decision p {
   color: var(--text);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 610;
   line-height: 1.55;
 }
@@ -728,7 +728,7 @@
   border-radius: var(--radius-s);
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
   text-decoration: none;
 }
 
@@ -778,13 +778,13 @@
 
 .cua-timeline button > code {
   color: inherit;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .cua-timeline button > span {
   min-width: 0;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 620;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -825,7 +825,7 @@
   border-color: var(--accent);
   background: var(--accent);
   color: #ffffff;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 680;
 }
 
@@ -852,7 +852,7 @@
 .cua-player output {
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
   text-align: right;
 }
 
@@ -863,7 +863,7 @@
   gap: 7px;
   padding-top: 11px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
 }
 
@@ -987,7 +987,7 @@
 
   .cua-scenario-select > span {
     color: var(--muted);
-    font-size: 8px;
+    font-size: 12px;
     font-weight: 650;
   }
 
@@ -995,7 +995,7 @@
     width: 100%;
     height: 44px;
     padding: 0 28px 0 9px;
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .cua-view-switch button {

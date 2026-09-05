@@ -405,6 +405,10 @@
     const operations = state.operation === "all" ? workbench.operations : workbench.operations.filter((item) => item.id === state.operation);
     const table = el("div", "operation-table");
     table.setAttribute("role", "table");
+    if (state.operation !== "all") {
+      table.classList.add("is-single-operation");
+      table.setAttribute("aria-label", operations[0].label);
+    }
     const head = el("div", "operation-row operation-head");
     ["操作合同", ...productAgents.map((agent) => agentMeta[agent].label)].forEach((label) => {
       const cell = el("div", "", label);

@@ -4,6 +4,8 @@
 
 [在线体验](https://agentlab.dairui1.com) · [GitHub 仓库](https://github.com/dairui1/agentlab)
 
+Web 界面开发遵循 [设计约定](DESIGN.md)，包括专题详情、长文章、机制工作台及移动端的共同验收要求。
+
 AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、Cline、Qwen Code、DeepSeek Harness、Exo、Reasonix 等 Coding Agent 与 Agent Harness 的公开变化，把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化整理成可检索、可追溯的中文情报。
 
 这个项目不是 Agent 排行榜，也不把模型生成内容当成事实。每条重要结论都应回到公开来源、版本和实际差异，并明确区分事实证据、工程观察与模型推断。

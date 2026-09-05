@@ -46,7 +46,7 @@
 .token-budget-hero-store span,
 .token-budget-hero-rollover span {
   color: var(--muted);
-  font: 750 9px/1 var(--mono);
+  font: 750 12px/1 var(--mono);
 }
 
 .token-budget-hero-window strong {
@@ -58,7 +58,7 @@
 .token-budget-hero-store small,
 .token-budget-hero-rollover small {
   color: var(--muted);
-  font: 10px/1.45 var(--mono);
+  font: 12px/1.45 var(--mono);
   overflow-wrap: anywhere;
 }
 
@@ -216,7 +216,7 @@
 .token-budget-flow span,
 .token-budget-layers article > span {
   color: var(--muted);
-  font: 700 10px/1 var(--mono);
+  font: 700 12px/1 var(--mono);
 }
 
 .token-budget-flow strong {
@@ -225,7 +225,7 @@
 
 .token-budget-flow small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -279,7 +279,7 @@
   padding-top: 14px;
   border-top: 1px solid var(--border);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 

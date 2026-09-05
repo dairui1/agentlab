@@ -31,7 +31,7 @@
   display: block;
   color: var(--article-signal);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -62,7 +62,7 @@
   border-radius: 3px;
   background: var(--surface-raised);
   color: var(--text);
-  font: 600 11px/1.3 var(--sans);
+  font: 600 12px/1.3 var(--sans);
 }
 
 .cua-trace-overview {
@@ -92,12 +92,12 @@
   margin-bottom: 5px;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .cua-trace-overview strong {
   overflow-wrap: anywhere;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -183,7 +183,7 @@
 
 .cua-trace-step-copy strong {
   color: inherit;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -204,7 +204,7 @@
   display: block;
   color: var(--article-signal);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -219,7 +219,7 @@
   flex: 0 0 auto;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .capability-article .cua-trace-description {
@@ -235,14 +235,14 @@
   gap: 6px 10px;
   align-items: baseline;
   margin: 14px 0 0;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .cua-trace-interface span {
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .cua-trace-facts {
@@ -269,14 +269,14 @@
   margin-bottom: 7px;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .capability-article .cua-trace-facts p,
 .capability-article .cua-trace-recovery p {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -321,7 +321,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--article-signal);
-  font: 700 9px/1.4 var(--mono);
+  font: 700 12px/1.4 var(--mono);
 }
 
 .cua-trace-nav {

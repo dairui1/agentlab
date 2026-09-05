@@ -11,6 +11,7 @@
   ];
 
   const researchItems = [
+    { id: "research", label: "全部专题", icon: "library", href: "/capabilities.html" },
     { id: "goal", label: "Goal 模式", icon: "target", href: "/capabilities.html?study=goal-mode" },
     { id: "exo", label: "Exo 递归 Harness", icon: "git-fork", href: "/capabilities/exo-recursive-harness.html" },
     { id: "token-budget", label: "TokenBudget", icon: "memory-stick", href: "/capabilities/token-budget-context.html" },
@@ -40,7 +41,7 @@
         const interactive = this.hasAttribute("interactive");
         const requestedCurrent = this.getAttribute("current");
         const current = requestedCurrent === "auto"
-          ? (new URL(root.location.href).searchParams.get("study") === "goal-mode" ? "goal" : "")
+          ? (new URL(root.location.href).searchParams.get("study") === "goal-mode" ? "goal" : "research")
           : (requestedCurrent || (interactive ? "intelligence" : ""));
         const compareAgent = this.getAttribute("compare-agent");
         const nav = root.document.createElement("nav");
@@ -119,9 +120,26 @@
           menu.querySelector("a")?.focus();
         });
         menu.addEventListener("keydown", (event) => {
-          if (event.key !== "Escape") return;
-          closeMenu();
-          menuButton.focus();
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeMenu();
+            menuButton.focus();
+            return;
+          }
+          const links = [...menu.querySelectorAll("a")];
+          const index = links.indexOf(root.document.activeElement);
+          const nextIndex = {
+            ArrowDown: (index + 1) % links.length,
+            ArrowUp: (index - 1 + links.length) % links.length,
+            Home: 0,
+            End: links.length - 1,
+          }[event.key];
+          if (nextIndex === undefined) return;
+          event.preventDefault();
+          links[nextIndex].focus();
+        });
+        researchMenu.addEventListener("focusout", (event) => {
+          if (!researchMenu.contains(event.relatedTarget)) closeMenu();
         });
         this._closeResearchMenu = (event) => {
           if (!this.contains(event.target)) closeMenu();

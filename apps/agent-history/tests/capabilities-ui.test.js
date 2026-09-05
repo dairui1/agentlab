@@ -154,13 +154,13 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["Goal 模式", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Goal 模式", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
-  assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : ""/);
+  assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : "research"/);
   assert.match(siteNavigationSource, /aria-haspopup", "menu"/);
   assert.match(siteNavigationSource, /event\.key !== "ArrowDown"/);
-  assert.match(siteNavigationSource, /event\.key !== "Escape"/);
+  assert.match(siteNavigationSource, /event\.key === "Escape"/);
   assert.match(siteNavigationSource, /removeEventListener\("click", this\._closeResearchMenu\)/);
   const pages = [
     ["index", indexHtml],
@@ -182,7 +182,7 @@ test("all public surfaces expose Goal Mode as the shared current research entry"
   assert.match(articles["kimi-computer-use"], /<agentlab-navigation[^>]+current="computer-use"/);
   assert.match(articles["computer-use"], /<agentlab-navigation[^>]+current="computer-use"/);
   for (const html of [mechanismsHtml, articles["browser-use"], articles["deepseek-harness-architecture"]]) {
-    assert.doesNotMatch(html, /<agentlab-navigation[^>]+current=/);
+    assert.match(html, /<agentlab-navigation[^>]+current="research"/);
   }
 });
 
