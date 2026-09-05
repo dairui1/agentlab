@@ -51,6 +51,12 @@ test("feed rows retain comparison links and separate metrics from provenance", (
   assert.match(html, /class="feed-toggle-switch" aria-hidden="true"/);
 });
 
+test("mixed-language feed metrics share a baseline and explicit line height", () => {
+  const styles = fs.readFileSync(path.join(publicRoot, "styles.css"), "utf8");
+  assert.match(styles, /\.feed-facts\s*\{[^}]*align-items: baseline/);
+  assert.match(styles, /\.feed-facts > \.feed-fact-measured\s*\{[^}]*line-height: 1\.5/);
+});
+
 test("initial manifest failures replace the loading feed and offer a retry", () => {
   const fatal = app.slice(app.indexOf("function handleFatalError"), app.indexOf("async function initialize"));
   assert.match(fatal, /if \(state\.manifest\) return/);
