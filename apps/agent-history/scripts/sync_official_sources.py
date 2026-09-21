@@ -2185,6 +2185,17 @@ def sync(
             documents=[],
         )
 
+    from harness_sources import SOURCE_PROFILES, collect_source_snapshot
+
+    for agent in selected & SOURCE_PROFILES.keys():
+        value = normalized_values[agent]
+        value["sourceSnapshot"] = collect_source_snapshot(
+            agent, value, cache, timeout=timeout,
+            allow_stale_on_error=allow_stale_on_error,
+        )
+        value.pop("sourceDigest", None)
+        value["sourceDigest"] = sha256_bytes(canonical_json(value))
+
     normalized_root.mkdir(parents=True, exist_ok=True)
     object_root = normalized_root / "agents"
     if object_root.is_symlink() or (object_root.exists() and not object_root.is_dir()):

@@ -2065,6 +2065,32 @@ a.source-layer:hover {
   color: var(--muted);
 }
 
+.editor-placeholder[data-kind="source"] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 16px;
+  overflow: auto;
+  text-align: left;
+}
+
+.editor-placeholder[data-kind="source"] select {
+  max-width: 100%;
+  min-height: 36px;
+}
+
+.editor-placeholder[data-kind="source"] a {
+  overflow-wrap: anywhere;
+}
+
+.editor-placeholder[data-kind="source"] pre {
+  width: 100%;
+  max-height: none;
+  min-height: 240px;
+  flex: 1;
+}
+
 .editor-placeholder pre {
   width: min(760px, calc(100vw - 80px));
   max-height: 360px;

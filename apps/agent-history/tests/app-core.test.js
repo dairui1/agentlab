@@ -199,6 +199,28 @@ test("intelligence feed hides no-change and importance none, then orders by rece
   assert.deepEqual(items.map((item) => item.entry.version), ["1.2.0", "1.1.0"]);
 });
 
+test("source baselines appear in the feed without pretending runtime tools were captured", () => {
+  const entry = {version: "0.5.0", importance: "medium", layers: {
+    prompt: {status: "unavailable"}, tools: {status: "unavailable"},
+    staticPrompt: {status: "not-collected"},
+    official: {status: "available", sourceSnapshot: {files: [
+      {group: "Prompt", url: "https://github.com/example/repo/blob/sha/prompt.md"},
+      {group: "Tools", url: "https://github.com/example/repo/blob/sha/tools.ts"},
+      {group: "Harness", url: "https://github.com/example/repo/blob/sha/loop.ts"},
+    ]}},
+  }};
+  const items = core.buildIntelligenceItems([{
+    agent: {id: "minimax-code-cli", label: "MiniMax Code"},
+    history: {versions: [{version: "0.5.0"}]}, changelog: {entries: [entry]},
+  }]);
+  assert.equal(items.length, 1);
+  assert.deepEqual(items[0].signals, ["ecosystem"]);
+  const layers = core.normalizeSourceLayers(entry);
+  assert.equal(layers.find((layer) => layer.id === "tools").status, "源码定义");
+  assert.equal(layers.find((layer) => layer.id === "runtime-prompt").state, "missing");
+  assert.equal(layers.find((layer) => layer.id === "static-prompt").status, "源码模板");
+});
+
 test("high-value feed honors explicit importance before score fallback", () => {
   const versions = ["1.0.0", "1.1.0", "1.2.0", "1.3.0", "1.4.0"].map((version, index) => ({
     version,

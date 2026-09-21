@@ -429,6 +429,13 @@ def build_prompt(packets: Sequence[dict[str, object]], correction: str = "") -> 
         projected = evidence_projection(packet)
         projected["evidenceDigest"] = packet["evidenceDigest"]
         prompt_packets.append(projected)
+    source_guidance = (
+        "\n17. official.sourceSnapshot 是固定 commit 的静态源码基线，files 包含 Prompt、工具定义与 Harness 实现摘录。"
+        "优先解释这些源码里的实际规则与控制流，不要只复述安装说明；不得把基线中已有机制称为本版本新增，"
+        "不得把源码工具定义称为真实运行时 Tool Schema。excerpt gap 表示省略的代码，不是源文件本身。\n"
+        if any(isinstance(packet.get("official"), dict) and packet["official"].get("sourceSnapshot") for packet in packets)
+        else ""
+    )
     prompt = f"""你是 AgentLab 的版本情报分析器。只根据下方 evidence packets，为每个版本生成简体中文 changelog，帮助我们理解不同 Coding Agent 的设计变化，并为自研 Agent 提供可验证的参考。
 
 硬性要求：
@@ -452,7 +459,7 @@ def build_prompt(packets: Sequence[dict[str, object]], correction: str = "") -> 
 13. title、summary、highlights 使用自然、具体的简体中文。highlights 最多 6 条；categories 使用简短中文标签。
 14. 无可观察变化时直接说明，不虚构亮点。analysisStatus 固定为 complete。
 15. 只输出符合 JSON Schema 的 JSON 对象，不要 Markdown。
-16. {TERMINOLOGY_GUIDE}
+16. {TERMINOLOGY_GUIDE}{source_guidance}
 
 promptVersion: {PROMPT_VERSION}
 EVIDENCE PACKETS:
@@ -739,6 +746,9 @@ def evidence_has_observable_change(packet: dict[str, object]) -> bool:
     official = packet.get("official")
     if not isinstance(official, dict) or official.get("status") != "available":
         return False
+    snapshot = official.get("sourceSnapshot")
+    if isinstance(snapshot, dict) and snapshot.get("files"):
+        return True
     release = official.get("release")
     notes = release.get("notes") if isinstance(release, dict) else None
     if isinstance(notes, dict) and isinstance(notes.get("text"), str):

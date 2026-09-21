@@ -18,7 +18,7 @@ GITHUB_RELEASE_SOURCES = {
     "kimi-code": {"repository": "MoonshotAI/kimi-code", "label": "Kimi Code", "tagPattern": r"^@moonshot-ai/kimi-code@(\d+\.\d+\.\d+)$"},
     "maka": {"repository": "apache/maka", "label": "Apache Maka", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "mimo": {"repository": "XiaomiMiMo/MiMo-Code", "label": "MiMo Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
-    "minimax-code-cli": {"repository": "MiniMax-AI/minimax-code", "label": "MiniMax Code CLI", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
+    "minimax-code-cli": {"repository": "MiniMax-AI/minimax-code", "label": "MiniMax Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "omp": {"repository": "can1357/oh-my-pi", "label": "Oh My Pi", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "openclaw": {"repository": "openclaw/openclaw", "label": "OpenClaw", "tagPattern": r"^v(\d+\.\d+\.\d+(?:-\d+)?)$"},
     "opencode": {"repository": "anomalyco/opencode", "label": "opencode", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
@@ -70,18 +70,17 @@ NPM_RELEASE_SOURCES = {
 # Every catalog agent must either have official source intelligence above or
 # be explicitly classified here. This prevents a newly-added open-source agent
 # from silently falling back to Phistory-only evidence.
-NO_PUBLIC_SOURCE_AGENTS = {
-    # Preserve the desktop 3.x runtime lane: CLI 0.x tags do not establish a
-    # source mapping for those captures, even though the repository is now open.
-    "minimax-code": {
-        "reason": "desktop-runtime-captures-not-mapped-to-open-source-cli",
-        "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
-    },
-}
+NO_PUBLIC_SOURCE_AGENTS = {}
 
 # Retired catalog entries remain explicit so an upstream capture directory cannot
 # silently add them back during an "all" build.
 RETIRED_AGENTS = {
+    "minimax-code": {
+        "reason": "legacy-desktop-captures-not-mapped-to-open-source-cli",
+        "repository": "MiniMax-AI/minimax-code",
+        "replacement": "minimax-code-cli",
+        "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
+    },
     "kimi": {
         "reason": "upstream-project-is-being-wound-down",
         "repository": "MoonshotAI/kimi-cli",

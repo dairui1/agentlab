@@ -192,12 +192,7 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertTrue(config["sourceSnapshotAfterPublish"])
         self.assertEqual(
             official.NO_PUBLIC_SOURCE_AGENTS,
-            {
-                "minimax-code": {
-                    "reason": "desktop-runtime-captures-not-mapped-to-open-source-cli",
-                    "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
-                }
-            },
+            {},
         )
 
     def test_aligns_untagged_source_sync_to_latest_prior_publication(self) -> None:

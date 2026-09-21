@@ -66,6 +66,14 @@ test("initial manifest failures replace the loading feed and offer a retry", () 
   assert.match(fatal, /window\.location\.reload\(\)/);
 });
 
+test("all referenced application elements are bound before rendering", () => {
+  const bindings = app.slice(app.indexOf("const elements = {"), app.indexOf("const categoryLabels"));
+  const names = new Set([...bindings.matchAll(/\s+(\w+): document\.getElementById\(/g)].map((match) => match[1]));
+  for (const match of app.matchAll(/\belements\.(\w+)/g)) {
+    assert.ok(names.has(match[1]), `missing element binding: ${match[1]}`);
+  }
+});
+
 test("every configured agent filter option has a local source icon", () => {
   assert.match(app, /className = "feed-filter-agent-icon"/);
   const iconEntries = [...app.matchAll(/^\s*(?:"([a-z0-9-]+)"|([a-z0-9-]+)):\s*"(\/agent-icons\/[^"]+)"/gm)]

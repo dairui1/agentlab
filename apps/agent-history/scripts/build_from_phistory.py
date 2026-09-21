@@ -166,12 +166,8 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Reasonix Coding Agent 的官方发布与 Agent 设计变更历史。",
         "projectUrl": "https://github.com/esengine/DeepSeek-Reasonix",
     },
-    "minimax-code": {
-        "label": "MiniMax Code Desktop",
-        "description": "MiniMax Code 桌面版 3.x Runtime Prompt 与工具的采集历史；不等同于开源 CLI 版本。",
-    },
     "minimax-code-cli": {
-        "label": "MiniMax Code CLI",
+        "label": "MiniMax Code",
         "description": "MiniMax Code 开源 CLI 的官方发布、源码与 Agent Harness 演进历史。",
         "projectUrl": "https://github.com/MiniMax-AI/minimax-code",
     },
@@ -205,7 +201,6 @@ PREFERRED_AGENT_ORDER = (
     "reasonix",
     "zcode",
     "minimax-code-cli",
-    "minimax-code",
 )
 AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 VERSION_SCHEME_RE = re.compile(
@@ -2030,6 +2025,22 @@ def official_evidence(
         "freshness": freshness,
         "release": release,
     }
+    snapshot = index.get("sourceSnapshot")
+    if isinstance(snapshot, dict) and snapshot.get("version") == version:
+        official["sourceSnapshot"] = {
+            **{key: snapshot[key] for key in ("kind", "version", "commit", "repository")},
+            "files": [
+                {**{key: item[key] for key in ("group", "label", "path", "url", "sha256")},
+                 "excerpt": (item["content"] if len(item["content"]) <= 4000 else item["content"][:2000] + "\n[... excerpt gap ...]\n" + item["content"][-2000:]),
+                 "truncated": len(item["content"]) > 4000}
+                for item in snapshot["files"] if item["group"] != "License"
+            ],
+        }
+        sources.extend(
+            {"sourceType": "official-source-file", "repository": repository,
+             "url": item["url"], "ref": snapshot["commit"], "contentSha256": item["sha256"]}
+            for item in snapshot["files"]
+        )
     code_change = raw.get("codeChange")
     if (
         isinstance(code_change, Mapping)
@@ -2822,6 +2833,15 @@ def compact_feed_entry(entry: Mapping[str, Any]) -> dict[str, Any]:
             if key in official
         }
         release = official.get("release")
+        snapshot = official.get("sourceSnapshot")
+        if isinstance(snapshot, Mapping):
+            compact_official["sourceSnapshot"] = {
+                "kind": snapshot["kind"],
+                "files": [
+                    {key: item[key] for key in ("group", "label", "url")}
+                    for item in snapshot["files"]
+                ],
+            }
         if isinstance(release, Mapping):
             notes = release.get("notes")
             compact_official["release"] = {
@@ -3106,6 +3126,13 @@ def build(
             "generatedAt": agent_generated_at,
             "versions": [history_version(capture) for capture in captures],
         }
+        snapshot = (official_by_agent.get(agent) or {}).get("sourceSnapshot")
+        if isinstance(snapshot, dict):
+            snapshot_path = output_path(public, "data", "harness", f"{agent}.json")
+            atomic_write(snapshot_path, pretty_json(snapshot))
+            for version in history["versions"]:
+                if version["version"] == snapshot["version"]:
+                    version["sourceSnapshotUrl"] = f"/data/harness/{agent}.json"
         changelog = {
             "schemaVersion": SCHEMA_VERSION,
             "agent": agent,

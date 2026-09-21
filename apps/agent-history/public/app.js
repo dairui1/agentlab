@@ -119,6 +119,7 @@
     leftLegend: document.getElementById("leftLegend"),
     rightLegend: document.getElementById("rightLegend"),
     selectedSectionLabel: document.getElementById("selectedSectionLabel"),
+    editorTitle: document.getElementById("editorTitle"),
     diffEditor: document.getElementById("diffEditor"),
     editorPlaceholder: document.getElementById("editorPlaceholder"),
   };
@@ -342,8 +343,8 @@
     const hasComparisonState = ["left", "right", "section", "view"].some((key) => params.has(key));
     return {
       mode: params.get("mode") === "compare" || hasComparisonState ? "compare" : "intelligence",
-      agent: params.get("agent"),
-      feedAgents: uniqueStrings(params.getAll("feedAgent")),
+      agent: params.get("agent") === "minimax-code" ? "minimax-code-cli" : params.get("agent"),
+      feedAgents: uniqueStrings(params.getAll("feedAgent").map((id) => id === "minimax-code" ? "minimax-code-cli" : id)),
       feedSignals: uniqueStrings(params.getAll("signal"))
         .filter((signal) => feedSignalOptions.some((option) => option.id === signal)),
       feedImportance: params.get("priority") === "high" ? "high" : "all",
@@ -673,6 +674,7 @@
   function feedFactLabels(item) {
     const stats = item.entry.stats || {};
     const measured = [];
+    if (!item.entry.previousVersion && item.entry.layers?.official?.sourceSnapshot) measured.push("源码基线");
     const toolAdded = stats.toolsAdded?.length || 0;
     const toolRemoved = stats.toolsRemoved?.length || 0;
     const toolModified = stats.toolsModified?.length || 0;
@@ -1500,6 +1502,8 @@
     elements.wrapToggle.setAttribute("aria-pressed", String(state.wrap));
     elements.wrapToggle.title = state.wrap ? "关闭长行换行" : "开启长行换行";
     elements.wrapToggle.querySelector("span").textContent = state.wrap ? "换行" : "横滚";
+    const sourceCode = elements.editorPlaceholder.querySelector("pre");
+    if (sourceCode) sourceCode.style.whiteSpace = state.wrap ? "pre-wrap" : "pre";
     if (state.editor) {
       state.editor.updateOptions({ wordWrap: state.wrap ? "on" : "off", diffWordWrap: "inherit" });
       requestAnimationFrame(() => state.editor?.layout());
@@ -1654,10 +1658,56 @@
     if (focus) modified.focus();
   }
 
+  function renderSourceSnapshot(snapshot) {
+    elements.diffEditor.dataset.state = "source";
+    elements.editorPlaceholder.dataset.kind = "source";
+    elements.editorTitle.textContent = "Harness 源码";
+    elements.requestTab.textContent = "源码文件";
+    elements.structureTab.hidden = true;
+    const files = snapshot.files || [];
+    elements.promptMeta.textContent = `${files.length} 个源码文件 · ${snapshot.commit.slice(0, 12)}`;
+    elements.selectedSectionLabel.textContent = "静态源码";
+    const heading = document.createElement("p");
+    heading.textContent = `${snapshot.version} · ${snapshot.commit.slice(0, 12)} · 静态源码，不是运行时请求`;
+    const select = document.createElement("select");
+    select.setAttribute("aria-label", "选择源码文件");
+    for (const group of ["Prompt", "Tools", "Harness", "License"]) {
+      const options = document.createElement("optgroup");
+      options.label = group;
+      files.forEach((file, index) => {
+        if (file.group !== group) return;
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = file.label;
+        options.appendChild(option);
+      });
+      select.appendChild(options);
+    }
+    const link = document.createElement("a");
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    const pre = document.createElement("pre");
+    pre.style.whiteSpace = state.wrap ? "pre-wrap" : "pre";
+    const show = () => {
+      const file = files[Number(select.value)];
+      if (!file) return;
+      link.textContent = file.path;
+      link.href = safeEvidenceUrl(file.url) || "#";
+      pre.textContent = file.content;
+      pre.title = `SHA-256: ${file.sha256}`;
+    };
+    select.addEventListener("change", show);
+    show();
+    elements.editorPlaceholder.replaceChildren(heading, select, link, pre);
+  }
+
   async function renderDiff(compareRequest) {
     const leftRelease = versionEntry(state.left);
     const rightRelease = versionEntry(state.right);
     if (!leftRelease || !rightRelease) return;
+    elements.editorTitle.textContent = "实际请求统一差异";
+    elements.requestTab.textContent = "完整请求";
+    elements.structureTab.hidden = false;
     const promptUnavailable = [leftRelease, rightRelease].some(
       (release) => release.runtimeCapture?.promptStatus === "unavailable",
     );
@@ -1669,6 +1719,18 @@
         "所选版本至少一侧没有公开的 Runtime Prompt 捕获，无法生成实际请求差异。",
         "unavailable",
       );
+      if (rightRelease.sourceSnapshotUrl) {
+        try {
+          const url = staticAssetUrl(rightRelease.sourceSnapshotUrl, "Harness 源码");
+          const snapshot = await cachedJson(state.historyCache, url);
+          if (compareRequest !== state.compareRequest) return;
+          if (snapshot.agent !== state.agent.id || snapshot.version !== state.right) throw new Error("源码版本不匹配");
+          renderSourceSnapshot(snapshot);
+        } catch (error) {
+          if (compareRequest !== state.compareRequest) return;
+          setEditorPlaceholder(`源码加载失败：${error.message}`, "error");
+        }
+      }
       return;
     }
     setEditorPlaceholder("正在加载实际请求", "loading");

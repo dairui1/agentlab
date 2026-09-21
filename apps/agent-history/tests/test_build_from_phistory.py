@@ -254,10 +254,12 @@ class BuildFromPhistoryTests(unittest.TestCase):
         )
 
         self.assertEqual(set(builder.AGENT_DEFINITIONS), classified)
-        self.assertEqual(set(builder.NO_PUBLIC_SOURCE_AGENTS), {"minimax-code"})
+        self.assertEqual(set(builder.NO_PUBLIC_SOURCE_AGENTS), set())
 
     def test_minimax_cli_does_not_relabel_desktop_captures_as_open_source(self) -> None:
-        self.assertEqual(builder.AGENT_DEFINITIONS["minimax-code"]["label"], "MiniMax Code Desktop")
+        self.assertNotIn("minimax-code", builder.AGENT_DEFINITIONS)
+        self.assertEqual(builder.RETIRED_AGENTS["minimax-code"]["replacement"], "minimax-code-cli")
+        self.assertEqual(builder.AGENT_DEFINITIONS["minimax-code-cli"]["label"], "MiniMax Code")
         self.assertNotIn("minimax-code", builder.OFFICIAL_REPOSITORIES)
         self.assertEqual(builder.OFFICIAL_REPOSITORIES["minimax-code-cli"], "MiniMax-AI/minimax-code")
         for agent in ("zcode", "minimax-code-cli"):
@@ -1037,6 +1039,38 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(old["staticPrompt"]["comparisonStatus"], "unavailable")
         public = self._json(self.public / "data/agents/claude-code/changelog.json")
         self.assertEqual(public["entries"][-1]["layers"]["official"]["status"], "available")
+
+    def test_source_snapshot_keeps_full_text_separate_from_runtime_history(self) -> None:
+        root = self._official_index()
+        index = self._json(root / "claude-code.json")
+        content = "source-only\n" * 600
+        snapshot = {
+            "agent": "claude-code", "version": "1.10.0", "commit": "a" * 40,
+            "repository": "anthropics/claude-code", "kind": "static-source-baseline",
+            "files": [{"group": "Prompt", "label": "System", "path": "prompt.md",
+                       "url": "https://github.com/anthropics/claude-code/blob/" + "a" * 40 + "/prompt.md",
+                       "sha256": hashlib.sha256(content.encode()).hexdigest(), "content": content}],
+        }
+        index["sourceSnapshot"] = snapshot
+        index.pop("sourceDigest")
+        index["sourceDigest"] = builder.sha256_bytes(builder.canonical_json(index))
+        (root / "claude-code.json").write_bytes(builder.pretty_json(index))
+        self._refresh_official_generation(root)
+        self._build(official_root=root)
+        self.assertEqual(self._json(self.public / "data/harness/claude-code.json"), snapshot)
+        history = self._json(self.public / "data/agents/claude-code/history.json")
+        self.assertNotIn("sourceSnapshotUrl", history["versions"][0])
+        self.assertEqual(history["versions"][-1]["sourceSnapshotUrl"], "/data/harness/claude-code.json")
+        packet = self._json(self.analysis / "evidence/claude-code/1.10.0.json")
+        evidence = packet["official"]["sourceSnapshot"]["files"][0]
+        self.assertTrue(evidence["truncated"])
+        self.assertNotIn("content", evidence)
+        self.assertIn("official-source-file", {item["sourceType"] for item in packet["sources"]})
+        changelog = self._json(self.public / "data/agents/claude-code/changelog.json")
+        compact = builder.compact_feed_entry(changelog["entries"][-1])
+        files = compact["layers"]["official"]["sourceSnapshot"]["files"]
+        self.assertEqual(files[0]["group"], "Prompt")
+        self.assertNotIn("excerpt", files[0])
 
     def test_exposes_complete_source_code_coverage_only_for_adjacent_captures(self) -> None:
         official_root = self._official_index()

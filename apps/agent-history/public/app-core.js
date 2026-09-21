@@ -250,7 +250,7 @@
       },
     };
 
-    return sourceLayerDefinitions.map((definition) => {
+    const layers = sourceLayerDefinitions.map((definition) => {
       const explicitLayer = explicit.get(definition.id);
       const base = derived[definition.id];
       if (!explicitLayer) return { id: definition.id, label: definition.label, ...base };
@@ -265,6 +265,13 @@
         url: stringValue(explicitLayer.url) || base.url,
       };
     });
+    const files = entry?.layers?.official?.sourceSnapshot?.files || [];
+    for (const [id, group, status] of [["code", "Harness", "源码基线"], ["static-prompt", "Prompt", "源码模板"], ["tools", "Tools", "源码定义"]]) {
+      const file = files.find((item) => item.group === group);
+      const layer = layers.find((item) => item.id === id);
+      if (file && layer.state !== "changed") Object.assign(layer, {state: "available", status, url: file.url});
+    }
+    return layers;
   }
 
   function normalizeImplications(entry) {
@@ -346,6 +353,7 @@
     const stats = entry?.stats || {};
     const layers = normalizeSourceLayers(entry, release, previousRelease);
     const types = [];
+    if (entry?.layers?.official?.sourceSnapshot?.files?.length) types.push("ecosystem");
     if (hasRuntimePromptChanges(stats) || layers.find((layer) => layer.id === "runtime-prompt")?.state === "changed") {
       types.push("prompt");
     }
@@ -359,6 +367,7 @@
   }
 
   function isNoChangeEntry(entry, release, previousRelease) {
+    if (entry?.layers?.official?.sourceSnapshot?.files?.length) return false;
     const stats = entry?.stats || {};
     const linesChanged = (Number(stats.additions) || 0) + (Number(stats.deletions) || 0) > 0;
     const sourceChanged = normalizeSourceLayers(entry, release, previousRelease)
@@ -405,7 +414,7 @@
       const releases = new Map(versions.map((release) => [release.version, release]));
       const versionIndex = new Map(versions.map((release, index) => [release.version, index]));
       (dataset.changelog?.entries || []).forEach((entry) => {
-        if (!entry?.previousVersion) return;
+        if (!entry?.previousVersion && !entry?.layers?.official?.sourceSnapshot?.files?.length) return;
         if (String(entry.importance || "").toLowerCase() === "none") return;
         const release = releases.get(entry.version);
         const index = versionIndex.get(entry.version);
