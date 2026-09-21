@@ -38,6 +38,14 @@ test("range selection excludes the base release and stays chronological", () => 
   assert.deepEqual(core.selectRangeEntries(versions, entries, "1.1.0", "1.1.0"), []);
 });
 
+test("single-release evidence is opt-in and never becomes a same-version diff", () => {
+  const entries = [{ version: "0.5.0", title: "Initial public release" }];
+  assert.deepEqual(core.selectRangeEntries(["0.5.0"], entries, "0.5.0", "0.5.0"), []);
+  assert.deepEqual(core.selectRangeEntries(["0.5.0"], entries, "0.5.0", "0.5.0", true), entries);
+  assert.deepEqual(core.selectRangeEntries(["0.5.0"], entries, "missing", "0.5.0", true), []);
+  assert.deepEqual(core.selectRangeEntries(["0.5.0", "0.6.0"], entries, "0.5.0", "0.5.0", true), []);
+});
+
 test("combined changelog stats deduplicate evidence and reverse line direction", () => {
   const entries = [
     {

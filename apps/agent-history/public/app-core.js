@@ -34,12 +34,16 @@
     return (items || []).find((item) => item.id === requested)?.key || null;
   }
 
-  function selectRangeEntries(versions, entries, left, right) {
+  function selectRangeEntries(versions, entries, left, right, includeBaseline = false) {
     const orderedVersions = (versions || []).map((item) => (
       typeof item === "string" ? item : item?.version
     ));
     const leftIndex = orderedVersions.indexOf(left);
     const rightIndex = orderedVersions.indexOf(right);
+    // A one-release catalog still has readable evidence, but no version diff.
+    if (includeBaseline && orderedVersions.length === 1 && leftIndex === 0 && rightIndex === 0) {
+      return (entries || []).filter((entry) => entry.version === right);
+    }
     if (leftIndex < 0 || rightIndex < 0 || leftIndex === rightIndex) return [];
     const start = Math.min(leftIndex, rightIndex) + 1;
     const end = Math.max(leftIndex, rightIndex) + 1;

@@ -1083,13 +1083,14 @@
     renderMode();
   }
 
-  function selectedChangelogEntries() {
+  function selectedChangelogEntries(includeBaseline = false) {
     if (!state.history || !state.changelog) return [];
     return appCore.selectRangeEntries(
       state.history.versions,
       state.changelog.entries,
       state.left,
       state.right,
+      includeBaseline,
     );
   }
 
@@ -1255,10 +1256,13 @@
   }
 
   function renderChangelog() {
-    const entries = selectedChangelogEntries();
+    const entries = selectedChangelogEntries(true);
     const reverse = isReverseComparison();
     const rangeText = `${displayVersion(state.left)} → ${displayVersion(state.right)}`;
     elements.changelogRange.textContent = reverse ? `${rangeText} · 反向` : rangeText;
+    if (entries.length && state.history.versions.length === 1) {
+      elements.changelogRange.textContent = `${displayVersion(state.right)} · 首个版本基线，暂无相邻版本`;
+    }
     renderAnalysisCondensed(entriesDeclareNoBehaviorChange(entries));
 
     if (!entries.length) {
