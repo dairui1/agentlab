@@ -18,6 +18,7 @@ GITHUB_RELEASE_SOURCES = {
     "kimi-code": {"repository": "MoonshotAI/kimi-code", "label": "Kimi Code", "tagPattern": r"^@moonshot-ai/kimi-code@(\d+\.\d+\.\d+)$"},
     "maka": {"repository": "apache/maka", "label": "Apache Maka", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "mimo": {"repository": "XiaomiMiMo/MiMo-Code", "label": "MiMo Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
+    "minimax-code-cli": {"repository": "MiniMax-AI/minimax-code", "label": "MiniMax Code CLI", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "omp": {"repository": "can1357/oh-my-pi", "label": "Oh My Pi", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "openclaw": {"repository": "openclaw/openclaw", "label": "OpenClaw", "tagPattern": r"^v(\d+\.\d+\.\d+(?:-\d+)?)$"},
     "opencode": {"repository": "anomalyco/opencode", "label": "opencode", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
@@ -31,6 +32,12 @@ GITHUB_RELEASE_SOURCES = {
 # Keep a bounded commit-snapshot lane for them rather than pretending a source
 # commit is a stable release.
 GITHUB_SNAPSHOT_SOURCES = {
+    "zcode": {
+        "repository": "zai-org/ZCode",
+        "label": "ZCode",
+        "baseVersion": "0.16.9",
+        "snapshotCount": 2,
+    },
     "exo": {
         "repository": "exoharness/exo",
         "label": "Exo",
@@ -64,8 +71,10 @@ NPM_RELEASE_SOURCES = {
 # be explicitly classified here. This prevents a newly-added open-source agent
 # from silently falling back to Phistory-only evidence.
 NO_PUBLIC_SOURCE_AGENTS = {
+    # Preserve the desktop 3.x runtime lane: CLI 0.x tags do not establish a
+    # source mapping for those captures, even though the repository is now open.
     "minimax-code": {
-        "reason": "official-repository-is-issue-tracker-only",
+        "reason": "desktop-runtime-captures-not-mapped-to-open-source-cli",
         "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
     },
 }

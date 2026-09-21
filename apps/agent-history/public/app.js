@@ -169,6 +169,8 @@
     pi: "/agent-icons/pi.png",
     omp: "/agent-icons/omp.svg",
     "minimax-code": "/agent-icons/minimax-code.svg",
+    "minimax-code-cli": "/agent-icons/minimax-code.svg",
+    zcode: "/agent-icons/zcode.png",
     goose: "/agent-icons/goose.svg",
     cline: "/agent-icons/cline.svg",
     "qwen-code": "/agent-icons/qwen-code.svg",

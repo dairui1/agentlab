@@ -167,8 +167,18 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "projectUrl": "https://github.com/esengine/DeepSeek-Reasonix",
     },
     "minimax-code": {
-        "label": "MiniMax Code",
-        "description": "MiniMax Code Runtime Prompt 与工具的版本历史。",
+        "label": "MiniMax Code Desktop",
+        "description": "MiniMax Code 桌面版 3.x Runtime Prompt 与工具的采集历史；不等同于开源 CLI 版本。",
+    },
+    "minimax-code-cli": {
+        "label": "MiniMax Code CLI",
+        "description": "MiniMax Code 开源 CLI 的官方发布、源码与 Agent Harness 演进历史。",
+        "projectUrl": "https://github.com/MiniMax-AI/minimax-code",
+    },
+    "zcode": {
+        "label": "ZCode",
+        "description": "Z.ai ZCode 开源 Agent Harness 的源码快照历史；commit 快照不代表正式发布。",
+        "projectUrl": "https://github.com/zai-org/ZCode",
     },
 }
 
@@ -193,6 +203,9 @@ PREFERRED_AGENT_ORDER = (
     "qwen-code",
     "deepseek-harness",
     "reasonix",
+    "zcode",
+    "minimax-code-cli",
+    "minimax-code",
 )
 AGENT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 VERSION_SCHEME_RE = re.compile(

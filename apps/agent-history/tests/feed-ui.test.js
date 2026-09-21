@@ -66,12 +66,12 @@ test("initial manifest failures replace the loading feed and offer a retry", () 
   assert.match(fatal, /window\.location\.reload\(\)/);
 });
 
-test("every configured agent filter option has its copied Phistory icon", () => {
+test("every configured agent filter option has a local source icon", () => {
   assert.match(app, /className = "feed-filter-agent-icon"/);
   const iconEntries = [...app.matchAll(/^\s*(?:"([a-z0-9-]+)"|([a-z0-9-]+)):\s*"(\/agent-icons\/[^"]+)"/gm)]
     .map((match) => [match[1] || match[2], match[3]]);
   const iconUrls = new Map(iconEntries);
-  for (const agent of ["goose", "cline", "qwen-code"]) {
+  for (const agent of ["goose", "cline", "qwen-code", "zcode", "minimax-code-cli"]) {
     assert.ok(iconUrls.has(agent), `missing icon mapping for ${agent}`);
   }
   for (const agent of manifest.agents) {

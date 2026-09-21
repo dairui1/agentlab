@@ -78,6 +78,18 @@ npm test
 
 `npm run sync` 会在官方来源同步完成后物化 source-only Capture，因此全新缓存也可直接交给 `npm run build:data`。
 
+### ZCode 与 MiniMax Code
+
+2026-09-21 核验后，两项开源 Harness 已接入同一套官方来源同步、source-only Capture、证据分析和日更链路：
+
+- `zcode` 对应 [zai-org/ZCode](https://github.com/zai-org/ZCode)，根许可证为 Apache-2.0。核验时没有公开 tag 或 GitHub Release，因此跟踪有界 commit 快照，而不是把桌面端 `3.14.0` 或 CLI workspace `0.16.9` 当成正式发布。源码入口是 `apps/zcode-cli/packages/core/src/`，包含 Agent turn machine、工具执行、权限和压缩模块。
+- `minimax-code-cli` 对应 [MiniMax-AI/minimax-code](https://github.com/MiniMax-AI/minimax-code)，从官方 `v0.5.0` release/tag 开始跟踪。第一方代码默认 MIT；第三方组件保留各自许可，详见官方 `LICENSE-STATUS.md`。源码包含 `packages/local-runtime-v2`、`packages/agent-modules` 与独立 Prompt 模板。
+- 原有 `minimax-code` 保持原 ID，展示名改为 **MiniMax Code Desktop**。已有 `3.0.x` Runtime Capture 没有与新 CLI `0.x` tag 建立可验证映射，不能用 CLI 源码为桌面版本背书，也不能把 CLI `0.5.0` 排在桌面 `3.0.x` 历史里。
+
+source-only 条目不表示已捕获真实模型请求。静态 Prompt 文件、公开工具实现与 Runtime Prompt/Tool Schema 是不同证据；缺少运行时采集时仍明确标记缺失，不从源码伪造运行时快照。首次只有一个 release 的项目也没有相邻版本源码差异，后续版本才会自动累积比较证据。
+
+ZCode 的本地图标复制自[官方仓库固定提交](https://github.com/zai-org/ZCode/blob/872ad960de7ec172591f7e1952f7849229f94521/public/logo/icons/128x128.png)，仅用于标识被跟踪产品。
+
 `npm run analyze` 只处理 Evidence 已变化且缺少有效分析的版本。普通 `npm run daily` 面向无人值守发布，Codex 分析失败时允许确定性回退；完整日更流程的安全边界和参数见 [`apps/agent-history/ops/README.md`](apps/agent-history/ops/README.md)。
 
 生成的 `public/`、`dist/` 和 `analysis/` 可从已同步的数据重建；`.cache/official-sources/` 还保存有界代码比较的历史账本，应像发布状态一样备份，不能在普通更新前删除。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。

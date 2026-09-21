@@ -18,6 +18,7 @@ assert SPEC is not None and SPEC.loader is not None
 official = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = official
 SPEC.loader.exec_module(official)
+from official_release_sources import SOURCE_CAPTURE_SOURCES
 
 
 class FakeCache:
@@ -126,6 +127,21 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(releases[-1]["notes"]["sourceKind"], "github-commit-snapshot")
         self.assertEqual(official.GITHUB_SNAPSHOT_SOURCES["exo"]["snapshotCount"], 2)
 
+    def test_new_open_harnesses_keep_distinct_source_and_runtime_lanes(self) -> None:
+        complete = official.parse_args(["--agents", "all"])
+        self.assertIn("zcode", complete.agents)
+        self.assertIn("minimax-code-cli", complete.agents)
+        self.assertNotIn("minimax-code", complete.agents)
+        zcode = official.GITHUB_SNAPSHOT_SOURCES["zcode"]
+        self.assertEqual(zcode["repository"], "zai-org/ZCode")
+        self.assertEqual(zcode["snapshotCount"], 2)
+        self.assertNotIn("zcode", official.GITHUB_RELEASE_SOURCES)
+        minimax = official.GITHUB_RELEASE_SOURCES["minimax-code-cli"]
+        self.assertEqual(minimax["repository"], "MiniMax-AI/minimax-code")
+        self.assertEqual(re.fullmatch(minimax["tagPattern"], "v0.5.0").group(1), "0.5.0")
+        for agent in ("zcode", "minimax-code-cli"):
+            self.assertIn(agent, SOURCE_CAPTURE_SOURCES)
+
     def test_version_order_keeps_numeric_revision_source_specific(
         self,
     ) -> None:
@@ -178,7 +194,7 @@ class OfficialSourceTests(unittest.TestCase):
             official.NO_PUBLIC_SOURCE_AGENTS,
             {
                 "minimax-code": {
-                    "reason": "official-repository-is-issue-tracker-only",
+                    "reason": "desktop-runtime-captures-not-mapped-to-open-source-cli",
                     "sourceUrl": "https://github.com/MiniMax-AI/minimax-code",
                 }
             },
@@ -554,6 +570,7 @@ class OfficialSourceTests(unittest.TestCase):
             "kimi-code": ("@moonshot-ai/kimi-code@0.34.0", "0.34.0"),
             "maka": ("v0.1.11", "0.1.11"),
             "mimo": ("v0.1.10", "0.1.10"),
+            "minimax-code-cli": ("v0.5.0", "0.5.0"),
             "omp": ("v17.2.12", "17.2.12"),
             "openclaw": ("v2026.7.1-2", "2026.7.1-2"),
             "opencode": ("v1.18.15", "1.18.15"),

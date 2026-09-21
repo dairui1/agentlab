@@ -256,6 +256,14 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(set(builder.AGENT_DEFINITIONS), classified)
         self.assertEqual(set(builder.NO_PUBLIC_SOURCE_AGENTS), {"minimax-code"})
 
+    def test_minimax_cli_does_not_relabel_desktop_captures_as_open_source(self) -> None:
+        self.assertEqual(builder.AGENT_DEFINITIONS["minimax-code"]["label"], "MiniMax Code Desktop")
+        self.assertNotIn("minimax-code", builder.OFFICIAL_REPOSITORIES)
+        self.assertEqual(builder.OFFICIAL_REPOSITORIES["minimax-code-cli"], "MiniMax-AI/minimax-code")
+        for agent in ("zcode", "minimax-code-cli"):
+            self.assertIn(agent, builder.PREFERRED_AGENT_ORDER)
+            self.assertIn(agent, builder.AGENT_DEFINITIONS)
+
     def test_curated_catalog_replaces_wound_down_kimi_cli(self) -> None:
         self.assertNotIn("kimi", builder.AGENT_DEFINITIONS)
         self.assertNotIn("kimi", builder.PREFERRED_AGENT_ORDER)
