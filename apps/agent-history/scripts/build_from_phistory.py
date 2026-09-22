@@ -1373,34 +1373,61 @@ def prune_agent_directories(directory: Path, *, keep_agents: set[str]) -> None:
             shutil.rmtree(path)
 
 
-def spans_by_label(spans: Iterable[Span]) -> dict[str, Span]:
+def spans_by_id(spans: Iterable[Span]) -> dict[str, Span]:
     result: dict[str, Span] = {}
     for span in spans:
-        if span.label in result:
-            raise ValueError(f"duplicate section heading: {span.label!r}")
-        result[span.label] = span
+        if span.id in result:
+            raise ValueError(f"duplicate span id: {span.id!r}")
+        result[span.id] = span
     return result
 
 
-def structure_changes(previous: Capture | None, current: Capture) -> dict[str, Any]:
-    previous_sections = spans_by_label(previous.sections if previous else ())
-    current_sections = spans_by_label(current.sections)
-    previous_tools = spans_by_label(previous.tools if previous else ())
-    current_tools = spans_by_label(current.tools)
-
-    sections_added = sorted(set(current_sections) - set(previous_sections))
-    sections_removed = sorted(set(previous_sections) - set(current_sections))
-    sections_modified = sorted(
-        label
-        for label in set(previous_sections) & set(current_sections)
-        if previous_sections[label].text != current_sections[label].text
+def changed_span_labels(
+    span_ids: Iterable[str],
+    previous: Mapping[str, Span],
+    current: Mapping[str, Span],
+) -> list[str]:
+    return sorted(
+        {
+            (current.get(span_id) or previous[span_id]).label
+            for span_id in span_ids
+        }
     )
-    tools_added = sorted(set(current_tools) - set(previous_tools))
-    tools_removed = sorted(set(previous_tools) - set(current_tools))
-    tools_modified = sorted(
-        label
-        for label in set(previous_tools) & set(current_tools)
-        if previous_tools[label].text != current_tools[label].text
+
+
+def structure_changes(previous: Capture | None, current: Capture) -> dict[str, Any]:
+    previous_sections = spans_by_id(previous.sections if previous else ())
+    current_sections = spans_by_id(current.sections)
+    previous_tools = spans_by_id(previous.tools if previous else ())
+    current_tools = spans_by_id(current.tools)
+
+    section_ids_added = set(current_sections) - set(previous_sections)
+    section_ids_removed = set(previous_sections) - set(current_sections)
+    section_ids_modified = {
+        span_id
+        for span_id in set(previous_sections) & set(current_sections)
+        if previous_sections[span_id].text != current_sections[span_id].text
+    }
+    tool_ids_added = set(current_tools) - set(previous_tools)
+    tool_ids_removed = set(previous_tools) - set(current_tools)
+    tool_ids_modified = {
+        span_id
+        for span_id in set(previous_tools) & set(current_tools)
+        if previous_tools[span_id].text != current_tools[span_id].text
+    }
+    sections_added = changed_span_labels(
+        section_ids_added, previous_sections, current_sections
+    )
+    sections_removed = changed_span_labels(
+        section_ids_removed, previous_sections, current_sections
+    )
+    sections_modified = changed_span_labels(
+        section_ids_modified, previous_sections, current_sections
+    )
+    tools_added = changed_span_labels(tool_ids_added, previous_tools, current_tools)
+    tools_removed = changed_span_labels(tool_ids_removed, previous_tools, current_tools)
+    tools_modified = changed_span_labels(
+        tool_ids_modified, previous_tools, current_tools
     )
     changed_sections = sorted(sections_added + sections_removed + sections_modified)
     return {

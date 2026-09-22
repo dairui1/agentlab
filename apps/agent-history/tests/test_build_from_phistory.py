@@ -313,6 +313,35 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(changed["stats"]["toolsAdded"], ["Write"])
         self.assertEqual(changed["stats"]["toolsModified"], ["Read"])
 
+    def test_duplicate_heading_labels_are_compared_by_stable_span_id(self) -> None:
+        old_prompt = """# Environment
+Runtime settings.
+
+# Environment
+Workspace settings.
+"""
+        new_prompt = """# Environment
+Runtime settings.
+
+# Environment
+Updated workspace settings.
+"""
+        self._capture("codex", "0.11.0", old_prompt, "2026-03-01T12:00:00Z")
+        self._capture("codex", "0.12.0", new_prompt, "2026-03-02T12:00:00Z")
+
+        self._build()
+
+        history = self._json(self.public / "data/agents/codex/history.json")
+        latest = history["versions"][-1]
+        self.assertEqual(
+            [section["id"] for section in latest["sections"]],
+            ["environment", "environment-2"],
+        )
+        evidence = self._json(self.analysis / "evidence/codex/0.12.0.json")
+        self.assertEqual(
+            evidence["changes"]["sections"]["modified"], ["Environment"]
+        )
+
     def test_discovers_all_agents_and_accepts_vendor_version_schemes(self) -> None:
         self._capture("legacy-agent", "1.6", CLAUDE_OLD, "2026-02-02T12:00:00Z")
         self._capture("legacy-agent", "1.35.0", CLAUDE_NEW, "2026-04-02T12:00:00Z")
