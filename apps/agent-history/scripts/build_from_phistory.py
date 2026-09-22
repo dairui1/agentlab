@@ -208,6 +208,9 @@ VERSION_SCHEME_RE = re.compile(
     r"(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?"
     r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
 )
+CALENDAR_VERSION_RE = re.compile(
+    r"^((?:19|20)\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
+)
 SAFE_COMPONENT_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._+-]*$")
 HEADING_RE = re.compile(r"^(#{1,6})[ \t]+(.+?)[ \t]*#*[ \t]*$")
 FENCE_RE = re.compile(r"^[ \t]{0,3}(`{3,}|~{3,})")
@@ -375,6 +378,10 @@ def semver_key(version: str) -> tuple[Any, ...]:
 
     match = VERSION_SCHEME_RE.fullmatch(version)
     if not match:
+        calendar_match = CALENDAR_VERSION_RE.fullmatch(version)
+        if calendar_match:
+            core = tuple(int(part) for part in calendar_match.groups())
+            return *core, 0, (1, ()), version
         raise ValueError(f"invalid version directory: {version!r}")
     core = tuple(int(part) for part in match.group(1).split("."))
     padded_core = (*core, *(0 for _ in range(4 - len(core))))

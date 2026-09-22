@@ -156,6 +156,7 @@
 
   const agentIconUrls = {
     "claude-code": "/agent-icons/claude-code.png",
+    "claude-slack": "/agent-icons/claude-code.png",
     codex: "/agent-icons/codex.png",
     maka: "/agent-icons/maka.png",
     crush: "/agent-icons/crush.png",

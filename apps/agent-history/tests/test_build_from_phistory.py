@@ -347,6 +347,12 @@ Updated workspace settings.
         self._capture("legacy-agent", "1.35.0", CLAUDE_NEW, "2026-04-02T12:00:00Z")
         self._capture("hermes", "v2026.7.7", CLAUDE_OLD, "2026-07-07T12:00:00Z")
         self._capture("hermes", "v2026.7.7.2", CLAUDE_NEW, "2026-07-08T12:00:00Z")
+        self._capture(
+            "claude-slack", "2026-09-21", CLAUDE_OLD, "2026-09-21T12:00:00Z"
+        )
+        self._capture(
+            "claude-slack", "2026-09-22", CLAUDE_NEW, "2026-09-22T12:00:00Z"
+        )
         self._capture("future-agent", "1.0.0", CLAUDE_OLD, "2026-08-01T12:00:00Z")
         self._capture("openclaw", "2026.6.34", CLAUDE_OLD, "2026-08-08T12:00:00Z")
         self._capture("openclaw", "2026.7.1", CLAUDE_OLD, "2026-07-13T12:00:00Z")
@@ -357,11 +363,20 @@ Updated workspace settings.
         ids = [item["id"] for item in manifest["agents"]]
         self.assertEqual(
             ids,
-            ["claude-code", "codex", "openclaw", "hermes", "future-agent", "legacy-agent"],
+            [
+                "claude-code",
+                "codex",
+                "openclaw",
+                "hermes",
+                "claude-slack",
+                "future-agent",
+                "legacy-agent",
+            ],
         )
         legacy = self._json(self.public / "data/agents/legacy-agent/history.json")
         hermes = self._json(self.public / "data/agents/hermes/history.json")
         openclaw = self._json(self.public / "data/agents/openclaw/history.json")
+        claude_slack = self._json(self.public / "data/agents/claude-slack/history.json")
         self.assertEqual([item["version"] for item in legacy["versions"]], ["1.6", "1.35.0"])
         self.assertEqual(
             [item["version"] for item in hermes["versions"]],
@@ -370,6 +385,10 @@ Updated workspace settings.
         self.assertEqual(
             [item["version"] for item in openclaw["versions"]],
             ["2026.6.34", "2026.7.1", "2026.7.1-2"],
+        )
+        self.assertEqual(
+            [item["version"] for item in claude_slack["versions"]],
+            ["2026-09-21", "2026-09-22"],
         )
         legacy_manifest = next(
             item for item in manifest["agents"] if item["id"] == "legacy-agent"
