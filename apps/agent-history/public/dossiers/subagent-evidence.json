@@ -128,7 +128,7 @@
       "signals": ["same container", "same filesystem", "same CWD"],
       "boundary": "未声明文件锁、事务、worktree 或 merge arbitration。",
       "source": { "label": "Codex 0.147.0 lines 209-212", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L209-L212" },
-      "compare": { "label": "Developer contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=developer-prompt" }
+      "compare": { "label": "Developer contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=system-prompt" }
     },
     {
       "id": "CX-05", "agent": "codex", "type": "fact", "version": "0.147.0",
@@ -158,7 +158,7 @@
       "signals": ["4 available concurrency slots", "including you"],
       "boundary": "不可外推为所有 Codex 客户端、账号或计划的全局默认。",
       "source": { "label": "Codex 0.147.0 line 216", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.147.0/prompt.md#L216" },
-      "compare": { "label": "Developer contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=developer-prompt" }
+      "compare": { "label": "Developer contract", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=system-prompt" }
     },
     {
       "id": "CX-08", "agent": "codex", "type": "fact", "version": "0.147.0",

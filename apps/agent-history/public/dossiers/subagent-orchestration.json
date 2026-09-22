@@ -160,7 +160,7 @@
     { "date": "2026-07-15", "agent": "opencode", "version": "1.18.1 → 1.18.2", "title": "默认禁止 nested subagent", "text": "source/release 新增深度 1 guard；Prompt diff 没有看见这次变化。", "url": "https://github.com/anomalyco/opencode/releases/tag/v1.18.2" },
     { "date": "2026-07-24", "agent": "claude-code", "version": "2.1.218 → 2.1.219", "title": "默认嵌套深度从 1 调回 3", "text": "树深与 20-running gate 成为两个独立限制器。", "url": "https://code.claude.com/docs/en/sub-agents" },
     { "date": "2026-08-05", "agent": "codex", "version": "0.146.1 capture", "title": "六个 collaboration contract 同时可见", "text": "这是连续审计窗口中的首次可见，不是产品 launch-date 证明。", "url": "https://github.com/WEIFENG2333/phistory/blob/b326cca92451d7046b9bab0ebf6b5dba988ffc9d/captures/codex/0.146.1/prompt.md" },
-    { "date": "2026-08-07", "agent": "codex", "version": "0.146.1 → 0.147.0", "title": "增加长等待、避免 busy polling 的指导", "text": "这是 coordinator prompt policy 变化，不证明 scheduler 已改变。", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=developer-prompt" }
+    { "date": "2026-08-07", "agent": "codex", "version": "0.146.1 → 0.147.0", "title": "增加长等待、避免 busy polling 的指导", "text": "这是 coordinator prompt policy 变化，不证明 scheduler 已改变。", "url": "/?mode=compare&agent=codex&left=0.146.1&right=0.147.0&view=structure&section=system-prompt" }
   ],
   "unknowns": [
     { "id": "KU-01", "title": "通用并发上限", "text": "Claude 有公开 cap，Codex 只有本次四-slot 注入，opencode 无真实 fan-out 上限。", "needed": "跨环境 runtime contract 或 trace" },
