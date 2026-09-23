@@ -38,6 +38,7 @@ source_sync = load_script(
 )
 daily = load_script("agent_history_daily", "scripts/daily_update.py")
 install = load_script("agent_history_install", "ops/install_launchd.py")
+runtime = sys.modules["codex_runtime"]
 
 
 def evidence(
@@ -1731,6 +1732,38 @@ class SourceCaptureSyncTests(unittest.TestCase):
 
 
 class DailyUpdateTests(unittest.TestCase):
+    def test_codex_binary_prefers_desktop_and_preserves_overrides(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            binary = Path(temporary) / "codex"
+            binary.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            binary.chmod(0o755)
+            with (
+                mock.patch.dict(os.environ, {}, clear=True),
+                mock.patch.object(runtime, "MACOS_CODEX_BINARIES", (binary,)),
+                mock.patch.object(runtime.sys, "platform", "darwin"),
+            ):
+                self.assertEqual(runtime.default_codex_bin(), str(binary))
+                self.assertEqual(daily.parse_args([]).codex_bin, str(binary))
+                self.assertEqual(analyze.parse_args([]).codex_bin, str(binary))
+                with mock.patch.dict(os.environ, {"CODEX_BIN": "/custom/codex"}):
+                    self.assertEqual(runtime.default_codex_bin(), "/custom/codex")
+                with mock.patch.object(runtime.sys, "platform", "linux"):
+                    self.assertEqual(runtime.default_codex_bin(), "codex")
+                binary.chmod(0o644)
+                self.assertEqual(runtime.default_codex_bin(), "codex")
+
+    def test_model_defaults_and_overrides_match_analyzer(self):
+        for module in (daily, analyze):
+            with self.subTest(module=module.__name__):
+                with mock.patch.dict(os.environ, {}, clear=True):
+                    self.assertEqual(module.parse_args([]).model, "gpt-6-luna")
+                with mock.patch.dict(os.environ, {"AGENT_HISTORY_CODEX_MODEL": "gpt-6-sol"}):
+                    self.assertEqual(module.parse_args([]).model, "gpt-6-sol")
+                    self.assertEqual(
+                        module.parse_args(["--model", "gpt-6-astra"]).model,
+                        "gpt-6-astra",
+                    )
+
     def test_step_order_backfill_limit_and_optional_deploy(self):
         overlay = Path("/tmp/agentlab-test-overlay")
         args = daily.parse_args(
@@ -1800,7 +1833,7 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertEqual(analyze_command[analyze_command.index("--jobs") + 1], "8")
         self.assertEqual(
             analyze_command[analyze_command.index("--model") + 1],
-            "gpt-5.6-luna",
+            "gpt-6-luna",
         )
         self.assertEqual(analyze_command[analyze_command.index("--timeout") + 1], "180.0")
         self.assertEqual(

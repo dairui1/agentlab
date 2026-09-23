@@ -24,10 +24,12 @@ from typing import Callable, Iterable, Iterator, Sequence
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
 
 from terminology import TERMINOLOGY_GUIDE, normalize_changelog_record
+from codex_runtime import DEFAULT_CODEX_MODEL, default_codex_bin
 
 
 DEFAULT_EVIDENCE_ROOT = APP_ROOT / "analysis" / "evidence"
@@ -1110,14 +1112,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--retries", type=nonnegative_int, default=2)
     parser.add_argument(
         "--model",
-        default=os.environ.get("AGENT_HISTORY_CODEX_MODEL", "gpt-5.6-luna"),
+        default=os.environ.get("AGENT_HISTORY_CODEX_MODEL", DEFAULT_CODEX_MODEL),
     )
     parser.add_argument(
         "--reasoning-effort",
         choices=("low", "medium", "high", "xhigh"),
         default=os.environ.get("AGENT_HISTORY_REASONING_EFFORT", "medium"),
     )
-    parser.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"))
+    parser.add_argument("--codex-bin", default=default_codex_bin())
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(

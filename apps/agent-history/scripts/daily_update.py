@@ -21,6 +21,7 @@ from typing import Iterator, Mapping, Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import OFFICIAL_ONLY_AGENTS, SOURCE_CAPTURE_SOURCES
+from codex_runtime import DEFAULT_CODEX_MODEL, default_codex_bin
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -418,7 +419,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--codex-timeout", type=float, default=180.0)
     parser.add_argument("--retries", type=int, default=2)
-    parser.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"))
+    parser.add_argument("--codex-bin", default=default_codex_bin())
     parser.add_argument(
         "--require-codex",
         action="store_true",
@@ -426,7 +427,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        default=os.environ.get("AGENT_HISTORY_CODEX_MODEL", "gpt-5.6-luna"),
+        default=os.environ.get("AGENT_HISTORY_CODEX_MODEL", DEFAULT_CODEX_MODEL),
     )
     parser.add_argument(
         "--reasoning-effort",

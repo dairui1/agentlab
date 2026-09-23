@@ -23,7 +23,7 @@ test("release ops skill preserves the production analysis and deploy gates", () 
     "0 model-stale",
     "0 deterministic no-signal",
     "0 selected",
-    "gpt-5.6-luna",
+    "gpt-6-luna",
     "scripts/verify_deploy.py",
     "claude-code-history.lyclyc17.workers.dev",
     "agentlab.dairui1.com",

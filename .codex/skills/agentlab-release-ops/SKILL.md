@@ -169,7 +169,9 @@ cd "$APP_ROOT"
 python3 scripts/daily_update.py --deploy
 ```
 
-生产 analyzer 默认使用 `gpt-5.6-luna`、每版本独立调用、严格 JSON schema、证据摘要、缓存键、重试和有界并发。不要重复分析 provenance 已匹配的版本，也不要从外层另起一套分析替代它。
+生产 analyzer 默认使用 `gpt-6-luna`、每版本独立调用、严格 JSON schema、证据摘要、缓存键、重试和有界并发。不要重复分析 provenance 已匹配的版本，也不要从外层另起一套分析替代它。升级默认模型时保留历史分析的真实 model/provenance，并按现有限额补跑；不要改写历史署名或绕过队列门禁。
+
+macOS 默认优先使用已安装桌面应用内置的 Codex CLI，避免 PATH 中旧 CLI 不支持新模型；其他平台使用 PATH。`CODEX_BIN` 和 `--codex-bin` 仍可显式覆盖。模型列表不等于可调用性，升级后必须用实际分析入口验证。
 
 ## 第六阶段：恢复后验收
 
