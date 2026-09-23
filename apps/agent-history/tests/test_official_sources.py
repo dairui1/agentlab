@@ -919,10 +919,9 @@ class OfficialSourceTests(unittest.TestCase):
                     cache_variant="json-v1",
                     transform=transform,
                 )
-            with mock.patch.object(
-                official,
-                "urlopen",
-                return_value=FakeResponse(b'{"fixture":'),
+            with (
+                mock.patch.object(official, "urlopen", return_value=FakeResponse(b'{"fixture":')) as fetch,
+                mock.patch.object(official.time, "sleep"),
             ):
                 second = cache.fetch(
                     "https://example.test/releases",
@@ -935,10 +934,30 @@ class OfficialSourceTests(unittest.TestCase):
                 )
 
             self.assertEqual(second.body, first.body)
+            self.assertEqual(fetch.call_count, official.HTTP_FETCH_ATTEMPTS)
             self.assertEqual(cache.warnings[0]["type"], "stale-cache-used")
             self.assertEqual(
                 cache.warnings[0]["reason"], "normalize-failure:JSONDecodeError"
             )
+
+    def test_http_cache_retries_truncated_json_before_using_stale_data(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cache = official.HttpCache(Path(directory))
+            with (
+                mock.patch.object(official, "urlopen", side_effect=[
+                    FakeResponse(b'{"fixture":'), FakeResponse(b'{"fixture":true}'),
+                ]) as fetch,
+                mock.patch.object(official.time, "sleep") as sleep,
+            ):
+                result = cache.fetch(
+                    "https://example.test/releases", accept="application/json",
+                    max_bytes=1024, timeout=1, allow_stale_on_error=True,
+                    transform=lambda value: json.dumps(json.loads(value)).encode(),
+                )
+            self.assertEqual(json.loads(result.body), {"fixture": True})
+            self.assertEqual(fetch.call_count, 2)
+            sleep.assert_called_once_with(official.HTTP_RETRY_DELAYS[0])
+            self.assertEqual(cache.warnings, [])
 
     def test_http_cache_without_existing_body_fails_offline(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

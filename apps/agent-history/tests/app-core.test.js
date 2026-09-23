@@ -43,7 +43,7 @@ test("single-release evidence is opt-in and never becomes a same-version diff", 
   assert.deepEqual(core.selectRangeEntries(["0.5.0"], entries, "0.5.0", "0.5.0"), []);
   assert.deepEqual(core.selectRangeEntries(["0.5.0"], entries, "0.5.0", "0.5.0", true), entries);
   assert.deepEqual(core.selectRangeEntries(["0.5.0"], entries, "missing", "0.5.0", true), []);
-  assert.deepEqual(core.selectRangeEntries(["0.5.0", "0.6.0"], entries, "0.5.0", "0.5.0", true), []);
+  assert.deepEqual(core.selectRangeEntries(["0.5.0", "0.6.0"], entries, "0.5.0", "0.5.0", true), entries);
 });
 
 test("combined changelog stats deduplicate evidence and reverse line direction", () => {
@@ -219,6 +219,33 @@ test("source baselines appear in the feed without pretending runtime tools were 
   assert.equal(layers.find((layer) => layer.id === "tools").status, "源码定义");
   assert.equal(layers.find((layer) => layer.id === "runtime-prompt").state, "missing");
   assert.equal(layers.find((layer) => layer.id === "static-prompt").status, "源码模板");
+});
+
+test("analyzed runtime baselines remain visible in the feed and retain snapshot labels", () => {
+  const entry = {
+    version: "2026-09-22", previousVersion: null, analysisStatus: "complete",
+    summary: "Slack runtime and tool contracts", importance: "medium",
+    stats: {additions: 100, changedSections: ["System Prompt"], toolsAdded: ["reply"]},
+    layers: {prompt: {status: "available", additions: 100}, tools: {status: "available", added: ["reply"]}},
+  };
+  const dataset = {
+    agent: {id: "claude-slack", label: "Claude Tag (Slack)"},
+    history: {versions: [{version: entry.version}]}, changelog: {entries: [entry]},
+  };
+  const items = core.buildIntelligenceItems([dataset], {agent: "claude-slack"});
+  assert.equal(items.length, 1);
+  assert.equal(items[0].baseline, true);
+  assert.deepEqual(items[0].signals, ["prompt", "tools"]);
+  assert.equal(core.buildIntelligenceItems([dataset], {signal: "tools"}).length, 1);
+  for (const layer of core.normalizeSourceLayers(entry).filter((layer) => ["runtime-prompt", "tools"].includes(layer.id))) {
+    assert.equal(layer.state, "available");
+    assert.equal(layer.status, "首次快照");
+  }
+  entry.analysisStatus = "pending";
+  assert.equal(core.buildIntelligenceItems([dataset]).length, 0);
+  entry.analysisStatus = "complete";
+  entry.importance = "none";
+  assert.equal(core.buildIntelligenceItems([dataset]).length, 0);
 });
 
 test("high-value feed honors explicit importance before score fallback", () => {

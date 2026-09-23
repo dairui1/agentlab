@@ -674,6 +674,9 @@
 
   function feedFactLabels(item) {
     const stats = item.entry.stats || {};
+    if (item.baseline) {
+      return {measured: ["首次快照", `Tools ${stats.toolsAdded?.length || 0}`], sources: ["Runtime Prompt"]};
+    }
     const measured = [];
     if (!item.entry.previousVersion && item.entry.layers?.official?.sourceSnapshot) measured.push("源码基线");
     const toolAdded = stats.toolsAdded?.length || 0;
@@ -778,14 +781,14 @@
     factGroups.measured.forEach((label) => {
       const fact = document.createElement("span");
       fact.className = "feed-fact-measured";
-      fact.title = "证据统计：来自请求快照的可量化差异";
+      fact.title = item.baseline ? "首次捕获的快照，不代表本版本新增" : "证据统计：来自请求快照的可量化差异";
       fact.textContent = label;
       facts.appendChild(fact);
     });
     factGroups.sources.forEach((label) => {
       const fact = document.createElement("span");
       fact.className = "feed-fact-source";
-      fact.title = "证据来源：该来源在本版本有可追溯变化";
+      fact.title = item.baseline ? "证据来源：首次捕获的实际请求" : "证据来源：该来源在本版本有可追溯变化";
       fact.textContent = label;
       provenance.appendChild(fact);
     });
@@ -1260,11 +1263,12 @@
 
   function renderChangelog() {
     const entries = selectedChangelogEntries(true);
+    const baseline = entries.length === 1 && !entries[0].previousVersion;
     const reverse = isReverseComparison();
     const rangeText = `${displayVersion(state.left)} → ${displayVersion(state.right)}`;
     elements.changelogRange.textContent = reverse ? `${rangeText} · 反向` : rangeText;
-    if (entries.length && state.history.versions.length === 1) {
-      elements.changelogRange.textContent = `${displayVersion(state.right)} · 首个版本基线，暂无相邻版本`;
+    if (baseline) {
+      elements.changelogRange.textContent = `${displayVersion(state.right)} · 首次快照，暂无上一版本`;
     }
     renderAnalysisCondensed(entriesDeclareNoBehaviorChange(entries));
 
@@ -1329,7 +1333,11 @@
 
     const stats = combinedStats(entries);
     const evidence = latest.evidenceDigest;
-    const metrics = [
+    const metrics = baseline ? [
+      makeMetric("快照行数", versionEntry(state.right)?.lineCount || stats.additions),
+      makeMetric("捕获结构", stats.changedSections.length),
+      makeMetric("捕获工具", stats.toolsAdded.length),
+    ] : [
       makeMetric("新增行", stats.additions, "metric-add"),
       makeMetric("删除行", stats.deletions, "metric-delete"),
       makeMetric("变更结构", stats.changedSections.length),
@@ -1348,9 +1356,9 @@
     renderSourceLayers(entries);
     renderImplications(entries);
     setStats({
-      hunks: stats.changedSections.length,
-      additions: stats.additions,
-      deletions: stats.deletions,
+      hunks: baseline ? 0 : stats.changedSections.length,
+      additions: baseline ? 0 : stats.additions,
+      deletions: baseline ? 0 : stats.deletions,
     });
 
     elements.releaseDetailsToggle.hidden = entries.length < 2;

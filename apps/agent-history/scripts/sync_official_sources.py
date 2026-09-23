@@ -367,6 +367,14 @@ class HttpCache:
                             json.JSONDecodeError,
                             ValueError,
                         ) as error:
+                            if isinstance(error, (UnicodeDecodeError, json.JSONDecodeError)) and attempt + 1 < HTTP_FETCH_ATTEMPTS:
+                                delay = HTTP_RETRY_DELAYS[attempt]
+                                LOG.warning(
+                                    "invalid response body from %s; retrying in %.1fs (%s/%s)",
+                                    url, delay, attempt + 2, HTTP_FETCH_ATTEMPTS,
+                                )
+                                time.sleep(delay)
+                                continue
                             if allow_stale_on_error and cached is not None:
                                 self._record_stale(
                                     url=url,

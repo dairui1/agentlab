@@ -40,9 +40,9 @@
     ));
     const leftIndex = orderedVersions.indexOf(left);
     const rightIndex = orderedVersions.indexOf(right);
-    // A one-release catalog still has readable evidence, but no version diff.
-    if (includeBaseline && orderedVersions.length === 1 && leftIndex === 0 && rightIndex === 0) {
-      return (entries || []).filter((entry) => entry.version === right);
+    // The first snapshot remains readable even after later releases arrive.
+    if (includeBaseline && leftIndex === 0 && rightIndex === 0) {
+      return (entries || []).filter((entry) => entry.version === right && !entry.previousVersion);
     }
     if (leftIndex < 0 || rightIndex < 0 || leftIndex === rightIndex) return [];
     const start = Math.min(leftIndex, rightIndex) + 1;
@@ -271,6 +271,13 @@
       const layer = layers.find((item) => item.id === id);
       if (file && layer.state !== "changed") Object.assign(layer, {state: "available", status, url: file.url});
     }
+    if (isRuntimeBaseline(entry, release)) {
+      for (const layer of layers) {
+        if (["runtime-prompt", "tools"].includes(layer.id) && layer.state !== "missing") {
+          Object.assign(layer, {state: "available", status: "首次快照"});
+        }
+      }
+    }
     return layers;
   }
 
@@ -349,6 +356,13 @@
     return implications.slice(0, 4);
   }
 
+  function isRuntimeBaseline(entry, release) {
+    return Boolean(entry && !entry.previousVersion
+      && ["complete", "generated", "reviewed"].includes(String(entry.analysisStatus).toLowerCase())
+      && stringValue(entry.summary)
+      && (entry.layers?.prompt?.status === "available" || release?.runtimeCapture?.promptStatus === "available"));
+  }
+
   function entrySignalTypes(entry, release, previousRelease) {
     const stats = entry?.stats || {};
     const layers = normalizeSourceLayers(entry, release, previousRelease);
@@ -414,9 +428,11 @@
       const releases = new Map(versions.map((release) => [release.version, release]));
       const versionIndex = new Map(versions.map((release, index) => [release.version, index]));
       (dataset.changelog?.entries || []).forEach((entry) => {
-        if (!entry?.previousVersion && !entry?.layers?.official?.sourceSnapshot?.files?.length) return;
-        if (String(entry.importance || "").toLowerCase() === "none") return;
+        if (!entry) return;
         const release = releases.get(entry.version);
+        const baseline = isRuntimeBaseline(entry, release);
+        if (!entry?.previousVersion && !baseline && !entry?.layers?.official?.sourceSnapshot?.files?.length) return;
+        if (String(entry.importance || "").toLowerCase() === "none") return;
         const index = versionIndex.get(entry.version);
         const previousRelease = releases.get(entry.previousVersion) || (index > 0 ? versions[index - 1] : null);
         const noChange = isNoChangeEntry(entry, release, previousRelease);
@@ -432,6 +448,7 @@
           entry,
           release,
           previousRelease,
+          baseline,
           noChange,
           signals,
           score,
@@ -483,6 +500,7 @@
     deriveImplications,
     entrySignalTypes,
     isNoChangeEntry,
+    isRuntimeBaseline,
     normalizeSourceLayers,
     resolveImportance,
     resolveOutlineKey,
