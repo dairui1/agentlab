@@ -348,10 +348,10 @@ Updated workspace settings.
         self._capture("hermes", "v2026.7.7", CLAUDE_OLD, "2026-07-07T12:00:00Z")
         self._capture("hermes", "v2026.7.7.2", CLAUDE_NEW, "2026-07-08T12:00:00Z")
         self._capture(
-            "claude-slack", "2026-09-21", CLAUDE_OLD, "2026-09-21T12:00:00Z"
+            "claude-tag", "2026-09-21", CLAUDE_OLD, "2026-09-21T12:00:00Z"
         )
         self._capture(
-            "claude-slack", "2026-09-22", CLAUDE_NEW, "2026-09-22T12:00:00Z"
+            "claude-tag", "2026-09-22", CLAUDE_NEW, "2026-09-22T12:00:00Z"
         )
         self._capture("future-agent", "1.0.0", CLAUDE_OLD, "2026-08-01T12:00:00Z")
         self._capture("openclaw", "2026.6.34", CLAUDE_OLD, "2026-08-08T12:00:00Z")

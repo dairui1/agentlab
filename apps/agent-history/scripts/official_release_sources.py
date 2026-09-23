@@ -94,6 +94,7 @@ RETIRED_AGENTS = {
 # canonical AgentLab identity everywhere else.
 PHISTORY_AGENT_IDS = {
     "deepseek-harness": ("dsh",),
+    "claude-slack": ("claude-tag",),
 }
 PHISTORY_AGENT_ALIASES = {
     source: canonical
