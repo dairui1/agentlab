@@ -6,6 +6,7 @@
   const indexView = document.getElementById("researchIndex");
   const detailView = document.getElementById("researchDetail");
   const productLabels = {
+    "claude-slack": "Claude Tag",
     "claude-code": "Claude Code",
     codex: "Codex",
     "deepseek-harness": "DeepSeek Harness",
@@ -611,7 +612,7 @@
     renderHeadlineEvidence(study);
     const legacy = document.getElementById("researchLegacyLink");
     legacy.href = study.legacyHref;
-    legacy.querySelector("span").textContent = study.evidence ? "查看完整比较工作台" : "查看完整实现笔记";
+    legacy.querySelector("span").textContent = study.readingLabel || (study.evidence ? "查看完整比较工作台" : "查看完整实现笔记");
     document.getElementById("researchScope").textContent = `结论仅适用于 ${study.products.map((product) => `${product.label} ${product.version}`).join("、")}。直接证据、跨证据推断和未知项分别呈现；没有证据的部分不补成叙事。`;
     restoreDetailFilters();
     bindDetailControls();

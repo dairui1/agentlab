@@ -12,6 +12,7 @@
 
   const researchItems = [
     { id: "research", label: "全部专题", icon: "library", href: "/capabilities.html" },
+    { id: "claude-tag", label: "Claude Tag", icon: "messages-square", href: "/capabilities/claude-tag.html" },
     { id: "goal", label: "Goal 模式", icon: "target", href: "/capabilities.html?study=goal-mode" },
     { id: "gpt-prompt", label: "GPT Prompt 演进", icon: "file-diff", href: "/capabilities/gpt-prompt-evolution.html" },
     { id: "exo", label: "Exo 递归 Harness", icon: "git-fork", href: "/capabilities/exo-recursive-harness.html" },

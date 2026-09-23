@@ -1,0 +1,31 @@
+.tag-study .tag-logo { width: 36px; height: 36px; object-fit: contain; vertical-align: middle; margin-right: 12px; }
+.tag-study h1 { font-size: 30px; }
+.tag-study h3 { margin-top: 28px; }
+.tag-study .capability-article { min-width: 0; }
+.tag-study .capability-article code { overflow-wrap: anywhere; }
+.tag-study .article-toc { max-height: calc(100vh - 100px); overflow-y: auto; }
+.tag-tool-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, .65fr); gap: 12px; margin-top: 24px; }
+.tag-tool-controls label { display: grid; gap: 6px; font-size: 13px; color: var(--text-soft); }
+.tag-tool-controls input, .tag-tool-controls select { min-width: 0; width: 100%; height: 42px; border: 1px solid var(--border-strong); border-radius: 4px; padding: 8px 10px; color: var(--text); background: var(--article-paper); font: inherit; }
+.tag-tool-controls :focus-visible, .tag-tool summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.tag-tool { border-top: 1px solid var(--border-strong); padding: 12px 0; }
+.tag-tool:last-child { border-bottom: 1px solid var(--border-strong); }
+.tag-tool summary { cursor: pointer; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
+.tag-tool summary small { display: block; color: var(--muted); margin-left: 16px; font: 12px/1.6 var(--sans); }
+.tag-tool pre { max-height: 480px; overflow: auto; padding: 16px; font: 12px/1.7 var(--mono); background: var(--surface-muted); border: 1px solid var(--border); border-radius: 4px; tab-size: 2; }
+.tag-tool p, #tagToolStatus { font-size: 13px; overflow-wrap: anywhere; }
+.tag-tool pre code { white-space: pre-wrap; }
+.tag-walkthrough { padding-left: 24px; }
+.tag-walkthrough li { margin-bottom: 16px; padding-left: 4px; }
+.tag-source-links { overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  .tag-study .article-hero-inner { gap: 0; }
+  .tag-study .article-toc { max-height: none; overflow-x: auto; }
+  .tag-study .article-scope-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tag-study .article-scope-grid > div { min-width: 0; overflow-wrap: anywhere; }
+  .tag-study .article-byline { display: flex; gap: 7px 14px; }
+}
+@media (max-width: 700px) {
+  .tag-study h1 { font-size: 26px; }
+  .tag-tool-controls { grid-template-columns: minmax(0, 1fr); }
+}

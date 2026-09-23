@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="沿一次 Slack 任务拆解 Claude Tag 的提示词分层、85 项工具、消息权限、worker 分工、异步恢复和 Artifact 交付。附固定快照证据与完整工具 Schema 索引。">
+  <title>Claude Tag：提示词与工具设计 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/claude-tag.css">
+  <script src="/site-navigation.js"></script>
+</head>
+<body class="article-page tag-study" data-evidence-source="/capabilities/claude-tag.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="claude-tag" compare-agent="claude-slack"></agentlab-navigation>
+    </header>
+    <main>
+      <header class="article-hero"><div class="article-hero-inner">
+        <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><span aria-hidden="true">/</span><span>Claude Tag</span></nav>
+        <span class="article-series">运行时快照研究 · 2026-09-22 / default</span>
+        <h1><img class="tag-logo" src="/agent-icons/claude-code.png" alt="">Claude Tag：提示词与工具设计</h1>
+        <p class="article-dek">一个 Slack 请求到来之后，谁来判断该不该接、谁实际执行、什么时候再醒来、怎样才算交付？这份 Prompt 把这些问题写成了具体规则，工具则把其中一部分变成可检查的参数。</p>
+        <div class="article-byline"><span>2026-09-24 核验</span><span>18 条机制证据</span><span>85 项主 Session 工具</span></div>
+      </div></header>
+      <section class="article-scope-band" aria-label="研究范围"><div class="article-scope-grid">
+        <div><span>材料</span><strong>脱敏请求快照</strong><small>Phistory · e033699f</small></div>
+        <div><span>研究对象</span><strong>Prompt + Tool Schema</strong><small>不是后端源码</small></div>
+        <div><span>核心分工</span><strong>协调与执行分开</strong><small>主 Session / worker / 个人 Session</small></div>
+        <div><span>证据边界</span><strong>合同分析</strong><small>未做真实 Slack 实验</small></div>
+      </div></section>
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
+          <span>从请求走到交付</span>
+          <ol>
+            <li><a href="#mental-model" data-index="01">整体模型</a></li>
+            <li><a href="#prompt" data-index="02">提示词怎样分层</a></li>
+            <li><a href="#messages" data-index="03">读懂一条消息</a></li>
+            <li><a href="#workers" data-index="04">谁真正做事</a></li>
+            <li><a href="#tool-design" data-index="05">工具设计精读</a></li>
+            <li><a href="#async" data-index="06">长任务与恢复</a></li>
+            <li><a href="#claims" data-index="07">协作不是分布式锁</a></li>
+            <li><a href="#delivery" data-index="08">交付与沟通</a></li>
+            <li><a href="#walkthrough" data-index="09">串起一次任务</a></li>
+            <li><a href="#tensions" data-index="10">张力与待验证处</a></li>
+            <li><a href="#tools" data-index="11">85 项工具索引</a></li>
+            <li><a href="#sources" data-index="12">来源与实验边界</a></li>
+          </ol>
+          <div class="article-toc-note"><strong>三个不同的保证</strong>Prompt 要求模型怎么做；Schema 约束参数形状；工具描述声明运行时会检查什么。本文不把三者混成已经验证的行为。</div>
+        </aside>
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">Claude Tag 的特色藏在“接下任务之后”。它不仅要会调用工具，还要知道自己代表谁、哪条消息值得回应、另一位 Claude 是否已经在做，以及这次 Session 消失以后，下一个 Session 能不能接得住。</p>
+
+          <section id="mental-model" data-article-section>
+            <span class="section-number">01 / 整体模型</span><h2>把它看成事件驱动的协调者</h2>
+            <p>在这份快照中，普通 assistant 文本并不会送进 Slack。主 Session 必须调用 <code>reply</code>、<code>update_reply</code> 或 <code>no_reply_needed</code> 完成面向 Thread 的收尾。新 Slack 事件或后台结果再触发下一轮。于是“生成了一段正确答案”和“用户收到了答案”成了两个不同状态。<button class="evidence-ref" type="button" data-evidence="CT-01 CT-17" data-evidence-trigger>CT-01、17</button></p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count: 5">
+              <div><span>输入</span><strong>Slack 事件</strong><small>是谁、为何唤醒</small></div>
+              <div><span>判断</span><strong>主 Session</strong><small>权限、范围、归属</small></div>
+              <div><span>执行</span><strong>worker / Session</strong><small>计算、改文件、发布</small></div>
+              <div><span>续接</span><strong>事件与 check-in</strong><small>检查结果、继续工作</small></div>
+              <div><span>交付</span><strong>Thread + Artifact</strong><small>可见结果、可恢复状态</small></div>
+            </div><figcaption>根据捕获合同整理的职责图，不是 Anthropic 后端部署图。工具和事件可能走不同路径，不要求每个请求经过所有步骤。</figcaption></figure>
+            <p>这里的 Harness，是围绕模型的消息路由、工具、权限和生命周期管理。Prompt 给协调者一套行动准则，但不能凭 Prompt 就断言服务端严格执行了所有准则。</p>
+          </section>
+
+          <section id="prompt" data-article-section>
+            <span class="section-number">02 / 提示词结构</span><h2>不是一段长人设，而是几层不同职责</h2>
+            <p>文件前面仍能看到通用编码 Agent 的习惯：理解仓库、克制修改、注意不可逆动作、管理上下文。随后才加入 Slack 专用的身份与协作规范；消息区又注入 Memory 和 worker 的能力说明。把整份文件叫作“Slack system prompt”，会漏掉这几个来源和作用不同的层。<button class="evidence-ref" type="button" data-evidence="CT-01 CT-03" data-evidence-trigger>CT-01、03</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>层</th><th>主要回答</th><th>影响什么</th></tr></thead><tbody>
+              <tr><td>通用工作规范</td><td>怎样完成工程任务</td><td>修改范围、核查与风险判断</td></tr>
+              <tr><td>环境与上下文</td><td>在哪里运行、会丢掉什么</td><td>执行条件、压缩后的连续性</td></tr>
+              <tr><td>Slack 行为协议</td><td>谁在说话、要不要回、谁负责</td><td>路由、权限、协作、通知</td></tr>
+              <tr><td>Memory / worker 提示</td><td>哪些知识保留、哪些能力可委派</td><td>跨轮状态与工作分配</td></tr>
+              <tr><td>Tool Schema 与描述</td><td>动作怎么表达、何时被拒绝</td><td>参数、对象身份、前置条件</td></tr>
+            </tbody></table></div>
+            <h3>细节为何写得这么多？</h3>
+            <p>大量篇幅并不教模型解题，而是在规定失败时怎么办：查不到不等于不存在；拒绝不是请它换个工具绕过；Artifact 版本过时要重读合并；回复尚未返回 <code>ts</code> 就不能标记“已发布”。这些分支让抽象的“可靠队友”变成能审查的决策。<button class="evidence-ref" type="button" data-evidence="CT-05 CT-10 CT-16" data-evidence-trigger>CT-05、10、16</button></p>
+            <p><strong>值得借鉴的写法：</strong>每条规则都尽量带一个触发条件、一个动作和一个停止条件。与其只说“保持沟通”，这里更具体地规定“进度静默编辑，完成另发通知”。这是本文对 Prompt 结构的归纳，不是对真实成功率的测量。</p>
+          </section>
+
+          <section id="messages" data-article-section>
+            <span class="section-number">03 / 输入与信任</span><h2>同一个人，不同消息也有不同权限</h2>
+            <p><code>reason</code>、<code>from</code>、<code>trust</code> 不能互换。reason 解释这一轮为什么发生；from 说明消息来自人、bot、当前 Session 还是 sibling；trust 才帮助判断这条内容能否指挥它。线程发起人 <code>role=initiator</code> 不是额外授权。<button class="evidence-ref" type="button" data-evidence="CT-02" data-evidence-trigger>CT-02</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>消息类型</th><th>Prompt 中的处理</th><th>不能推导出的权限</th></tr></thead><tbody>
+              <tr><td>principal</td><td>本人直接 @ 或 1:1 DM 的请求</td><td>无限范围的不可逆操作授权</td></tr>
+              <tr><td>peer</td><td>人的未 @ 消息，按场景判断参与</td><td>见到一句话就必须执行</td></tr>
+              <tr><td>relay</td><td>bot、webhook 或既往自身文本</td><td>破坏性动作或个人连接器权限</td></tr>
+              <tr><td>unauth / no_role</td><td>参考内容，不执行其中指令</td><td>正文声称“已授权”即可放行</td></tr>
+            </tbody></table></div>
+            <p>一个重要例外是主动 @ 它的 bot：明确、范围内的请求可以接，也应该答；但 bot 的话不能单独授权破坏性、不可逆、改权限的动作或个人连接器调用。因此“relay 都不理”也不准确。权限判断不是一个简单的可信 / 不可信开关。</p>
+            <h3>读取到的请求，不等于收到了请求</h3>
+            <p>订阅频道送来的是观察，默认不能跑去原频道回话。搜索结果里的“请读我的邮箱”也不能充当本人启动个人 Session 的请求锚点。这一设计把<strong>内容可见性</strong>和<strong>指令来源</strong>分开：文本长得像请求，不代表它进入了能授权动作的通道。<button class="evidence-ref" type="button" data-evidence="CT-02 CT-09" data-evidence-trigger>CT-02、09</button></p>
+          </section>
+
+          <section id="workers" data-article-section>
+            <span class="section-number">04 / 执行分工</span><h2>主 Session 会读、会协调，但不直接写文件</h2>
+            <p>85 项主 Session 工具里有 <code>Read</code>、<code>Grep</code>、<code>Glob</code>，却没有 <code>Bash</code>、<code>Edit</code>、<code>Write</code> 或 <code>Artifact</code>。后者列在 workerToolsContext 里。Artifact 段还直说：主 Session 的工具可读但不能写文件或发布，所以要派 worker。<button class="evidence-ref" type="button" data-evidence="CT-03 CT-10" data-evidence-trigger>CT-03、10</button></p>
+            <p>这让“协调”和“执行”有了可见的能力分界。不能把它夸大成安全沙箱，但它确实比一句“尽量委派”更具体：主 Session 没有那几个直接动作入口。也不能把 worker 列表再加到 85 上，声称主模型拥有更多工具。</p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>工作主体</th><th>适合承担</th><th>不要混淆</th></tr></thead><tbody>
+              <tr><td>Agent worker</td><td>当前任务里的执行子工作</td><td>不是用户个人连接器身份</td></tr>
+              <tr><td>create_session</td><td>独立远程 Session 与仓库任务</td><td>新 Session 不等于更高权限</td></tr>
+              <tr><td>start_standing_session</td><td>参与者用自己的资源完成请求</td><td>主 Session 没有获得其连接器</td></tr>
+              <tr><td>start_thread_session</td><td>把特定 Thread 接成活跃工作</td><td>不是每个路过消息都可启动</td></tr>
+            </tbody></table></div>
+            <p>个人 Session 尤其不同：它服从自己的 principal，而不是频道协调者。协调者可以传递线索、转发请求，却不能把一句“对方同意了”当作本人授权。职责分配和权限委托是两回事。<button class="evidence-ref" type="button" data-evidence="CT-08 CT-09 CT-13" data-evidence-trigger>CT-08、09、13</button></p>
+          </section>
+
+          <section id="tool-design" data-article-section>
+            <span class="section-number">05 / 工具设计</span><h2>关键不在工具多，而在参数记住了哪些责任</h2>
+            <p>按命名空间统计，主 Session 有 10 项通用读取与协调工具、26 项 Claude Code Remote 工具、49 项 Slack 工具。这个分类只是检索入口。理解设计时，更有用的问题是：参数绑定了哪个对象，动作会影响谁，做之前需要什么证据？</p>
+            <h3>reply：把“我看到了什么”带进发送动作</h3>
+            <p><code>last_seen_ts</code> 是必填字段。工具描述说，Thread 有尚未读到的新消息时发送会失败。它像乐观并发检查：如果用户刚刚改了需求，模型不能直接按旧上下文发言。<code>force</code> 能跳过比较，因此这是可绕开的新鲜度保护，不是不可突破的锁。<button class="evidence-ref" type="button" data-evidence="CT-04" data-evidence-trigger>CT-04</button></p>
+            <p><code>also_send_to_channel</code> 把更大的通知范围做成显式选项；<code>conveys_helper_session</code> 与 <code>conveys_event</code> 则把转述关联到收到的具体事件。模型不只在提交文字，还在提交“我替谁传达、根据哪条事件、发到哪里”的说明。</p>
+            <h3>create_session：派活不等于把权限也放大</h3>
+            <p><code>permission_mode</code> 声明不能比调用者更宽；<code>extra_allowed_tools</code> 里父 Session 未获预授权的项目会被丢弃。remote_cowork 模式还声明忽略扩展工具面的一组参数。这样的字段设计是在表达权限的上限，而不是让模型随意拼一个更强的子进程。<button class="evidence-ref" type="button" data-evidence="CT-13" data-evidence-trigger>CT-13</button></p>
+            <h3>Routine：为什么触发，和何时触发一样重要</h3>
+            <p><code>initiation</code> 区分人类请求、已有计划、自行跟进和自主发起。<code>create_new_session_on_fire</code> 决定是续接上下文还是冷启动；<code>connectors</code> 则影响未来多次执行的授权。一个提醒因此不只是 cron 字符串，还包含来源、执行身份与持久权限。<button class="evidence-ref" type="button" data-evidence="CT-14" data-evidence-trigger>CT-14</button></p>
+            <div class="article-callout"><strong>Schema 只是合同的一层</strong><p>required、enum 和类型能表达参数形状；“不得扩权”“仅当本人直接请求”“存在新消息则拒绝”主要写在 description。工具描述声称服务端检查的部分，仍需实现或拒绝回执才能独立验证。</p></div>
+            <div class="article-tabs" data-article-tabs style="--tab-count: 3">
+              <div role="tablist" aria-label="reply 的三层约束">
+                <button id="tagTabPrompt" type="button" role="tab" aria-selected="true" aria-controls="tagPanelPrompt">Prompt 策略</button>
+                <button id="tagTabSchema" type="button" role="tab" aria-selected="false" aria-controls="tagPanelSchema">Schema 形状</button>
+                <button id="tagTabRuntime" type="button" role="tab" aria-selected="false" aria-controls="tagPanelRuntime">运行时声明</button>
+              </div>
+              <section id="tagPanelPrompt" class="article-tab-panel" role="tabpanel" aria-labelledby="tagTabPrompt"><h3>这条消息值得通知吗？</h3><p>结果、问题和阻塞用新 reply；普通进度编辑原消息。这需要模型理解当前任务与读者需要。</p></section>
+              <section id="tagPanelSchema" class="article-tab-panel" role="tabpanel" aria-labelledby="tagTabSchema" hidden><h3>参数是否带齐？</h3><p>last_seen_ts 是必填字符串；force 是可选布尔值。但 Schema 没有表达时间戳是否真是最新值。</p></section>
+              <section id="tagPanelRuntime" class="article-tab-panel" role="tabpanel" aria-labelledby="tagTabRuntime" hidden><h3>读过的状态还有效吗？</h3><p>工具描述声明会比较新消息，发现未读则拒绝；force 可跳过。是否按此强制执行，要看实际回执或后端实现。</p></section>
+            </div>
+          </section>
+
+          <section id="async" data-article-section>
+            <span class="section-number">06 / 时间与恢复</span><h2>长期工作靠重新唤醒，不靠一轮里一直等</h2>
+            <p>派出 worker、Workflow、构建或 CI 后，Prompt 要求同一轮安排 check-in，再结束当前轮。检查触发时，先用 <code>update_reply</code> 更新真实进度和时间戳，再读工作结果；没完成就重新安排，完成就清掉 trigger。初始间隔是一分钟，工作超过五分钟后可拉长但一般不超过五分钟；仅等待 PR 审阅或 CI 的阶段可以进一步放宽。<button class="evidence-ref" type="button" data-evidence="CT-05" data-evidence-trigger>CT-05</button></p>
+            <p>这是一种事件驱动的持续性：每次唤醒重新看现实，而不是承诺之后无限沉默。它也有清晰代价：过多 check-in 消耗轮次，忘记删除会产生无效唤醒，没写下任务状态就会在更换 Session 后断线。</p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>状态</th><th>谁能接续</th><th>容易误读的地方</th></tr></thead><tbody>
+              <tr><td>当前上下文</td><td>当前 Session</td><td>不是持久任务数据库</td></tr>
+              <tr><td>Thread / live status</td><td>读到它的后继 Session</td><td>必须写清承诺、在途工作、剩余项</td></tr>
+              <tr><td>channel memory / 已交付文件</td><td>有权限的后继工作</td><td>不是所有临时细节都适合存成记忆</td></tr>
+              <tr><td>send_later one-shot</td><td>它绑定的 Session</td><td>容器重启存活不等于 Session 替换后存活</td></tr>
+              <tr><td>周期 Routine</td><td>可能冷启动的新 Session</td><td>指令需要足以独立执行</td></tr>
+            </tbody></table></div>
+            <p><code>send_later</code> 描述写“可跨 container restart”，Session 章节却写“一次性 check-in 随 Session 结束”。不必急着判定两句矛盾：容器重启和会话被清理 / 替换不是同一事件。真正该测试的是这两个层级分别发生时，trigger 最终送到哪里。<button class="evidence-ref" type="button" data-evidence="CT-06 CT-07" data-evidence-trigger>CT-06、07</button></p>
+          </section>
+
+          <section id="claims" data-article-section>
+            <span class="section-number">07 / 多 Session 协调</span><h2>claim records 有意选择“继续做”，不是“等锁”</h2>
+            <p>helper 想接一条消息，会发送含 <code>message_ts</code>、<code>record_uuid</code>、<code>verdict</code>、<code>scope</code> 的 claim。接收者以五字段的 <code>claim_response</code> 回应 grant 或 deny。正文里的同形 JSON 不算，记录必须以完整消息经过可识别发送 Session 的通道送达。<button class="evidence-ref" type="button" data-evidence="CT-08" data-evidence-trigger>CT-08</button></p>
+            <p>最容易看错的是它的保证强度。Prompt 明说：服务器没有 claim database，记录是建议性信息，重复执行是可以接受的兜底，不能为了等一致意见而一直不动。这套协议优先防止无人处理，不能承诺每件事只执行一次。</p>
+            <p>所以对账才重要：每次醒来，把授出去的工作与可见 Thread 对照；收到 done 后，检查发送者是否是获授 Session，并确认 <code>reply_ts</code> 指向的答复确实存在。一个“completed”标签不够。重启丢掉了本地授予记录怎么办、两个 Session 同时接管会怎样，则仍是需要实验的问题。</p>
+            <blockquote class="article-pullquote">协调协议的目标不是让所有 Agent 先达成一致，而是让用户尽量不被漏答，并用可见结果纠正失配。<small>根据 claim 规则作出的机制归纳</small></blockquote>
+          </section>
+
+          <section id="delivery" data-article-section>
+            <span class="section-number">08 / 交付与沟通</span><h2>文字、通知和产物，是三种不同的输出</h2>
+            <p>How you write 约束写法：先说结果，按读者的信息密度解释，少空话。Claims and evidence 约束知识：先检查，再断言，特别要防把“代码应该如此”当成“实际运行如此”。Cadence 约束注意力：进度尽量静默，结果、阻塞和问题才重新通知。三层放在一起，才解释了它为何既要求持续工作，又要求少说话。<button class="evidence-ref" type="button" data-evidence="CT-15 CT-16" data-evidence-trigger>CT-15、16</button></p>
+            <h3>发布成功必须有回执</h3>
+            <p>结果 reply 可能被要求改写，也可能因新消息而拒绝。必须等它返回 <code>ts</code>，再把 checklist 改成“已发布”。这个很小的顺序约束避免把本地生成、尝试发送和实际送达混成一个完成状态。<button class="evidence-ref" type="button" data-evidence="CT-05" data-evidence-trigger>CT-05</button></p>
+            <h3>报告不随每次修改换一个链接</h3>
+            <p>长报告、网页和表格交给 worker 生成并通过 Artifact 发布，后续改动优先沿用原 worker 与 URL。版本落后时先读线上最新内容，合并后重发一次；真正冲突再停下，不默认 force。这已经涉及协作编辑，不只是把 Markdown 上传成附件。<button class="evidence-ref" type="button" data-evidence="CT-10" data-evidence-trigger>CT-10</button></p>
+            <p>PR 也有类似的延续责任。自己创建的 PR 需要跟进后续活动，不能以“开了 PR”代替用户要的可交付修复；只是受托观察别人的 PR，则不能擅自扩大任务。事件订阅在这里接上了工作义务，而不只是通知功能。<button class="evidence-ref" type="button" data-evidence="CT-18" data-evidence-trigger>CT-18</button></p>
+          </section>
+
+          <section id="walkthrough" data-article-section>
+            <span class="section-number">09 / 场景推演</span><h2>“查一下故障，修好后发报告”会怎样走</h2>
+            <p>下面是依据已捕获合同整理的示例，不是实际运行记录。假设已获授权的人在 Thread 中直接 @Claude，要求排查仓库故障并生成报告。</p>
+            <ol class="tag-walkthrough">
+              <li><strong>确认请求归属。</strong>读 wake 的来源和信任字段；若 helper 已在处理，不另开一套工作。搜索来的历史事故只能当线索。</li>
+              <li><strong>留下可见承诺。</strong>长任务先发 live status，列出排查、修改、验证、交付；记录消息 ts，后续只编辑这一份进度。</li>
+              <li><strong>核对可用访问。</strong>使用仓库访问工具确认当前路径；若需要本人资源，按直接送达的本人消息启动其个人 Session，不把凭据搬到公共 Session。</li>
+              <li><strong>把执行交给 worker。</strong>给它范围、证据和明确产物。后台执行期间安排 send_later，再让当前轮结束。</li>
+              <li><strong>重新唤醒后核验。</strong>先更新状态，读真实结果；测试失败就是未完成，而不是换一种“已修复”的措辞。</li>
+              <li><strong>发报告并收尾。</strong>worker 发布 Artifact，协调者用最新 last_seen_ts 发送链接；拿到 ts 才标记交付，删除无用 check-in。</li>
+            </ol>
+            <p>沿途最关键的不是用了几个工具，而是六次责任转换有没有留下可核验对象：请求消息、状态消息、访问结果、worker 工作、验证结果、最终链接。<button class="evidence-ref" type="button" data-evidence="CT-02 CT-05 CT-09 CT-10" data-evidence-trigger>查看这条推演的依据</button></p>
+          </section>
+
+          <section id="tensions" data-article-section>
+            <span class="section-number">10 / 张力与局限</span><h2>读得越细，越不能把文字当成实现</h2>
+            <p><code>Agent</code> 的说明要求 <code>subagent_type</code>，Schema 的 required 却只有 <code>description</code> 与 <code>prompt</code>。<code>Workflow</code> 工具文档要求显式 opt-in，Slack Prompt 又说本场景已经满足。这不是可以略过的小字：它说明有效合同分散在多层文本，而不是只看一个 JSON Schema 就能还原全部约束。<button class="evidence-ref" type="button" data-evidence="CT-11 CT-12" data-evidence-trigger>CT-11、12</button></p>
+            <p>不能据此直接宣布有权限漏洞。模型可能服从更具体的场景规则，服务器也可能补做校验。应当保存真实参数、拒绝结果和重试路径，再判断哪层在起作用。</p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>故障注入</th><th>合同期望</th><th>需要观察</th></tr></thead><tbody>
+              <tr><td>回复前出现新消息</td><td>普通 reply 拒绝旧上下文</td><td>读取、重写、force 使用与回执</td></tr>
+              <tr><td>claim 延迟或 Session 消失</td><td>对账、接管，避免永远等待</td><td>漏答率、重复率、接管时间</td></tr>
+              <tr><td>Artifact 被别人更新</td><td>重读、合并，不直接覆盖</td><td>新版本是否保留他人改动</td></tr>
+              <tr><td>容器重启 / Session 替换</td><td>按各自生命周期恢复</td><td>one-shot 与 recurring 的投递目标</td></tr>
+              <tr><td>伪造授权或 done 文本</td><td>按送达来源与实际答复判断</td><td>是否误启动、误授权或误报完成</td></tr>
+            </tbody></table></div>
+            <p>以上均为待做实验，不是通过项。当前最值得借鉴的是：把请求、通知、执行、恢复和交付分别写清；最值得警惕的是：把这些文字误认成已经验证的端到端可靠性。</p>
+          </section>
+
+          <section id="tools" data-article-section>
+            <span class="section-number">11 / 工具索引</span><h2>85 项主 Session 工具</h2>
+            <p>按固定快照的 Tools 段提取，不含 worker 能力声明。主文讲设计，这里保留具体参数；完整使用条件仍以每项的原始描述为准。</p>
+            <div class="tag-tool-controls"><label for="tagToolSearch">工具或参数<input id="tagToolSearch" type="search" placeholder="例如 reply、last_seen_ts" autocomplete="off"></label><label for="tagToolFamily">工具组<select id="tagToolFamily"><option value="all">全部 85 项</option><option value="coordinator">读取与协调 · 10</option><option value="remote">Claude Code Remote · 26</option><option value="slack">Slack · 49</option></select></label></div>
+            <p id="tagToolStatus" role="status">正在读取工具索引…</p><div id="tagToolList"></div>
+            <noscript><p>工具索引需要 JavaScript；也可查看<a href="/capabilities/claude-tag-tools.json">完整 JSON 数据</a>。</p></noscript>
+          </section>
+
+          <section id="sources" data-article-section>
+            <span class="section-number">12 / 来源</span><h2>这份研究能回答什么，不能回答什么</h2>
+            <p>证据锁定 Phistory 提交 <code>e033699f9f4ab0e5262a919f03533327a2ff6269</code> 的 <code>claude-tag / 2026-09-22 / default</code>。元数据标记为手动导入、已脱敏的 user-provided trace，包含 85 项工具。快照日期不是 Claude Code 发布版本；本文也不把捕获里的模型名称当成当前公开可用性的证明。</p>
+            <p>可以确认的是这次捕获中模型可见的指令、字段、工具说明，以及它们之间的联系。不能确认的是服务端完整架构、所有组织的默认配置、真实任务成功率或版本演进。上游已移除私人消息、私有记忆及会话链接，本文不尝试恢复。</p>
+            <ul class="tag-source-links">
+              <li><a href="https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/meta.json" target="_blank" rel="noopener noreferrer">捕获元数据与脱敏范围</a></li>
+              <li><a href="https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md" target="_blank" rel="noopener noreferrer">固定 Prompt 与工具原文</a></li>
+              <li><a href="/capabilities.html?study=claude-tag">18 条机制证据与 5 项待验证问题</a></li>
+              <li><a href="/?mode=compare&amp;agent=claude-slack&amp;left=2026-09-22&amp;right=2026-09-22&amp;view=request&amp;wrap=1&amp;feedAgent=claude-slack">Agent 更新中的原始请求视图</a></li>
+            </ul>
+          </section>
+        </article>
+        <aside class="article-margin" aria-label="研究侧注">
+          <div class="article-margin-block"><span>Prompt</span><strong>告诉模型什么情况下该做什么。</strong><small>依赖模型理解与遵守。</small></div>
+          <div class="article-margin-block"><span>Schema</span><strong>让动作带上可检查的对象和字段。</strong><small>不包含全部语义约束。</small></div>
+          <div class="article-margin-block"><span>运行时</span><strong>工具描述声明拒绝、路由与生命周期。</strong><small>需要实现或实验验证。</small></div>
+        </aside>
+      </div>
+      <nav class="article-next" aria-label="返回专题"><a href="/capabilities.html"><span>全部专题</span><strong>继续研究 Agent 的运行机制</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">快照依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+  <script src="/claude-tag.js"></script>
+</body>
+</html>

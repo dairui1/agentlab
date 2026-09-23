@@ -1,0 +1,337 @@
+{
+  "id": "claude-tag",
+  "number": "009",
+  "title": "Claude Tag：提示词与工具设计",
+  "product": "Claude Tag",
+  "subtitle": "从消息入口到执行、恢复与交付，拆解 Slack 协作型 Agent 的运行契约",
+  "description": "一份捕获里同时出现了通用编码规范、Slack 消息协议、worker 分工、85 项主 Session 工具和异步任务规则。本研究沿一次任务的生命周期解释这些层如何相互约束，重点区分自然语言策略、JSON Schema 和工具描述所声明的运行时检查。",
+  "verifiedAt": "2026-09-24",
+  "status": "active",
+  "boundary": "只研究 Phistory e033699f 固定提交中 2026-09-22/default 的脱敏请求快照。Claude Tag 是上游条目名，AgentLab 更新流内部 ID 为 claude-slack。日期不是 Claude Code release；模型名称是捕获元数据，不作当前产品可用性声明。没有后端源码、真实 Slack 实验或相邻快照。",
+  "scope": [
+    {
+      "label": "Evidence",
+      "value": "18 条机制证据",
+      "note": "固定 Prompt 行号与 SHA-256"
+    },
+    {
+      "label": "Tools",
+      "value": "85 项主 Session 工具",
+      "note": "worker 能力列表另计，不能相加"
+    },
+    {
+      "label": "Source",
+      "value": "Phistory e033699f",
+      "note": "user-provided trace，已脱敏"
+    },
+    {
+      "label": "Experiment",
+      "value": "未运行真实 Slack",
+      "note": "场景是依据合同推演"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "CT-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Prompt 是多层装配，不是一段 Slack 人设",
+      "statement": "通用编码、操作风险、上下文管理和远程环境说明在前；Slack 专用层随后定义身份、消息入口与必须使用工具交付的终止方式。文件还带 cached 标记及独立 system-reminder。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 19-151",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "文件顺序能确认装配结果，不能还原服务端模板生成器，也不能推定缓存命中率。",
+      "source": {
+        "label": "Phistory 固定快照 · L19-151",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L19-L151"
+      }
+    },
+    {
+      "id": "CT-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "每条消息分别携带来源、触发原因与信任",
+      "statement": "wake 的 reason 解释为何唤醒，from 区分人、bot、自身及 sibling，trust 按消息计算；同一人被提及时可为 principal，未提及时为 peer。role 只是上下文。订阅消息是观察，不是向原频道发言的邀请。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 151-186",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "这些是提示词定义的解释规则；未实测路由器如何认证这些字段。",
+      "source": {
+        "label": "Phistory 固定快照 · L151-186",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L151-L186"
+      }
+    },
+    {
+      "id": "CT-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "协调层与执行层持有不同工具",
+      "statement": "workerToolsContext 列出 Bash、Edit、Write、Artifact 等 worker 工具；Slack Artifact 段要求由 worker 写文件并发布。捕获的主 Session 工具表只有 85 项，不包含这些写入入口。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 1062-1096",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "worker 工具列表是提示词中的能力声明，不是 worker 的完整 Tool Schema 或调用实录。",
+      "source": {
+        "label": "Phistory 固定快照 · L1062-1096",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L1062-L1096"
+      }
+    },
+    {
+      "id": "CT-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "发送消息带有新鲜度检查",
+      "statement": "reply 必填 last_seen_ts，描述称存在未读的新消息时发送失败；force 可跳过该比较。channel_id 需要 thread_ts，also_send_to_channel 扩大通知范围，conveys_event 绑定实际收到的 helper 事件。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 3099-3171",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "必填由 Schema 表达，条件依赖与拒绝行为主要写在描述中；未观察对应后端执行。",
+      "source": {
+        "label": "Phistory 固定快照 · L3099-3171",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L3099-L3171"
+      }
+    },
+    {
+      "id": "CT-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "进度与结果使用不同消息语义",
+      "statement": "reply 会通知，update_reply 静默编辑。Live status 要求真实发现和新时间戳；结果必须先发送并拿到 ts，才能把发布步骤标为完成。异步等待在派工同轮安排 check-in，完成后 delete_trigger。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 228-287",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "这是期望的工作节奏，不能据此计算实际通知量或任务完成率。",
+      "source": {
+        "label": "Phistory 固定快照 · L228-287",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L228-L287"
+      }
+    },
+    {
+      "id": "CT-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "定时器有明确的生命周期",
+      "statement": "send_later 是 self-bind 加 run_once_at 的 Routine 包装，分钟级轮询，返回 trigger_id 可取消；描述明确说投递可跨 container restart。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 2115-2155",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "Session 生存期另见 CT-07。container restart 不能自动解释为 Session 被替换。",
+      "source": {
+        "label": "Phistory 固定快照 · L2115-2155",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L2115-L2155"
+      }
+    },
+    {
+      "id": "CT-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "恢复依赖写出的状态，而非上下文",
+      "statement": "Session 可能结束、被清理或替换。Slack Thread、channel memory、已交付产物保留；上下文和该 Session 的 one-shot check-in 不保留。周期任务可能把事件交给冷启动 Session。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 428-433",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "没有后端存储和恢复实验，不能确认保留期限、事务性或灾备强度。",
+      "source": {
+        "label": "Phistory 固定快照 · L428-433",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L428-L433"
+      }
+    },
+    {
+      "id": "CT-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "claim 是建议性协调，不是互斥锁",
+      "statement": "claim 通过完整的 server-delivered 记录识别来源；claim_response 限定五个字段。Prompt 明说记录是 advisory，server 不保存 claim database，等待不是兜底，重复工作是接受的 fallback。done 必须来自获授 Session 且可见 reply_ts 对应的答复确实存在。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 486-516",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "不能将目标“尽量只答一次”表述成 exactly-once 保证；grant 状态靠 Session 与可见 Thread 对账。",
+      "source": {
+        "label": "Phistory 固定快照 · L486-516",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L486-L516"
+      }
+    },
+    {
+      "id": "CT-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "个人权限留在个人 Session 中",
+      "statement": "个人连接器在参与者自己的 Session 中使用。直接送达的本人请求才可作为 start_standing_session 的锚点；搜索或 fetch 读出的请求不能替代它。主 Session 不能声称自己拥有个人连接器。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 458-472",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "这是身份与请求来源的契约，不构成跨 Session 权限隔离已通过测试的证据。",
+      "source": {
+        "label": "Phistory 固定快照 · L458-472",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L458-L472"
+      }
+    },
+    {
+      "id": "CT-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Artifact 修改保留链接并检查版本",
+      "statement": "同一 Artifact 优先重发到稳定 URL；后续修改继续原 worker。遇到新版本或未读最新版本的拒绝，需要读当前内容、合并并再发布一次，不得默认 force 覆盖。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 474-480",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "Artifact 不在主 Session 的 85 项 Schema 内；这里是 Prompt 和 worker 能力描述，未捕获发布工具实现。",
+      "source": {
+        "label": "Phistory 固定快照 · L474-480",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L474-L480"
+      }
+    },
+    {
+      "id": "CT-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Schema 没有编码全部使用条件",
+      "statement": "Agent 描述说 subagent_type 必填，但 required 只有 description 与 prompt；说明中的约束比 JSON Schema 更丰富。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 1118-1172",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "文档与结构校验不一致不等于实测漏洞：服务器可能有额外校验。",
+      "source": {
+        "label": "Phistory 固定快照 · L1118-1172",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L1118-L1172"
+      }
+    },
+    {
+      "id": "CT-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Slack 策略对 Workflow 的授权作了特化",
+      "statement": "Doing the work 声称此 surface 的 Workflow opt-in 已满足，并列举全面审查、大批记录和重复调用等用法。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 289-309",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "Workflow 工具说明仍写显式 opt-in（L1524-L1542）；这种文本张力未经过实际调用验证。",
+      "source": {
+        "label": "Phistory 固定快照 · L289-309",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L289-L309"
+      }
+    },
+    {
+      "id": "CT-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "创建子 Session 不能自动扩权",
+      "statement": "create_session 的 extra_allowed_tools 描述称会丢弃父 Session 未获预授权的条目，permission_mode 不得比父 Session 更宽。remote_cowork 只读取指定字段，忽略工具面扩展参数。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 1680-1766",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "这里核对的是模型可见合同，未探测不同权限组合的服务端拒绝。",
+      "source": {
+        "label": "Phistory 固定快照 · L1680-1766",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L1680-L1766"
+      }
+    },
+    {
+      "id": "CT-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Routine 把发起来源和持久授权显式化",
+      "statement": "create_trigger 提供当前、指定及每次新建三种 Session 目标；initiation 区别人类请求、既有计划、自行跟进、自主发起。connectors 存储授权只能收窄当前持有集合，调用仍经运行时权限检查。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 1768-1841",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "调度和 connector grant 的实际强制路径没有源码可核对。",
+      "source": {
+        "label": "Phistory 固定快照 · L1768-1841",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L1768-L1841"
+      }
+    },
+    {
+      "id": "CT-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "能力说明、事实断言和回复风格分开约束",
+      "statement": "How you write 要求先说结果、匹配读者密度、避免空话；Cadence 把每条通知视为成本，要求普通进度静默编辑，但不能把停止讲话等同于停止工作。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 200-242",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "文字约束是否改善体验，需要真实对话与用户评价。",
+      "source": {
+        "label": "Phistory 固定快照 · L200-242",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L200-L242"
+      }
+    },
+    {
+      "id": "CT-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "事实断言需要当轮证据与反证检查",
+      "statement": "Claims and evidence 要求先核查再陈述；区分应该执行的代码与实际执行、空搜索与不存在、记忆与当前事实，并要求廉价反证检查。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 327-355",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "这些是认知纪律，不是独立 verifier；不能假设模型一定遵守。",
+      "source": {
+        "label": "Phistory 固定快照 · L327-355",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L327-L355"
+      }
+    },
+    {
+      "id": "CT-17",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "非回复也是一个显式结束动作",
+      "statement": "no_reply_needed 清掉 thinking 指示器但不发消息；仅添加 reaction 不结束 turn。可选择语义化 reason，记录为何不回复。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 2909-2935",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "不能把该工具解读为暂停所有后台任务，也没有它的状态机源码。",
+      "source": {
+        "label": "Phistory 固定快照 · L2909-2935",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L2909-L2935"
+      }
+    },
+    {
+      "id": "CT-18",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "PR 事件带来超出单轮的工作义务",
+      "statement": "Prompt 区分自己创建的 PR 和受托观察的 PR，并把 GitHub 活动送入 external-event wake；自己创建的 PR 要继续推进到可交付状态，而观察任务受用户指定范围约束。",
+      "artifact": "captures/claude-tag/2026-09-22/variants/default/prompt.md",
+      "locator": "lines 551-633",
+      "sha256": "bb32c8dcfb5fb0a73b8d201ef479312b04f3982fee9baf4474702e87dd95bc50",
+      "boundary": "本文不复现完整 CI 修复循环；事件订阅存在不代表所有 PR 都会自动完成。",
+      "source": {
+        "label": "Phistory 固定快照 · L551-633",
+        "url": "https://github.com/WEIFENG2333/phistory/blob/e033699f9f4ab0e5262a919f03533327a2ff6269/captures/claude-tag/2026-09-22/variants/default/prompt.md#L551-L633"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "CT-KU-01",
+      "title": "权限是否在服务端被强制",
+      "text": "Prompt 和工具描述包含多处禁止扩权的规则，但没有服务端实现与拒绝回执。",
+      "needed": "用隔离测试账号检查伪造请求来源、跨人 stop、扩权 child 和连接器拒绝；不得使用真实私人数据。"
+    },
+    {
+      "id": "CT-KU-02",
+      "title": "并发 claim 的重复率",
+      "text": "没有 claim database，重启与消息乱序可能失去本地 grant 记录。",
+      "needed": "注入延迟、重复和乱序，记录双回复、漏答和重新接管耗时。"
+    },
+    {
+      "id": "CT-KU-03",
+      "title": "不同重启层级的定时器行为",
+      "text": "容器重启可保留投递，而 Session 替换会失去 one-shot check-in；边界需要具体生命周期事件。",
+      "needed": "分别测 container restart、Session replacement、recurring fresh-session fire，并核对 trigger 与实际投递。"
+    },
+    {
+      "id": "CT-KU-04",
+      "title": "提示词冲突如何处理",
+      "text": "Agent 必填字段和 Workflow opt-in 的说明存在不同层次的表述。",
+      "needed": "保存各模型版本的实际工具参数、验证错误、重试与授权结果，不只测模型能否复述规则。"
+    },
+    {
+      "id": "CT-KU-05",
+      "title": "这份快照代表多大的产品范围",
+      "text": "这是手动导入的脱敏单次 trace；版本字段是快照日期，没有相邻快照或公开实现。",
+      "needed": "补齐不同组织、channel/thread/DM 的捕获并独立核验产品发布说明，再讨论默认行为和演进。"
+    }
+  ]
+}
