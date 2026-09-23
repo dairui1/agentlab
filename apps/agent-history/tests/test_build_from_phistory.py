@@ -254,7 +254,7 @@ class BuildFromPhistoryTests(unittest.TestCase):
         )
 
         self.assertEqual(set(builder.AGENT_DEFINITIONS), classified)
-        self.assertEqual(set(builder.NO_PUBLIC_SOURCE_AGENTS), set())
+        self.assertEqual(set(builder.NO_PUBLIC_SOURCE_AGENTS), {"claude-slack"})
 
     def test_minimax_cli_does_not_relabel_desktop_captures_as_open_source(self) -> None:
         self.assertNotIn("minimax-code", builder.AGENT_DEFINITIONS)
@@ -377,6 +377,10 @@ Updated workspace settings.
         hermes = self._json(self.public / "data/agents/hermes/history.json")
         openclaw = self._json(self.public / "data/agents/openclaw/history.json")
         claude_slack = self._json(self.public / "data/agents/claude-slack/history.json")
+        slack_agent = next(item for item in manifest["agents"] if item["id"] == "claude-slack")
+        self.assertEqual(slack_agent["label"], "Claude Tag (Slack)")
+        self.assertEqual(slack_agent["sourceCodeStatus"], "not-public")
+        self.assertIn("/captures/claude-tag/", slack_agent["sourceUrl"])
         self.assertEqual([item["version"] for item in legacy["versions"]], ["1.6", "1.35.0"])
         self.assertEqual(
             [item["version"] for item in hermes["versions"]],
@@ -543,6 +547,40 @@ Updated workspace settings.
         release = next(item for item in history["versions"] if item["version"] == "1.0.0")
         self.assertIn("/variants/default/prompt.md", release["promptSourceUrl"])
         self.assertIn("/static/prompts.json", release["staticPrompt"]["sourceUrl"])
+
+        (version_dir / "variants/sdk").mkdir()
+        self._build()
+        history = self._json(self.public / "data/agents/claude-code/history.json")
+        release = next(item for item in history["versions"] if item["version"] == "1.0.0")
+        self.assertIn("/variants/default/prompt.md", release["promptSourceUrl"])
+
+    def test_reads_single_non_default_variant_without_relabeling_it(self) -> None:
+        for agent, variant in (("claude-code", "sdk"), ("dsh", "headless")):
+            with self.subTest(agent=agent):
+                self._capture(agent, "1.0.0", CLAUDE_OLD, "2026-01-01T00:00:00Z")
+                version_dir = self.phistory / "captures" / agent / "1.0.0"
+                runtime_dir = version_dir / "variants" / variant
+                runtime_dir.mkdir(parents=True)
+                for name in ("prompt.md", "meta.json"):
+                    (version_dir / name).rename(runtime_dir / name)
+                meta = self._json(runtime_dir / "meta.json")
+                meta["variant"] = {"id": variant, "label": variant.title()}
+                (runtime_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+                self._build()
+                canonical = builder.canonical_agent_id(agent)
+                history = self._json(self.public / f"data/agents/{canonical}/history.json")
+                release = next(item for item in history["versions"] if item["version"] == "1.0.0")
+                self.assertIn(f"/variants/{variant}/prompt.md", release["promptSourceUrl"])
+                self.assertEqual(release["runtimeCapture"]["variant"]["id"], variant)
+
+    def test_does_not_choose_between_multiple_non_default_variants(self) -> None:
+        version_dir = self.phistory / "captures/claude-code/1.0.0"
+        for variant in ("sdk", "headless"):
+            (version_dir / "variants" / variant).mkdir(parents=True)
+        manifest = self._build()
+        agent = next(item for item in manifest["agents"] if item["id"] == "claude-code")
+        self.assertEqual(agent["ingestion"]["rejectedCaptures"], 1)
+        self.assertIn("ambiguous variants", agent["ingestion"]["warnings"][0]["message"])
 
     def test_npm_source_only_capture_keeps_package_artifact_provenance(self) -> None:
         overlay = self.root / "overlay"

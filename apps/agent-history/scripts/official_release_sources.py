@@ -70,7 +70,12 @@ NPM_RELEASE_SOURCES = {
 # Every catalog agent must either have official source intelligence above or
 # be explicitly classified here. This prevents a newly-added open-source agent
 # from silently falling back to Phistory-only evidence.
-NO_PUBLIC_SOURCE_AGENTS = {}
+NO_PUBLIC_SOURCE_AGENTS = {
+    "claude-slack": {
+        "reason": "user-provided-slack-trace-not-an-open-source-cli",
+        "sourceUrl": "https://github.com/WEIFENG2333/phistory/tree/main/captures/claude-tag",
+    },
+}
 
 # Retired catalog entries remain explicit so an upstream capture directory cannot
 # silently add them back during an "all" build.

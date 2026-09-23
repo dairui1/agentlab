@@ -190,10 +190,7 @@ class OfficialSourceTests(unittest.TestCase):
         self.assertEqual(config["package"], "@xai-official/grok")
         self.assertFalse(config["requireRepositoryMetadata"])
         self.assertTrue(config["sourceSnapshotAfterPublish"])
-        self.assertEqual(
-            official.NO_PUBLIC_SOURCE_AGENTS,
-            {},
-        )
+        self.assertNotIn("grok", official.NO_PUBLIC_SOURCE_AGENTS)
 
     def test_aligns_untagged_source_sync_to_latest_prior_publication(self) -> None:
         releases = [

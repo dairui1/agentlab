@@ -66,6 +66,11 @@ EPOCH = "1970-01-01T00:00:00Z"
 UPSTREAM_REPO = "WEIFENG2333/phistory"
 UPSTREAM_URL = f"https://github.com/{UPSTREAM_REPO}"
 AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
+    "claude-slack": {
+        "label": "Claude Tag (Slack)",
+        "description": "Claude Slack 场景的 Runtime Prompt 与工具快照；来自 Phistory 手工导入的脱敏 trace，日期为快照标识，不是 Claude Code 发布版本。",
+        "projectUrl": "https://claude.ai/",
+    },
     "claude-code": {
         "label": "Claude Code",
         "description": "Anthropic Claude Code Runtime Prompt 与工具的版本历史。",
@@ -996,6 +1001,19 @@ def load_capture(
     if not (capture_dir / "prompt.md").exists() and not (capture_dir / "meta.json").exists():
         runtime_dir = capture_dir / "variants" / "default"
         runtime_subdir = "variants/default"
+        if not runtime_dir.exists() and not runtime_dir.is_symlink():
+            variants_dir = capture_dir / "variants"
+            ensure_within(variants_dir, capture_root, kind="capture variants directory")
+            if variants_dir.is_symlink():
+                raise ValueError(f"capture variants must not be a symlink: {variants_dir}")
+            candidates = sorted(path for path in variants_dir.iterdir() if path.is_dir())
+            # Older archives only have an SDK/headless snapshot. Never choose
+            # arbitrarily between multiple model or execution-surface variants.
+            if len(candidates) != 1:
+                raise ValueError(f"capture has no default and ambiguous variants: {capture_dir}")
+            runtime_dir = candidates[0]
+            safe_component(runtime_dir.name, kind="capture variant")
+            runtime_subdir = f"variants/{runtime_dir.name}"
     resolved_runtime_dir = ensure_within(
         runtime_dir, capture_root, kind="runtime capture directory"
     )
@@ -2755,6 +2773,12 @@ def history_version(capture: Capture) -> dict[str, Any]:
             ),
         },
     }
+    variant = capture.meta.get("variant")
+    if isinstance(variant, Mapping) and isinstance(variant.get("id"), str):
+        value["runtimeCapture"]["variant"] = {
+            "id": variant["id"],
+            "label": variant.get("label", variant["id"]),
+        }
     for key, source_url in (
         ("sourceUrl", capture.source_url),
         ("promptSourceUrl", capture.prompt_source_url),
