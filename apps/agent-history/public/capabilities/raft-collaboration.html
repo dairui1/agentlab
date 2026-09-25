@@ -51,6 +51,7 @@
         </aside>
         <article class="capability-article" id="articleBody">
           <p class="article-lead">Raft 更像现成 Agent 引擎之上的协作系统，而不是又一个独立 Coding Agent。最值得借鉴的部分，是把容易混成一句“已处理”的状态拆开；最需要小心的部分，是这些协作约束并不会自动限制主机上的所有动作。</p>
+          <p>延伸阅读：<a href="/capabilities/raft-multi-agent.html">Raft 多智能体：从博客到实现</a>。沿官方 AX 文章继续追踪 Inbox、服务端 freshness 与 CLI 草稿，补充有界上下文和读取边界的取舍。</p>
           <section id="architecture" data-article-section>
             <span class="section-number">01 / 整体架构</span><h2>模型引擎负责做事，Raft 负责把工作接起来</h2>
             <p>Server 保存协作对象、处理 API 和实时通信；机器上的 daemon 启动 Agent、递送输入、代理 Raft 凭据；driver 再把统一的启动和消息需求映射到不同引擎。Web、桌面端、CLI 和 SDK 是进入这套系统的不同入口。<button class="evidence-ref" type="button" data-evidence="RF-03 RF-04" data-evidence-trigger>RF-03、04</button></p>

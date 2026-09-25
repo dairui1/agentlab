@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const studyPath = fileURLToPath(new URL("../public/capabilities/raft-collaboration.json", import.meta.url));
 const maxSourceBytes = 4 * 1024 * 1024;
 
 export async function verifyEvidenceFiles(study, loadSource) {
@@ -38,12 +37,19 @@ export async function verifyEvidenceFiles(study, loadSource) {
 }
 
 async function main(args) {
+  const studyOption = args.find((arg) => arg.startsWith("--study="));
+  const studyId = studyOption ? studyOption.slice("--study=".length) : "raft-collaboration";
+  if (!["raft-collaboration", "raft-multi-agent"].includes(studyId)) throw new Error("Unknown Raft study");
+  args = args.filter((arg) => arg !== studyOption);
+  const studyPath = fileURLToPath(new URL(`../public/capabilities/${studyId}.json`, import.meta.url));
   const fetchRemote = args.length === 1 && args[0] === "--fetch";
   const sourceDir = args.length === 2 && args[0] === "--source-dir" ? path.resolve(args[1]) : null;
-  if (!fetchRemote && !sourceDir) throw new Error("Usage: node scripts/verify_raft_sources.mjs --fetch | --source-dir <flattened-source-cache>");
+  const sourceTree = args.length === 2 && args[0] === "--source-tree" ? path.resolve(args[1]) : null;
+  if (!fetchRemote && !sourceDir && !sourceTree) throw new Error("Usage: node scripts/verify_raft_sources.mjs [--study=raft-multi-agent] --fetch | --source-dir <flattened-source-cache> | --source-tree <source-tree>");
   const study = JSON.parse(await readFile(studyPath, "utf8"));
   const result = await verifyEvidenceFiles(study, async (artifact, revision) => {
     if (sourceDir) return readFile(path.join(sourceDir, artifact.replaceAll("/", "__")));
+    if (sourceTree) return readFile(path.join(sourceTree, artifact));
     const response = await fetch(`https://raw.githubusercontent.com/botiverse/raft-source/${revision}/${artifact}`, {
       signal: AbortSignal.timeout(30000),
       redirect: "error",

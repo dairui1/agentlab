@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="从 Raft 的 AX 博客追踪多智能体协作实现：Inbox、两层 freshness 检查、本地草稿，以及消息可见性与真正协作保证之间的距离。">
+  <title>Raft 多智能体：从一篇博客读到三层实现 · AgentLab</title>
+  <link rel="canonical" href="https://agentlab.dairui1.com/capabilities/raft-multi-agent">
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/raft-blog.css">
+  <script src="/site-navigation.js"></script>
+</head>
+<body class="raft-blog">
+  <a class="skip-link" href="#article">跳到正文</a>
+  <header class="blog-nav"><div class="topbar">
+    <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt="" width="30" height="30"></span><strong class="brand-copy">AgentLab</strong></a>
+    <agentlab-navigation current="raft-blog"></agentlab-navigation>
+  </div></header>
+  <div class="blog-layout">
+    <aside class="blog-outline" aria-label="文章目录">
+      <span class="outline-title">本文目录</span><ol><li><a href="#question">问题从哪里来</a></li><li><a href="#inbox">Inbox：三种读取</a></li><li><a href="#send">发送：两层检查</a></li><li><a href="#draft">草稿：留给谁决定</a></li><li><a href="#limits">实现中的三个边界</a></li><li><a href="#judgment">多智能体的真正分工</a></li><li><a href="#sources">来源与验证范围</a></li></ol>
+      <div class="outline-links"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/" target="_blank" rel="noopener noreferrer">Raft 原文</a><a href="/capabilities/raft-collaboration.html">架构研究与完整证据</a><a href="/capabilities/raft-multi-agent.json">本文证据 JSON</a></div>
+    </aside>
+    <main class="blog-main" id="article">
+      <a class="blog-back" href="/capabilities.html">← 全部研究</a>
+      <article>
+        <header class="blog-heading">
+          <div class="blog-kicker"><span>SOURCE NOTES</span><span>MULTI-AGENT</span></div>
+          <h1>Raft 多智能体</h1>
+          <p class="blog-subtitle">从一篇博客，读到 Inbox 与 Held Draft 的实现</p>
+          <div class="blog-byline"><span>AgentLab · 源码阅读</span><time datetime="2026-09-26">2026 年 9 月 26 日</time><span>约 12 分钟</span></div>
+        </header>
+        <p class="lead">A 正准备发出“我来发布”，人类却刚刚补了一句“先别发布”。消息晚到几秒，合作就可能变成事故。Raft 试着在发送之前，给 Agent 一次重新看清现场的机会。</p>
+        <p>这篇从 Tenny 的 <a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/" target="_blank" rel="noopener noreferrer">Is Having Agents in the Room Meant to Be Chaotic?</a> 出发。不过，我们不把产品解释当作实现证据：往下看的是 CLI、daemon 和 server 怎样共同完成一次发送，以及哪些地方仍然留给模型自己判断。</p>
+        <div class="blog-note"><strong>阅读坐标</strong><p>原文发表于 2026-05-21；本文核对 2026-09-24 发布的 <code>v1.13.0-source.1</code>，commit <code>05f7d8fd</code>。这是后来的实现快照，不是对五月版本的复原。未运行 Raft 或上游测试。</p></div>
+        <details class="mobile-outline"><summary>本文目录</summary><ol><li><a href="#question">问题从哪里来</a></li><li><a href="#inbox">Inbox：三种读取</a></li><li><a href="#send">发送：两层检查</a></li><li><a href="#draft">草稿：留给谁决定</a></li><li><a href="#limits">实现中的三个边界</a></li><li><a href="#judgment">多智能体的真正分工</a></li><li><a href="#sources">来源与验证范围</a></li></ol></details>
+
+        <section id="question" data-blog-section>
+          <h2>问题不只是“谁先说话”</h2>
+          <p>原文从一群 Agent 重复报数讲起，提出两个设计：Inbox 让 Agent 选择何时取用信息；Held Draft 在发送前检查上下文，过期就先保留草稿。它关心的不是给每个 Agent 排一个固定座次，而是推理与行动之间出现了哪些变化。</p>
+          <figure data-sequence>
+            <div class="sequence">
+              <div class="sequence-bar"><span># release</span><div class="sequence-controls"><button type="button" data-previous aria-label="上一步" title="上一步" disabled><i data-lucide="chevron-left" aria-hidden="true"></i></button><output aria-label="当前步骤">1/3</output><button type="button" data-next aria-label="下一步" title="下一步"><i data-lucide="chevron-right" aria-hidden="true"></i></button></div></div>
+              <div class="sequence-columns">
+                <div class="sequence-lane"><span class="lane-label">ROOM / 频道</span><div class="message-line"><span class="seq">41</span><div><strong>人类</strong>修复已经合并，准备发布。</div></div><div class="message-line new-message" data-new-message hidden><span class="seq">42</span><div><strong>人类</strong>先别发布，还要再检查一次。</div></div></div>
+                <div class="sequence-lane"><span class="lane-label">AGENT A / 草稿</span><div class="message-line"><span class="seq">41</span><div><strong>依据旧上下文</strong><span data-draft-text>准备好了，我来发布。</span></div></div><span class="draft-status" data-draft-status>DRAFT</span></div>
+              </div>
+              <div class="sequence-footer" data-sequence-note aria-live="polite">A 的上下文停在 seq 41；草稿还没有发到频道。</div>
+            </div>
+            <figcaption>图 1 · 人工设定的发送推演，非 Raft 运行记录。暂缓的是频道消息，不是已经执行的发布命令。</figcaption>
+          </figure>
+          <p>源码阅读要再往前追问一步：<strong>谁知道 A 看到了哪里？谁拦住发送？拦下来的内容存在哪里？</strong>这三个问题，对应了三个不同的责任方。只看一段 Prompt，回答不了它们。</p>
+          <p class="figure-source">原文配图：<a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room.html" target="_blank" rel="noopener noreferrer">Raft / Tenny 的重复报数示意动画</a>。它是设计演示，不是本文捕获的实验。</p>
+        </section>
+
+        <section id="inbox" data-blog-section>
+          <h2>Inbox：知道有消息，和读过消息，是两回事</h2>
+          <p>先看最短的一条路径。<code>raft inbox check</code> 要求当前是 managed runner，然后请求 daemon 的 inbox 接口。代理从待处理队列投影出目标列表和数量，连同 app items 返回。这条路径没有把所有正文一股脑塞进工作上下文，也不消费这些消息。<a class="cite" href="#RM-01">[01]</a><a class="cite" href="#RM-02">[02]</a></p>
+          <p>但另一个名字很像的命令，做的事不一样。</p>
+          <dl class="code-map">
+            <div class="code-row"><dt>先看哪里需要注意</dt><dd><code>raft inbox check</code><br>查看待处理目标摘要，不 drain，也不等于读过正文。</dd></div>
+            <div class="code-row"><dt>取出待处理消息</dt><dd><code>raft message check</code><br>非阻塞 drain，输出消息。它可能只拿到稀疏事件，因此不把最高 seq 写成连续已见游标。<a class="cite" href="#RM-03">[03]</a></dd></div>
+            <div class="code-row"><dt>读某个目标的历史</dt><dd><code>raft message read --target &lt;target&gt;</code><br>普通历史窗口可以推进该目标的读取边界；<code>--around</code> 定位查看则不会。线程与父频道也不共用这条游标。<a class="cite" href="#RM-04">[04]</a></dd></div>
+          </dl>
+          <p>假设 A 看到了 seq 100 的一条 mention，却没看过 seq 99 的撤销指令。如果系统只记“最大已读是 100”，99 就被悄悄划过去了。<code>message check</code> 不推进连续边界，正是为了避免把一次稀疏取消息误当成完整读过历史。</p>
+          <p>这比“有一个收件箱”更有参考价值：<strong>通知、正文可见性和连续读取进度，应该是不同的状态。</strong>后面的发送检查，靠的正是这种区分。</p>
+        </section>
+
+        <section id="send" data-blog-section>
+          <h2>发送：本地先看一次，服务端再核一次</h2>
+          <p>这条调用链可以从 CLI 的 <code>messages.sendV2</code> 往下追。daemon 代理并不只是补上凭据再转发，它会按目标拿到 pending messages 和 model-seen 边界，交给 <code>planAgentInboxSideEffect</code>。<a class="cite" href="#RM-05">[05]</a><a class="cite" href="#RM-10">[10]</a></p>
+          <dl class="code-map">
+            <div class="code-row"><dt>CLI<br>提交草稿与边界</dt><dd>请求包含正文、目标、草稿计数；存在可用读取边界时，附上 <code>seenUpToSeq</code>。</dd></div>
+            <div class="code-row"><dt>Daemon<br>本地预检</dt><dd>目标下还有未见的 pending 消息时，可以返回 <code>local_hold</code>。已见消息与未见消息分开处理，而不是只比较一个全局数字。<a class="cite" href="#RM-06">[06]</a></dd></div>
+            <div class="code-row"><dt>Server<br>Freshness 检查</dt><dd>收到请求后，按目标检查边界之后是否还有新内容。非线程路径使用该 Agent 的 attention facts，线程路径使用消息锚点；它不是“整个房间所有事件”的简单版本号。<a class="cite" href="#RM-08">[08]</a></dd></div>
+            <div class="code-row"><dt>Server<br>真正提交</dt><dd>需要 hold 就返回并结束；没有 hold 才继续调用 <code>broadcastAndDeliver</code>。<a class="cite" href="#RM-13">[13]</a></dd></div>
+          </dl>
+          <p>两次检查不是同一件事做两遍。本地层能看到机器已经接下、但模型还没消费的上下文；server 则再用目标侧状态核对一次。某个本地分支选择 forward，只能说明它把决定交给了上游，不能说整条链路已经放行。</p>
+          <div class="blog-note"><strong>这里的 seen，是协议状态</strong><p>它表示系统按某种规则记录了可见或读过的范围。它没有测量模型是否理解，更没有证明模型会服从“先别发布”。把这条边界当作理解证明，会高估 freshness 能提供的保证。</p></div>
+        </section>
+
+        <section id="draft" data-blog-section>
+          <h2>草稿：不是失败重试，而是重新做决定</h2>
+          <p>最容易写错的客户端逻辑，是看到 HTTP 200 就记作“发送成功”。Raft 的 hold 响应也可能是 200，但状态为 <code>held</code>。CLI 会保留草稿，抛出 <code>SEND_HELD_AS_DRAFT</code>，并明确设为 <code>retryable: false</code>。这不是让网络层不加判断地重发。<a class="cite" href="#RM-10">[10]</a><a class="cite" href="#RM-13">[13]</a></p>
+          <p>草稿落在 CLI 的本地状态中，按 Agent 和 target 保存；除了正文，还保存附件、mentions、时间、重复 hold 次数和读取边界。默认寿命是十分钟，读取草稿时检查是否过期。成功发送后才清掉它。<a class="cite" href="#RM-11">[11]</a></p>
+          <p>沿发送实现，能找到几条明确的后续路径：</p>
+          <ul>
+            <li><strong>改内容：</strong>普通 send 写入新的草稿，仍走发送检查。</li>
+            <li><strong>内容不变：</strong><code>--send-draft</code> 读取保存的草稿，重新检查新鲜度。</li>
+            <li><strong>不再说：</strong>不继续发送；草稿之后会按 TTL 规则过期。</li>
+            <li><strong>明确绕过：</strong><code>--send-draft --anyway</code> 让请求携带 <code>continueAnyway</code>。这个选择不是“通过了检查”，而是决定不让过期检查阻止发送。<a class="cite" href="#RM-07">[07]</a><a class="cite" href="#RM-08">[08]</a></li>
+          </ul>
+          <p>实现里还有个小但重要的区别：重复 hold 达到条件后，server 会建议 anyway；可实际绕过分支并没有把“已经 hold 三次”当成硬授权条件。<strong>界面建议何时绕过，与后端何时允许绕过，不是一回事。</strong><a class="cite" href="#RM-15">[15]</a></p>
+        </section>
+
+        <section id="limits" data-blog-section>
+          <h2>实现里的边界，比博客里的概念更具体</h2>
+          <h3>只展示三条，却可以推进整批边界</h3>
+          <p>这是这次源码阅读最值得停一下的地方。server 的普通 hold 返回有界上下文，并报告省略了多少条。上游有一项测试构造五条新消息，断言只展示最后三条、省略两条，同时按这一批的最新序号确认读取。实现注释把它定义为聊天式的 read-through。<a class="cite" href="#RM-09">[09]</a><a class="cite" href="#RM-12">[12]</a></p>
+          <p>于是，不能把所有层的 seen 都解释成“每条正文都进入过模型”。本地精确已见集合防的是稀疏消息跨越未见内容；server 的有界 hold 又选择了另一种取舍：限制上下文大小，告知有省略，并提供补读线索。省略的那条恰好是关键约束时，仍要看 Agent 是否补读。本文没有运行实验来回答它。</p>
+          <h3>正常 CLI 会请求检查，不代表所有旧 API 都会</h3>
+          <p>CLI 默认发出 <code>draftReholdCount</code>，会参与 freshness 请求判断。server 仍然有开关、请求字段与 <code>force</code> 模式的条件。缺少这些标记的 legacy 请求，不能被概括成“一律检查”。审核隔离的 <code>withheld</code> 模式则是另一条分支：可以返回 hold 信息，但不把新正文泄露给审阅者。<a class="cite" href="#RM-07">[07]</a><a class="cite" href="#RM-09">[09]</a></p>
+          <h3>发送前检查，不等于全局串行化</h3>
+          <p>路由先求出 freshness 结果，再调用提交函数。仅凭这段顺序代码，不能宣布两个并发请求永远不会在检查与提交之间交错。要确认这一点，需要人为卡住检查后的时刻，让两个请求同时继续，再观察结果；普通的顺序请求测试回答不了这个问题。<a class="cite" href="#RM-13">[13]</a></p>
+          <p>同样，暂缓“我来发布”这条消息，不会自动撤回已经执行的 shell 命令。消息协议能让 Agent 重新考虑，主机权限、外部系统幂等性和副作用验收仍然需要各自的机制。</p>
+        </section>
+
+        <section id="judgment" data-blog-section>
+          <h2>多智能体的分工，不能只看谁调用了谁</h2>
+          <p>我更愿意把这组实现看作<strong>共享工作区的协作协议</strong>：不是由一个总控 Agent 替所有人排好行动，而是让每个执行者在读取和提交时获得必要的信息，同时把可恢复的状态交给确定性代码保存。</p>
+          <p>但“没有总控 Agent”并不等于“没有协调基础设施”。这里仍有 server、daemon、消息序号、读取边界与草稿状态。到了“这项工作归谁”，Raft 又用 canonical task 的 revision 与可认领条件约束 claim；这与 freshness 是两套不同的保证。任务记录被认领，也没有替所有执行者锁住文件。<a class="cite" href="#RM-14">[14]</a></p>
+          <p class="blog-conclusion">值得借鉴的不是让更多 Agent 开口，而是把“看见了什么”和“准备提交什么”放进同一条可检查的协议。</p>
+          <p>接下来最有价值的验证，不是再画一张 Agent 拓扑图，而是做三件小实验：在并发检查与提交之间插入 barrier；把撤销指令放进被省略的消息；在相同模型和任务下比较重复执行、hold、override、耗时与 token 成本。它们目前都是待验证项，不是本文已经得到的结果。</p>
+          <p>关于 runtime 接入、任务认领、记忆恢复和权限，可继续读 <a href="/capabilities/raft-collaboration.html">Raft 协作架构研究</a>。那一页保留完整横向范围；本文只追踪这篇博客引出的发送链路。</p>
+        </section>
+
+        <section id="sources" data-blog-section>
+          <h2>来源与验证范围</h2>
+          <p>设计起点与视觉参考来自 <a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/">Tenny 的 Raft 官方博客</a>；正文是 AgentLab 的独立源码分析，不是原文翻译，也不是 Raft 官方文章。</p>
+          <p>以下 15 条记录固定到同一公开 commit；文件 SHA-256 可展开核对，亦可下载 <a href="/capabilities/raft-multi-agent.json">结构化证据</a>。仓库许可为 <a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/LICENSE">FSL-1.1-ALv2</a>，应称 source-available，不把它标成当前无条件的 Apache 开源。</p>
+          <p>验证层级：官方源码静态阅读。未安装或运行 Raft，未执行上游测试，未做模型效果实验。本站的页面测试、来源哈希核验和交互推演，都不构成 Raft 的运行复现。</p>
+          <ol class="source-list">
+            <li id="RM-01"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/inbox/check.ts#L15-L47" target="_blank" rel="noopener noreferrer">RM-01 · Inbox 摘要不消费消息</a><small>packages/cli/src/commands/inbox/check.ts · L15-L47</small><details><summary>证据与边界</summary>inbox check 只允许 managed-runner，调用 daemon inbox 接口并格式化目标与 app 摘要。<br>只确认摘要入口，不代表消息正文已经进入模型上下文。<span class="hash">SHA-256 0e4a04258cdc2a19d7fb0df9cb8cae98fcc7b1224a26469d566047c49945e860</span></details></li>
+            <li id="RM-02"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1153-L1184" target="_blank" rel="noopener noreferrer">RM-02 · Daemon 从待处理队列投影摘要</a><small>packages/daemon/src/agentCredentialProxy.ts · L1153-L1184</small><details><summary>证据与边界</summary>localAgentApiInboxResponse 读取 pending messages 与 app items，返回 rows 和计数，不在这条路径消费消息。<br>摘要不是模型的连续已见边界。<span class="hash">SHA-256 446cbbe0aab18154c14793d6bfc21cddbd6768e5f317572392f753f067dbe724</span></details></li>
+            <li id="RM-03"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/check.ts#L17-L40" target="_blank" rel="noopener noreferrer">RM-03 · 消息 drain 不推进连续游标</a><small>packages/cli/src/commands/message/check.ts · L17-L40</small><details><summary>证据与边界</summary>message check 非阻塞拉取并打印消息；稀疏 events 不写 seenUpToSeq。<br>已收到较新 mention 不能推出更早的消息已看过。<span class="hash">SHA-256 5b644e3fac6b433a0cb31f77f2ed686d63e502ff6a6c07d60c83b089eccf152c</span></details></li>
+            <li id="RM-04"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/read.ts#L123-L156" target="_blank" rel="noopener noreferrer">RM-04 · 历史读取与 around 的区别</a><small>packages/cli/src/commands/message/read.ts · L123-L156</small><details><summary>证据与边界</summary>普通历史窗口用返回消息的最大 seq 记录目标读取边界；around 定位读取不推进该游标。<br>这是代码规定的 read-through 语义，不是逐条理解证明。<span class="hash">SHA-256 371a62ebc5058931fab5aae750b20e2a02f12d530391b7f8e63dab6405cd58b1</span></details></li>
+            <li id="RM-05"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1490-L1546" target="_blank" rel="noopener noreferrer">RM-05 · 发送前调用本地状态机</a><small>packages/daemon/src/agentCredentialProxy.ts · L1490-L1546</small><details><summary>证据与边界</summary>代理按 target 取得 pending、boundary 和必要的 recent context，执行 planAgentInboxSideEffect；可回填 seenUpToSeq 或返回 localResponse。<br>没有 target 或 coordinator 时原请求继续向上游走，不能据此认定 server 也放行。<span class="hash">SHA-256 446cbbe0aab18154c14793d6bfc21cddbd6768e5f317572392f753f067dbe724</span></details></li>
+            <li id="RM-06"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L117-L236" target="_blank" rel="noopener noreferrer">RM-06 · 精确消息可见性与 local hold</a><small>packages/daemon/src/agentInboxStateMachine.ts · L117-L236</small><details><summary>证据与边界</summary>状态机区分已见与未见 pending 消息，构建 local_hold；continueAnyway 直接 bypass，缺少序号边界转交上游。<br>这里只描述本地层，model-seen 不是模型理解或遵守的测量。<span class="hash">SHA-256 0032fbd3615fea5a11175fd6768016c944cb63775103123d92c285ac161d4e6c</span></details></li>
+            <li id="RM-07"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3600-L3685" target="_blank" rel="noopener noreferrer">RM-07 · Freshness 不是所有 API 请求的无条件门禁</a><small>packages/server/src/routes/internalAgentApi.ts · L3600-L3685</small><details><summary>证据与边界</summary>requestedSendFreshness 根据 draft、seq 等字段判断；还受开关与 force 模式影响。continueAnyway 需与 sendDraft 同时出现。<br>普通 CLI 请求带 draftReholdCount，但不能推广到所有 legacy API 调用。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
+            <li id="RM-08"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3749-L3817" target="_blank" rel="noopener noreferrer">RM-08 · Server 再核对目标侧新消息</a><small>packages/server/src/routes/internalAgentApi.ts · L3749-L3817</small><details><summary>证据与边界</summary>线程使用目标消息锚点，非线程使用 Agent attention facts；边界裁剪至最新序号，冷启动线程可回退到父消息。存在新增消息且未 override 时 hold。<br>比较的是选定目标与 attention 范围，不是整个工作区的全局版本。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
+            <li id="RM-09"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3849-L3999" target="_blank" rel="noopener noreferrer">RM-09 · Hold 的有界上下文与跳读语义</a><small>packages/server/src/routes/internalAgentApi.ts · L3849-L3999</small><details><summary>证据与边界</summary>普通 hold 返回有限消息与 omittedMessageCount，边界推进到 latestSeq；withheld 模式不泄露正文，也不走相同的 markRead 分支。<br>有界上下文可能省略更早消息，不能声称每条正文都已进入模型。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
+            <li id="RM-10"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/send.ts#L575-L693" target="_blank" rel="noopener noreferrer">RM-10 · CLI 保存草稿而不是自动重试</a><small>packages/cli/src/commands/message/send.ts · L575-L693</small><details><summary>证据与边界</summary>CLI 携带读取边界和草稿计数；收到 held 后保存内容并返回 SEND_HELD_AS_DRAFT，retryable 为 false；成功才清理草稿。<br>HTTP 200 可能表示 held，不是已投递。本文未运行 CLI。<span class="hash">SHA-256 4e17d16a784821de0195648138cdcb8342aa47e0963e3aed570094349ca00a00</span></details></li>
+            <li id="RM-11"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/_continueDraftState.ts#L4-L88" target="_blank" rel="noopener noreferrer">RM-11 · 本地草稿的内容与寿命</a><small>packages/cli/src/commands/message/_continueDraftState.ts · L4-L88</small><details><summary>证据与边界</summary>草稿按 Agent 与 target 保存正文、附件、mentions、savedAt、reholdCount、seenUpToSeq；默认 TTL 为十分钟，读取时检查过期。<br>不是永久历史档案，也不是后台定时销毁承诺。<span class="hash">SHA-256 6a22c7d9392d84a06b6f2ddec942b56f3be24885f2fb78b0981f0ca57a9c377c</span></details></li>
+            <li id="RM-12"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internal.attestedSend.api.test.ts#L1045-L1097" target="_blank" rel="noopener noreferrer">RM-12 · 上游测试写出了五条只显示三条</a><small>packages/server/src/routes/internal.attestedSend.api.test.ts · L1045-L1097</small><details><summary>证据与边界</summary>测试断言 newMessageCount=5、shownMessageCount=3、omittedMessageCount=2，并按该批次最新序号确认。<br>仅阅读上游测试源码，未执行；测试合同不能替代生产观测。<span class="hash">SHA-256 57f75bf5d2e43252595cf6306dd15b0e4ce877f2b476852c9081328ac017d7e0</span></details></li>
+            <li id="RM-13"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L4017-L4078" target="_blank" rel="noopener noreferrer">RM-13 · Hold 返回与真正提交是不同分支</a><small>packages/server/src/routes/internalAgentApi.ts · L4017-L4078</small><details><summary>证据与边界</summary>freshness hold 先返回响应并结束处理；未 hold 才调用 broadcastAndDeliver。<br>本段显示检查与提交分开；不足以证明全链路并发线性化，需要控制并发窗口实验。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
+            <li id="RM-14"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2425-L2512" target="_blank" rel="noopener noreferrer">RM-14 · 任务归属需要另一套条件更新</a><small>packages/server/src/services/taskService.ts · L2425-L2512</small><details><summary>证据与边界</summary>canonical claim 用 revision 与可认领条件约束更新，成功写 assignee、claimedAt 和新 revision。<br>锁的是任务记录，不是工作区文件或外部业务副作用。<span class="hash">SHA-256 56e5b1fde0d6963186d2f373d65365e6e965281b9ea1d85ba481006fe10fba9c</span></details></li>
+            <li id="RM-15"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3988-L3999" target="_blank" rel="noopener noreferrer">RM-15 · 重复 hold 只控制绕过建议</a><small>packages/server/src/routes/internalAgentApi.ts · L3988-L3999</small><details><summary>证据与边界</summary>响应在 reholdCount &gt;= 3 时设置 continueAnywaySuggested。<br>这是提示条件；RM-07、08 中实际 override 分支没有使用这个次数作为硬性授权门槛。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
+          </ol>
+        </section>
+      </article>
+    </main>
+  </div>
+  <footer class="blog-footer"><strong>AgentLab / 源码阅读</strong><a href="/capabilities/raft-collaboration.html">继续阅读：Raft 协作架构 →</a></footer>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/raft-blog.js"></script>
+</body>
+</html>

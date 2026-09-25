@@ -98,6 +98,10 @@ ZCode 的本地图标复制自[官方仓库固定提交](https://github.com/zai-
 
 ## Raft 协作基础设施研究
 
+[Raft 多智能体博客](https://agentlab.dairui1.com/capabilities/raft-multi-agent) 从 Tenny 的 AX 文章出发，另页追踪 Inbox、daemon/server freshness 检查与 CLI 草稿；15 条固定源码证据包含有界 hold 的跳读语义、legacy 请求边界与 override 提示条件。原架构研究页保留不变，仅增加互链。
+
+新文来源核验：在 `apps/agent-history` 执行 `node scripts/verify_raft_sources.mjs --study=raft-multi-agent --fetch`；离线可用 `--source-tree <固定源码目录>`。该命令只检查文件哈希和行号，不执行 Raft。
+
 [Raft 专题](https://agentlab.dairui1.com/capabilities/raft-collaboration) 沿消息可见性、任务认领、runtime 恢复和权限边界，分析官方 `v1.13.0-source.1` 发布镜像，固定公开提交 `05f7d8fd77d2535f993d5d90b85118438bc18216`。研究数据含 18 条文件证据与 6 项未知问题，可从专题索引和全站导航进入。
 
 这是 FSL-1.1-ALv2 的 source-available 项目，不按宽松开源 Coding Agent 归类。当前只收录固定版本研究，未接入自动版本日更或持续监控，也没有把静态 Prompt 伪装成 Runtime Prompt 捕获。未安装 Raft、未运行上游测试或多 Agent 实验；AgentLab 测试只验证本站的数据和界面。

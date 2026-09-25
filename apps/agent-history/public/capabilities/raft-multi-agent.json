@@ -1,0 +1,305 @@
+{
+  "id": "raft-multi-agent",
+  "title": "Raft 多智能体：从一篇博客读到三层实现",
+  "product": "Raft",
+  "subtitle": "Inbox、Held Draft 与发送前的上下文检查",
+  "description": "以 Raft 的 AX 博客为起点，追踪消息摘要、读取边界、本地预检、服务端检查与 CLI 草稿，讨论协作机制能保证什么。",
+  "verifiedAt": "2026-09-26",
+  "status": "active",
+  "source": {
+    "repository": "botiverse/raft-source",
+    "revision": "05f7d8fd77d2535f993d5d90b85118438bc18216",
+    "release": "v1.13.0-source.1",
+    "commitDate": "2026-09-24",
+    "license": "FSL-1.1-ALv2",
+    "evidenceClass": "official-source-static",
+    "trackingMode": "fixed-release-snapshot",
+    "runtimeExperiment": "not-run"
+  },
+  "blog": {
+    "title": "Is Having Agents in the Room Meant to Be Chaotic?",
+    "author": "Tenny",
+    "publishedAt": "2026-05-21",
+    "url": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
+    "role": "official-design-narrative",
+    "relationship": "later-source-snapshot-not-contemporaneous-implementation"
+  },
+  "boundary": "本文核对的是 2026-09-24 固定官方 source-available 快照，不是博客发表时的实现；未运行 Raft、未执行上游测试或多 Agent 实验。演示仅为人工设定的控制流推演。",
+  "evidence": [
+    {
+      "id": "RM-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Inbox 摘要不消费消息",
+      "statement": "inbox check 只允许 managed-runner，调用 daemon inbox 接口并格式化目标与 app 摘要。",
+      "artifact": "packages/cli/src/commands/inbox/check.ts",
+      "locator": "L15-L47",
+      "lineStart": 15,
+      "lineEnd": 47,
+      "sha256": "0e4a04258cdc2a19d7fb0df9cb8cae98fcc7b1224a26469d566047c49945e860",
+      "boundary": "只确认摘要入口，不代表消息正文已经进入模型上下文。",
+      "source": {
+        "label": "Raft · check.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/inbox/check.ts#L15-L47"
+      }
+    },
+    {
+      "id": "RM-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Daemon 从待处理队列投影摘要",
+      "statement": "localAgentApiInboxResponse 读取 pending messages 与 app items，返回 rows 和计数，不在这条路径消费消息。",
+      "artifact": "packages/daemon/src/agentCredentialProxy.ts",
+      "locator": "L1153-L1184",
+      "lineStart": 1153,
+      "lineEnd": 1184,
+      "sha256": "446cbbe0aab18154c14793d6bfc21cddbd6768e5f317572392f753f067dbe724",
+      "boundary": "摘要不是模型的连续已见边界。",
+      "source": {
+        "label": "Raft · agentCredentialProxy.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1153-L1184"
+      }
+    },
+    {
+      "id": "RM-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "消息 drain 不推进连续游标",
+      "statement": "message check 非阻塞拉取并打印消息；稀疏 events 不写 seenUpToSeq。",
+      "artifact": "packages/cli/src/commands/message/check.ts",
+      "locator": "L17-L40",
+      "lineStart": 17,
+      "lineEnd": 40,
+      "sha256": "5b644e3fac6b433a0cb31f77f2ed686d63e502ff6a6c07d60c83b089eccf152c",
+      "boundary": "已收到较新 mention 不能推出更早的消息已看过。",
+      "source": {
+        "label": "Raft · check.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/check.ts#L17-L40"
+      }
+    },
+    {
+      "id": "RM-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "历史读取与 around 的区别",
+      "statement": "普通历史窗口用返回消息的最大 seq 记录目标读取边界；around 定位读取不推进该游标。",
+      "artifact": "packages/cli/src/commands/message/read.ts",
+      "locator": "L123-L156",
+      "lineStart": 123,
+      "lineEnd": 156,
+      "sha256": "371a62ebc5058931fab5aae750b20e2a02f12d530391b7f8e63dab6405cd58b1",
+      "boundary": "这是代码规定的 read-through 语义，不是逐条理解证明。",
+      "source": {
+        "label": "Raft · read.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/read.ts#L123-L156"
+      }
+    },
+    {
+      "id": "RM-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "发送前调用本地状态机",
+      "statement": "代理按 target 取得 pending、boundary 和必要的 recent context，执行 planAgentInboxSideEffect；可回填 seenUpToSeq 或返回 localResponse。",
+      "artifact": "packages/daemon/src/agentCredentialProxy.ts",
+      "locator": "L1490-L1546",
+      "lineStart": 1490,
+      "lineEnd": 1546,
+      "sha256": "446cbbe0aab18154c14793d6bfc21cddbd6768e5f317572392f753f067dbe724",
+      "boundary": "没有 target 或 coordinator 时原请求继续向上游走，不能据此认定 server 也放行。",
+      "source": {
+        "label": "Raft · agentCredentialProxy.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1490-L1546"
+      }
+    },
+    {
+      "id": "RM-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "精确消息可见性与 local hold",
+      "statement": "状态机区分已见与未见 pending 消息，构建 local_hold；continueAnyway 直接 bypass，缺少序号边界转交上游。",
+      "artifact": "packages/daemon/src/agentInboxStateMachine.ts",
+      "locator": "L117-L236",
+      "lineStart": 117,
+      "lineEnd": 236,
+      "sha256": "0032fbd3615fea5a11175fd6768016c944cb63775103123d92c285ac161d4e6c",
+      "boundary": "这里只描述本地层，model-seen 不是模型理解或遵守的测量。",
+      "source": {
+        "label": "Raft · agentInboxStateMachine.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L117-L236"
+      }
+    },
+    {
+      "id": "RM-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Freshness 不是所有 API 请求的无条件门禁",
+      "statement": "requestedSendFreshness 根据 draft、seq 等字段判断；还受开关与 force 模式影响。continueAnyway 需与 sendDraft 同时出现。",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "locator": "L3600-L3685",
+      "lineStart": 3600,
+      "lineEnd": 3685,
+      "sha256": "9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8",
+      "boundary": "普通 CLI 请求带 draftReholdCount，但不能推广到所有 legacy API 调用。",
+      "source": {
+        "label": "Raft · internalAgentApi.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3600-L3685"
+      }
+    },
+    {
+      "id": "RM-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Server 再核对目标侧新消息",
+      "statement": "线程使用目标消息锚点，非线程使用 Agent attention facts；边界裁剪至最新序号，冷启动线程可回退到父消息。存在新增消息且未 override 时 hold。",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "locator": "L3749-L3817",
+      "lineStart": 3749,
+      "lineEnd": 3817,
+      "sha256": "9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8",
+      "boundary": "比较的是选定目标与 attention 范围，不是整个工作区的全局版本。",
+      "source": {
+        "label": "Raft · internalAgentApi.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3749-L3817"
+      }
+    },
+    {
+      "id": "RM-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Hold 的有界上下文与跳读语义",
+      "statement": "普通 hold 返回有限消息与 omittedMessageCount，边界推进到 latestSeq；withheld 模式不泄露正文，也不走相同的 markRead 分支。",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "locator": "L3849-L3999",
+      "lineStart": 3849,
+      "lineEnd": 3999,
+      "sha256": "9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8",
+      "boundary": "有界上下文可能省略更早消息，不能声称每条正文都已进入模型。",
+      "source": {
+        "label": "Raft · internalAgentApi.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3849-L3999"
+      }
+    },
+    {
+      "id": "RM-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "CLI 保存草稿而不是自动重试",
+      "statement": "CLI 携带读取边界和草稿计数；收到 held 后保存内容并返回 SEND_HELD_AS_DRAFT，retryable 为 false；成功才清理草稿。",
+      "artifact": "packages/cli/src/commands/message/send.ts",
+      "locator": "L575-L693",
+      "lineStart": 575,
+      "lineEnd": 693,
+      "sha256": "4e17d16a784821de0195648138cdcb8342aa47e0963e3aed570094349ca00a00",
+      "boundary": "HTTP 200 可能表示 held，不是已投递。本文未运行 CLI。",
+      "source": {
+        "label": "Raft · send.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/send.ts#L575-L693"
+      }
+    },
+    {
+      "id": "RM-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "本地草稿的内容与寿命",
+      "statement": "草稿按 Agent 与 target 保存正文、附件、mentions、savedAt、reholdCount、seenUpToSeq；默认 TTL 为十分钟，读取时检查过期。",
+      "artifact": "packages/cli/src/commands/message/_continueDraftState.ts",
+      "locator": "L4-L88",
+      "lineStart": 4,
+      "lineEnd": 88,
+      "sha256": "6a22c7d9392d84a06b6f2ddec942b56f3be24885f2fb78b0981f0ca57a9c377c",
+      "boundary": "不是永久历史档案，也不是后台定时销毁承诺。",
+      "source": {
+        "label": "Raft · _continueDraftState.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/_continueDraftState.ts#L4-L88"
+      }
+    },
+    {
+      "id": "RM-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "上游测试写出了五条只显示三条",
+      "statement": "测试断言 newMessageCount=5、shownMessageCount=3、omittedMessageCount=2，并按该批次最新序号确认。",
+      "artifact": "packages/server/src/routes/internal.attestedSend.api.test.ts",
+      "locator": "L1045-L1097",
+      "lineStart": 1045,
+      "lineEnd": 1097,
+      "sha256": "57f75bf5d2e43252595cf6306dd15b0e4ce877f2b476852c9081328ac017d7e0",
+      "boundary": "仅阅读上游测试源码，未执行；测试合同不能替代生产观测。",
+      "source": {
+        "label": "Raft · internal.attestedSend.api.test.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internal.attestedSend.api.test.ts#L1045-L1097"
+      }
+    },
+    {
+      "id": "RM-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Hold 返回与真正提交是不同分支",
+      "statement": "freshness hold 先返回响应并结束处理；未 hold 才调用 broadcastAndDeliver。",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "locator": "L4017-L4078",
+      "lineStart": 4017,
+      "lineEnd": 4078,
+      "sha256": "9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8",
+      "boundary": "本段显示检查与提交分开；不足以证明全链路并发线性化，需要控制并发窗口实验。",
+      "source": {
+        "label": "Raft · internalAgentApi.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L4017-L4078"
+      }
+    },
+    {
+      "id": "RM-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "任务归属需要另一套条件更新",
+      "statement": "canonical claim 用 revision 与可认领条件约束更新，成功写 assignee、claimedAt 和新 revision。",
+      "artifact": "packages/server/src/services/taskService.ts",
+      "locator": "L2425-L2512",
+      "lineStart": 2425,
+      "lineEnd": 2512,
+      "sha256": "56e5b1fde0d6963186d2f373d65365e6e965281b9ea1d85ba481006fe10fba9c",
+      "boundary": "锁的是任务记录，不是工作区文件或外部业务副作用。",
+      "source": {
+        "label": "Raft · taskService.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2425-L2512"
+      }
+    },
+    {
+      "id": "RM-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "重复 hold 只控制绕过建议",
+      "statement": "响应在 reholdCount >= 3 时设置 continueAnywaySuggested。",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "locator": "L3988-L3999",
+      "lineStart": 3988,
+      "lineEnd": 3999,
+      "sha256": "9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8",
+      "boundary": "这是提示条件；RM-07、08 中实际 override 分支没有使用这个次数作为硬性授权门槛。",
+      "source": {
+        "label": "Raft · internalAgentApi.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3988-L3999"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "RM-KU-01",
+      "title": "检查和提交之间的并发窗口",
+      "text": "路由先判断 freshness，再调用提交函数。尚未独立验证并发提交是否存在重复输出。",
+      "needed": "在检查后设置 barrier，让两个真实请求同时通过，再释放提交，记录 seq、回执与重复率。"
+    },
+    {
+      "id": "RM-KU-02",
+      "title": "有界上下文会漏掉多少关键约束",
+      "text": "普通 hold 可以只展示最新三条，却把读取边界推进到批次末尾。",
+      "needed": "把撤销或禁止发布的消息放在被省略的位置，对比是否主动补读、是否发生违规副作用。"
+    },
+    {
+      "id": "RM-KU-03",
+      "title": "协作收益与代价",
+      "text": "静态源码没有给出重复劳动、延迟、token 成本与任务完成率的配对测量。",
+      "needed": "相同模型、任务和消息时序下，对比开关 freshness；分别统计 hold、override、遗漏、重复提交和交付结果。"
+    }
+  ]
+}
