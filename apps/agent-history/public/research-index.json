@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "raft-collaboration",
+      "readingLabel": "阅读全文：协作型 Agent 基础设施",
+      "title": "Raft：协作型 Agent 基础设施",
+      "question": "多个 Agent 同时接活、漏看新消息或丢失旧线程时，协作系统能保证什么？",
+      "implication": "分别记录消息到达、模型可见、任务归属和真实副作用；为恢复设计幂等检查，不能拿凭据代理代替主机沙箱。",
+      "boundary": "固定官方 source-available 发布镜像，FSL-1.1-ALv2。未运行 Raft 或上游测试；静态 Prompt 不是实际请求，场景推演不是多 Agent 效率实验。",
+      "editorialRank": 16,
+      "verifiedAt": "2026-09-25",
+      "kind": "fixed-build",
+      "kindLabel": "固定源码",
+      "topic": "控制与协作",
+      "products": [{ "id": "raft", "label": "Raft", "version": "v1.13.0-source.1 / 05f7d8fd" }],
+      "fact": "Raft 复用多个 Coding Agent runtime，用 model-seen 边界暂缓部分协作动作，用数据库 CAS 仲裁任务认领；Codex 续接失败可另起线程，凭据代理与主机执行权限是两条不同边界。",
+      "sourceKinds": ["固定官方源码", "静态 Prompt", "上游测试源码（未运行）"],
+      "headlineEvidence": ["RF-08", "RF-10", "RF-13", "RF-14", "RF-15"],
+      "evidenceCount": 18,
+      "unknownCount": 6,
+      "data": "/capabilities/raft-collaboration.json",
+      "legacyHref": "/capabilities/raft-collaboration.html"
+    },
+    {
       "id": "claude-tag",
       "readingLabel": "阅读全文：提示词与工具设计",
       "title": "Claude Tag：提示词与工具设计",

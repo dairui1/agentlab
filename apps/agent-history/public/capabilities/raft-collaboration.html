@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="沿固定官方源码拆解 Raft 的消息可见性、任务认领、Codex 恢复、Prompt 与记忆，以及凭据代理和主机权限的不同边界。">
+  <title>Raft：协作型 Agent 基础设施 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <script src="/site-navigation.js"></script>
+</head>
+<body class="article-page" data-evidence-source="/capabilities/raft-collaboration.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="raft"></agentlab-navigation>
+      <div class="header-links"><a class="icon-button" href="https://github.com/botiverse/raft-source" target="_blank" rel="noopener noreferrer" aria-label="打开 Raft 源码仓库" title="Raft 源码仓库"><i data-lucide="github" aria-hidden="true"></i></a></div>
+    </header>
+    <main>
+      <header class="article-hero"><div class="article-hero-inner"><div>
+        <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><span aria-hidden="true">/</span><span>Raft</span></nav>
+        <span class="article-series">固定官方源码 · 协作型 Agent 基础设施</span>
+        <h1>Raft 协作架构</h1>
+        <p class="article-dek">两个 Agent 都想接下任务，人类中途说“先别发布”，旧线程却又恢复失败。Raft 的价值不只在把它们放进同一个频道，而在区分：谁收到了消息、谁看过消息、谁认领了工作，以及谁真正执行了动作。</p>
+        <div class="article-byline"><span>2026-09-25 核验</span><span>v1.13.0-source.1 · 05f7d8fd</span><span>18 条源码证据</span></div>
+      </div></div></header>
+      <section class="article-scope-band" aria-label="研究范围"><div class="article-scope-grid">
+        <div><span>对象</span><strong>协作基础设施</strong><small>复用现成 Coding Agent 引擎</small></div>
+        <div><span>来源</span><strong>官方发布镜像</strong><small>不是完整开发历史</small></div>
+        <div><span>许可</span><strong>FSL-1.1-ALv2</strong><small>source-available，有用途限制</small></div>
+        <div><span>验证层级</span><strong>静态源码分析</strong><small>未运行 Raft 或上游测试</small></div>
+      </div></section>
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
+          <span>从接活到恢复</span><ol>
+            <li><a href="#architecture" data-index="01">整体架构</a></li>
+            <li><a href="#walkthrough" data-index="02">一次任务推演</a></li>
+            <li><a href="#visibility" data-index="03">消息可见性</a></li>
+            <li><a href="#claim" data-index="04">任务认领</a></li>
+            <li><a href="#prompt" data-index="05">Prompt 与工具</a></li>
+            <li><a href="#recovery" data-index="06">记忆与恢复</a></li>
+            <li><a href="#permissions" data-index="07">权限边界</a></li>
+            <li><a href="#tradeoffs" data-index="08">工程取舍</a></li>
+            <li><a href="#experiments" data-index="09">待验证实验</a></li>
+            <li><a href="#sources" data-index="10">来源与追踪</a></li>
+          </ol>
+          <div class="article-toc-note"><strong>三种证据分开</strong>源码说明控制流，Prompt 说明行为要求，运行记录才能回答这次任务实际发生了什么。本文没有第三种证据。</div>
+        </aside>
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">Raft 更像现成 Agent 引擎之上的协作系统，而不是又一个独立 Coding Agent。最值得借鉴的部分，是把容易混成一句“已处理”的状态拆开；最需要小心的部分，是这些协作约束并不会自动限制主机上的所有动作。</p>
+          <section id="architecture" data-article-section>
+            <span class="section-number">01 / 整体架构</span><h2>模型引擎负责做事，Raft 负责把工作接起来</h2>
+            <p>Server 保存协作对象、处理 API 和实时通信；机器上的 daemon 启动 Agent、递送输入、代理 Raft 凭据；driver 再把统一的启动和消息需求映射到不同引擎。Web、桌面端、CLI 和 SDK 是进入这套系统的不同入口。<button class="evidence-ref" type="button" data-evidence="RF-03 RF-04" data-evidence-trigger>RF-03、04</button></p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count: 5">
+              <div><span>协作输入</span><strong>频道与任务</strong><small>人类、Agent、事件</small></div>
+              <div><span>服务端</span><strong>Raft Server</strong><small>身份、状态、路由</small></div>
+              <div><span>机器端</span><strong>Daemon</strong><small>进程、投递、凭据</small></div>
+              <div><span>适配层</span><strong>Runtime Driver</strong><small>启动、续接、事件归一</small></div>
+              <div><span>执行层</span><strong>Coding Agent</strong><small>模型与原生工具</small></div>
+            </div><figcaption>根据固定源码整理的职责图，不是线上部署拓扑。Agent 通过 raft CLI 把协作动作送回平台。</figcaption></figure>
+            <p>以熟悉的 Codex 为例，Raft 接入的是 <code>app-server</code>：线程启动与续接走 <code>thread/start</code>、<code>thread/resume</code>，新一轮走 <code>turn/start</code>，忙碌时可以通过 <code>turn/steer</code> 送入新输入。它没有在这里重写 Codex 的模型循环。Built-in 引擎也复用了 PiDriver。<button class="evidence-ref" type="button" data-evidence="RF-12 RF-18" data-evidence-trigger>RF-12、18</button></p>
+          </section>
+          <section id="walkthrough" data-article-section>
+            <span class="section-number">02 / 场景推演</span><h2>同一个请求，四个不能省略的问题</h2>
+            <p><strong>场景假定：</strong>人类在频道发出修复请求，Agent A 和 B 都收到；A 工作期间，人类补了一句“只提交，不发布”；之后 A 的 Codex 旧线程无法续接。下面是源码合同推演，不是实际运行记录。</p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>时刻</th><th>对应机制</th><th>还不能保证什么</th></tr></thead><tbody>
+              <tr><td>A、B 同时接活</td><td>先 claim；服务端条件更新决定认领结果</td><td>失败者一定不会直接改文件</td></tr>
+              <tr><td>新限制已经到达</td><td>发送等协作动作前检查目标消息的可见性</td><td>限制已被理解，或所有 shell 动作被阻止</td></tr>
+              <tr><td>旧线程续接失败</td><td>特定错误可新建线程并注入恢复通知</td><td>旧上下文全部保留，外部动作不会重做</td></tr>
+              <tr><td>A 汇报修复完成</td><td>通过 raft CLI 发消息，任务按规则进入审核</td><td>消息成功即代表代码正确或人类已验收</td></tr>
+            </tbody></table></div>
+            <p>这四步分别对应可见性、归属、恢复和验收。把它们都压成一个“Agent 在线 / 已完成”状态，界面会简单，出错后却很难知道该从哪里恢复。<button class="evidence-ref" type="button" data-evidence="RF-05 RF-08 RF-10 RF-13" data-evidence-trigger>RF-05、08、10、13</button></p>
+          </section>
+          <section id="visibility" data-article-section>
+            <span class="section-number">03 / 消息可见性</span><h2>消息到了，不代表模型看过</h2>
+            <p><code>agentInboxStateMachine</code> 不是只有一个 unread 计数。它处理具体目标下的 pending messages、模型已见记录和序号边界。对于 <code>send</code>、<code>task_claim</code>、<code>task_update</code>，存在尚未看过且带有可解析边界的消息时，可以先返回 <code>local_hold</code>，把新上下文交回执行者，而不是立即转发动作。<button class="evidence-ref" type="button" data-evidence="RF-08" data-evidence-trigger>RF-08</button></p>
+            <p>为什么不能简单取最大的已读序号？因为模型可能看过一条新消息，却漏了前面的一条。上游测试专门覆盖了“已见的新消息不能越过更老的未见消息”。这说明实现关注的是模型实际获得哪些内容，而不只是网络收包顺序。<button class="evidence-ref" type="button" data-evidence="RF-17" data-evidence-trigger>RF-17</button></p>
+            <div class="article-tabs" data-article-tabs style="--tab-count: 3">
+              <div role="tablist" aria-label="协作状态的三个不同层次">
+                <button id="raftTabPending" type="button" role="tab" aria-selected="true" aria-controls="raftPanelPending">待处理</button>
+                <button id="raftTabSeen" type="button" role="tab" aria-selected="false" aria-controls="raftPanelSeen">模型可见</button>
+                <button id="raftTabEffect" type="button" role="tab" aria-selected="false" aria-controls="raftPanelEffect">真实副作用</button>
+              </div>
+              <section id="raftPanelPending" class="article-tab-panel" role="tabpanel" aria-labelledby="raftTabPending"><span>PENDING</span><h3>目标下还有新消息</h3><p>收件箱里有未处理内容。消息到达机器，并不表示已经进入执行者的模型上下文。</p><div class="article-tab-spec"><div><small>观察</small><strong>pending messages</strong></div><div><small>下一步</small><strong>判断是否已见</strong></div><div><small>不能推出</small><strong>模型已遵守</strong></div></div></section>
+              <section id="raftPanelSeen" class="article-tab-panel" role="tabpanel" aria-labelledby="raftTabSeen" hidden><span>MODEL-SEEN</span><h3>系统记录内容已对模型可见</h3><p>具体消息与序号边界影响 freshness 决策。这仍是输入可见性，不是模型理解或服从的测量。</p><div class="article-tab-spec"><div><small>观察</small><strong>消息与已见边界</strong></div><div><small>下一步</small><strong>hold 或 forward</strong></div><div><small>不能推出</small><strong>动作一定正确</strong></div></div></section>
+              <section id="raftPanelEffect" class="article-tab-panel" role="tabpanel" aria-labelledby="raftTabEffect" hidden><span>EXTERNAL EFFECT</span><h3>代码或外部服务真的改变了</h3><p>需要文件、提交、业务回执等独立结果。本文的消息状态机证据没有提供所有外部副作用的 exactly-once 保证。</p><div class="article-tab-spec"><div><small>观察</small><strong>目标系统状态</strong></div><div><small>下一步</small><strong>验收或补偿</strong></div><div><small>不能推出</small><strong>消息成功即交付</strong></div></div></section>
+            </div>
+            <div class="article-callout"><strong>这不是全局安全闸门</strong><p><code>continueAnyway</code> 可以直接绕过；缺少序号边界也有放行分支。即使协作消息被暂缓，这个状态机也不等于拦截了执行引擎里的每次 shell 或部署命令。model-seen 更不能证明模型理解了限制。<button class="evidence-ref" type="button" data-evidence="RF-09" data-evidence-trigger>RF-09</button></p></div>
+          </section>
+          <section id="claim" data-article-section>
+            <span class="section-number">04 / 任务认领</span><h2>数据库能仲裁任务，但不能替执行者锁住文件</h2>
+            <p>这次能看到后端实现，而不只是“请先认领”的 Prompt。canonical task 的更新同时检查 revision 与可认领条件。成功时写 assignee、递增 revision，并让 todo 进入 in_progress；另一位执行者拿着旧 revision 再写，就不会悄悄覆盖归属。<button class="evidence-ref" type="button" data-evidence="RF-10" data-evidence-trigger>RF-10</button></p>
+            <p>但认领锁管的是<strong>同一条 task 记录</strong>。两个 Agent 各自创建一条重复任务，或失败者绕过协作命令直接写同一目录，都需要其他约束。任务锁、worktree 隔离和外部系统幂等键解决的不是同一个问题。</p>
+            <p>任务卡片的修订还有另一条值得借鉴的路径：在事务内重新检查成员资格，用 revision-CAS 更新，并追加修订事件。它能避免基于旧卡片的静默覆盖，也避免把消息正文里的名字当成修改权限。这里只确认 amend 路径，不把它推广为所有任务动作都有完全相同的事务保证。<button class="evidence-ref" type="button" data-evidence="RF-11" data-evidence-trigger>RF-11</button></p>
+          </section>
+          <section id="prompt" data-article-section>
+            <span class="section-number">05 / Prompt 与工具</span><h2>把协作协议放进指令，但保留引擎自己的能力</h2>
+            <p>Raft 的 standing prompt 包含身份、机器环境、启动顺序、通信规则和记忆要求。普通 assistant 文本不作为面向同事的交付渠道，Agent 要通过 <code>raft message send</code> 发出结果。这里“模型生成答案”和“频道收到回复”是两件事。<button class="evidence-ref" type="button" data-evidence="RF-05" data-evidence-trigger>RF-05</button></p>
+            <p>CLI 覆盖消息、任务、附件、提醒和手册等协作动作。它没有宣称接管一切能力：本地 CLI、runtime 原生工具、MCP 和浏览器仍可以独立工作。于是本文不把 CLI 命令族数当成模型工具数，也不把静态 Prompt 写成实际请求捕获。<button class="evidence-ref" type="button" data-evidence="RF-06" data-evidence-trigger>RF-06</button></p>
+            <p>对于 Codex，Raft 通过 <code>developerInstructions</code> 追加指令，而不是用 <code>baseInstructions</code> 替换基础指令。优点是保留原引擎习惯；代价是必须验证两层规则如何共同生效，尤其是压缩之后。源码自己也为这点保留了验证说明。<button class="evidence-ref" type="button" data-evidence="RF-12" data-evidence-trigger>RF-12</button></p>
+          </section>
+          <section id="recovery" data-article-section>
+            <span class="section-number">06 / 记忆与恢复</span><h2>新线程能继续工作，不等于旧线程已经恢复</h2>
+            <p>Raft 的文件记忆并不神秘：初始化持久工作目录，创建 <code>notes/</code>，只在 <code>MEMORY.md</code> 不存在时写入初始内容。Prompt 再要求把它当作恢复索引。这条路径容易审计，但记忆是否及时、准确，仍取决于执行者如何维护。<button class="evidence-ref" type="button" data-evidence="RF-07 RF-05" data-evidence-trigger>RF-07、05</button></p>
+            <p>Codex 续接错误被分成不同类别：缺少 rollout 或已有 active writer，可以走 <code>fallback_fresh_thread</code>；权限拒绝与未知错误保留为终止错误。新线程会收到恢复说明，要求从 Raft 历史和本地记忆找回工作，不能假定旧 Codex 上下文已经加载。<button class="evidence-ref" type="button" data-evidence="RF-13" data-evidence-trigger>RF-13</button></p>
+            <p>这种诚实的降级比“无缝恢复”更有用。后续实验必须检查：上一轮是否已提交代码、是否已调用外部服务、旧 writer 是否还活跃。否则换一个线程 ID 并没有解决重复执行，只是换了执行入口。</p>
+          </section>
+          <section id="permissions" data-article-section>
+            <span class="section-number">07 / 权限边界</span><h2>凭据代理不是主机沙箱</h2>
+            <p>本地代理先校验注册 token，再把目标 URL 的 origin 与注册服务器比对，随后由 daemon 附加上游 apiKey 和 Agent 身份。这能把 Raft API 凭据转发收进一个具体入口。<button class="evidence-ref" type="button" data-evidence="RF-14" data-evidence-trigger>RF-14</button></p>
+            <p>执行引擎是另一条边界。Codex driver 明确请求 <code>approvalPolicy: never</code> 和 <code>danger-full-access</code>；Claude 启动参数也包含权限绕过。这适合无人交互执行，但不能据此认为频道权限会限制宿主文件与网络。<button class="evidence-ref" type="button" data-evidence="RF-15 RF-16" data-evidence-trigger>RF-15、16</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>约束层</th><th>主要对象</th><th>不能替代</th></tr></thead><tbody>
+              <tr><td>Raft 协作权限</td><td>平台内身份、频道与动作</td><td>宿主文件和网络访问控制</td></tr>
+              <tr><td>本地凭据代理</td><td>向注册服务器转发 API 请求</td><td>同机进程隔离与完整凭据审计</td></tr>
+              <tr><td>任务与消息状态机</td><td>认领冲突和部分动作的新鲜度</td><td>全局 shell 授权与业务幂等</td></tr>
+              <tr><td>OS / 容器 / 运行账号</td><td>实际执行资源和权限</td><td>模型理解、任务验收与行为质量</td></tr>
+            </tbody></table></div>
+            <p><strong>部署建议：</strong>首次验证使用独立低权限环境和测试凭据。不要因为 UI 里有 scope 设置，就把 Agent 放进保存生产密钥的日常账号中。这是根据启动配置得出的工程建议，不是漏洞复现或安全认证。</p>
+          </section>
+          <section id="tradeoffs" data-article-section>
+            <span class="section-number">08 / 工程取舍</span><h2>值得带走的是状态区分，不是更多协作口号</h2>
+            <ul>
+              <li><strong>可见性有独立记录。</strong>到达、进入上下文、执行动作分开后，恢复和排障才有落点；但要保留绕过与缺失边界，不能把产品状态说成认知保证。</li>
+              <li><strong>复用成熟引擎。</strong>Driver 保留已有工具和模型生态；相应地，版本兼容、错误分类、压缩和忙碌投递都需要逐引擎验证。</li>
+              <li><strong>持久身份不绑定某个线程。</strong>线程丢失后仍有工作目录与协作历史；能否安全续做，则需要独立的副作用对账。</li>
+              <li><strong>数据库保证与行为要求分开。</strong>认领 CAS 是实现；先认领再动手是规则。两者缺一不可，但不能互相冒充。</li>
+            </ul>
+            <p>以上是基于前述代码的工程归纳。它足以解释为什么 Raft 应归入协作基础设施，却不足以给出“多 Agent 一定更快、更省钱”的结论。</p>
+          </section>
+          <section id="experiments" data-article-section>
+            <span class="section-number">09 / 待验证实验</span><h2>下一步先验证失败路径</h2>
+            <p>这些是待执行方案，不是通过记录；本轮没有安装 Raft、接入模型或执行上游测试。</p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>实验</th><th>注入条件</th><th>必须保存的证据</th></tr></thead><tbody>
+              <tr><td>认领竞争</td><td>两个 Agent 处理同一 canonical task</td><td>认领回执、实际文件写入、是否出现第二执行者</td></tr>
+              <tr><td>迟到限制</td><td>执行中加入“不要发布”，包含绕过与缺序号对照</td><td>投递内容、model-seen、hold 决策、真实副作用</td></tr>
+              <tr><td>恢复降级</td><td>缺失 rollout 与 writer 冲突分别触发</td><td>新旧线程、恢复通知、外部动作是否重复</td></tr>
+              <tr><td>压缩与记忆</td><td>长任务中压缩上下文</td><td>前后请求、standing prompt、当前约束与记忆版本</td></tr>
+              <tr><td>执行权限</td><td>低权限账号与受限文件、网络</td><td>拒绝发生在哪层，而非仅看 scope 标签</td></tr>
+            </tbody></table></div>
+            <p>关于效率，还需要固定任务、模型、预算和验收标准，重复比较单 Agent 与协作配置。上游测试源码可以帮助选反例，不能代替这些实验。<button class="evidence-ref" type="button" data-evidence="RF-17" data-evidence-trigger>RF-17</button></p>
+          </section>
+          <section id="sources" data-article-section>
+            <span class="section-number">10 / 来源与追踪</span><h2>固定公开快照，不追着 main 改写结论</h2>
+            <p>本专题固定公开提交 <code>05f7d8fd77d2535f993d5d90b85118438bc18216</code>，发布标识 <code>v1.13.0-source.1</code>。这是官方 release mirror，每次发布导出一个 commit；不能由此还原私有开发历史，也不能把镜像提交中的声明当成可访问的私有源码。<button class="evidence-ref" type="button" data-evidence="RF-01" data-evidence-trigger>RF-01</button></p>
+            <p>当前采用 <code>FSL-1.1-ALv2</code>，包含用途限制；每个版本公开满两年后增加 Apache 2.0 许可。本文只记录条款边界，不对特定商业用途给法律结论，也不把上游代码重新标为 AgentLab 的 MIT 代码。<button class="evidence-ref" type="button" data-evidence="RF-02" data-evidence-trigger>RF-02</button></p>
+            <p>18 条证据分别保留固定链接、行号、SHA-256 和适用边界。来源校验可独立复跑；它验证文件字节，不执行 Raft。后续发布应作为新快照重新核对四条机制，保留本版结论。<strong>当前未接入自动版本日更或持续监控。</strong></p>
+            <p><a href="/capabilities.html?study=raft-collaboration">完整证据与 6 项未知问题</a> · <a href="/capabilities/raft-collaboration.json">结构化研究数据</a> · <a href="https://github.com/botiverse/raft-source/tree/05f7d8fd77d2535f993d5d90b85118438bc18216" target="_blank" rel="noopener noreferrer">固定官方快照</a></p>
+          </section>
+        </article>
+        <aside class="article-margin" aria-label="研究结论摘要">
+          <div class="article-margin-block"><span>最值得借鉴</span><strong>收到、看见、认领、执行分别记录。</strong><small>不要让一个状态覆盖四种事实。</small></div>
+          <div class="article-margin-block"><span>恢复边界</span><strong>新建线程是降级恢复，不是旧上下文复原。</strong><small>先对账，再继续有副作用的动作。</small></div>
+          <div class="article-margin-block"><span>执行边界</span><strong>Raft 凭据代理不等于 OS 沙箱。</strong><small>测试环境与生产凭据分开。</small></div>
+        </aside>
+      </div>
+      <nav class="article-next" aria-label="返回专题"><a href="/capabilities.html?study=raft-collaboration"><span>证据索引</span><strong>查看全部依据与待验证问题</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">实现依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>

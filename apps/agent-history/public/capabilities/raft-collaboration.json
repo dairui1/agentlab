@@ -1,0 +1,388 @@
+{
+  "id": "raft-collaboration",
+  "title": "Raft：协作型 Agent 基础设施",
+  "product": "Raft",
+  "subtitle": "消息可见性、任务认领、runtime 恢复与权限边界",
+  "description": "Raft 把现成 Coding Agent 接入跨机器协作工作区。真正值得拆解的是：消息到达以后，模型是否看过；任务已有执行者时，谁还能认领；旧线程续接失败后，系统保留了什么；平台内权限与主机执行权限又分别由谁约束。本文沿一次假设任务追踪四条路径，不把源码或上游测试当作运行验证。",
+  "verifiedAt": "2026-09-25",
+  "status": "active",
+  "source": {
+    "repository": "botiverse/raft-source",
+    "revision": "05f7d8fd77d2535f993d5d90b85118438bc18216",
+    "release": "v1.13.0-source.1",
+    "commitDate": "2026-09-24",
+    "license": "FSL-1.1-ALv2",
+    "evidenceClass": "official-source-static",
+    "trackingMode": "fixed-release-snapshot",
+    "runtimeExperiment": "not-run"
+  },
+  "scope": [
+    {
+      "label": "类别",
+      "value": "协作型 Agent 基础设施",
+      "note": "不是新模型，也不是 Agent 排名"
+    },
+    {
+      "label": "公开快照",
+      "value": "v1.13.0-source.1",
+      "note": "05f7d8fd77d2 · 2026-09-24"
+    },
+    {
+      "label": "许可证",
+      "value": "FSL-1.1-ALv2",
+      "note": "source-available；每版公开两年后转 Apache 许可"
+    },
+    {
+      "label": "执行验证",
+      "value": "未运行 Raft",
+      "note": "18 条源码证据，6 项待验证问题"
+    }
+  ],
+  "boundary": "固定官方源码与静态 Prompt 分析。未安装 Raft、未执行上游测试、未接入模型或运行多 Agent 实验。场景为控制流推演；文件哈希验证只确认来源字节一致，AgentLab 自身测试不代表 Raft 行为验证。当前许可证有用途限制，不能标作宽松开源；研究分类不构成安全认证。",
+  "evidence": [
+    {
+      "id": "RF-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "发布镜像不是完整开发历史",
+      "statement": "仓库说明开发发生在私有仓库，每次发布导出一个公开 commit，并暂不接受外部 PR。",
+      "artifact": "README.md",
+      "locator": "L34-L40",
+      "lineStart": 34,
+      "lineEnd": 40,
+      "sha256": "55e56028bc9b8a52b9fd40c3a700bc01cba8bfd52d5556c238e677e34bff6c6a",
+      "boundary": "快照可用于版本间比较，但无法重建私有开发分支、评审过程或提交意图。",
+      "source": {
+        "label": "Raft · README.md",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/README.md#L34-L40"
+      }
+    },
+    {
+      "id": "RF-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "FSL 当前许可与两年后的 Apache 许可分开",
+      "statement": "当前 FSL-1.1-ALv2 许可限定 Permitted Purpose，明确列入内部使用与非商业研究，并限制条款定义的竞争性商业用途；公开满两年后增加 Apache 2.0 许可。",
+      "artifact": "LICENSE",
+      "locator": "L21-L83",
+      "lineStart": 21,
+      "lineEnd": 83,
+      "sha256": "7b0afda469123fdf2758d16941aa1a5a216e73ba5bc241165a36cac49c20b1b5",
+      "boundary": "这是许可证文本摘要，不是对特定商业使用方式的法律意见；不能把当前版本标成 Apache-2.0 或无条件开源。",
+      "source": {
+        "label": "Raft · LICENSE",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/LICENSE#L21-L83"
+      }
+    },
+    {
+      "id": "RF-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "协作平台与执行机器职责分开",
+      "statement": "server 提供 API、实时通信和持久化，daemon 运行 Agent 并代理凭据，computer 承载机器运行环境；web、CLI、SDK 和桌面壳是不同入口。",
+      "artifact": "README.md",
+      "locator": "L8-L20",
+      "lineStart": 8,
+      "lineEnd": 20,
+      "sha256": "55e56028bc9b8a52b9fd40c3a700bc01cba8bfd52d5556c238e677e34bff6c6a",
+      "boundary": "目录职责来自官方说明；不代表某个线上部署实际启用了全部模块。",
+      "source": {
+        "label": "Raft · README.md",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/README.md#L8-L20"
+      }
+    },
+    {
+      "id": "RF-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "多个 runtime 通过 Driver 接入",
+      "statement": "注册表包含 builtin、claude、codex、grok、copilot、cursor、gemini、kimi、kimi-sdk、opencode、pi 与保留兼容的 antigravity。Kimi CLI 与 Kimi SDK 是不同入口。",
+      "artifact": "packages/daemon/src/drivers/index.ts",
+      "locator": "L43-L69",
+      "lineStart": 43,
+      "lineEnd": 69,
+      "sha256": "925b5301edfd3d971a5116d1723663cd2dabf552a492e84153dd09a6c7a9d9ed",
+      "boundary": "有注册项不等于允许新建、不等于本机已安装，也不表示每个 runtime 的能力一致。",
+      "source": {
+        "label": "Raft · index.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/index.ts#L43-L69"
+      }
+    },
+    {
+      "id": "RF-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "常驻 Prompt 定义身份、通信与启动顺序",
+      "statement": "Prompt 从配置注入身份和运行环境，要求通过 raft CLI 对外沟通，启动时读取 MEMORY.md，处理输入并完成工作，无需为等消息反复轮询。",
+      "artifact": "packages/daemon/src/drivers/systemPrompt.ts",
+      "locator": "L79-L171",
+      "lineStart": 79,
+      "lineEnd": 171,
+      "sha256": "24e259f4d2375fb8178fa47f14e4bfbdc779bd7b0154819d300f499299fb8fdd",
+      "boundary": "这里是静态 Prompt builder，不是某次实际模型请求。是否完整注入以及模型是否遵守，需要运行时证据。",
+      "source": {
+        "label": "Raft · systemPrompt.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/systemPrompt.ts#L79-L171"
+      }
+    },
+    {
+      "id": "RF-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Raft CLI 是协作工具面，不包办所有工具",
+      "statement": "通信指南列出消息、频道、任务、附件、提醒、手册、身份等命令族，并说明 runtime 原生 CLI、MCP 和浏览器可独立完成其他工作。",
+      "artifact": "packages/daemon/src/drivers/raftCliGuide.ts",
+      "locator": "L118-L143",
+      "lineStart": 118,
+      "lineEnd": 143,
+      "sha256": "5375e848bf55ef77e5e93d35f03fd9951b5735523dd9d839303aad44023a6fe0",
+      "boundary": "命令族不是模型 Tool Schema 清单；源码不能给出某个会话最终暴露了多少工具。",
+      "source": {
+        "label": "Raft · raftCliGuide.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/raftCliGuide.ts#L118-L143"
+      }
+    },
+    {
+      "id": "RF-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "记忆入口是持久目录里的普通文件",
+      "statement": "初始化创建工作目录和 notes，只在 MEMORY.md 或 seed 文件不存在时写入初始内容。",
+      "artifact": "packages/daemon/src/workspaces.ts",
+      "locator": "L12-L36",
+      "lineStart": 12,
+      "lineEnd": 36,
+      "sha256": "527fc2e1e348db3843a151f78d6a4a52d3d1a8f28e0e0ad353fa9d1616784056",
+      "boundary": "保留文件不等于自动检索、自动更新或经验正确；模型仍可能写入过时结论。",
+      "source": {
+        "label": "Raft · workspaces.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/workspaces.ts#L12-L36"
+      }
+    },
+    {
+      "id": "RF-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "模型已见边界决定是否暂缓协作动作",
+      "statement": "planAgentInboxSideEffect 对目标消息分类：已见消息可放行；存在具有序号边界的未见消息时返回 local_hold，并组织待补上下文。",
+      "artifact": "packages/daemon/src/agentInboxStateMachine.ts",
+      "locator": "L150-L239",
+      "lineStart": 150,
+      "lineEnd": 239,
+      "sha256": "0032fbd3615fea5a11175fd6768016c944cb63775103123d92c285ac161d4e6c",
+      "boundary": "model-seen 是系统记录的内容可见性，不是理解或遵守。该检查没有覆盖所有本地 shell 副作用。",
+      "source": {
+        "label": "Raft · agentInboxStateMachine.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L150-L239"
+      }
+    },
+    {
+      "id": "RF-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "freshness gate 有明确绕过和降级分支",
+      "statement": "continueAnyway 先于待处理消息检查并直接 bypass；待处理消息缺少可解析的序号边界时，走 forwardWithoutDecision。",
+      "artifact": "packages/daemon/src/agentInboxStateMachine.ts",
+      "locator": "L126-L152",
+      "lineStart": 126,
+      "lineEnd": 152,
+      "sha256": "0032fbd3615fea5a11175fd6768016c944cb63775103123d92c285ac161d4e6c",
+      "boundary": "因此不能把它描述为无例外、fail-closed 的全局授权闸门。本文没有测量这些分支的实际触发频率。",
+      "source": {
+        "label": "Raft · agentInboxStateMachine.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L126-L152"
+      }
+    },
+    {
+      "id": "RF-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "任务认领用数据库条件更新仲裁竞争",
+      "statement": "canonical task 的认领同时检查 revision 和可认领状态，成功时写入 assignee、递增 revision 和 ownership 时间；todo 转为 in_progress，竞争失败重新解析拒绝原因。",
+      "artifact": "packages/server/src/services/taskService.ts",
+      "locator": "L2425-L2512",
+      "lineStart": 2425,
+      "lineEnd": 2512,
+      "sha256": "56e5b1fde0d6963186d2f373d65365e6e965281b9ea1d85ba481006fe10fba9c",
+      "boundary": "仲裁的是 task 记录，不是文件、Git 分支或外部服务锁；执行者是否在动手前 claim，仍依赖调用流程和行为规则。",
+      "source": {
+        "label": "Raft · taskService.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2425-L2512"
+      }
+    },
+    {
+      "id": "RF-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "任务修订在事务中检查成员资格并记录历史",
+      "statement": "amendTask 在事务里重新确认成员资格，用 revision-CAS 更新当前卡片并追加 amended 事件，冲突时返回重读后重试。",
+      "artifact": "packages/server/src/services/taskService.ts",
+      "locator": "L1408-L1493",
+      "lineStart": 1408,
+      "lineEnd": 1493,
+      "sha256": "56e5b1fde0d6963186d2f373d65365e6e965281b9ea1d85ba481006fe10fba9c",
+      "boundary": "这条证据只覆盖 amend 路径，不把它推广为所有任务操作或外部副作用都具有同样的事务性。",
+      "source": {
+        "label": "Raft · taskService.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L1408-L1493"
+      }
+    },
+    {
+      "id": "RF-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Codex 指令追加在原有引擎之上",
+      "statement": "thread/start 或 thread/resume 携带 developerInstructions，而不是替换 baseInstructions；每次 start/resume 重新传入 standing prompt。",
+      "artifact": "packages/daemon/src/drivers/codex.ts",
+      "locator": "L809-L851",
+      "lineStart": 809,
+      "lineEnd": 851,
+      "sha256": "9381952a56e75ac31a28fdb64dcdea3ce6d221cf83a02b27fb0d0c826cbf8f11",
+      "boundary": "源码注释明确保留 compaction/session 持久性的验证问题；本次未捕获实际请求。",
+      "source": {
+        "label": "Raft · codex.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/codex.ts#L809-L851"
+      }
+    },
+    {
+      "id": "RF-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "恢复失败可以转为新线程，而非保留旧上下文",
+      "statement": "missing_rollout 和 thread_writer_busy 被分类为 fallback_fresh_thread，并产生恢复通知，要求从 Raft 历史与 MEMORY.md/notes 找回工作；permission_denied 和未知错误保持 terminal_error。",
+      "artifact": "packages/daemon/src/drivers/codex.ts",
+      "locator": "L641-L743",
+      "lineStart": 641,
+      "lineEnd": 743,
+      "sha256": "9381952a56e75ac31a28fdb64dcdea3ce6d221cf83a02b27fb0d0c826cbf8f11",
+      "boundary": "这里只证明错误分类与恢复合同；真实重复执行、旧 writer 是否仍活跃、上下文恢复质量都未验证。",
+      "source": {
+        "label": "Raft · codex.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/codex.ts#L641-L743"
+      }
+    },
+    {
+      "id": "RF-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "凭据代理绑定本地 token 与注册的服务器 origin",
+      "statement": "代理按 Bearer token 查注册记录，拒绝未注册 token；解析目标 URL 后检查 origin，再用 daemon 持有的 apiKey 和 agentId 构造上游请求。",
+      "artifact": "packages/daemon/src/agentCredentialProxy.ts",
+      "locator": "L411-L494",
+      "lineStart": 411,
+      "lineEnd": 494,
+      "sha256": "446cbbe0aab18154c14793d6bfc21cddbd6768e5f317572392f753f067dbe724",
+      "boundary": "这是 Raft API 凭据转发边界，不是 OS 沙箱。此处不声称任意重定向、同机恶意进程或全部凭据来源均已审计。",
+      "source": {
+        "label": "Raft · agentCredentialProxy.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L411-L494"
+      }
+    },
+    {
+      "id": "RF-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Codex 启动合同关闭审批并请求完整访问",
+      "statement": "thread 参数显式设置 approvalPolicy 为 never，sandbox 和 sandbox_mode 为 danger-full-access。",
+      "artifact": "packages/daemon/src/drivers/codex.ts",
+      "locator": "L809-L823",
+      "lineStart": 809,
+      "lineEnd": 823,
+      "sha256": "9381952a56e75ac31a28fdb64dcdea3ce6d221cf83a02b27fb0d0c826cbf8f11",
+      "boundary": "实际权限还取决于 OS、容器和运行账号；Raft scopes 不能代替这些主机限制。",
+      "source": {
+        "label": "Raft · codex.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/codex.ts#L809-L823"
+      }
+    },
+    {
+      "id": "RF-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Claude 同样按无人交互执行方式启动",
+      "statement": "启动参数包含 dangerously-skip-permissions 与 permission-mode bypassPermissions，并通过 append-system-prompt-file 添加 Raft 指令。",
+      "artifact": "packages/daemon/src/drivers/claudeLaunch.ts",
+      "locator": "L60-L75",
+      "lineStart": 60,
+      "lineEnd": 75,
+      "sha256": "12e4045918f5d12a08cba4995a53c5468cec3b2fa714409737901f195dcd0d7f",
+      "boundary": "这是固定 driver 的启动配置，不是对 Claude Code 所有使用场景的权限结论。",
+      "source": {
+        "label": "Raft · claudeLaunch.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/claudeLaunch.ts#L60-L75"
+      }
+    },
+    {
+      "id": "RF-17",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "上游测试关注乱序可见性，而不只检查消息到达",
+      "statement": "测试包含只 hold 已见边界之外的目标消息，以及不能用已见的新消息越过更老未见消息的情形。",
+      "artifact": "packages/daemon/src/agentInboxStateMachine.test.ts",
+      "locator": "L248-L342",
+      "lineStart": 248,
+      "lineEnd": 342,
+      "sha256": "0241b60718acd7b6193b56e8ab4a0d76cd4268ed6104ec1521b617c1122df3d1",
+      "boundary": "本轮只阅读上游测试源码，未运行这些测试，也没有完成端到端可靠性验证。",
+      "source": {
+        "label": "Raft · agentInboxStateMachine.test.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.test.ts#L248-L342"
+      }
+    },
+    {
+      "id": "RF-18",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Built-in runtime 复用 Pi Driver",
+      "statement": "BuiltInDriver 继承 PiDriver，并提供自己的 runtime ID、模型与 Prompt 配置；不是一套完全独立重写的推理引擎。",
+      "artifact": "packages/daemon/src/drivers/pi.ts",
+      "locator": "L1920-L1972",
+      "lineStart": 1920,
+      "lineEnd": 1972,
+      "sha256": "a1d1260c3c1092cbede75d93baff82ec54effb6c80b62e3221142fcf6dce8a1a",
+      "boundary": "继承关系不代表与用户独立安装的 Pi 在配置、模型来源和生命周期上完全相同。",
+      "source": {
+        "label": "Raft · pi.ts",
+        "url": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/pi.ts#L1920-L1972"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "RF-KU-01",
+      "title": "消息送达后是否真的被理解",
+      "text": "model-seen 记录可见性，无法单凭序号确认模型理解了新的限制。",
+      "needed": "同一任务中插入撤销与范围变更，记录输入、动作及最终副作用。"
+    },
+    {
+      "id": "RF-KU-02",
+      "title": "多 Agent 是否减少重复劳动",
+      "text": "认领 CAS 约束任务状态，未证明模型会始终先认领，也未测量并发效率。",
+      "needed": "在隔离仓库中同时投递同一请求，核对认领结果、文件写入和总成本。"
+    },
+    {
+      "id": "RF-KU-03",
+      "title": "Codex 重建线程的恢复质量",
+      "text": "缺失 rollout 与 writer 冲突走新线程；无法从源码判断恢复后是否重做已完成动作。",
+      "needed": "分别制造两类错误，保存恢复通知、线程 ID、记忆文件和幂等副作用回执。"
+    },
+    {
+      "id": "RF-KU-04",
+      "title": "主机侧隔离是否足够",
+      "text": "driver 请求无审批执行，平台内的频道权限无法回答宿主文件与网络是否可达。",
+      "needed": "在低权限隔离环境中检查文件和网络权限；不接入真实生产凭据。"
+    },
+    {
+      "id": "RF-KU-05",
+      "title": "压缩后指令和记忆能否保持一致",
+      "text": "Prompt 要求从 MEMORY.md 恢复，Codex driver 对 compaction 指令持久性留有验证说明。",
+      "needed": "捕获压缩前后请求，检查 standing prompt、当前任务和新约束是否保留。"
+    },
+    {
+      "id": "RF-KU-06",
+      "title": "最新发布是否改变本文结论",
+      "text": "本文只覆盖固定公开发布镜像，没有私有开发历史，也未配置持续监控。",
+      "needed": "出现新快照时重查固定文件及变化路径，保留旧版研究，不自动覆盖为已验证结论。"
+    }
+  ]
+}

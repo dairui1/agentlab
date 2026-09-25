@@ -96,6 +96,14 @@ ZCode 的本地图标复制自[官方仓库固定提交](https://github.com/zai-
 
 生成的 `public/`、`dist/` 和 `analysis/` 可从已同步的数据重建；`.cache/official-sources/` 还保存有界代码比较的历史账本，应像发布状态一样备份，不能在普通更新前删除。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。
 
+## Raft 协作基础设施研究
+
+[Raft 专题](https://agentlab.dairui1.com/capabilities/raft-collaboration) 沿消息可见性、任务认领、runtime 恢复和权限边界，分析官方 `v1.13.0-source.1` 发布镜像，固定公开提交 `05f7d8fd77d2535f993d5d90b85118438bc18216`。研究数据含 18 条文件证据与 6 项未知问题，可从专题索引和全站导航进入。
+
+这是 FSL-1.1-ALv2 的 source-available 项目，不按宽松开源 Coding Agent 归类。当前只收录固定版本研究，未接入自动版本日更或持续监控，也没有把静态 Prompt 伪装成 Runtime Prompt 捕获。未安装 Raft、未运行上游测试或多 Agent 实验；AgentLab 测试只验证本站的数据和界面。
+
+从 `apps/agent-history` 运行 `node scripts/verify_raft_sources.mjs --fetch`，可按固定 commit 重新读取证据文件并校验 SHA-256、行号范围和来源链接；不会执行或安装上游代码。网络失败和文件不匹配都会返回失败，不降级成已验证。已有平铺文件缓存时可用 `--source-dir <目录>` 离线校验。上游全文仅保留在忽略的本地缓存中，公开内容为原创分析、定位与哈希，上游许可证不受 AgentLab 的 MIT 许可替代。
+
 ## Agent 数据访问
 
 项目内置 [`agentlab-update-feed`](.codex/skills/agentlab-update-feed/SKILL.md) skill，指导 Agent 组合 `feedAgent`、`signal`、`priority` 等 filter，将公开更新情报输出为 Markdown，并沿 manifest 获取指定版本的原始 Prompt Markdown。skill 安装后只访问 `agentlab.dairui1.com` 的公开数据，不依赖本仓库 checkout。
