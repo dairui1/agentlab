@@ -22,7 +22,7 @@ export async function verifyEvidenceFiles(study, loadSource) {
       const content = bytes.toString("utf8");
       const lines = content.split("\n");
       if (lines.at(-1) === "") lines.pop();
-      files.set(artifact, { sha256: createHash("sha256").update(bytes).digest("hex"), lines: lines.length });
+      files.set(artifact, { sha256: createHash("sha256").update(bytes).digest("hex"), lines: lines.length, contentLines: lines });
     }
     const file = files.get(artifact);
     if (file.sha256 !== evidence.sha256) throw new Error(`Hash mismatch: ${evidence.id} ${artifact}`);
@@ -33,7 +33,22 @@ export async function verifyEvidenceFiles(study, loadSource) {
     const expectedUrl = `https://github.com/${repository}/blob/${revision}/${artifact}#L${evidence.lineStart}-L${evidence.lineEnd}`;
     if (evidence.source.url !== expectedUrl) throw new Error(`Unpinned source locator: ${evidence.id}`);
   }
-  return { revision, files: files.size, evidence: study.evidence.length, runtimeExperiment: "not-run" };
+  const snippetIds = new Set();
+  for (const snippet of study.snippets ?? []) {
+    const file = files.get(snippet.artifact);
+    if (!file) throw new Error(`Snippet artifact lacks verified evidence: ${snippet.id}`);
+    if (!snippet.id || snippetIds.has(snippet.id)) throw new Error("Duplicate or missing snippet id");
+    snippetIds.add(snippet.id);
+    if (!Number.isInteger(snippet.lineStart) || !Number.isInteger(snippet.lineEnd)
+      || snippet.lineStart < 1 || snippet.lineEnd < snippet.lineStart || snippet.lineEnd > file.lines) {
+      throw new Error(`Invalid snippet range: ${snippet.id}`);
+    }
+    const expected = file.contentLines.slice(snippet.lineStart - 1, snippet.lineEnd).join("\n");
+    if (snippet.text !== expected) throw new Error(`Snippet text mismatch: ${snippet.id}`);
+    const url = `https://github.com/${repository}/blob/${revision}/${snippet.artifact}#L${snippet.lineStart}-L${snippet.lineEnd}`;
+    if (snippet.sourceUrl !== url) throw new Error(`Unpinned snippet locator: ${snippet.id}`);
+  }
+  return { revision, files: files.size, evidence: study.evidence.length, snippets: snippetIds.size, runtimeExperiment: "not-run" };
 }
 
 async function main(args) {

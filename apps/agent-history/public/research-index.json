@@ -3,8 +3,8 @@
   "studies": [
     {
       "id": "raft-multi-agent",
-      "readingLabel": "阅读全文：Raft 中文译文与源码批注",
-      "title": "Raft 多智能体：原文中文批注版",
+      "readingLabel": "对照阅读：Raft 原文与九则源码研究",
+      "title": "Raft 多智能体：原文与源码对照",
       "question": "发送前的上下文检查，怎样穿过 CLI、daemon 和 server？",
       "implication": "区分摘要、稀疏消息、历史读取与跳读边界；草稿暂缓应交回判断，不能自动重试或当作全局副作用锁。",
       "boundary": "译文保留作者观点与演示，批注另行署名。批注核对 2026-09-24 固定源码快照，不是博客发表时的实现；未运行 Raft、上游测试或多智能体实验。",

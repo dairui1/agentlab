@@ -2,8 +2,8 @@
   "id": "raft-multi-agent",
   "title": "让智能体待在同一个房间，就注定会混乱吗？",
   "product": "Raft",
-  "subtitle": "Raft 博客中文译文与源码批注",
-  "description": "完整中文翻译保留原文段落与格式，六则段间批注追踪收件箱、暂缓草稿及协作边界。",
+  "subtitle": "Raft 原文与源码对照研究",
+  "description": "完整中文原文与九则长篇研究左右对照，19 段固定源码、9 幅机制图追踪收件箱、发送检查、草稿恢复与任务认领。",
   "verifiedAt": "2026-09-26",
   "status": "active",
   "source": {
@@ -22,7 +22,7 @@
     "publishedAt": "2026-05-21",
     "url": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
     "role": "official-design-narrative",
-    "presentation": "complete-chinese-translation-with-separate-annotations",
+    "presentation": "complete-chinese-translation-with-paired-source-research",
     "translationPermission": "author-permission-reported-by-requester-chinese-translation-only",
     "translationSource": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/post.md",
     "translationSourceSha256": "c4fe3858b0b121f2e475701edae158bb9762f0e21ecaf12d915f556145cc5a19",
@@ -304,6 +304,221 @@
       "title": "协作收益与代价",
       "text": "静态源码没有给出重复劳动、延迟、token 成本与任务完成率的配对测量。",
       "needed": "相同模型、任务和消息时序下，对比开关 freshness；分别统计 hold、override、遗漏、重复提交和交付结果。"
+    }
+  ],
+  "research": {
+    "layout": "paired-columns",
+    "panels": [
+      {
+        "id": "01",
+        "anchor": "opening",
+        "title": "报数冲突背后，是一次没有重新核对现场的提交",
+        "focus": "“出问题的不是智能体，而是房间。”"
+      },
+      {
+        "id": "02",
+        "anchor": "why",
+        "title": "“已收到”“见过这一条”“读到这里”，不能共用一个已读位",
+        "focus": "“从推理到提交之间，房间已经发生变化。”"
+      },
+      {
+        "id": "03",
+        "anchor": "ax",
+        "title": "AX 落到代码里，是一份可恢复的动作协议",
+        "focus": "“看到了什么、保留哪些状态、如何恢复、允许决定什么。”"
+      },
+      {
+        "id": "04",
+        "anchor": "inbox",
+        "title": "收件箱不是缩小版群聊，而是三个不同的读取接口",
+        "focus": "“由智能体决定什么值得进入自己的上下文。”"
+      },
+      {
+        "id": "05",
+        "anchor": "draft",
+        "title": "一条发送请求，为什么需要本地和服务端各看一次",
+        "focus": "“每次发送都带着一个标记……服务端会把这个标记与当前状态作比较。”"
+      },
+      {
+        "id": "06",
+        "anchor": "draft-options",
+        "title": "草稿是一个恢复点，不是一次等待自动重试的网络请求",
+        "focus": "“修改、原样发送、保持沉默、仍然发送。”"
+      },
+      {
+        "id": "07",
+        "anchor": "draft-context",
+        "title": "最重要的取舍：只给模型看三条，却把整批消息记过了",
+        "focus": "“系统把变化呈现出来……由智能体决定如何处理。”"
+      },
+      {
+        "id": "08",
+        "anchor": "practice",
+        "title": "“没人指挥谁发言”之外，任务归属仍由确定性代码仲裁",
+        "focus": "“没有总调度者，也没有人告诉智能体该轮到谁。”"
+      },
+      {
+        "id": "09",
+        "anchor": "next",
+        "title": "从读懂实现，到相信协作效果，还缺三组实验",
+        "focus": "“它们解决不了所有问题。”"
+      }
+    ],
+    "diagramCount": 9,
+    "snippetCount": 19
+  },
+  "snippets": [
+    {
+      "id": "boundary",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "lineStart": 3772,
+      "lineEnd": 3780,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3772-L3780",
+      "text": "          const latestFreshnessSeq = Math.max(latestAnchor.seq, threadParentAnchor?.seq ?? 0);\n          const latestFreshnessMessageId = latestAnchor.seq > 0 && latestAnchor.seq >= (threadParentAnchor?.seq ?? 0)\n            ? latestAnchor.messageId\n            : (threadParentAnchor?.messageId ?? latestAnchor.messageId);\n          const fallbackBoundarySeq = threadParentAnchor?.seq ?? 0;\n          const attestedBoundarySeq = Math.min(\n            hasClientSeenBoundary ? clientSeenUpToSeq : fallbackBoundarySeq,\n            latestFreshnessSeq,\n          );"
+    },
+    {
+      "id": "decision",
+      "artifact": "packages/daemon/src/agentInboxStateMachine.ts",
+      "lineStart": 31,
+      "lineEnd": 44,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L31-L44",
+      "text": "export type AgentInboxFreshnessDecision = {\n  action: AgentInboxStateMachineAction;\n  decision: \"local_hold\" | \"syncing_hold\" | \"forward\" | \"bypass\";\n  freshnessContextMode?: \"inline\" | \"withheld\";\n  producerFactId?: string;\n  target?: string;\n  inboxTrustState: \"trusted\" | \"untrusted\";\n  reason: string;\n  pendingCount?: number;\n  pendingMaxSeq?: number;\n  modelSeenSeq?: number;\n  heldMessageCount?: number;\n  omittedMessageCount?: number;\n};"
+    },
+    {
+      "id": "projection",
+      "artifact": "packages/daemon/src/agentCredentialProxy.ts",
+      "lineStart": 1158,
+      "lineEnd": 1165,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1158-L1165",
+      "text": "  const pending = coordinator?.getAllPendingMessages?.() ?? [];\n  const rows = projectAgentInboxSnapshot(pending);\n  const appItems = registration.appInbox?.list() ?? [];\n  const acknowledgedAppSources = registration.appInbox?.listAcknowledgedSources() ?? [];\n  const items = [\n    ...rows.map((row) => ({ source: \"message_target\" as const, row })),\n    ...appItems,\n  ];"
+    },
+    {
+      "id": "drain",
+      "artifact": "packages/cli/src/commands/message/check.ts",
+      "lineStart": 23,
+      "lineEnd": 28,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/check.ts#L23-L28",
+      "text": "    const agentContext = ctx.loadAgentContext();\n    const result = await drainInbox(\n      agentContext,\n      { block: false },\n      ctx.createApiClient(agentContext),\n    );"
+    },
+    {
+      "id": "history",
+      "artifact": "packages/cli/src/commands/message/read.ts",
+      "lineStart": 148,
+      "lineEnd": 155,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/read.ts#L148-L155",
+      "text": "    if (readOpts.around === undefined) {\n      const rows = res.data.messages ?? [];\n      let maxSeq = 0;\n      for (const row of rows) {\n        if (typeof row.seq === \"number\" && Number.isFinite(row.seq) && row.seq > maxSeq) maxSeq = row.seq;\n      }\n      recordConsumedRead(agentContext.agentId, readOpts.channel, maxSeq > 0 ? maxSeq : undefined);\n    }"
+    },
+    {
+      "id": "plan",
+      "artifact": "packages/daemon/src/agentCredentialProxy.ts",
+      "lineStart": 1522,
+      "lineEnd": 1544,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1522-L1544",
+      "text": "  const plan = planAgentInboxSideEffect({\n    agentId: registration.agentId,\n    action,\n    target,\n    continueAnyway,\n    freshnessContextMode,\n    existingSeenUpToSeq: existingBoundary,\n    modelSeenSeq: coordinator.getBoundary(target),\n    pendingMessages: pending,\n    recentMessages: recent,\n    isMessageModelSeen: (messageInput) => coordinator.isMessageModelSeen?.(messageInput) === true,\n    heldContextLimit: LOCAL_HELD_CONTEXT_LIMIT,\n  });\n  await applyAgentInboxStateMachineEffects(coordinator, plan.effects);\n  if (typeof plan.forwardSeenUpToSeq === \"number\") {\n    if (action === \"send\") body.seenUpToSeq = plan.forwardSeenUpToSeq;\n  }\n  return {\n    bodyText: JSON.stringify(body),\n    target,\n    freshnessContextMode,\n    localResponse: plan.localResponse,\n  };"
+    },
+    {
+      "id": "classification",
+      "artifact": "packages/daemon/src/agentInboxStateMachine.ts",
+      "lineStart": 155,
+      "lineEnd": 171,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L155-L171",
+      "text": "    const alreadySeenPending: AgentInboxStateMachineMessage[] = [];\n    const unconsumedMessages: AgentInboxStateMachineMessage[] = [];\n    for (const message of pending) {\n      if (isMessageModelSeen(input, message)) {\n        alreadySeenPending.push(message);\n      } else {\n        unconsumedMessages.push(message);\n      }\n    }\n    appendTrace(trace, \"pending_context_classified\", {\n      pendingCount: pending.length,\n      unseenCount: unconsumedMessages.length,\n    });\n\n    if (unconsumedMessages.length === 0) {\n      const contiguousBoundary = maxKnownContiguousBoundary(input);\n      const canAdvanceBoundary = typeof contiguousBoundary === \"number\" && contiguousBoundary >= boundary.seenUpToSeq;"
+    },
+    {
+      "id": "hold",
+      "artifact": "packages/daemon/src/agentInboxStateMachine.ts",
+      "lineStart": 196,
+      "lineEnd": 206,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L196-L206",
+      "text": "    const heldBoundary = resolveFreshnessBoundary(unconsumedMessages);\n    if (heldBoundary.ok) {\n      const heldMessages = latestVisibleMessages(unconsumedMessages, heldContextLimit);\n      const omittedMessageCount = Math.max(0, unconsumedMessages.length - heldMessages.length);\n      const context: HeldContext = {\n        heldMessages,\n        newMessageCount: unconsumedMessages.length,\n        shownMessageCount: heldMessages.length,\n        omittedMessageCount,\n        seenUpToSeq: heldBoundary.seenUpToSeq,\n      };"
+    },
+    {
+      "id": "server-rule",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "lineStart": 3806,
+      "lineEnd": 3817,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3806-L3817",
+      "text": "          return {\n            latestFreshnessSeq,\n            latestFreshnessMessageId,\n            attestedBoundarySeq,\n            attestedBoundaryMessageId,\n            newMessageCount,\n            attestedTargetType,\n            boundarySource,\n            formalMentionFacts,\n            useAttentionFacts,\n            shouldHoldForFreshness: !isContinueAnyway && newMessageCount > 0,\n          };"
+    },
+    {
+      "id": "gate",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "lineStart": 3677,
+      "lineEnd": 3680,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3677-L3680",
+      "text": "    const sendFreshnessEnabled = isSendFreshnessEnabled(agent.serverId, actingAgentId);\n    const sendFreshnessMode = (process.env.SLOCK_ATTESTED_SEND_MODE ?? \"on\").trim().toLowerCase();\n    const shouldRunSendFreshness = sendFreshnessEnabled &&\n      (requestedSendFreshness || sendFreshnessMode === \"force\");"
+    },
+    {
+      "id": "draft-type",
+      "artifact": "packages/cli/src/commands/message/_continueDraftState.ts",
+      "lineStart": 4,
+      "lineEnd": 11,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/_continueDraftState.ts#L4-L11",
+      "text": "export interface SavedDraft {\n  content: string;\n  attachmentIds: string[];\n  mentions?: AgentApiStructuredMention[];\n  savedAt: number;\n  reholdCount: number;\n  seenUpToSeq?: number;\n}"
+    },
+    {
+      "id": "draft-ttl",
+      "artifact": "packages/cli/src/commands/message/_continueDraftState.ts",
+      "lineStart": 59,
+      "lineEnd": 64,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/_continueDraftState.ts#L59-L64",
+      "text": "  const reholdCount = Number.isFinite(draft.reholdCount) ? draft.reholdCount : 0;\n  const seenUpToSeq = Number.isFinite(draft.seenUpToSeq) ? draft.seenUpToSeq : undefined;\n  if (Date.now() - savedAt > DEFAULT_LOCAL_DRAFT_TTL_MS) {\n    clearSavedDraft(agentId, target);\n    return null;\n  }"
+    },
+    {
+      "id": "draft-save",
+      "artifact": "packages/cli/src/commands/message/send.ts",
+      "lineStart": 655,
+      "lineEnd": 665,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/send.ts#L655-L665",
+      "text": "    if (!contextWasWithheld && typeof data.seenUpToSeq === \"number\" && Number.isFinite(data.seenUpToSeq)) {\n      recordConsumedSeqs(agentContext.agentId, { [target]: data.seenUpToSeq });\n    }\n    setSavedDraft(agentContext.agentId, target, {\n      content: outgoingContent,\n      attachmentIds: outgoingAttachmentIds,\n      mentions: outgoingMentions,\n      savedAt: currentTimeMs(),\n      reholdCount: previousDraftReholdCount + 1,\n      seenUpToSeq: contextWasWithheld ? seenUpToSeq : data.seenUpToSeq,\n    });"
+    },
+    {
+      "id": "draft-error",
+      "artifact": "packages/cli/src/commands/message/send.ts",
+      "lineStart": 670,
+      "lineEnd": 685,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/send.ts#L670-L685",
+      "text": "    throw cliError(\n      \"SEND_HELD_AS_DRAFT\",\n      \"Message held as draft; no target delivery occurred.\",\n      {\n        draftSaved: true,\n        effect: \"draft_saved\",\n        // The held text above already states the effect and lists both recovery\n        // commands verbatim, so the labelled restatements are dropped from TEXT\n        // only. Every field is kept, so JSON is unchanged (task #264).\n        textDetailMode: \"omit_restated_lines\",\n        retryable: false,\n        outputMode: opts.json ? \"json\" : \"text\",\n        details: { held: heldDetails as unknown as Record<string, unknown> },\n        suggestedNextAction: \"Review the held context, then update the draft or send the current draft unchanged.\",\n      },\n    );"
+    },
+    {
+      "id": "override",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "lineStart": 3993,
+      "lineEnd": 3995,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3993-L3995",
+      "text": "          ...(!withholdFreshnessContext\n            ? { continueAnywaySuggested: reholdCount >= 3 }\n            : {}),"
+    },
+    {
+      "id": "readthrough",
+      "artifact": "packages/server/src/routes/internalAgentApi.ts",
+      "lineStart": 3902,
+      "lineEnd": 3906,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3902-L3906",
+      "text": "          const readState = await channelService.markRead(\n            { kind: \"agent\", id: actingAgentId },\n            resolved.channelId,\n            latestSeq,\n          );"
+    },
+    {
+      "id": "bounded-test",
+      "artifact": "packages/server/src/routes/internal.attestedSend.api.test.ts",
+      "lineStart": 1085,
+      "lineEnd": 1096,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internal.attestedSend.api.test.ts#L1085-L1096",
+      "text": "  assert.equal(held.status, 200);\n  assert.equal(held.body.state, \"held\");\n  assert.equal(held.body.newMessageCount, 5);\n  assert.equal(held.body.shownMessageCount, 3);\n  assert.equal(held.body.omittedMessageCount, 2);\n  assert.deepEqual(\n    held.body.heldMessages.map((message: { content: string }) => message.content),\n    [\"unread-3\", \"unread-4\", \"unread-5\"],\n  );\n  assert.deepEqual(acknowledged, [\n    { agentId: fixture.agentId, channelId: fixture.channelId, maxSeq: unreadMessages[4]!.seq },\n  ]);"
+    },
+    {
+      "id": "claim-predicate",
+      "artifact": "packages/server/src/services/taskService.ts",
+      "lineStart": 2425,
+      "lineEnd": 2427,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2425-L2427",
+      "text": "function canonicalRevisionCas(row: TaskRow) {\n  return and(eq(tasks.id, row.id), eq(tasks.revision, row.revision));\n}"
+    },
+    {
+      "id": "claim-update",
+      "artifact": "packages/server/src/services/taskService.ts",
+      "lineStart": 2478,
+      "lineEnd": 2497,
+      "sourceUrl": "https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2478-L2497",
+      "text": "  const [updated] = await executor\n    .update(tasks)\n    .set({\n      status: nextStatus,\n      claimedByType,\n      claimedById,\n      // Monotonic ownership epoch, same rule as the message path: a resumed\n      // task must advance `claimedAt` even when the wall clock repeats a\n      // millisecond, or the CAS below cannot tell two claims apart.\n      claimedAt: nextClaimedAt(observed.claimedAt),\n      revision: observed.revision + 1,\n      updatedAt: new Date(),\n    })\n    .where(and(\n      canonicalRevisionCas(observed),\n      canonicalClaimCasPredicate(claimedByType, claimedById),\n    ))\n    .returning();\n\n  if (!updated) return await canonicalClaimRaceReason(executor, observed.id, claimedByType, claimedById);"
     }
   ]
 }
