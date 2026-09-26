@@ -1,9 +1,9 @@
 {
   "id": "raft-multi-agent",
-  "title": "Raft 多智能体：从一篇博客读到三层实现",
+  "title": "让智能体待在同一个房间，就注定会混乱吗？",
   "product": "Raft",
-  "subtitle": "Inbox、Held Draft 与发送前的上下文检查",
-  "description": "以 Raft 的 AX 博客为起点，追踪消息摘要、读取边界、本地预检、服务端检查与 CLI 草稿，讨论协作机制能保证什么。",
+  "subtitle": "Raft 博客中文译文与源码批注",
+  "description": "完整中文翻译保留原文段落与格式，六则段间批注追踪收件箱、暂缓草稿及协作边界。",
   "verifiedAt": "2026-09-26",
   "status": "active",
   "source": {
@@ -17,14 +17,18 @@
     "runtimeExperiment": "not-run"
   },
   "blog": {
-    "title": "Is Having Agents in the Room Meant to Be Chaotic?",
+    "title": "让智能体待在同一个房间，就注定会混乱吗？",
     "author": "Tenny",
     "publishedAt": "2026-05-21",
     "url": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
     "role": "official-design-narrative",
+    "presentation": "complete-chinese-translation-with-separate-annotations",
+    "translationPermission": "author-permission-reported-by-requester-chinese-translation-only",
+    "translationSource": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/post.md",
+    "translationSourceSha256": "c4fe3858b0b121f2e475701edae158bb9762f0e21ecaf12d915f556145cc5a19",
     "relationship": "later-source-snapshot-not-contemporaneous-implementation"
   },
-  "boundary": "本文核对的是 2026-09-24 固定官方 source-available 快照，不是博客发表时的实现；未运行 Raft、未执行上游测试或多 Agent 实验。演示仅为人工设定的控制流推演。",
+  "boundary": "译文保留作者观点与演示，批注另行署名。批注核对 2026-09-24 固定源码快照，不是博客发表时的实现；未运行 Raft、上游测试或多智能体实验。",
   "evidence": [
     {
       "id": "RM-01",

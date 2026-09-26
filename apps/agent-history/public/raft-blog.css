@@ -31,7 +31,7 @@
 .blog-heading { padding:28px 0 32px; border-bottom:2px solid var(--ink); margin-bottom:30px; }
 .blog-kicker { display:flex; gap:8px; align-items:center; font:700 11px/1.4 monospace; margin-bottom:22px; }
 .blog-kicker span { background:var(--yellow); border:1px solid var(--ink); padding:3px 7px; box-shadow:2px 2px 0 var(--ink); }
-.blog-heading h1 { font-size:48px; line-height:1.2; margin:0 0 14px; color:var(--ink); font-weight:800; }
+.blog-heading h1 { font-size:40px; line-height:1.4; margin:0 0 24px; color:var(--ink); font-weight:800; text-wrap:balance; }
 .blog-main .blog-subtitle { font-size:25px; line-height:1.5; margin:0 0 28px; font-weight:600; }
 .blog-byline { display:flex; flex-wrap:wrap; gap:8px 18px; color:var(--muted); font-size:12px; line-height:1.8; }
 .blog-main p,.blog-main li { font-size:16px; line-height:1.95; }
@@ -52,6 +52,19 @@
 .blog-note strong { display:block; font-size:15px; }
 .blog-main figure { margin:32px 0; }
 .blog-main figcaption { font-size:12px; line-height:1.8; color:var(--muted); margin-top:12px; }
+.blog-main figure img { display:block; width:100%; height:auto; border:1px solid #e5e5e5; }
+.blog-main .translation-credit p { font-size:13px; line-height:1.85; color:var(--muted); margin:10px 0; }
+.annotation-toggle { display:flex; align-items:center; gap:8px; width:fit-content; min-height:44px; font-size:13px; cursor:pointer; margin:16px 0; }
+.annotation-toggle input { width:16px; height:16px; accent-color:var(--green); margin:0; }
+.research-note { margin:32px 0; padding:2px 0 2px 22px; border-left:3px solid var(--green); }
+.blog-main .research-note h3 { font-size:17px; line-height:1.7; margin:4px 0 12px; }
+.research-note h3 span { display:block; color:var(--green); font-size:12px; font-weight:600; margin-bottom:7px; }
+.blog-main .research-note p,.blog-main .research-note li { font-size:15px; line-height:1.95; color:#424a46; }
+.blog-main .research-note p { margin:12px 0; }
+.research-note details { margin:16px 0 8px; }
+.research-note summary { font-size:13px; color:var(--green); cursor:pointer; }
+.blog-main hr { border:0; border-top:1px solid #d6d6d6; margin:40px 0; }
+.blog-byline + .blog-byline { margin-top:8px; }
 .sequence { border:2px solid var(--ink); background:#fff; box-shadow:5px 5px 0 var(--ink); }
 .sequence-bar { display:flex; justify-content:space-between; align-items:center; min-height:48px; padding:8px 16px; border-bottom:1px solid var(--ink); background:#f9d85e; gap:12px; font:700 12px/1.4 monospace; }
 .sequence-controls { display:flex; align-items:center; gap:12px; }

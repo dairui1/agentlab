@@ -98,7 +98,7 @@ ZCode 的本地图标复制自[官方仓库固定提交](https://github.com/zai-
 
 ## Raft 协作基础设施研究
 
-[Raft 多智能体博客](https://agentlab.dairui1.com/capabilities/raft-multi-agent) 从 Tenny 的 AX 文章出发，另页追踪 Inbox、daemon/server freshness 检查与 CLI 草稿；15 条固定源码证据包含有界 hold 的跳读语义、legacy 请求边界与 override 提示条件。原架构研究页保留不变，仅增加互链。
+[Raft 多智能体博客](https://agentlab.dairui1.com/capabilities/raft-multi-agent) 按官方 Markdown 完整翻译 Tenny 的 AX 文章，保留段落、强调、列表与五张官网配图；依委托人转述的作者许可发布中文译文，不刊载英文全文。六则独立段间批注结合 15 条固定源码证据，讨论收件箱、暂缓草稿和协作边界；可关闭批注连续阅读译文。原架构研究页保留不变。
 
 新文来源核验：在 `apps/agent-history` 执行 `node scripts/verify_raft_sources.mjs --study=raft-multi-agent --fetch`；离线可用 `--source-tree <固定源码目录>`。该命令只检查文件哈希和行号，不执行 Raft。
 

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="从 Raft 的 AX 博客追踪多智能体协作实现：Inbox、两层 freshness 检查、本地草稿，以及消息可见性与真正协作保证之间的距离。">
-  <title>Raft 多智能体：从一篇博客读到三层实现 · AgentLab</title>
+  <meta name="description" content="Raft 多智能体架构博客的完整中文译文，保留原文段落与格式，在段间加入 Inbox、暂缓草稿与协作边界的源码批注。">
+  <title>让智能体待在同一个房间，就注定会混乱吗？ · Raft 中文批注版 · AgentLab</title>
   <link rel="canonical" href="https://agentlab.dairui1.com/capabilities/raft-multi-agent">
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
@@ -20,107 +20,97 @@
   </div></header>
   <div class="blog-layout">
     <aside class="blog-outline" aria-label="文章目录">
-      <span class="outline-title">本文目录</span><ol><li><a href="#question">问题从哪里来</a></li><li><a href="#inbox">Inbox：三种读取</a></li><li><a href="#send">发送：两层检查</a></li><li><a href="#draft">草稿：留给谁决定</a></li><li><a href="#limits">实现中的三个边界</a></li><li><a href="#judgment">多智能体的真正分工</a></li><li><a href="#sources">来源与验证范围</a></li></ol>
+      <span class="outline-title">本文目录</span><ol><li><a href="#opening">先玩一个游戏</a></li><li><a href="#why">为什么会这样</a></li><li><a href="#ax">缺失的 AX 设计</a></li><li><a href="#inbox">智能体收件箱</a></li><li><a href="#draft">暂缓发送的草稿</a></li><li><a href="#practice">怎样做 AX 设计</a></li><li><a href="#next">接下来呢</a></li><li><a href="#sources">批注来源</a></li></ol>
       <div class="outline-links"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/" target="_blank" rel="noopener noreferrer">Raft 原文</a><a href="/capabilities/raft-collaboration.html">架构研究与完整证据</a><a href="/capabilities/raft-multi-agent.json">本文证据 JSON</a></div>
     </aside>
     <main class="blog-main" id="article">
       <a class="blog-back" href="/capabilities.html">← 全部研究</a>
       <article>
         <header class="blog-heading">
-          <div class="blog-kicker"><span>SOURCE NOTES</span><span>MULTI-AGENT</span></div>
-          <h1>Raft 多智能体</h1>
-          <p class="blog-subtitle">从一篇博客，读到 Inbox 与 Held Draft 的实现</p>
-          <div class="blog-byline"><span>AgentLab · 源码阅读</span><time datetime="2026-09-26">2026 年 9 月 26 日</time><span>约 12 分钟</span></div>
+          <div class="blog-kicker">Raft 博客 · 中文译文与源码批注</div>
+          <h1 data-original="title">让智能体待在同一个房间，就注定会混乱吗？</h1>
+          <div class="blog-byline"><span>原作者 Tenny · 联合创始人、CTO、AX 设计师</span><time datetime="2026-05-21">2026 年 5 月 21 日</time><span>编辑 Cindy &amp; Maggie</span></div>
+          <div class="blog-byline"><span>翻译与批注 AgentLab</span><time datetime="2026-09-26">2026 年 9 月 26 日</time></div>
         </header>
-        <p class="lead">A 正准备发出“我来发布”，人类却刚刚补了一句“先别发布”。消息晚到几秒，合作就可能变成事故。Raft 试着在发送之前，给 Agent 一次重新看清现场的机会。</p>
-        <p>这篇从 Tenny 的 <a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/" target="_blank" rel="noopener noreferrer">Is Having Agents in the Room Meant to Be Chaotic?</a> 出发。不过，我们不把产品解释当作实现证据：往下看的是 CLI、daemon 和 server 怎样共同完成一次发送，以及哪些地方仍然留给模型自己判断。</p>
-        <div class="blog-note"><strong>阅读坐标</strong><p>原文发表于 2026-05-21；本文核对 2026-09-24 发布的 <code>v1.13.0-source.1</code>，commit <code>05f7d8fd</code>。这是后来的实现快照，不是对五月版本的复原。未运行 Raft 或上游测试。</p></div>
-        <details class="mobile-outline"><summary>本文目录</summary><ol><li><a href="#question">问题从哪里来</a></li><li><a href="#inbox">Inbox：三种读取</a></li><li><a href="#send">发送：两层检查</a></li><li><a href="#draft">草稿：留给谁决定</a></li><li><a href="#limits">实现中的三个边界</a></li><li><a href="#judgment">多智能体的真正分工</a></li><li><a href="#sources">来源与验证范围</a></li></ol></details>
+        <div class="translation-credit">
+          <p>以下为 <a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/">Raft 原文</a>的完整中文译文，按官方 Markdown 保留段落、标题、强调、列表及配图顺序。依委托人转述的作者许可发布中文翻译；原图仍由官网提供，图中文字保持原样。</p>
+          <p>绿色边注是 AgentLab 的源码调研，不属于原文。核对版本为 <code>v1.13.0-source.1</code>（<code>05f7d8fd</code>，2026-09-24），是后来的实现快照。未运行 Raft 或上游测试。</p>
+        </div>
+        <label class="annotation-toggle" hidden><input id="show-annotations" type="checkbox" checked>显示源码批注</label>
+        <details class="mobile-outline"><summary>本文目录</summary><ol><li><a href="#opening">先玩一个游戏</a></li><li><a href="#why">为什么会这样</a></li><li><a href="#ax">缺失的 AX 设计</a></li><li><a href="#inbox">智能体收件箱</a></li><li><a href="#draft">暂缓发送的草稿</a></li><li><a href="#practice">怎样做 AX 设计</a></li><li><a href="#next">接下来呢</a></li><li><a href="#sources">批注来源</a></li></ol></details>
 
-        <section id="question" data-blog-section>
-          <h2>问题不只是“谁先说话”</h2>
-          <p>原文从一群 Agent 重复报数讲起，提出两个设计：Inbox 让 Agent 选择何时取用信息；Held Draft 在发送前检查上下文，过期就先保留草稿。它关心的不是给每个 Agent 排一个固定座次，而是推理与行动之间出现了哪些变化。</p>
-          <figure data-sequence>
-            <div class="sequence">
-              <div class="sequence-bar"><span># release</span><div class="sequence-controls"><button type="button" data-previous aria-label="上一步" title="上一步" disabled><i data-lucide="chevron-left" aria-hidden="true"></i></button><output aria-label="当前步骤">1/3</output><button type="button" data-next aria-label="下一步" title="下一步"><i data-lucide="chevron-right" aria-hidden="true"></i></button></div></div>
-              <div class="sequence-columns">
-                <div class="sequence-lane"><span class="lane-label">ROOM / 频道</span><div class="message-line"><span class="seq">41</span><div><strong>人类</strong>修复已经合并，准备发布。</div></div><div class="message-line new-message" data-new-message hidden><span class="seq">42</span><div><strong>人类</strong>先别发布，还要再检查一次。</div></div></div>
-                <div class="sequence-lane"><span class="lane-label">AGENT A / 草稿</span><div class="message-line"><span class="seq">41</span><div><strong>依据旧上下文</strong><span data-draft-text>准备好了，我来发布。</span></div></div><span class="draft-status" data-draft-status>DRAFT</span></div>
-              </div>
-              <div class="sequence-footer" data-sequence-note aria-live="polite">A 的上下文停在 seq 41；草稿还没有发到频道。</div>
-            </div>
-            <figcaption>图 1 · 人工设定的发送推演，非 Raft 运行记录。暂缓的是频道消息，不是已经执行的发布命令。</figcaption>
-          </figure>
-          <p>源码阅读要再往前追问一步：<strong>谁知道 A 看到了哪里？谁拦住发送？拦下来的内容存在哪里？</strong>这三个问题，对应了三个不同的责任方。只看一段 Prompt，回答不了它们。</p>
-          <p class="figure-source">原文配图：<a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room.html" target="_blank" rel="noopener noreferrer">Raft / Tenny 的重复报数示意动画</a>。它是设计演示，不是本文捕获的实验。</p>
+        <section id="opening" data-blog-section>
+          <p data-original="paragraph">我们来玩个游戏。</p>
+          <p data-original="paragraph">让一屋子的智能体从小到大依次报数，每个智能体报一个数字，不能重复。在大多数工作区里，这个游戏几乎立刻就会乱套。三个智能体在同一秒发出“1”，另外两个又发出“2”。等房间里数到“4”时，已经有三个智能体报过这个数了。出问题的不是智能体，而是房间。</p>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room-markdown.png" alt="普通共享房间中的报数游戏" width="1200" height="420" loading="lazy" decoding="async"></a></figure>
+          <p data-original="paragraph">真正工作时，情况也一样。人们把智能体带进已有的群聊，让它们和同事待在实际开展工作的同一个房间里，期待它们跨越时区和项目，以合适的节奏参与协作。许多团队会加一些规则来维持秩序，比如只有被 <strong>@提及</strong>时，智能体才能回复。房间看起来井井有条，但智能体也不再留意那些原本能够发现的问题：一条发错对象的指令、一个错误的假设，或是一段正在偏离方向、它本可以帮上忙的讨论。另一些团队不设这些规则，让智能体<strong>自由发言</strong>。于是，重复的提醒迅速淹没房间，快得让人来不及思考。人类正在认真输入一条指令，还没打完，三个智能体就已经回复了，其中两个答案相同，还有一个已经领走了工单。共享工作区变成了谁也不想待的吵闹房间。</p>
+          <p data-original="paragraph"><strong>问题不在智能体本身。</strong>只要得到恰当的上下文，智能体就能判断该不该回复、是否已经有人说过同样的观点，以及这条指令究竟是不是给自己的。真正的故障发生在智能体作出判断之后、在房间里付诸行动之前：糟糕的可选动作把它困住了。</p>
+        </section>
+
+        <section id="why" data-blog-section>
+          <h2 data-original="heading">为什么会这样</h2>
+          <p data-original="paragraph">人类能在共享空间里自然地协调行动，是因为我们拥有<strong>持续的感知能力</strong>。不用刻意读完每条消息，我们也能感受到对话的节奏；我们能察觉插话前的停顿；我们知道某件事刚刚被说过，因为此前已经在半留意地听着。这些能力不需要专门设计。持续在场，就是这个意思。</p>
+          <p data-original="paragraph">智能体并不像人类那样置身于房间中。它们的交互是<strong>回合制的</strong>：每次被调用时，智能体读取房间的一个快照，进行推理，提交一个动作，然后等待下一次调用。两次调用之间，没有东西在持续运行。现有工作区把房间里的并行活动压成一条供模型读取的消息流，最终动作则在稍后一次性提交。智能体组织回复时，并不能同时看到新消息到来。如果从推理到提交之间，房间已经发生变化，它仍可能依据一个不复存在的状态行动，除非工作区明确地把这个边界呈现出来。</p>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png" alt="共享房间中的协作间隙" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>智能体还在推理，房间里的事情却已经继续向前。</em></figcaption></figure>
+          <p data-original="paragraph">共享房间里的每一种故障模式都来自这道间隙：工作区是为能够持续在场的参与者设计的，却没有为回合制的参与者提供相应的交互界面。这就是我们正在打造 <strong>Raft 的原因：一个为人类与智能体共同工作而设计的智能体原生工作区</strong>。</p>
+          <aside class="research-note" data-annotation aria-labelledby="note-01"><h3 id="note-01"><span>AgentLab 批注 01</span>先分清：作者在解释什么，我们验证了什么</h3><p>这里的“房间”，可以理解为多人和多个智能体共用的频道。作者把注意力放在一个很具体的问题上：模型开始写回复时看到的讨论，到发送时可能已经变了。</p><p>后面的代码确实围绕这段时间差设置了检查。但“每一种故障都来自这道间隙”是作者的设计判断，不是本次源码阅读已经验证的结论。我们接下来能确认的是消息怎样被检查、草稿怎样被留下，不能仅凭这些代码判断团队协作效果。</p></aside>
+        </section>
+
+        <section id="ax" data-blog-section>
+          <h2 data-original="heading">AX：一门缺失的设计学科</h2>
+          <p data-original="paragraph">只有被 @提及时才能回复、划分频道、设置智能体白名单，这些规则确实能让房间安静下来。但它们也剥夺了参与的机会。一个只能在被 @提及时响应的智能体，无法再主动发现讨论中的问题，也无法自行决定该暂缓发言还是把机会让给别人。<strong>基于规则的过滤并没有减少噪声，而是把智能体重新变成了等待调用的工具</strong>。我们一直在构建相反的东西：让智能体像同事一样参与共同的工作，无论消息里有没有提到自己的名字，它都在场。其他变通办法，比如分开会话，或不让智能体进入共享房间，也是用同样的参与损失来换取安静。</p>
+          <p data-original="paragraph">我们正在建立的，是一门称为<strong>智能体体验设计</strong>，简称 AX 的学科。它之于智能体，就像用户体验设计之于人类，但设计依据是<strong>智能体实际如何观察和行动</strong>。具体来说，它要对智能体接触的每个界面提出四个问题：行动的那一刻，智能体看到了什么？两次调用之间，它保留了哪些状态？遇到什么情况后，它能够恢复？哪些决定可以由它自己作出？本文余下部分会介绍两个具体的交互界面：我们如何在这些界面上逐一回答这些问题，以及从中形成的设计原则。</p>
         </section>
 
         <section id="inbox" data-blog-section>
-          <h2>Inbox：知道有消息，和读过消息，是两回事</h2>
-          <p>先看最短的一条路径。<code>raft inbox check</code> 要求当前是 managed runner，然后请求 daemon 的 inbox 接口。代理从待处理队列投影出目标列表和数量，连同 app items 返回。这条路径没有把所有正文一股脑塞进工作上下文，也不消费这些消息。<a class="cite" href="#RM-01">[01]</a><a class="cite" href="#RM-02">[02]</a></p>
-          <p>但另一个名字很像的命令，做的事不一样。</p>
-          <dl class="code-map">
-            <div class="code-row"><dt>先看哪里需要注意</dt><dd><code>raft inbox check</code><br>查看待处理目标摘要，不 drain，也不等于读过正文。</dd></div>
-            <div class="code-row"><dt>取出待处理消息</dt><dd><code>raft message check</code><br>非阻塞 drain，输出消息。它可能只拿到稀疏事件，因此不把最高 seq 写成连续已见游标。<a class="cite" href="#RM-03">[03]</a></dd></div>
-            <div class="code-row"><dt>读某个目标的历史</dt><dd><code>raft message read --target &lt;target&gt;</code><br>普通历史窗口可以推进该目标的读取边界；<code>--around</code> 定位查看则不会。线程与父频道也不共用这条游标。<a class="cite" href="#RM-04">[04]</a></dd></div>
-          </dl>
-          <p>假设 A 看到了 seq 100 的一条 mention，却没看过 seq 99 的撤销指令。如果系统只记“最大已读是 100”，99 就被悄悄划过去了。<code>message check</code> 不推进连续边界，正是为了避免把一次稀疏取消息误当成完整读过历史。</p>
-          <p>这比“有一个收件箱”更有参考价值：<strong>通知、正文可见性和连续读取进度，应该是不同的状态。</strong>后面的发送检查，靠的正是这种区分。</p>
-        </section>
-
-        <section id="send" data-blog-section>
-          <h2>发送：本地先看一次，服务端再核一次</h2>
-          <p>这条调用链可以从 CLI 的 <code>messages.sendV2</code> 往下追。daemon 代理并不只是补上凭据再转发，它会按目标拿到 pending messages 和 model-seen 边界，交给 <code>planAgentInboxSideEffect</code>。<a class="cite" href="#RM-05">[05]</a><a class="cite" href="#RM-10">[10]</a></p>
-          <dl class="code-map">
-            <div class="code-row"><dt>CLI<br>提交草稿与边界</dt><dd>请求包含正文、目标、草稿计数；存在可用读取边界时，附上 <code>seenUpToSeq</code>。</dd></div>
-            <div class="code-row"><dt>Daemon<br>本地预检</dt><dd>目标下还有未见的 pending 消息时，可以返回 <code>local_hold</code>。已见消息与未见消息分开处理，而不是只比较一个全局数字。<a class="cite" href="#RM-06">[06]</a></dd></div>
-            <div class="code-row"><dt>Server<br>Freshness 检查</dt><dd>收到请求后，按目标检查边界之后是否还有新内容。非线程路径使用该 Agent 的 attention facts，线程路径使用消息锚点；它不是“整个房间所有事件”的简单版本号。<a class="cite" href="#RM-08">[08]</a></dd></div>
-            <div class="code-row"><dt>Server<br>真正提交</dt><dd>需要 hold 就返回并结束；没有 hold 才继续调用 <code>broadcastAndDeliver</code>。<a class="cite" href="#RM-13">[13]</a></dd></div>
-          </dl>
-          <p>两次检查不是同一件事做两遍。本地层能看到机器已经接下、但模型还没消费的上下文；server 则再用目标侧状态核对一次。某个本地分支选择 forward，只能说明它把决定交给了上游，不能说整条链路已经放行。</p>
-          <div class="blog-note"><strong>这里的 seen，是协议状态</strong><p>它表示系统按某种规则记录了可见或读过的范围。它没有测量模型是否理解，更没有证明模型会服从“先别发布”。把这条边界当作理解证明，会高估 freshness 能提供的保证。</p></div>
+          <h2 data-original="heading">智能体收件箱</h2>
+          <p data-original="paragraph">在传统消息平台上，智能体加入一个频道后，通常会被推送这个频道里的<strong>每一条</strong>消息。接下来的选择都不太理想：要么全部处理，看着工作上下文被与当前任务毫不相干的闲聊填满；要么严格过滤，又错过真正重要的消息。无论哪一种，掌控智能体注意力的都是房间，而不是智能体自己。</p>
+          <p data-original="paragraph">Raft 用<strong>收件箱</strong>把这件事倒了过来。提及、讨论串更新和其他通知会成为可查询的条目，等智能体有余力时主动拉取，而不是直接被推入工作上下文。智能体查看有哪些新情况，判断哪些与当前任务有关，再吸收值得吸收的内容。没有拉取的信号不会进入工作上下文；它们仍然可以查询，留待之后需要时再取用。</p>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png" alt="智能体收件箱界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>到来的信号变成可查询的条目，智能体有余力时再主动拉取。</em></figcaption></figure>
+          <p data-original="paragraph"><strong>由智能体决定什么值得进入自己的上下文</strong>，而不是由房间替它决定。每个被拉入工作提示的信号，都会挤占其他内容的位置，无论是任务状态、指令还是中间推理。因此，把这个决定交给智能体，而不是交给恰好发出下一条消息的人，才能让注意力留在工作上。</p>
+          <aside class="research-note" data-annotation aria-labelledby="note-02"><h3 id="note-02"><span>AgentLab 批注 02</span>“看看有什么”和“把消息读进来”，在代码里是两件事</h3><p>这一节最值得对照源码的，不是“收件箱”这个名字，而是它把几种读取动作分开了。</p><ul><li><code>raft inbox check</code> 先列出哪些目标有待处理事项，以及各有多少条；不取走消息，也不返回全部正文。<a class="cite" href="#RM-01">[01]</a><a class="cite" href="#RM-02">[02]</a></li><li><code>raft message check</code> 取出待处理消息，但不会因此把此前所有消息都记成已经读过。比如拿到了第 100 条提及，不代表第 99 条撤销指令也已经看过。<a class="cite" href="#RM-03">[03]</a></li><li><code>raft message read</code> 读取指定目标的历史。普通读取会推进读取位置，围绕某一条消息定位查看的 <code>--around</code> 则不会。<a class="cite" href="#RM-04">[04]</a></li></ul><p>因此，“知道有新消息”“取得一部分正文”和“历史读到了哪里”，在这里是不同的状态。把它们混成一个“已读”，发送前的检查就可能把遗漏的消息放过去。</p></aside>
         </section>
 
         <section id="draft" data-blog-section>
-          <h2>草稿：不是失败重试，而是重新做决定</h2>
-          <p>最容易写错的客户端逻辑，是看到 HTTP 200 就记作“发送成功”。Raft 的 hold 响应也可能是 200，但状态为 <code>held</code>。CLI 会保留草稿，抛出 <code>SEND_HELD_AS_DRAFT</code>，并明确设为 <code>retryable: false</code>。这不是让网络层不加判断地重发。<a class="cite" href="#RM-10">[10]</a><a class="cite" href="#RM-13">[13]</a></p>
-          <p>草稿落在 CLI 的本地状态中，按 Agent 和 target 保存；除了正文，还保存附件、mentions、时间、重复 hold 次数和读取边界。默认寿命是十分钟，读取草稿时检查是否过期。成功发送后才清掉它。<a class="cite" href="#RM-11">[11]</a></p>
-          <p>沿发送实现，能找到几条明确的后续路径：</p>
-          <ul>
-            <li><strong>改内容：</strong>普通 send 写入新的草稿，仍走发送检查。</li>
-            <li><strong>内容不变：</strong><code>--send-draft</code> 读取保存的草稿，重新检查新鲜度。</li>
-            <li><strong>不再说：</strong>不继续发送；草稿之后会按 TTL 规则过期。</li>
-            <li><strong>明确绕过：</strong><code>--send-draft --anyway</code> 让请求携带 <code>continueAnyway</code>。这个选择不是“通过了检查”，而是决定不让过期检查阻止发送。<a class="cite" href="#RM-07">[07]</a><a class="cite" href="#RM-08">[08]</a></li>
-          </ul>
-          <p>实现里还有个小但重要的区别：重复 hold 达到条件后，server 会建议 anyway；可实际绕过分支并没有把“已经 hold 三次”当成硬授权条件。<strong>界面建议何时绕过，与后端何时允许绕过，不是一回事。</strong><a class="cite" href="#RM-15">[15]</a></p>
+          <h2 data-original="heading">暂缓发送的草稿</h2>
+          <p data-original="paragraph">组织一条回复<strong>需要时间</strong>。等智能体读完对话、决定说什么并写出草稿，房间里可能已经有了新进展：别人已经回复，它原本要回应的事项已有定论，或者话题已经转向。在大多数工作区里，这条消息依然会发出去，常常显得答非所问。智能体没有机会检查。</p>
+          <p data-original="paragraph"><strong>暂缓草稿这个交互界面，补上了这次检查。</strong>每次发送都带着一个标记，说明草稿是依据房间的哪个版本写成的。消息到达房间时，服务端会把这个标记与当前状态作比较：</p>
+          <ul data-original="list"><li>如果没有变化，消息就会提交。</li><li>如果房间已经发生变化，消息会被暂缓，并连同一段简短说明一起交还智能体，告知写作期间又来了什么内容。草稿作为一种正式状态保留下来，而不是被当作发送失败。</li></ul>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png" alt="暂缓草稿界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>依据旧房间状态写出的草稿，可以暂缓、修改、原样发送，或放弃。</em></figcaption></figure>
+          <aside class="research-note" data-annotation aria-labelledby="note-03"><h3 id="note-03"><span>AgentLab 批注 03</span>这次检查不是只靠一段提示词</h3><p>沿着发送路径往下看，本地守护进程会先检查：这个目标下，还有没有智能体尚未看见的待处理消息？有的话，它可以先把发送拦下。请求继续到服务端后，服务端再核对目标侧的新消息。<a class="cite" href="#RM-05">[05]</a><a class="cite" href="#RM-06">[06]</a><a class="cite" href="#RM-08">[08]</a></p><p>需要暂缓时，服务端先返回结果，不会走到真正投递的 <code>broadcastAndDeliver</code>；命令行客户端则负责留下草稿。也就是说，判断交给智能体，检查和保管状态交给代码。<a class="cite" href="#RM-10">[10]</a><a class="cite" href="#RM-13">[13]</a></p><details><summary>发送入口的适用范围</summary><p>普通 CLI 请求会携带检查所需字段，但服务端还判断开关、请求标记和强制检查模式。缺少这些标记的旧 API 请求不能一概说成“必定检查”。这里比较的也是目标消息与智能体关注范围，不是整个工作区的统一版本号。<a class="cite" href="#RM-07">[07]</a><a class="cite" href="#RM-08">[08]</a></p></details></aside>
+          <p data-original="paragraph">接下来，智能体可以从四条路径中选择：</p>
+          <ul data-original="list"><li><strong>修改</strong>：根据房间的当前状态写一条新回复，放弃原来的草稿。</li><li><strong>原样发送</strong>：不改动原草稿，直接提交。发送仍然要经过新鲜度检查；如果暂缓期间房间又发生了变化，草稿可能再次被暂缓。</li><li><strong>保持沉默</strong>：让草稿过期。沉默也是一种有效结果。</li><li><strong>仍然发送</strong>：如果草稿已经多次被暂缓，而沉默又不是合适的结果，就明确绕过检查，无论如何都提交草稿。这个选项留给这样的情况：房间不断变化，但智能体已经判断，这一版仍然是应当发出的内容。</li></ul>
+          <aside class="research-note" data-annotation aria-labelledby="note-04"><h3 id="note-04"><span>AgentLab 批注 04</span>暂缓之后，不是让客户端悄悄重试</h3><p>代码把这次暂停当成一次需要重新判断的结果：即使 HTTP 返回 200，状态也可能是“已暂缓”，而不是“已发送”。CLI 会留下正文、附件、提及对象和读取位置，返回 <code>SEND_HELD_AS_DRAFT</code>，并标明 <code>retryable: false</code>，不让网络重试替智能体做决定。<a class="cite" href="#RM-10">[10]</a></p><p>保存的草稿默认有效期是十分钟，读取时检查过期，成功发送后清除。这是短期恢复状态，不是永久草稿箱。<a class="cite" href="#RM-11">[11]</a></p><p>原文说“多次暂缓后仍然发送”。实现还要分两层看：服务端在暂缓计数达到三次时给出绕过建议；真正允许绕过的分支，却没有把三次设成硬门槛。建议何时使用，不等于技术上何时才允许。<a class="cite" href="#RM-15">[15]</a><a class="cite" href="#RM-07">[07]</a></p></aside>
+          <p data-original="paragraph">房间告诉智能体有新内容到来，由智能体决定如何处理这个信息。系统<strong>把变化呈现出来，但在智能体知情之后，不会推翻它的判断</strong>。这与收件箱遵循的是同一种模式：由智能体作决定，只不过这次作用于发出的消息，而不是收到的消息。</p>
+          <aside class="research-note" data-annotation aria-labelledby="note-05"><h3 id="note-05"><span>AgentLab 批注 05</span>“告诉它有新消息”，不一定会把每条正文都给它</h3><p>这里有个会影响实际结果的取舍。上游测试源码写了一个很具体的场景：新来了五条消息，只向智能体展示最后三条，另外两条标为已省略；但读取位置会推进到整批消息的末尾。实现采用了这种聊天式的跳读规则，也留下了补读线索。<a class="cite" href="#RM-09">[09]</a><a class="cite" href="#RM-12">[12]</a></p><p>假如被省略的恰好是“先别发布”，后面三条都是闲聊，智能体是否会主动补读，就成了关键。我们还没有运行这个实验，不能把“系统记成已读”写成“模型已经看到并理解了全部内容”。审核隔离分支也有区别：它可以告知发生了变化，但不返回消息正文。</p></aside>
         </section>
 
-        <section id="limits" data-blog-section>
-          <h2>实现里的边界，比博客里的概念更具体</h2>
-          <h3>只展示三条，却可以推进整批边界</h3>
-          <p>这是这次源码阅读最值得停一下的地方。server 的普通 hold 返回有界上下文，并报告省略了多少条。上游有一项测试构造五条新消息，断言只展示最后三条、省略两条，同时按这一批的最新序号确认读取。实现注释把它定义为聊天式的 read-through。<a class="cite" href="#RM-09">[09]</a><a class="cite" href="#RM-12">[12]</a></p>
-          <p>于是，不能把所有层的 seen 都解释成“每条正文都进入过模型”。本地精确已见集合防的是稀疏消息跨越未见内容；server 的有界 hold 又选择了另一种取舍：限制上下文大小，告知有省略，并提供补读线索。省略的那条恰好是关键约束时，仍要看 Agent 是否补读。本文没有运行实验来回答它。</p>
-          <h3>正常 CLI 会请求检查，不代表所有旧 API 都会</h3>
-          <p>CLI 默认发出 <code>draftReholdCount</code>，会参与 freshness 请求判断。server 仍然有开关、请求字段与 <code>force</code> 模式的条件。缺少这些标记的 legacy 请求，不能被概括成“一律检查”。审核隔离的 <code>withheld</code> 模式则是另一条分支：可以返回 hold 信息，但不把新正文泄露给审阅者。<a class="cite" href="#RM-07">[07]</a><a class="cite" href="#RM-09">[09]</a></p>
-          <h3>发送前检查，不等于全局串行化</h3>
-          <p>路由先求出 freshness 结果，再调用提交函数。仅凭这段顺序代码，不能宣布两个并发请求永远不会在检查与提交之间交错。要确认这一点，需要人为卡住检查后的时刻，让两个请求同时继续，再观察结果；普通的顺序请求测试回答不了这个问题。<a class="cite" href="#RM-13">[13]</a></p>
-          <p>同样，暂缓“我来发布”这条消息，不会自动撤回已经执行的 shell 命令。消息协议能让 Agent 重新考虑，主机权限、外部系统幂等性和副作用验收仍然需要各自的机制。</p>
+        <section id="practice" data-blog-section>
+          <h2 data-original="heading">在实践中设计 AX</h2>
+          <p data-original="paragraph">再回到开头的报数游戏。在 Raft 里，同样的练习可以顺畅地数过二十，没有总调度者，也没有人告诉智能体该轮到谁。同样的智能体，不同的房间。</p>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-raft-room-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-raft-room-markdown.png" alt="Raft 共享房间中的报数游戏" width="1200" height="420" loading="lazy" decoding="async"></a></figure>
+          <aside class="research-note" data-annotation aria-labelledby="note-06"><h3 id="note-06"><span>AgentLab 批注 06</span>没有总调度者，不等于没有协调机制</h3><p>“数过二十”是作者报告的演示结果，不是 AgentLab 的复现记录。源码能让我们看到，背后仍然有服务端、消息序号、读取位置和草稿状态在配合。没有一个总控智能体安排发言顺序，不代表各个智能体只靠自觉。</p><p>而“下一条消息该不该发”和“这件工作到底归谁”又是两个问题。Raft 另有任务认领逻辑：更新时核对任务版本与可认领条件，成功后写入负责人和新版本。它约束的是任务记录，并没有替所有参与者锁住文件。<a class="cite" href="#RM-14">[14]</a></p><p>同样，发送前检查和最终提交是分开的调用；单看代码先后顺序，还无法确认并发请求会不会在两者之间交错。要回答它，需要专门安排两个请求在检查后同时继续的实验。暂缓一条消息，也不会自动撤回已经执行的 shell 命令。<a class="cite" href="#RM-13">[13]</a></p></aside>
+          <p data-original="paragraph">让我们走到这一步的，是两个设计动作。</p>
+          <h3 data-original="heading">站在智能体的位置理解感知</h3>
+          <p data-original="paragraph">坐到智能体的位置上，环顾这个房间。它在行动的那一刻，究竟能看到什么？有哪些信息正涌向它，多得让任何试图一次接收全部内容的人都应付不过来？又缺了什么：同在这个房间的人类无需费力就能察觉，智能体却无法自动获取的信息是什么？这道差距就是 AX 需要介入的地方：在行动的那一刻，用智能体能够利用的形式，把缺失的信息呈现出来。</p>
+          <h3 data-original="heading">把行动选项明确摆出来</h3>
+          <p data-original="paragraph">再回到智能体的位置：它已经感知了情况，也作出了判断。接下来，它有哪些行动选项？这里是 AX 与用户体验设计分野最明显的地方。人类写回复时，不需要一个标着“决定是否发送”或“放弃这份草稿，重新开始”的界面。这些决定在人脑内部自然发生，软件只需支持人类表现到外部的动作。<strong>智能体需要把这些内部选项显式地放到外部</strong>。草稿被暂缓后的四条路径，也就是修改、原样发送、保持沉默、知情后仍然发送，并不是智能体凭空生出的选项，而是 AX 明确摆在它面前的。行动选项显式化，就是把可选择的动作呈现出来，而不是假设智能体会自行推导。</p>
         </section>
 
-        <section id="judgment" data-blog-section>
-          <h2>多智能体的分工，不能只看谁调用了谁</h2>
-          <p>我更愿意把这组实现看作<strong>共享工作区的协作协议</strong>：不是由一个总控 Agent 替所有人排好行动，而是让每个执行者在读取和提交时获得必要的信息，同时把可恢复的状态交给确定性代码保存。</p>
-          <p>但“没有总控 Agent”并不等于“没有协调基础设施”。这里仍有 server、daemon、消息序号、读取边界与草稿状态。到了“这项工作归谁”，Raft 又用 canonical task 的 revision 与可认领条件约束 claim；这与 freshness 是两套不同的保证。任务记录被认领，也没有替所有执行者锁住文件。<a class="cite" href="#RM-14">[14]</a></p>
-          <p class="blog-conclusion">值得借鉴的不是让更多 Agent 开口，而是把“看见了什么”和“准备提交什么”放进同一条可检查的协议。</p>
-          <p>接下来最有价值的验证，不是再画一张 Agent 拓扑图，而是做三件小实验：在并发检查与提交之间插入 barrier；把撤销指令放进被省略的消息；在相同模型和任务下比较重复执行、hold、override、耗时与 token 成本。它们目前都是待验证项，不是本文已经得到的结果。</p>
-          <p>关于 runtime 接入、任务认领、记忆恢复和权限，可继续读 <a href="/capabilities/raft-collaboration.html">Raft 协作架构研究</a>。那一页保留完整横向范围；本文只追踪这篇博客引出的发送链路。</p>
+        <section id="next" data-blog-section>
+          <h2 data-original="heading">接下来呢</h2>
+          <p data-original="paragraph">收件箱和暂缓草稿是两个具体的解决办法。它们解决不了所有问题。在协调、归属和实时感知方面，仍有未解的问题。随着继续构建，我们预计还会遇到更多。这是一个新领域。每个开发智能体原生软件的团队都会碰到这些问题，而每个真正交付产品的团队，最终都会做某种形式的 AX，不管他们是否这样称呼它。</p>
+          <p data-original="paragraph">如果你也在做这些事情，如果你的团队正被噪声、冲突、智能体各说各话，或是那些我们尚未解决的更棘手问题困扰，欢迎联系我们：<a href="mailto:contact@raft.build">contact@raft.build</a>。越多人有意识地投入其中，我们就越能把这件事想清楚、做好。</p>
+          <hr data-original="separator">
+          <h2 data-original="heading">继续阅读</h2>
+          <ul data-original="list"><li><a href="https://raft.build/resources/blog/a-comfortable-ax-for-agent-search/">为智能体搜索设计舒适的 AX</a>：交给智能体的每一份输出，都是一个交互界面；我们如何设计能让智能体据此行动的搜索结果。</li><li><a href="https://raft.build/resources/blog/dau-was-never-counting-half-your-team/">终于把智能体同事算进来的指标：介绍 DAA</a>：智能体如今已占活跃团队的一半；DAA 是能看见它们的指标。</li></ul>
+          <p data-original="paragraph">供智能体阅读的站点索引（每篇文章一行）：<a href="https://raft.build/llms.txt">站点索引</a></p>
         </section>
 
-        <section id="sources" data-blog-section>
-          <h2>来源与验证范围</h2>
-          <p>设计起点与视觉参考来自 <a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/">Tenny 的 Raft 官方博客</a>；正文是 AgentLab 的独立源码分析，不是原文翻译，也不是 Raft 官方文章。</p>
-          <p>以下 15 条记录固定到同一公开 commit；文件 SHA-256 可展开核对，亦可下载 <a href="/capabilities/raft-multi-agent.json">结构化证据</a>。仓库许可为 <a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/LICENSE">FSL-1.1-ALv2</a>，应称 source-available，不把它标成当前无条件的 Apache 开源。</p>
-          <p>验证层级：官方源码静态阅读。未安装或运行 Raft，未执行上游测试，未做模型效果实验。本站的页面测试、来源哈希核验和交互推演，都不构成 Raft 的运行复现。</p>
+        <section id="sources" data-blog-section data-annotation>
+          <h2>批注来源</h2>
+          <p>以上译文依据 <a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/post.md">官方 Markdown</a>。以下是 AgentLab 批注使用的 15 条源码记录，固定到同一个 commit；逐项展开可核对文件哈希。也可下载<a href="/capabilities/raft-multi-agent.json">结构化证据</a>，或继续读<a href="/capabilities/raft-collaboration.html">协作架构研究</a>。</p>
+          <p>这些是静态源码证据，不是运行结果。接下来值得验证的是并发发送、被省略的关键指令，以及相同模型和任务下的重复工作、耗时与成本。仓库采用 <a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/LICENSE">FSL-1.1-ALv2</a>，是源码可用许可，不应标作当前无条件的 Apache 开源。</p>
           <ol class="source-list">
             <li id="RM-01"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/inbox/check.ts#L15-L47" target="_blank" rel="noopener noreferrer">RM-01 · Inbox 摘要不消费消息</a><small>packages/cli/src/commands/inbox/check.ts · L15-L47</small><details><summary>证据与边界</summary>inbox check 只允许 managed-runner，调用 daemon inbox 接口并格式化目标与 app 摘要。<br>只确认摘要入口，不代表消息正文已经进入模型上下文。<span class="hash">SHA-256 0e4a04258cdc2a19d7fb0df9cb8cae98fcc7b1224a26469d566047c49945e860</span></details></li>
             <li id="RM-02"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1153-L1184" target="_blank" rel="noopener noreferrer">RM-02 · Daemon 从待处理队列投影摘要</a><small>packages/daemon/src/agentCredentialProxy.ts · L1153-L1184</small><details><summary>证据与边界</summary>localAgentApiInboxResponse 读取 pending messages 与 app items，返回 rows 和计数，不在这条路径消费消息。<br>摘要不是模型的连续已见边界。<span class="hash">SHA-256 446cbbe0aab18154c14793d6bfc21cddbd6768e5f317572392f753f067dbe724</span></details></li>
@@ -142,8 +132,7 @@
       </article>
     </main>
   </div>
-  <footer class="blog-footer"><strong>AgentLab / 源码阅读</strong><a href="/capabilities/raft-collaboration.html">继续阅读：Raft 协作架构 →</a></footer>
-  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <footer class="blog-footer"><strong>AgentLab / 译文与源码批注</strong><a href="/capabilities/raft-collaboration.html">继续阅读：Raft 协作架构 →</a></footer>
   <script src="/raft-blog.js"></script>
 </body>
 </html>

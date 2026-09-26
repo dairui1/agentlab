@@ -3,15 +3,15 @@
   "studies": [
     {
       "id": "raft-multi-agent",
-      "readingLabel": "阅读全文：Inbox 与 Held Draft 源码追踪",
-      "title": "Raft 多智能体：从博客到实现",
+      "readingLabel": "阅读全文：Raft 中文译文与源码批注",
+      "title": "Raft 多智能体：原文中文批注版",
       "question": "发送前的上下文检查，怎样穿过 CLI、daemon 和 server？",
       "implication": "区分摘要、稀疏消息、历史读取与跳读边界；草稿暂缓应交回判断，不能自动重试或当作全局副作用锁。",
-      "boundary": "本文核对的是 2026-09-24 固定官方 source-available 快照，不是博客发表时的实现；未运行 Raft、未执行上游测试或多 Agent 实验。演示仅为人工设定的控制流推演。",
+      "boundary": "译文保留作者观点与演示，批注另行署名。批注核对 2026-09-24 固定源码快照，不是博客发表时的实现；未运行 Raft、上游测试或多智能体实验。",
       "editorialRank": 17,
       "verifiedAt": "2026-09-26",
       "kind": "fixed-build",
-      "kindLabel": "博客与源码",
+      "kindLabel": "译文与批注",
       "topic": "控制与协作",
       "products": [
         {
