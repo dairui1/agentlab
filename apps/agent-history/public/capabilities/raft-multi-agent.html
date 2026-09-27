@@ -54,7 +54,7 @@
 <figure class="research-diagram" id="diagram-race"><div class="diagram-title">01 / 同一份快照，两个合法推理</div><div class="race-grid"><div class="lane-heading">时刻</div><div class="lane-heading">Agent A</div><div class="lane-heading">Agent B</div><div class="time-label">读取</div><div class="event">看见最后是 7</div><div class="event">也看见最后是 7</div><div class="time-label">推理</div><div class="event">下一条应发 8</div><div class="event">下一条应发 8</div><div class="time-label">提交</div><div class="event positive">先提交 8</div><div class="event warning">现场变了，仍准备发 8</div><div class="time-label">检查</div><div class="event quiet">房间已有新消息</div><div class="event emphasized">暂缓 → 交回重新判断</div></div><figcaption>人为构造的串行到达示意，不是 Raft 运行记录。真正同时通过检查的情况，留到第 09 则研究讨论。</figcaption></figure>
 <h4>这条回复，是看过哪段对话以后写的？</h4>
 <p>要做到这一点，光交一段“8”还不够。服务端不知道 B 是刚读完对话，还是拿着一分钟前的内容作答。发送请求需要再带一条信息：我读到哪里了。代码把它叫作 <code>seenUpToSeq</code>，可以把它想成夹在消息记录中的书签。这里的序号是消息的位置，和游戏里报出的数字是两回事。</p>
-<p>下面这段代码负责确定这枚书签的位置。最后的 <code>Math.min</code> 值得留意：客户端报来的位置不能超过服务端实际知道的最新位置。前半段则在处理讨论串的起点；还没有自己的读取记录时，可以从父消息的位置算起。这样，服务端才有办法接着问：书签后面又多了什么？<a class="cite" href="#RM-08">[08]</a></p>
+<p>下面这段代码负责确定这枚书签的位置。最后的 <code>Math.min</code> 值得留意：客户端报来的位置不能超过服务端实际知道的最新位置。前半段则在处理 Thread 的起点；还没有自己的读取记录时，可以从父消息的位置算起。这样，服务端才有办法接着问：书签后面又多了什么？<a class="cite" href="#RM-08">[08]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · internalAgentApi.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3772-L3780" target="_blank" rel="noopener noreferrer">L3772–3780 ↗</a></figcaption><pre tabindex="0" aria-label="internalAgentApi.ts 源码"><code data-snippet="boundary">const latestFreshnessSeq = Math.max(latestAnchor.seq, threadParentAnchor?.seq ?? 0);
 const latestFreshnessMessageId = latestAnchor.seq &gt; 0 &amp;&amp; latestAnchor.seq &gt;= (threadParentAnchor?.seq ?? 0)
   ? latestAnchor.messageId
@@ -64,7 +64,7 @@ const attestedBoundarySeq = Math.min(
   hasClientSeenBoundary ? clientSeenUpToSeq : fallbackBoundarySeq,
   latestFreshnessSeq,
 );</code></pre></figure>
-<p>这也解释了为什么“房间版本”不是整个工作区共用的一个数字。B 准备回复的是某个频道或讨论串，检查就得围绕那个目标展开。另一个频道里有人讨论午饭，不该让这里的报数停下来。实现会区分讨论串和频道、Agent 收到的关注信号，也会排除它自己的发送；这些细节留到发送路径一节再看。</p>
+<p>这也解释了为什么“房间版本”不是整个工作区共用的一个数字。B 准备回复的是某个频道或 Thread，检查就得围绕那个目标展开。另一个频道里有人讨论午饭，不该让这里的报数停下来。实现会区分 Thread 和频道、Agent 收到的关注信号，也会排除它自己的发送；这些细节留到发送路径一节再看。</p>
 <p>发现有变化之后，服务端仍然没有替 B 改成“9”。新来的可能是 A 报出的“8”，也可能只是旁观者说了一句“继续”。两种情况下，原稿是否还合适，答案并不一样。系统能可靠提供的是“后来又发生了这些事”，读懂这些事、决定还要不要说话，仍然交给 Agent。</p>
 <p>这让“更好的房间”有了具体含义。它不要求参与者每次思考都恰好与别人错开，而是在一个决定即将变成公开消息时，允许参与者再看一眼。我们常把重复回复归咎于模型不够聪明；这个例子提醒我们，有时它缺的只是一次及时的回头。</p>
 <p class="research-verdict">图里假定 A 已经发完，B 才来到检查这一步。如果两者连检查都同时完成，会怎样？这个问题还没有靠源码阅读得到答案，最后一节会回到它。</p>
@@ -75,7 +75,7 @@ const attestedBoundarySeq = Math.min(
   <div class="original-column"><div class="original-copy"><div class="column-eyebrow">原文 · 02</div>
 <h2 data-original="heading">为什么会这样</h2>
           <p data-original="paragraph">人类能在共享空间里自然地协调行动，是因为我们拥有<strong>持续的感知能力</strong>。不用刻意读完每条消息，我们也能感受到对话的节奏；我们能察觉插话前的停顿；我们知道某件事刚刚被说过，因为此前已经在半留意地听着。这些能力不需要专门设计。持续在场，就是这个意思。</p>
-          <p data-original="paragraph">Agent 并不像人类那样置身于房间中。它们的交互是<strong>回合制的</strong>：每次被调用时，Agent 读取房间的一个快照，进行推理，提交一个动作，然后等待下一次调用。两次调用之间，没有东西在持续运行。现有工作区把房间里的并行活动压成一条供模型读取的消息流，最终动作则在稍后一次性提交。Agent 组织回复时，并不能同时看到新消息到来。如果从推理到提交之间，房间已经发生变化，它仍可能依据一个不复存在的状态行动，除非工作区明确地把这个边界呈现出来。</p>
+          <p data-original="paragraph">Agent 并不像人类那样置身于房间中。它们的交互是<strong>回合制的</strong>：每次被调用时，Agent 读取房间的一个快照，进行推理，提交一个动作，然后等待下一次调用。两次调用之间，没有东西在持续运行。现有工作区把房间里的并行活动压成一个供模型读取的 Thread，最终动作则在稍后一次性提交。Agent 组织回复时，并不能同时看到新消息到来。如果从推理到提交之间，房间已经发生变化，它仍可能依据一个不复存在的状态行动，除非工作区明确地把这个边界呈现出来。</p>
           <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png" alt="共享房间中的协作间隙" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>Agent 还在推理，房间里的事情却已经继续向前。</em></figcaption></figure>
           <p data-original="paragraph">共享房间里的每一种故障模式都来自这道间隙：工作区是为能够持续在场的参与者设计的，却没有为回合制的参与者提供相应的交互界面。这就是我们正在打造 <strong>Raft 的原因：一个为人类与 Agent 共同工作而设计的 Agent 原生工作区</strong>。</p>
   </div></div>
@@ -115,7 +115,7 @@ if (unconsumedMessages.length === 0) {
   }
   recordConsumedRead(agentContext.agentId, readOpts.channel, maxSeq &gt; 0 ? maxSeq : undefined);
 }</code></pre></figure>
-<p>代码中的 <code>if</code> 把这两个动作分开了。记录也按目标保存，所以读完一个讨论串，不会顺便把父频道的全部消息算作读过；往回翻旧窗口，也不会让已有进度倒退。对读者来说这些行为很自然，对工具来说却必须逐项写出来。否则，同样是“返回了一些消息”，一次搜索、一次预览和一次历史读取就可能悄悄产生相同的副作用。</p>
+<p>代码中的 <code>if</code> 把这两个动作分开了。记录也按目标保存，所以读完一个 Thread，不会顺便把父频道的全部消息算作读过；往回翻旧窗口，也不会让已有进度倒退。对读者来说这些行为很自然，对工具来说却必须逐项写出来。否则，同样是“返回了一些消息”，一次搜索、一次预览和一次历史读取就可能悄悄产生相同的副作用。</p>
 <p>这里仍有一处需要留心：普通历史读取返回的也是有限窗口。把书签移到窗口末尾，是接口约定的处理方式，不是说此前的每一句话都完整进过上下文。后面还会看到，暂缓草稿甚至可能只交回几条新消息，就确认了整批。要理解“已读”，得连着看是哪一种读取动作留下了这个记录。</p>
 <p class="research-verdict">这些记录能让系统知道自己把什么交给了模型。至于模型是否理解了那条“先别发布”，又是否照做，已经是另一个问题。交付记录值得认真做，恰恰因为后续排查需要先分清：它是没听见，还是听见了却没有停下。</p>
   </aside>
@@ -124,7 +124,7 @@ if (unconsumedMessages.length === 0) {
 <section class="reading-pair" id="ax" data-blog-section aria-label="AX 与动作协议">
   <div class="original-column"><div class="original-copy"><div class="column-eyebrow">原文 · 03</div>
 <h2 data-original="heading">AX：一门缺失的设计学科</h2>
-          <p data-original="paragraph">只有被 @提及时才能回复、划分频道、设置 Agent 白名单，这些规则确实能让房间安静下来。但它们也剥夺了参与的机会。一个只能在被 @提及时响应的 Agent，无法再主动发现讨论中的问题，也无法自行决定该暂缓发言还是把机会让给别人。<strong>基于规则的过滤并没有减少噪声，而是把 Agent 重新变成了等待调用的工具</strong>。我们一直在构建相反的东西：让 Agent 像同事一样参与共同的工作，无论消息里有没有提到自己的名字，它都在场。其他变通办法，比如分开会话，或不让 Agent 进入共享房间，也是用同样的参与损失来换取安静。</p>
+          <p data-original="paragraph">只有被 @提及时才能回复、划分频道、设置 Agent 白名单，这些规则确实能让房间安静下来。但它们也剥夺了参与的机会。一个只能在被 @提及时响应的 Agent，无法再主动发现某个 Thread 中的问题，也无法自行决定该暂缓发言还是把机会让给别人。<strong>基于规则的过滤并没有减少噪声，而是把 Agent 重新变成了等待调用的工具</strong>。我们一直在构建相反的东西：让 Agent 像同事一样参与共同的工作，无论消息里有没有提到自己的名字，它都在场。其他变通办法，比如分开会话，或不让 Agent 进入共享房间，也是用同样的参与损失来换取安静。</p>
           <p data-original="paragraph">我们正在建立的，是一门称为<strong>Agent 体验设计</strong>，简称 AX 的学科。它之于 Agent，就像用户体验设计之于人类，但设计依据是<strong>Agent 实际如何观察和行动</strong>。具体来说，它要对 Agent 接触的每个界面提出四个问题：行动的那一刻，Agent 看到了什么？两次调用之间，它保留了哪些状态？遇到什么情况后，它能够恢复？哪些决定可以由它自己作出？本文余下部分会介绍两个具体的交互界面：我们如何在这些界面上逐一回答这些问题，以及从中形成的设计原则。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-03">
@@ -162,7 +162,7 @@ if (unconsumedMessages.length === 0) {
   seenUpToSeq?: number;
 }</code></pre></figure>
 <p>这份保存也让“沉默”变得可行。原稿已经安顿好了，Agent 可以先看新消息，再决定不继续，而不用为了结束一次失败调用勉强发出点什么。如果客户端一收到暂缓就自动重试，或者把“读消息”和“重发草稿”绑成一个动作，这个选择反而会消失。</p>
-<p>这或许是 AX 最容易被低估的地方。一个选项出现在提示词里，不代表 Agent 真的能选它。要让它放弃，后面就不能有重试器替它继续；要让它恢复，就得保留准确的内容；要让它自己决定，就得把决定前缺失的信息送到面前。每一项都需要工具配合。</p>
+<p>这或许是 AX 最容易被低估的地方。一个选项出现在 Prompt 里，不代表 Agent 真的能选它。要让它放弃，后面就不能有重试器替它继续；要让它恢复，就得保留准确的内容；要让它自己决定，就得把决定前缺失的信息送到面前。每一项都需要工具配合。</p>
 <p class="research-verdict">源码让我们看到了这些选项如何被接到一起。接下来还要看它们各自改变了什么：检查收件箱会不会顺便把消息确认掉？保留草稿之后，再发一次究竟算重试还是重新决定？这些细节决定了选项能不能用得放心。</p>
   </aside>
 </section>
@@ -171,9 +171,9 @@ if (unconsumedMessages.length === 0) {
   <div class="original-column"><div class="original-copy"><div class="column-eyebrow">原文 · 04</div>
 <h2 data-original="heading">Agent 收件箱</h2>
           <p data-original="paragraph">在传统消息平台上，Agent 加入一个频道后，通常会被推送这个频道里的<strong>每一条</strong>消息。接下来的选择都不太理想：要么全部处理，看着工作上下文被与当前任务毫不相干的闲聊填满；要么严格过滤，又错过真正重要的消息。无论哪一种，掌控 Agent 注意力的都是房间，而不是 Agent 自己。</p>
-          <p data-original="paragraph">Raft 用<strong>收件箱</strong>把这件事倒了过来。提及、讨论串更新和其他通知会成为可查询的条目，等 Agent 有余力时主动拉取，而不是直接被推入工作上下文。Agent 查看有哪些新情况，判断哪些与当前任务有关，再吸收值得吸收的内容。没有拉取的信号不会进入工作上下文；它们仍然可以查询，留待之后需要时再取用。</p>
+          <p data-original="paragraph">Raft 用<strong>收件箱</strong>把这件事倒了过来。提及、Thread 更新和其他通知会成为可查询的条目，等 Agent 有余力时主动拉取，而不是直接被推入工作上下文。Agent 查看有哪些新情况，判断哪些与当前任务有关，再吸收值得吸收的内容。没有拉取的信号不会进入工作上下文；它们仍然可以查询，留待之后需要时再取用。</p>
           <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png" alt="Agent 收件箱界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>到来的信号变成可查询的条目，Agent 有余力时再主动拉取。</em></figcaption></figure>
-          <p data-original="paragraph"><strong>由 Agent 决定什么值得进入自己的上下文</strong>，而不是由房间替它决定。每个被拉入工作提示的信号，都会挤占其他内容的位置，无论是任务状态、指令还是中间推理。因此，把这个决定交给 Agent，而不是交给恰好发出下一条消息的人，才能让注意力留在工作上。</p>
+          <p data-original="paragraph"><strong>由 Agent 决定什么值得进入自己的上下文</strong>，而不是由房间替它决定。每个被拉入工作 Prompt 的信号，都会挤占其他内容的位置，无论是任务状态、指令还是中间推理。因此，把这个决定交给 Agent，而不是交给恰好发出下一条消息的人，才能让注意力留在工作上。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-04">
     <header class="research-heading"><div class="column-eyebrow">源码研究 · 04</div><h3 id="note-04">先看看谁在找我，再决定要不要放下手头的事</h3><p class="annotation-anchor">对应原文：“由 Agent 决定什么值得进入自己的上下文。”</p></header>
@@ -249,7 +249,7 @@ return {
 };</code></pre></figure>
 <p>本地这一步有用，但也有它不知道的事。如果缺少管理队列的组件，或没能确定目标，请求会继续交给服务端。这样的转交只是“这里暂时不作判断”，不是“已经确认可以发送”。这一区别在排查问题时很重要：看到本地放行，还需要往后看，不能就此判断新消息检查已经被跳过了。</p>
 <h4>到了房间门口，再核对一次</h4>
-<p>服务端看到的范围又有所不同。讨论串会按目标消息检查，普通频道则会用到面向这个 Agent 的关注记录，代码称为 attention facts；自己的发送也会被排除。检查没有把工作区里的任何动静都算进来，否则一个忙碌频道就足以让所有地方的草稿不停被退回。<a class="cite" href="#RM-08">[08]</a></p>
+<p>服务端看到的范围又有所不同。Thread 会按目标消息检查，普通频道则会用到面向这个 Agent 的关注记录，代码称为 attention facts；自己的发送也会被排除。检查没有把工作区里的任何动静都算进来，否则一个忙碌频道就足以让所有地方的草稿不停被退回。<a class="cite" href="#RM-08">[08]</a></p>
 <p>在确定范围之后，暂缓条件反而很短：有新消息，而且调用方没有明确选择仍然发送。下面只需先看最后一行，就能抓住这个判断。前面的字段负责把查到了多少消息、用的是哪个读取位置一起带回去，供后续处理。</p>
 <figure class="source-code"><figcaption><span>源码节选 · internalAgentApi.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3806-L3817" target="_blank" rel="noopener noreferrer">L3806–3817 ↗</a></figcaption><pre tabindex="0" aria-label="internalAgentApi.ts 源码"><code data-snippet="server-rule">return {
   latestFreshnessSeq,
@@ -468,7 +468,7 @@ if (!updated) return await canonicalClaimRaceReason(executor, observed.id, claim
 <p>第三个实验把视野拉回整个房间。使用相同模型、相同任务和相同工具权限，比较只在被提及时回应、全量推送消息，以及收件箱加暂缓草稿这三种安排。不只数重复回复，还看任务有没有做完、关键约束有没有遗漏、是否重复执行，以及总耗时和 token。</p>
 <p>为什么要同时看这些？因为让所有 Agent 保持沉默，房间也会很安静。原文反对的恰恰是用参与机会换秩序：一个原本能够指出错误的 Agent，被规则挡在讨论之外，噪声少了，帮助也没有了。暂缓次数和明确绕过次数可以解释它们如何参与，却不能单独代表协作质量。</p>
 <div class="experiment-matrix"><div><strong>源码里看得到</strong><p>消息怎样读取、草稿怎样留下、发送与认领何时停下。</p></div><div><strong>还要放进任务里看</strong><p>漏读与重复有没有减少，主动参与是否有用，代价是多少。</p></div></div>
-<p>即使还没有实验结果，这次阅读也给了我们一个值得改变的设计习惯。过去遇到重复、打断或误解，很容易再加一段提示词，请 Agent 更谨慎一点。现在可以先检查它用的工具：作决定时有什么信息，行动前能否发现变化，停下来以后还有没有别的路可走。</p>
+<p>即使还没有实验结果，这次阅读也给了我们一个值得改变的设计习惯。过去遇到重复、打断或误解，很容易再加一段 Prompt，请 Agent 更谨慎一点。现在可以先检查它用的工具：作决定时有什么信息，行动前能否发现变化，停下来以后还有没有别的路可走。</p>
 <p class="research-verdict">Raft 最值得继续追问的，是这些选择能否在真实工作中被用好。代码已经把一部分选择摆出来了；并发时还剩多少空隙，省下的上下文会不会藏住关键一句，重新考虑的机会能否换来更好的协作，要让实验接着回答。</p>
   </aside>
 </section>
@@ -486,7 +486,7 @@ if (!updated) return await canonicalClaimRaceReason(executor, observed.id, claim
             <li id="RM-05"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1490-L1546" target="_blank" rel="noopener noreferrer">RM-05 · 发送前调用本地状态机</a><small>packages/daemon/src/agentCredentialProxy.ts · L1490-L1546</small><details><summary>证据与边界</summary>代理按 target 取得 pending、boundary 和必要的 recent context，执行 planAgentInboxSideEffect；可回填 seenUpToSeq 或返回 localResponse。<br>没有 target 或 coordinator 时原请求继续向上游走，不能据此认定 server 也放行。<span class="hash">SHA-256 446cbbe0aab18154c14793d6bfc21cddbd6768e5f317572392f753f067dbe724</span></details></li>
             <li id="RM-06"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L117-L236" target="_blank" rel="noopener noreferrer">RM-06 · 精确消息可见性与 local hold</a><small>packages/daemon/src/agentInboxStateMachine.ts · L117-L236</small><details><summary>证据与边界</summary>状态机区分已见与未见 pending 消息，构建 local_hold；continueAnyway 直接 bypass，缺少序号边界转交上游。<br>这里只描述本地层，model-seen 不是模型理解或遵守的测量。<span class="hash">SHA-256 0032fbd3615fea5a11175fd6768016c944cb63775103123d92c285ac161d4e6c</span></details></li>
             <li id="RM-07"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3600-L3685" target="_blank" rel="noopener noreferrer">RM-07 · Freshness 不是所有 API 请求的无条件门禁</a><small>packages/server/src/routes/internalAgentApi.ts · L3600-L3685</small><details><summary>证据与边界</summary>requestedSendFreshness 根据 draft、seq 等字段判断；还受开关与 force 模式影响。continueAnyway 需与 sendDraft 同时出现。<br>普通 CLI 请求带 draftReholdCount，但不能推广到所有 legacy API 调用。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
-            <li id="RM-08"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3749-L3817" target="_blank" rel="noopener noreferrer">RM-08 · Server 再核对目标侧新消息</a><small>packages/server/src/routes/internalAgentApi.ts · L3749-L3817</small><details><summary>证据与边界</summary>线程使用目标消息锚点，非线程使用 Agent attention facts；边界裁剪至最新序号，冷启动线程可回退到父消息。存在新增消息且未 override 时 hold。<br>比较的是选定目标与 attention 范围，不是整个工作区的全局版本。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
+            <li id="RM-08"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3749-L3817" target="_blank" rel="noopener noreferrer">RM-08 · Server 再核对目标侧新消息</a><small>packages/server/src/routes/internalAgentApi.ts · L3749-L3817</small><details><summary>证据与边界</summary>Thread 使用目标消息锚点，非 Thread 使用 Agent attention facts；边界裁剪至最新序号，冷启动 Thread 可回退到父消息。存在新增消息且未 override 时 hold。<br>比较的是选定目标与 attention 范围，不是整个工作区的全局版本。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
             <li id="RM-09"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3849-L3999" target="_blank" rel="noopener noreferrer">RM-09 · Hold 的有界上下文与跳读语义</a><small>packages/server/src/routes/internalAgentApi.ts · L3849-L3999</small><details><summary>证据与边界</summary>普通 hold 返回有限消息与 omittedMessageCount，边界推进到 latestSeq；withheld 模式不泄露正文，也不走相同的 markRead 分支。<br>有界上下文可能省略更早消息，不能声称每条正文都已进入模型。<span class="hash">SHA-256 9cc0fcdcac787a330feb0b2e4b7f78145df6d87a9139e21e47adad29b94ce7e8</span></details></li>
             <li id="RM-10"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/send.ts#L575-L693" target="_blank" rel="noopener noreferrer">RM-10 · CLI 保存草稿而不是自动重试</a><small>packages/cli/src/commands/message/send.ts · L575-L693</small><details><summary>证据与边界</summary>CLI 携带读取边界和草稿计数；收到 held 后保存内容并返回 SEND_HELD_AS_DRAFT，retryable 为 false；成功才清理草稿。<br>HTTP 200 可能表示 held，不是已投递。本文未运行 CLI。<span class="hash">SHA-256 4e17d16a784821de0195648138cdcb8342aa47e0963e3aed570094349ca00a00</span></details></li>
             <li id="RM-11"><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/_continueDraftState.ts#L4-L88" target="_blank" rel="noopener noreferrer">RM-11 · 本地草稿的内容与寿命</a><small>packages/cli/src/commands/message/_continueDraftState.ts · L4-L88</small><details><summary>证据与边界</summary>草稿按 Agent 与 target 保存正文、附件、mentions、savedAt、reholdCount、seenUpToSeq；默认 TTL 为十分钟，读取时检查过期。<br>不是永久历史档案，也不是后台定时销毁承诺。<span class="hash">SHA-256 6a22c7d9392d84a06b6f2ddec942b56f3be24885f2fb78b0981f0ca57a9c377c</span></details></li>

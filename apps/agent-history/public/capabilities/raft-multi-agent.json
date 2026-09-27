@@ -154,7 +154,7 @@
       "kind": "observation",
       "confidence": "high",
       "title": "Server 再核对目标侧新消息",
-      "statement": "线程使用目标消息锚点，非线程使用 Agent attention facts；边界裁剪至最新序号，冷启动线程可回退到父消息。存在新增消息且未 override 时 hold。",
+      "statement": "Thread 使用目标消息锚点，非 Thread 使用 Agent attention facts；边界裁剪至最新序号，冷启动 Thread 可回退到父消息。存在新增消息且未 override 时 hold。",
       "artifact": "packages/server/src/routes/internalAgentApi.ts",
       "locator": "L3749-L3817",
       "lineStart": 3749,
