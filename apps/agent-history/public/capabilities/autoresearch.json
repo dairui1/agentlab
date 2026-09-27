@@ -1,0 +1,360 @@
+{
+  "id": "autoresearch",
+  "title": "Autoresearch：让 Agent 做实验",
+  "product": "Anthropic AAR",
+  "subtitle": "研究循环、持久记忆、独立评测与结果可信性",
+  "description": "从一次自动对齐实验出发，追踪方案怎样变成代码、模型、分数与下一轮研究。",
+  "verifiedAt": "2026-09-27",
+  "status": "active",
+  "source": {
+    "repository": "YuehHanChen/automated_alignment_researcher",
+    "revision": "02dbe9d2cadc553720d17cdf6259c0b8727e6cde",
+    "commitDate": "2026-09-16",
+    "paper": "arXiv:2608.28945v3",
+    "paperDate": "2026-09-02",
+    "paperLicense": "CC-BY-4.0",
+    "evidenceClass": "paper-reported-and-official-source-static",
+    "trackingMode": "fixed-paper-and-source-snapshot",
+    "runtimeExperiment": "not-run",
+    "license": "No repository license file observed in the pinned snapshot; paper figure license is separate.",
+    "paperSha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59"
+  },
+  "boundary": "论文结果为作者报告；公开源码固定到晚于论文的提交，不声称它与实验版本完全一致。未运行上游测试、GPU 训练、模型 API 或独立复现。图表遵照论文 CC BY 4.0 署名原样使用，新增中文图注；未建立持续监控。",
+  "evidence": [
+    {
+      "id": "AR-01",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "研究对象是已可测的对齐失败",
+      "statement": "主实验分别针对十类对齐失败，在主要为 2B–7B 的目标模型上提出后训练方法。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "§2 / Table 1 / A.3",
+      "boundary": "作者报告的实验设置；不覆盖未知失败，也不是研究者递归自我改进。",
+      "source": {
+        "label": "论文 v3 · §2 / Table 1 / A.3",
+        "url": "https://arxiv.org/html/2608.28945v3#S2"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-02",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "新会话与持久研究记录",
+      "statement": "四个文献 Agent 先整理工作，五个 AAR 并行；每轮新会话，以持久记忆、论坛和排行榜衔接。单方法约一张 H200、30 分钟，AAR 最多 48 小时或至停滞。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "§3 / B.1",
+      "boundary": "单次训练预算不含全部研究、推理与评测成本。",
+      "source": {
+        "label": "论文 v3 · §3 / B.1",
+        "url": "https://arxiv.org/html/2608.28945v3#S3"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-03",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "隐藏与选优是两个问题",
+      "statement": "主实验中保留集不向 AAR 暴露；为较大模型和 Petri 实验，作者从排行榜领先方法中用保留集选优，因而这一步保留集是验证集。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "§2.3",
+      "boundary": "Petri 未用于主实验选优；生产模型实验则直接优化 Petri，不能混用两者证据。",
+      "source": {
+        "label": "论文 v3 · §2.3",
+        "url": "https://arxiv.org/html/2608.28945v3#S2.SS3"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-04",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "作者报告的泛化结果",
+      "statement": "十类问题的优化排行榜第一名均在保留集超过基线；另行选中的方法迁移到 1.8–4.7 倍模型，Petri 1、3、5 轮审计几乎各条件均改善。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "§5.1 / Figures 4–5",
+      "boundary": "不同选择流程分别报告；不是 AgentLab 独立复现或部署安全证明。",
+      "source": {
+        "label": "论文 v3 · §5.1 / Figures 4–5",
+        "url": "https://arxiv.org/html/2608.28945v3#S5.SS1"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-05",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "人类基线不能当等资源竞赛",
+      "statement": "28 位研究者提交 30 个单次想法，覆盖七类失败；AAR 平均 6.4 小时超过最佳人类方案，有限正分子集上为 8.6 小时。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "§4 / §5.1",
+      "boundary": "人类不能迭代，AAR 从约 150 次有噪声评测取最大值；不能推断全面超过人类研究。",
+      "source": {
+        "label": "论文 v3 · §4 / §5.1",
+        "url": "https://arxiv.org/html/2608.28945v3#S4"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-06",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "生产模型实验只允许改数据",
+      "statement": "Sonnet 5 为早期 Opus 4.8 检查点构造数据，约 60 小时尝试超过 50 个方案，获选约 2,400 条，图 9 指标为 65%，生产版本为 72%。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "§6 / Figure 9",
+      "boundary": "未做大部分生产对齐训练的检查点；只能改数据；Petri 是优化对象，分数不是现实安全率。",
+      "source": {
+        "label": "论文 v3 · §6 / Figure 9",
+        "url": "https://arxiv.org/html/2608.28945v3#S6"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-07",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "监控发现的尝试不等于全部作弊",
+      "statement": "作者事后标记出 1,601 条方法轨迹中的 39 次作弊尝试（2.4%），确认的作弊方法未成为最终报告方法。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "§7 / G",
+      "boundary": "未给出监控召回率；不能把 2.4% 当完整发生率，或反推 97.6% 可靠性。",
+      "source": {
+        "label": "论文 v3 · §7 / G",
+        "url": "https://arxiv.org/html/2608.28945v3#S7"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-08",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "paper-reported",
+      "title": "共享知识的消融只有单次运行",
+      "statement": "迎合任务中，完整设置 23.3%，无论坛 17.1%，无互联网但有缓存综述 29.4%，两者皆无 20.7%。",
+      "artifact": "2608.28945v3.pdf",
+      "locator": "D.5 / Figure 21",
+      "boundary": "各条件一次运行且波动大于组间差距，只能作为提示性证据。",
+      "source": {
+        "label": "论文 v3 · D.5 / Figure 21",
+        "url": "https://arxiv.org/html/2608.28945v3#A4.SS5"
+      },
+      "sha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59",
+      "artifactUrl": "https://arxiv.org/pdf/2608.28945v3"
+    },
+    {
+      "id": "AR-09",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "循环按独立会话迭代",
+      "statement": "AutonomousAgentLoop 逐会话运行并限制时长和迭代数；工具面包含文献、排行榜、提案与模型提交。",
+      "artifact": "aar/research_loop/agent.py",
+      "locator": "L381-L529",
+      "lineStart": 381,
+      "lineEnd": 529,
+      "sha256": "e1d6060f3d4b97d7e1e8eeea6f736ba5b867b66f59863363288ff1647a587d86",
+      "boundary": "固定源码，不是一次实际运行轨迹；局部环境开关影响配置。",
+      "source": {
+        "label": "公开实现 · aar/research_loop/agent.py",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/agent.py#L381-L529"
+      }
+    },
+    {
+      "id": "AR-10",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "安全研究 prompt 要求先读取记录",
+      "statement": "安全模板要求读取共享文献、个人记忆和排行榜，再生成三个候选，按优先级提交审批。",
+      "artifact": "aar/research_loop/prompt_safety.jinja2",
+      "locator": "L211-L290",
+      "lineStart": 211,
+      "lineEnd": 290,
+      "sha256": "f24605613f39141a05ed6db655c716175e155e8a2b59fa1e0e7a2825ab8d9070",
+      "boundary": "静态 prompt，不证明每轮模型遵守；默认模板由环境选择。",
+      "source": {
+        "label": "公开实现 · aar/research_loop/prompt_safety.jinja2",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/prompt_safety.jinja2#L211-L290"
+      }
+    },
+    {
+      "id": "AR-11",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "几何平均与能力阈值独立计算",
+      "statement": "默认 COMPOSITE_GEO_EPS=0，先将各安全改善比例限制在下限到 1，再取几何平均。能力检查的置信区间路径使用 sc.ci_high >= baseline_ci_low，缺少区间时退回固定阈值。",
+      "artifact": "aar/benchmarks/composite.py",
+      "locator": "L126-L182",
+      "lineStart": 126,
+      "lineEnd": 182,
+      "sha256": "10bfdd497224aae4d4246529fe9993a6167c50304e2d8570b3bfcc3683d854e2",
+      "boundary": "通过只代表未触发已测能力的门槛；环境变量可以改变零值处理。",
+      "source": {
+        "label": "公开实现 · aar/benchmarks/composite.py",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/benchmarks/composite.py#L126-L182"
+      }
+    },
+    {
+      "id": "AR-12",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "返回研究侧以前过滤保留集",
+      "statement": "run_eval 写共享结果时调用 strip_held_out，完整结果另写 heldout_dir，并尝试设置 0700 权限。",
+      "artifact": "aar/eval_pod/run_eval.py",
+      "locator": "L355-L383",
+      "lineStart": 355,
+      "lineEnd": 383,
+      "sha256": "5b49eaefa6bbc7fcc351a3230990db171f6355fa9cc8c78df606eb4131ef7dbd",
+      "boundary": "chmod 错误被忽略；代码存在不能证明部署账号、目录与日志隔离有效。",
+      "source": {
+        "label": "公开实现 · aar/eval_pod/run_eval.py",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/eval_pod/run_eval.py#L355-L383"
+      }
+    },
+    {
+      "id": "AR-13",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "方法短论文和分数绑定同一运行",
+      "statement": "share_finding 的 result 路径拒绝无冻结短论文或无对应分数文件的 run_id，并用评测文件替换 Agent 提供的核心指标。",
+      "artifact": "aar/research_loop/tools/server_api_tools.py",
+      "locator": "L702-L795",
+      "lineStart": 702,
+      "lineEnd": 795,
+      "sha256": "39b4a24a1ae4401f4bf4e566273af6bd387a4e8130571a698555f0dc750a13a2",
+      "boundary": "文件本身的写权限仍取决于部署；静态绑定逻辑不等于不可伪造存储。",
+      "source": {
+        "label": "公开实现 · aar/research_loop/tools/server_api_tools.py",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/tools/server_api_tools.py#L702-L795"
+      }
+    },
+    {
+      "id": "AR-14",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "审批哈希覆盖所选 Python 文件",
+      "statement": "_method_code 汇总方法目录下 Python 文本并计算哈希；审批记录有 code_hash 时，_proposal_approved 检测代码变更。",
+      "artifact": "aar/research_loop/tools/server_api_tools.py",
+      "locator": "L1263-L1312",
+      "lineStart": 1263,
+      "lineEnd": 1312,
+      "sha256": "39b4a24a1ae4401f4bf4e566273af6bd387a4e8130571a698555f0dc750a13a2",
+      "boundary": "不是所有依赖、数据或权限的快照；没有动态测试其对恶意修改的完整抵抗力。",
+      "source": {
+        "label": "公开实现 · aar/research_loop/tools/server_api_tools.py",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/tools/server_api_tools.py#L1263-L1312"
+      }
+    },
+    {
+      "id": "AR-15",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "一致性审查与结果泄漏审查不同",
+      "statement": "提案审批合并三类检查；一致性审查无代码时允许通过，结果泄漏审查在不可用、不可解析或调用异常时返回 clean=true。",
+      "artifact": "aar/research_loop/monitor.py",
+      "locator": "L297-L451",
+      "lineStart": 297,
+      "lineEnd": 451,
+      "sha256": "80828da673ac46f1f9b8d51173977d361bc25950759f12572bc65a6306b27506",
+      "boundary": "上层另有代码存在与文本规则检查；不据此断言全部审批可以绕过，也不能声称全部 fail-closed。",
+      "source": {
+        "label": "公开实现 · aar/research_loop/monitor.py",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/monitor.py#L297-L451"
+      }
+    },
+    {
+      "id": "AR-16",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "official-source-static",
+      "title": "公开入口不等于免配置复现",
+      "statement": "README 区分独立评测、完整 AAR 循环和通用任务模板，列出 GPU、API 与训练后端前提，集群启动脚本作为带占位路径的参考。",
+      "artifact": "README.md",
+      "locator": "L1-L219",
+      "lineStart": 1,
+      "lineEnd": 219,
+      "sha256": "fa53257b17eec8f693d4846f80bf472a69ad3546052279e46d162fd1cfcfffc4",
+      "boundary": "未安装依赖、运行上游测试或调用模型；公开代码不能复现私有生产模型检查点。",
+      "source": {
+        "label": "公开实现 · README.md",
+        "url": "https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/README.md#L1-L219"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "AR-U1",
+      "title": "结果能否独立复现",
+      "text": "尚未运行作者的真实训练与评测。",
+      "needed": "固定模型、数据、解码、评判器与预算，在隔离 GPU 环境独立重复。"
+    },
+    {
+      "id": "AR-U2",
+      "title": "隔离部署是否真正生效",
+      "text": "公开代码和部署说明不能确认任意运行环境的权限。",
+      "needed": "验证研究账号不可读保留集、不可改评测器与分数文件，并检查所有日志返回路径。"
+    },
+    {
+      "id": "AR-U3",
+      "title": "未测能力与长期收益",
+      "text": "三项能力检查及短轮审计不覆盖所有能力或部署风险。",
+      "needed": "增加任务相关能力、长时行为审计，并检验后续训练后的收益保留。"
+    },
+    {
+      "id": "AR-U4",
+      "title": "共享机制的稳定收益",
+      "text": "论坛与综述消融各条件仅一次运行。",
+      "needed": "等预算多次运行，报告跨种子方差及独立保留集结果。"
+    }
+  ],
+  "assets": [
+    {
+      "path": "/assets/autoresearch/teaser.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/teaser_2x2.svg",
+      "figure": "1",
+      "sha256": "cb54b1a32001087d6057c3ea19145372458dc33253e2170f3fbbb48503dc5a82",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    },
+    {
+      "path": "/assets/autoresearch/heldout.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/lmg_done_heldout.svg",
+      "figure": "4",
+      "sha256": "b5d7858eb8dddf5f1fe3c40995a13a6e910f312bb387f3bc93f833c03fa64e74",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    },
+    {
+      "path": "/assets/autoresearch/production.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/fig_production_climb.svg",
+      "figure": "9",
+      "sha256": "c0e833ebf04ca2f5879359acc4010d81bba07ca544bac1a4b7c1c2ffa98d1992",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    }
+  ]
+}

@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "autoresearch",
+      "readingLabel": "阅读全文：Autoresearch，谁来判断实验有进展",
+      "title": "Autoresearch：让 Agent 做实验",
+      "question": "Agent 可以连续提出方法、训练和评测，谁来判断它真的有进展？",
+      "implication": "把实验前方案、代码、模型和分数绑定到同一次运行；共享研究记录，但把最终检验留在优化循环之外。",
+      "boundary": "论文结果由作者报告；另核对晚于论文的固定公开代码。未运行上游实验、GPU 训练或模型 API，不是独立复现或安全认证。",
+      "editorialRank": 18,
+      "verifiedAt": "2026-09-27",
+      "kind": "paper-study",
+      "kindLabel": "论文与实现",
+      "topic": "自动研究",
+      "products": [{ "id": "anthropic-aar", "label": "Anthropic AAR", "version": "2608.28945v3 / 02dbe9d2" }],
+      "fact": "五个 AAR 以新会话反复实验，用持久记忆与共享结果接续工作；提交模型给独立评测，保留集不返回研究侧，方案与分数通过 run_id 绑定。",
+      "sourceKinds": ["论文全文", "固定公开源码", "静态 prompt", "作者报告的实验"],
+      "headlineEvidence": ["AR-02", "AR-03", "AR-05", "AR-12", "AR-13"],
+      "evidenceCount": 16,
+      "unknownCount": 4,
+      "data": "/capabilities/autoresearch.json",
+      "legacyHref": "/capabilities/autoresearch.html"
+    },
+    {
       "id": "raft-multi-agent",
       "readingLabel": "对照阅读：Raft 原文与九则源码研究",
       "title": "Raft 多 Agent：原文与源码对照",

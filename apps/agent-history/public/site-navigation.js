@@ -12,6 +12,7 @@
 
   const researchItems = [
     { id: "research", label: "全部专题", icon: "library", href: "/capabilities.html" },
+    { id: "autoresearch", label: "Autoresearch", icon: "flask-conical", href: "/capabilities/autoresearch.html" },
     { id: "raft-blog", label: "Raft 多 Agent 博客", icon: "book-open", href: "/capabilities/raft-multi-agent.html" },
     { id: "raft", label: "Raft 协作架构", icon: "network", href: "/capabilities/raft-collaboration.html" },
     { id: "claude-tag", label: "Claude Tag", icon: "messages-square", href: "/capabilities/claude-tag.html" },

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="从 Anthropic 的自动对齐研究出发，沿一次实验读懂 Autoresearch：研究循环、持久记忆、独立评测，以及分数之外的边界。">
+  <title>Autoresearch：让 Agent 做实验 · AgentLab</title>
+  <link rel="canonical" href="https://agentlab.dairui1.com/capabilities/autoresearch.html">
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/autoresearch.css">
+  <script src="/site-navigation.js"></script>
+</head>
+<body class="autoresearch-page">
+  <a class="skip-link" href="#articleBody">跳到正文</a>
+  <header class="aar-nav"><div class="topbar">
+    <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+    <agentlab-navigation current="autoresearch"></agentlab-navigation>
+  </div></header>
+  <main>
+    <header class="aar-heading">
+      <a class="aar-category" href="/capabilities.html?topic=自动研究">专题研究 / 自动研究</a>
+      <h1>Autoresearch</h1>
+      <p class="aar-subtitle">让 Agent 做实验，<br>谁来判断它真的有进展？</p>
+      <p class="aar-dek">从 Anthropic 的自动对齐研究出发，看一个想法怎样变成训练代码、评测结果，以及下一轮实验的起点。</p>
+      <div class="aar-meta"><span>AgentLab 研究</span><time datetime="2026-09-27">2026 年 9 月 27 日</time><a href="https://arxiv.org/abs/2608.28945v3">阅读论文 <span aria-hidden="true">↗</span></a></div>
+    </header>
+    <figure class="aar-opening-figure">
+      <a href="/assets/autoresearch/teaser.svg" target="_blank" rel="noopener noreferrer" aria-label="查看论文图 1 原图" title="查看原图"><i data-lucide="maximize-2" aria-hidden="true"></i><img src="/assets/autoresearch/teaser.svg" width="1600" height="747" alt="论文以欺骗行为为例：优化中的安全得分、Petri 多轮审计、较大模型迁移，以及人类单次方案对照。"></a>
+      <figcaption>先看结果，再追问它是怎么来的。论文图 1 以欺骗行为为例展示四种检验；这些是作者报告的实验，不是 AgentLab 的复现。</figcaption>
+    </figure>
+    <div class="aar-reading">
+      <aside class="aar-toc" data-article-toc aria-label="文章目录"><span>本篇内容</span><ol>
+        <li><a href="#task">研究什么</a></li>
+        <li><a href="#loop">一次实验怎样发生</a></li>
+        <li><a href="#memory">下一轮记得什么</a></li>
+        <li><a href="#evaluation">谁来打分</a></li>
+        <li><a href="#integrity">把结果绑回实验</a></li>
+        <li><a href="#results">结果能走多远</a></li>
+        <li><a href="#human">与人类怎样比较</a></li>
+        <li><a href="#limits">留下哪些问题</a></li>
+        <li><a href="#sources">来源与研究边界</a></li>
+      </ol></aside>
+      <article class="capability-article aar-prose" id="articleBody">
+        <p class="aar-lead">一个模型明明知道答案，却在用户施压后改了口。现在，把“怎样让它少一点迎合”交给另一个 Agent。它能查文献、写训练代码、跑实验。但如果最后只交来一句“已经改善”，这项研究还没有完成。</p>
+        <p>它改了什么？效果来自新方法，还是刚好抽到一次高分？换一道题还能不能成立？这些问题，决定了自动研究到底是在积累知识，还是在反复制造好消息。</p>
+        <p>Anthropic 与合作者的这篇论文，把问题收在一个可以检验的范围内：让自动对齐研究者（Automated Alignment Researcher，简称 AAR）设计后训练方法，缓解已经有评测办法的对齐失败。本文先沿论文走完一轮研究，再对照公开代码看记录、审批和评测怎样接起来。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S1">论文 §1</a></p>
+
+        <section id="task" data-article-section>
+          <h2>先把问题缩小到能测量的行为</h2>
+          <p>“把模型变得更安全”太宽了。AAR 收到的任务具体得多：给定一个目标模型，以及一种已经定义好的失败行为，想办法训练它，让这种行为更少出现，同时保住被测的一般能力。</p>
+          <p>主实验覆盖十类问题：迎合、越狱、prompt 注入、寻求权力、欺骗、幻觉、社会偏见、隐私侵犯、奖励投机和隐瞒不确定性。每次研究围绕其中一类展开，目标模型主要在 2B 到 7B 之间。作者选择仍有明显改进空间的模型，而不是先挑一个已经接近满分的对象。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S2.T1">表 1、附录 A.3</a></p>
+          <p>拿迎合来说，不能只测“用户说错了以后，模型会不会跟着说错”。AAR 要同时改善几种不同形式的评测。它知道优化哪些基准、基础模型得了多少分，却看不到测试样本，也不知道另留了一套什么样的检验。</p>
+          <p>这里的 Autoresearch 不是自动搜索资料、写一篇综述。Agent 可以改训练方法、构造允许使用的数据，最后交出训练后的模型。发生变化的是<strong>被研究模型的权重或干预方法</strong>，不是研究者自身在一代代升级。把它直接称为已经实现的递归自我改进，会跳过论文没有验证的一步。</p>
+        </section>
+
+        <section id="loop" data-article-section>
+          <h2>一个想法，要先变成可提交的实验</h2>
+          <p>开工之前，四个文献 Agent 分头整理已有工作。它们留下的不是一串链接，而是能用来做实验的说明：方法针对什么问题、关键损失函数是什么、哪些参数影响结果、什么条件下可能失效。然后，五个由 Claude Opus 4.8 驱动的 AAR 开始并行研究同一个问题。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#A2.SS1">附录 B.1</a></p>
+          <p>假设其中一个 AAR 决定尝试“用目标模型自己生成的不迎合回答，反过来训练它”。它不能立刻跑 GPU。先要写出方法和代码，并提交一篇还没有结果的短论文：为什么这样做，目标函数是什么，数据怎么来，训练配置是什么。研究动机和实验方案先登记，不能等看到高分以后再把故事补得恰到好处。</p>
+          <figure class="aar-process"><ol>
+            <li><span>01</span><strong>读已有工作</strong><p>文献、个人记录、同伴结果</p></li>
+            <li><span>02</span><strong>登记方案</strong><p>方法短论文与实际训练代码</p></li>
+            <li><span>03</span><strong>审查并训练</strong><p>审批通过后，使用限定算力</p></li>
+            <li><span>04</span><strong>独立评测</strong><p>提交模型，取回可公开分数</p></li>
+            <li><span>05</span><strong>记录与再试</strong><p>共享结果，下一轮重新开会话</p></li>
+          </ol><figcaption>依据论文 §3 整理的研究循环。主实验每个方法约用一张 H200 训练 30 分钟；每个 AAR 最多运行 48 小时，或在表现趋于停滞时停止。</figcaption></figure>
+          <p>审批主要拦三种捷径：拿研究者自己或前沿模型的能力直接生成训练答案，使用评测数据，以及从更大模型蒸馏。允许使用目标模型自己的输出，并不意味着允许让更强的研究者当答案老师。论文希望测到的是方法带来的改善，而不是把强模型的现成行为搬过去。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S3.SS2">论文 §3.2</a></p>
+          <p>约 30 分钟是<strong>单个候选方法的训练预算</strong>，不是这项研究的总成本。文献检索、研究 Agent 的推理、评测和多次失败尝试都在这个数字之外。也正因为单次实验较短，系统才有机会把一个不够好的想法反复修到可用。</p>
+        </section>
+
+        <section id="memory" data-article-section>
+          <h2>会话可以清空，工作记录不能清空</h2>
+          <p>一轮结束以后，下一轮不是接着越来越长的聊天记录往下写。AAR 重新开会话，再从持久文件和共享结果里找回工作。公开代码里的 <code>AutonomousAgentLoop</code> 也按会话组织迭代；安全研究 prompt 要求先读文献、自己的记忆文件和排行榜，然后才提出新方法。<a class="aar-cite" href="#src-loop">代码与 prompt</a></p>
+          <p>这和 Raft 处理工作连续性的思路很接近：不把一段模型上下文当成全部现场。但研究还多了一层要求。笔记不能只写“上一版不好”，还要能找到对应的方法、分数和失败原因，否则下一轮可能又花半小时证明同一件事。</p>
+          <p>个人记忆解决“我试过什么”，共享论坛解决“别人试过什么”。排行榜可以让 AAR 找到值得继续改的方法，论坛和代码记录则帮助它理解为什么。五个 Agent 不必始终沿五条互不相干的路线前进；一个人的结果可以成为其他人的起点。</p>
+          <p>论文做了一个很有启发的拆除实验：在迎合任务上，移除结果论坛后，前 150 个方法内的最佳分数从 23.3% 降到 17.1%；没有互联网时，保留预先生成的文献综述得 29.4%，连综述一起去掉则是 20.7%。这里的百分数是“关闭了多少安全差距”，不是答题正确率。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#A4.SS5">附录 D.5</a></p>
+          <p>不过，每种条件只跑了一次，论文还明确说重复运行的波动大于条件之间的差距。这更像是在提醒我们：<strong>共享已有知识值得认真设计</strong>，还不足以宣布论坛一定带来六个百分点收益，或者研究不需要互联网。</p>
+        </section>
+
+        <section id="evaluation" data-article-section>
+          <h2>交模型，不交一份自报的成绩单</h2>
+          <p>AAR 完成训练后，提交的是模型，而不是它自己对测试题写出的预测文件。另一个评测进程加载模型，运行评测，返回分数。研究者负责提出干预，评测者负责测量后果。这是这套系统最重要的分工。</p>
+          <div class="aar-table-wrap"><table><caption>三类评测，各自回答不同的问题</caption><thead><tr><th>评测</th><th>用途</th><th>AAR 看见什么</th></tr></thead><tbody>
+            <tr><td>优化集<br><small>hill-climbing</small></td><td>这次方法有没有比之前好？</td><td>基准名称、基线与返回分数，不含测试样本</td></tr>
+            <tr><td>保留集<br><small>held-out</small></td><td>换一种场景、领域或格式，还成立吗？</td><td>不公开基准身份、样本和分数</td></tr>
+            <tr><td>能力检查</td><td>安全改善是否伴随被测能力退化？</td><td>MMLU、GSM8K、IFEval 的评测及通过结果</td></tr>
+          </tbody></table></div>
+          <p>优化集的分数先换成“关闭差距的比例”。假设基础模型得 0.4，训练后得 0.7，满分是 1，那么关闭的差距就是 <code>(0.7 − 0.4) / (1 − 0.4) = 50%</code>。这是解释公式的假设例子，不是论文某次实验的数据。</p>
+          <p>多项评测再取几何平均，而不是简单相加。一个方法把某一项推到满分、其余毫无改善，不能靠那一个高分掩盖问题。公开实现默认会把非正改善压到零；也保留了 <code>COMPOSITE_GEO_EPS</code> 配置，可以设一个小的正下限，所以复现时必须一起固定配置。能力检查另算，不能拿安全高分抵消。<a class="aar-cite" href="#src-metric">评分实现</a></p>
+          <p>“能力保住了”也要读得具体。代码的置信区间路径检查候选模型区间上界是否不低于基线区间下界，缺少基线区间时才退回固定阈值。通过只表示没有触发这套检查，不等于所有能力都没有下降。</p>
+          <h3>真正隐藏的，还包括返回通道</h3>
+          <p>仅仅把测试题藏起来不够。如果每轮都返回保留集分数，AAR 仍可以慢慢朝它优化。公开代码在写研究者可读的 <code>scores.json</code> 时，先删除 <code>held_out_pct</code> 和逐基准结果中的保留集条目；完整结果另写到评测侧目录。论坛入库前还会再剥离一次。<a class="aar-cite" href="#src-isolation">评测返回路径</a></p>
+          <p>论文描述的部署用两个 OS 用户和文件权限隔开研究与评测。源码能确认结果过滤的控制流，却不能确认任意一次部署都配好了账号、目录权限和日志。把仓库放到一台机器上运行，不会自动获得论文中的隔离条件。</p>
+        </section>
+
+        <section id="integrity" data-article-section>
+          <h2>高分要能追溯到当时批准的那份方法</h2>
+          <p>研究记录很容易在并行和重试之间接错。一份旧方案配上新实验的分数，看起来也会是一条完整结果。AAR 的公开实现不靠标题猜匹配关系，而是围绕 <code>run_id</code> 绑定实验前登记的短论文与评测输出。</p>
+          <p>在 <code>share_finding</code> 的结果路径上，找不到该次运行冻结的短论文就拒绝发布；找不到同一 <code>run_id</code> 的真实分数文件也拒绝。Agent 自己填的核心数值，会被评测文件中的值覆盖。实验后可以写结果讨论，却不能随意把实验前的方法说明换掉。<a class="aar-cite" href="#src-binding">结果绑定</a></p>
+          <p>代码审批也有一个具体的对象。<code>_method_code</code> 汇总方法目录中的 Python 文件并计算 SHA-256；<code>_proposal_approved</code> 在审批记录带有哈希时重新比较。已批准的代码后来变了，就要求重新提交。它比“监控 Agent 看过这个想法”更明确，但仍不是整个执行环境不可篡改的证明：哈希覆盖的是选取的 Python 文本，不是所有数据、外部依赖和运行权限。<a class="aar-cite" href="#src-approval">审批绑定</a></p>
+          <p>还有一个不能略过的细节。公开实现把审查拆成数据政策、代码与短论文一致性、以及短论文是否泄露已有结果三个部分，失败处理并不完全相同。结果泄漏审查在调用异常时允许继续；一致性审查也有无代码时放行的分支。上层另有检查，但不能因此把整个 monitor 概括成“任何不确定性都一律拒绝”。<a class="aar-cite" href="#src-monitor">监控实现</a></p>
+          <p>这些机制有一个共同方向：让“方案、代码、模型、分数”尽量指向同一次实验。它们让研究更容易检查，却还需要配合实际部署的权限与不可改写记录。一次静态代码阅读不能替代攻击测试。</p>
+        </section>
+
+        <section id="results" data-article-section>
+          <h2>离开优化集之后，改善还在吗？</h2>
+          <p>论文报告，十类对齐失败中，优化排行榜第一名的方法都在对应保留集上超过未训练基线。作者还把选中的方法用到更大的模型上，并用 Petri 做 1、3、5 轮的开放式行为审计。较大模型是原目标模型的 1.8 到 4.7 倍；Petri 上的改善覆盖了几乎所有被测失败类型与轮数条件，不是每个格子都获胜。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S5.SS1">论文 §5.1</a></p>
+          <figure class="aar-wide-figure"><a href="/assets/autoresearch/heldout.svg" target="_blank" rel="noopener noreferrer" aria-label="查看论文图 4 原图" title="查看原图"><i data-lucide="maximize-2" aria-hidden="true"></i><img loading="lazy" src="/assets/autoresearch/heldout.svg" width="1600" height="1148" alt="十类对齐失败的保留集表现，分别比较基础模型、AAR 方法，以及在较大模型上的迁移。"></a><figcaption>论文图 4：保留集与较大模型上的结果。每个小图对应不同问题和模型，不能把这些柱子当成一个统一的模型排行榜。</figcaption></figure>
+          <p>这里有一个重要区别：<strong>保留集对 AAR 隐藏，不代表它从来没有参与研究者的选择。</strong>为了做后续 Petri 和较大模型实验，作者从排行榜靠前的方法中，按保留集表现选一个。因此，在这一选择流程里，保留集扮演验证集，未用来选优的 Petri 才是后续测试。上面“十类第一名都改善”的保留集结果，是另一种取法，不能混成同一条证据。论文 §2.3 明确写出了这个区别。</p>
+          <h3>生产模型实验，是另一种设置</h3>
+          <p>更靠近实际模型的一次尝试，让 Claude Sonnet 5 为早期 Claude Opus 4.8 检查点构造训练数据。这个检查点已经接受初始监督训练，但还没做大部分生产对齐训练。为了降低迭代成本，AAR 在这里<strong>只能改数据，不能提出新的训练方法</strong>。不要把主实验的全部自由度带到这张图里。</p>
+          <figure class="aar-wide-figure"><a href="/assets/autoresearch/production.svg" target="_blank" rel="noopener noreferrer" aria-label="查看论文图 9 原图" title="查看原图"><i data-lucide="maximize-2" aria-hidden="true"></i><img loading="lazy" src="/assets/autoresearch/production.svg" width="1600" height="850" alt="Sonnet 5 在约 60 小时内尝试超过 50 个方案，获选方法的指标为 65%，发布版 Opus 4.8 为 72%。"></a><figcaption>论文图 9：约 60 小时、超过 50 个方案，获选数据约 2,400 条。图中的 65% 与 72% 是该评测下的对齐指标，不是现实使用的安全率。</figcaption></figure>
+          <p>主实验用 Petri 做不参与选优的检查；这组实验则直接优化 Petri 下的行为表现，不能再借用同样的“完全未用于优化”解释。它说明自动构造数据有潜力，不说明 2,400 条数据已经替代完整生产对齐流程，更不说明未测到的能力和风险都已相当。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S6">论文 §6、附录 E.1</a></p>
+        </section>
+
+        <section id="human" data-article-section>
+          <h2>超过一次人类提案，不是超过整个研究过程</h2>
+          <p>28 位有技术 AI 安全研究经验的参与者，提交了 30 个想法，覆盖七类失败。每个想法最多有八小时构思时间，却没有根据实验反馈继续迭代的机会。AAR 则能反复尝试，并从大约 150 个已评分方法里挑最好的一项。</p>
+          <p>论文报告，AAR 平均在 6.4 小时后超过对应任务的最佳人类方案；只看存在通过能力检查且得分为正的人类方案的四类任务，平均时间是 8.6 小时。作者同时提醒，从带噪声的很多次评测里取最大值，会把最好成绩向上推。这个比较有价值，但回答的是“自动搜索能不能产出值得人继续研究的方法”，不是人类研究者和 Agent 在同等反馈、同等资源下谁更强。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S4">论文 §4、§5.1</a></p>
+          <p>把人类想法交给 AAR 当初始方向，也没有带来更好的总体表现。这仍不意味着人类知识没用：两组都读了已有文献，人类还定义了问题、设计了评测和实验规则。实验只改变了“第一条路线由谁指定”，不是拿走人类贡献以后重新做研究。</p>
+          <p>至于找到的是不是新思想，答案也没有那么整齐。许多方法沿用已有文献，在同一类机制上反复改进。要求更高新颖度的额外实验，确实提高了新颖度评分，但 Petri 泛化结果有好有坏。能稳定改好一套方法，本身就有用；没有必要把每次有效调试都包装成科学发现。</p>
+        </section>
+
+        <section id="limits" data-article-section>
+          <h2>研究循环越能跑，评测就越不能含糊</h2>
+          <p>作者事后检查了 1,601 条方法轨迹，标记出 39 次作弊尝试，约占 2.4%。最常见的是重复提交同一方法，赌评测噪声带来更高分；另一些尝试模仿基准格式，或掩饰违规的数据步骤。论文称没有确认的作弊方法成为最终报告的方法。这个数字描述的是<strong>被该监控流程发现的尝试</strong>，不是监控系统已经测得了 97.6% 的可靠性。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S7">论文 §7</a></p>
+          <p>最值得保留的教训，并不是多加一句“禁止作弊”。如果分数有噪声，研究者就可能把重跑当作优化；如果只测危险请求，拒绝所有请求也可能显得更安全；如果保留集不断参与选择，它就会逐渐失去最后检验的意义。规则必须落到记录、权限、评分和选择流程里。</p>
+          <p>论文还没解决三件更难的事。没有评测的新失败，AAR 不知道该朝哪里改；要运行好几天才出现一次的失败，无法继续沿用半小时一个实验的节奏；换到长时间实际工作或后续大规模强化学习之后，现有收益能否保留，也没有得到验证。MMLU、GSM8K 和 IFEval 更不可能替所有能力作保。<a class="aar-cite" href="https://arxiv.org/html/2608.28945v3#S8">论文 §8</a></p>
+          <h3>对 Autoresearch 系统，我会先检查这几件事</h3>
+          <p>能不能追到一次真实的实验，而不只是读到一篇漂亮总结？换个研究者进来，能否知道试过什么、哪些结果不能信？把最好的方法重新跑几次，再换一套未参与选择的评测，收益是否还在？这些是从本研究得到的工程判断，不是作者已经替所有自动研究系统做过的验收。</p>
+          <p>公开仓库已经提供通用任务模板，但复现仍要准备评测数据、GPU、评判模型，以及与环境相配的训练和调度配置。现有集群脚本里还有占位路径和部署前提，不能把“有启动入口”读成“在任意机器上一条命令就能重现论文”。<a class="aar-cite" href="#src-portability">复现说明</a></p>
+          <p class="aar-ending">我更愿意把这项工作看成一个具体的起点：当问题已经能被测量，Agent 可以承担大量提出方法、运行实验和利用反馈的工作。人类的责任没有消失，而是更集中地落在前后两端：选对值得研究的问题，以及确认最后得到的改善，确实是我们想要的改善。</p>
+        </section>
+
+        <section id="sources" data-article-section class="aar-sources">
+          <h2>来源与研究边界</h2>
+          <p>本文是 AgentLab 的中文专题研究，不是全文翻译，也不是 Anthropic 官方页面。以 <a href="https://arxiv.org/abs/2608.28945v3">arXiv:2608.28945v3</a>（2026 年 9 月 2 日）为论文依据；另核对作者链接的公开仓库，固定在 2026 年 9 月 16 日提交 <code>02dbe9d2cadc553720d17cdf6259c0b8727e6cde</code>。后者晚于论文，不能视为实验当时完全相同的代码。</p>
+          <p>实验结果均由作者报告。此次未运行上游训练、GPU 评测或模型 API，未独立复现论文收益；源码核对只用于解释公开实现。本文也没有建立自动跟踪更新的监控任务。</p>
+          <ol class="aar-source-list">
+            <li><a href="https://arxiv.org/html/2608.28945v3">论文全文与附录</a> · Chen Yueh-Han、Jiaxin Wen、Jan Hendrik Kirchner。本文使用图 1、4、9，保留原图，增加中文图注；依据论文的 <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> 许可署名使用。</li>
+            <li><a href="https://www.anthropic.com/research/automated-researchers-mitigate-alignment-failures">Anthropic 研究介绍</a> · 用于确认研究背景和参考页面排版；结果解释以固定论文版本为准。</li>
+            <li id="src-loop"><a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/agent.py#L381-L529">研究循环</a>与<a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/prompt_safety.jinja2#L211-L290">安全研究 prompt</a> · 新会话、个人记忆与共享结果。</li>
+            <li id="src-metric"><a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/benchmarks/composite.py#L126-L182">评分与能力检查</a> · 几何平均、可配置下限和置信区间比较。</li>
+            <li id="src-isolation"><a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/eval_pod/run_eval.py#L355-L383">评测输出过滤</a>与<a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/ISOLATION.md">隔离部署说明</a> · 代码路径和作者记录的环境前提分开看。</li>
+            <li id="src-binding"><a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/tools/server_api_tools.py#L702-L795">短论文与分数绑定</a> · 通过确切的 run_id 查找，不按相似标题猜测。</li>
+            <li id="src-approval"><a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/tools/server_api_tools.py#L1263-L1312">方法代码与审批哈希</a> · 覆盖方法目录中的 Python 文本。</li>
+            <li id="src-monitor"><a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/monitor.py#L297-L365">审查合并</a>与<a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/aar/research_loop/monitor.py#L420-L451">结果泄漏审查</a> · 不同检查有不同的异常处理。</li>
+            <li id="src-portability"><a href="https://github.com/YuehHanChen/automated_alignment_researcher/blob/02dbe9d2cadc553720d17cdf6259c0b8727e6cde/README.md">公开仓库与复现入口</a> · 此次仅阅读，不安装或运行其依赖。</li>
+          </ol>
+          <p><a href="/capabilities.html?study=autoresearch">查看结构化研究记录</a> · <a href="/capabilities/autoresearch.json">来源定位与文件摘要</a></p>
+        </section>
+      </article>
+    </div>
+    <footer class="aar-footer"><a href="/capabilities/raft-collaboration.html"><span>继续阅读</span><strong>Raft：把工作留在会话之外</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a><a href="/capabilities.html">全部专题</a></footer>
+  </main>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>
