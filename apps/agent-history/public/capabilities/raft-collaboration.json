@@ -3,7 +3,7 @@
   "title": "Raft：协作型 Agent 基础设施",
   "product": "Raft",
   "subtitle": "消息可见性、任务认领、runtime 恢复与权限边界",
-  "description": "Raft 把现成 Coding Agent 接入跨机器协作工作区。真正值得拆解的是：消息到达以后，模型是否看过；任务已有执行者时，谁还能认领；旧线程续接失败后，系统保留了什么；平台内权限与主机执行权限又分别由谁约束。本文沿一次假设任务追踪四条路径，不把源码或上游测试当作运行验证。",
+  "description": "两个 Agent 接到了同一条修复请求，人类中途又说“只提交，不发布”。沿着这个例子，看 Raft 怎样分配工作、送来新要求，以及在旧 Thread 无法续接时找回工作记录。",
   "verifiedAt": "2026-09-25",
   "status": "active",
   "source": {
@@ -248,7 +248,7 @@
       "id": "RF-13",
       "kind": "observation",
       "confidence": "high",
-      "title": "恢复失败可以转为新线程，而非保留旧上下文",
+      "title": "旧 Thread 无法续接时，哪些错误可以换一个新 Thread",
       "statement": "missing_rollout 和 thread_writer_busy 被分类为 fallback_fresh_thread，并产生恢复通知，要求从 Raft 历史与 MEMORY.md/notes 找回工作；permission_denied 和未知错误保持 terminal_error。",
       "artifact": "packages/daemon/src/drivers/codex.ts",
       "locator": "L641-L743",
@@ -362,9 +362,9 @@
     },
     {
       "id": "RF-KU-03",
-      "title": "Codex 重建线程的恢复质量",
-      "text": "缺失 rollout 与 writer 冲突走新线程；无法从源码判断恢复后是否重做已完成动作。",
-      "needed": "分别制造两类错误，保存恢复通知、线程 ID、记忆文件和幂等副作用回执。"
+      "title": "Codex 换了 Thread 之后，工作能否接上",
+      "text": "找不到 rollout 或旧 Thread 有 writer 冲突时，系统会改用新 Thread。它能否识别上一轮已经完成的动作，还需要实际检查。",
+      "needed": "分别触发这两类错误，保存恢复通知、新旧 Thread ID 和记忆文件，再核对外部动作有没有重复。"
     },
     {
       "id": "RF-KU-04",

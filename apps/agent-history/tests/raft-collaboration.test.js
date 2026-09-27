@@ -41,6 +41,31 @@ test("Raft evidence locators and every article reference resolve", () => {
   for (const [, target] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(sections.has(target), target);
 });
 
+test("Raft essay shares the blog theme without repetitive editorial chrome", () => {
+  assert.match(html, /class="article-page raft-blog raft-collaboration"/);
+  assert.match(html, /href="\/raft-blog.css"/);
+  assert.match(html, /href="\/raft-collaboration.css"/);
+  assert.doesNotMatch(html, /class="article-(byline|scope-band|margin|toc-note)"|class="section-number"/);
+  assert.doesNotMatch(html + JSON.stringify(study), /线程|智能体|提示词/);
+  const css = read("raft-collaboration.css");
+  assert.match(css, /grid-template-columns:180px minmax\(0,760px\)/);
+  assert.match(css, /@media\(max-width:760px\)/);
+  assert.match(css, /color:var\(--text-soft\)/);
+});
+
+test("Raft essay preserves the exact task and recovery source excerpts", () => {
+  const expected = {
+    claimExcerpt: "173ec83e862c23cec8c62ff5fcfb2308c3285bcd3ea0f8b29bbf878b4b494f7f",
+    recoveryExcerpt: "0036cec4ca8040a7baac237c3214f4fac92590e406dada02ff1fd79e6ea1d546",
+  };
+  const excerpts = [...html.matchAll(/data-collaboration-snippet="([^"]+)">([\s\S]*?)<\/code>/g)];
+  assert.equal(excerpts.length, 2);
+  for (const [, id, encoded] of excerpts) {
+    const text = encoded.replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&amp;", "&");
+    assert.equal(createHash("sha256").update(text).digest("hex"), expected[id]);
+  }
+});
+
 test("Raft is reachable through shared navigation and searchable research data", () => {
   const entry = JSON.parse(read("research-index.json")).studies.find((s) => s.id === study.id);
   const nav = require("../public/site-navigation.js");

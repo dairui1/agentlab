@@ -382,7 +382,11 @@ test("all full implementation notes keep semantic navigation and evidence contro
     assert.deepEqual(tocTargets, sectionIds, `${id} TOC and article sections diverged`);
 
     assert.ok(elements(html, "div").some((element) => element.attributes.id === "articleProgress" && Object.hasOwn(element.attributes, "data-reading-progress")));
-    assert.ok(elements(html, "div").some((element) => Object.hasOwn(element.attributes, "data-article-tabs")));
+    if (id !== "raft-collaboration") {
+      assert.ok(elements(html, "div").some((element) => Object.hasOwn(element.attributes, "data-article-tabs")));
+    } else {
+      assert.ok(elements(html, "div").some((element) => hasClass(element, "visibility-flow")));
+    }
     assert.ok(elements(html, "button").some((element) => Object.hasOwn(element.attributes, "data-evidence-trigger")));
   }
 });
@@ -535,6 +539,11 @@ test("article evidence inspectors and interactive controls expose accessible sta
     }
 
     const tablists = elements(html, "div").filter((element) => Object.hasOwn(element.attributes, "data-article-tabs"));
+    if (id === "raft-collaboration") {
+      assert.equal(tablists.length, 0);
+      assert.ok(elements(html, "figure").length >= 2, "Raft explains states inline instead of hiding them behind tabs");
+      continue;
+    }
     assert.ok(tablists.length > 0, `${id} lacks progressive article tabs`);
     assert.ok(elements(html, "div").some((element) => element.attributes.role === "tablist"));
     const tabs = elements(html, "button").filter((element) => element.attributes.role === "tab");
