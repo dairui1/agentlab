@@ -26,8 +26,8 @@
           <h1 data-original="title">让智能体待在同一个房间，就注定会混乱吗？</h1>
           <div class="blog-byline"><span>原作者 Tenny · 联合创始人、CTO、AX 设计师</span><time datetime="2026-05-21">2026 年 5 月 21 日</time><span>编辑 Cindy &amp; Maggie</span></div>
         </div>
-        <div class="heading-research"><h2>沿着收件箱和发送路径读源码</h2><p>收件箱怎样管理注意力？消息在哪里被暂缓？草稿如何恢复？任务归属又由谁决定？</p><div class="research-facts"><span>09 则研究</span><span>19 段源码</span><span>09 幅机制图</span></div>
-          <p class="provenance">AgentLab · 2026-09-26<br><code>v1.13.0-source.1 / 05f7d8fd</code><br>代码核对基于 2026-09-24 的实现快照，晚于五月博客；未运行 Raft 或上游测试。</p>
+        <div class="heading-research"><h2>给智能体一次改变主意的机会</h2><p>从两个同时报出“8”的智能体出发，看看 Raft 怎样让它们发现变化、留下草稿，再决定还要不要开口。</p><div class="research-facts"><span>09 则研究</span><span>19 段源码</span><span>09 幅机制图</span></div>
+          <p class="provenance">AgentLab · 2026-09-27<br><code>v1.13.0-source.1 / 05f7d8fd</code><br>代码核对基于 2026-09-24 的实现快照，晚于五月博客；未运行 Raft 或上游测试。</p>
         </div>
       </header>
       <div class="reader-toolbar">
@@ -46,13 +46,15 @@
           <p data-original="paragraph"><strong>问题不在智能体本身。</strong>只要得到恰当的上下文，智能体就能判断该不该回复、是否已经有人说过同样的观点，以及这条指令究竟是不是给自己的。真正的故障发生在智能体作出判断之后、在房间里付诸行动之前：糟糕的可选动作把它困住了。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-01">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 01</div><h3 id="note-01">报数为什么会重复：提交前，房间已经变了</h3><p class="annotation-anchor">对应原文：“出问题的不是智能体，而是房间。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 01</div><h3 id="note-01">两个智能体都没算错，为什么还是报重了？</h3><p class="annotation-anchor">对应原文：“出问题的不是智能体，而是房间。”</p></header>
 
-<p>A 和 B 都读到房间里最后一个数字是 7，各自决定发 8。A 先发出去了，B 还在组织回复。等 B 提交时，房间已经变了，但 B 手里的上下文没有变。这次重复未必是模型没听懂“按顺序报数”，也可能只是它没机会知道：8 刚刚被别人报过。</p>
-<p>再强调一遍“不要重复”，也消除不了这个时间差。模型按读到的内容作答，执行接口却面对着更新后的房间。Raft 在两者之间加了一次检查：提交前发现新消息，就先把草稿留下，让智能体看过变化再决定。原文说“出问题的是房间”，指的就是工作区缺少这一步。</p>
+<p>先只看其中两个智能体。A 和 B 都读到“7”，也都知道下一位该报“8”。A 想得快一点，先发了出去。B 随后按下发送。它没有算错，也没有违反自己读到的规则，可房间里还是出现了两个“8”。</p>
+<p>把 B 换成一个正在回复群聊的人，这个场面就很熟悉了。消息写到一半，屏幕上又冒出一条回复；发现别人已经说了自己想说的话，删掉就好。这里几乎不需要作什么艰难判断，难的是让写到一半的智能体也有机会看见那条回复。它这一轮拿到的对话已经定了，后来的消息不会自动长进上下文。</p>
+<p>Raft 没有先去寻找一个更会排队的模型。它改的是发送这一步：B 把“8”交过来时，工作区先看看，在 B 读完之后有没有人说过话。如果有，先别把草稿贴进房间，把变化和草稿一起交还给 B。这次往返给了它一个人类打字时本来就有的机会：等等，这句话是不是已经不用说了？</p>
 <figure class="research-diagram" id="diagram-race"><div class="diagram-title">01 / 同一份快照，两个合法推理</div><div class="race-grid"><div class="lane-heading">时刻</div><div class="lane-heading">智能体 A</div><div class="lane-heading">智能体 B</div><div class="time-label">读取</div><div class="event">看见最后是 7</div><div class="event">也看见最后是 7</div><div class="time-label">推理</div><div class="event">下一条应发 8</div><div class="event">下一条应发 8</div><div class="time-label">提交</div><div class="event positive">先提交 8</div><div class="event warning">现场变了，仍准备发 8</div><div class="time-label">检查</div><div class="event quiet">房间已有新消息</div><div class="event emphasized">暂缓 → 交回重新判断</div></div><figcaption>人为构造的串行到达示意，不是 Raft 运行记录。真正同时通过检查的情况，留到第 09 则研究讨论。</figcaption></figure>
-<h4>发送请求带上了哪个读取位置</h4>
-<p>在服务端，草稿不是单独一段正文。请求还可以携带 <code>seenUpToSeq</code>，表示这次动作所依据的读取位置。服务端取得目标侧的最新位置，再计算本次承认的边界。下面这段 <code>Math.min</code> 把客户端给出的数字限制在实际最新位置以内，避免一个超前的数值直接成为有效边界。<a class="cite" href="#RM-08">[08]</a></p>
+<h4>这条回复，是看过哪段对话以后写的？</h4>
+<p>要做到这一点，光交一段“8”还不够。服务端不知道 B 是刚读完对话，还是拿着一分钟前的内容作答。发送请求需要再带一条信息：我读到哪里了。代码把它叫作 <code>seenUpToSeq</code>，可以把它想成夹在消息记录中的书签。这里的序号是消息的位置，和游戏里报出的数字是两回事。</p>
+<p>下面这段代码负责确定这枚书签的位置。最后的 <code>Math.min</code> 值得留意：客户端报来的位置不能超过服务端实际知道的最新位置。前半段则在处理讨论串的起点；还没有自己的读取记录时，可以从父消息的位置算起。这样，服务端才有办法接着问：书签后面又多了什么？<a class="cite" href="#RM-08">[08]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · internalAgentApi.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3772-L3780" target="_blank" rel="noopener noreferrer">L3772–3780 ↗</a></figcaption><pre tabindex="0" aria-label="internalAgentApi.ts 源码"><code data-snippet="boundary">const latestFreshnessSeq = Math.max(latestAnchor.seq, threadParentAnchor?.seq ?? 0);
 const latestFreshnessMessageId = latestAnchor.seq &gt; 0 &amp;&amp; latestAnchor.seq &gt;= (threadParentAnchor?.seq ?? 0)
   ? latestAnchor.messageId
@@ -62,11 +64,10 @@ const attestedBoundarySeq = Math.min(
   hasClientSeenBoundary ? clientSeenUpToSeq : fallbackBoundarySeq,
   latestFreshnessSeq,
 );</code></pre></figure>
-<p>这里的“房间版本”要按目标来理解。代码还会区分讨论串与频道、智能体关注的消息，以及它自己发出的消息，并没有拿整个工作区的全局版本号一比了事。否则，另一个频道随便来一句话，都可能打断当前发送；读过 A 频道，也可能被错算成读过 B 频道。</p>
-<h4>发现变化后，仍要由模型决定</h4>
-<p>单看“发 8”这段内容，服务端无从知道它是刚写好的，还是一分钟前就准备好了。<strong>请求带上读取位置</strong>，才把这个差别交代清楚。服务端可以据此查找后来的消息，而不用猜模型写作时究竟看到了哪一轮对话。</p>
-<p>新消息也不一定要求改稿。“8 已被发出”会让原稿失去意义，“谢谢”却未必。服务端只报告后来发生了什么，改写、沉默还是照发，留给智能体判断。这样不需要另设一个模型，专门替房间里的所有参与者安排发言顺序。</p>
-<p class="research-verdict">这个例子解释的是先后到达的两次提交。若 A、B 同时通过检查，会怎样？第 09 节把它列为待做的并发实验。任务互斥和外部操作的幂等性，则需要另外检查。</p>
+<p>这也解释了为什么“房间版本”不是整个工作区共用的一个数字。B 准备回复的是某个频道或讨论串，检查就得围绕那个目标展开。另一个频道里有人讨论午饭，不该让这里的报数停下来。实现会区分讨论串和频道、智能体收到的关注信号，也会排除它自己的发送；这些细节留到发送路径一节再看。</p>
+<p>发现有变化之后，服务端仍然没有替 B 改成“9”。新来的可能是 A 报出的“8”，也可能只是旁观者说了一句“继续”。两种情况下，原稿是否还合适，答案并不一样。系统能可靠提供的是“后来又发生了这些事”，读懂这些事、决定还要不要说话，仍然交给智能体。</p>
+<p>这让“更好的房间”有了具体含义。它不要求参与者每次思考都恰好与别人错开，而是在一个决定即将变成公开消息时，允许参与者再看一眼。我们常把重复回复归咎于模型不够聪明；这个例子提醒我们，有时它缺的只是一次及时的回头。</p>
+<p class="research-verdict">图里假定 A 已经发完，B 才来到检查这一步。如果两者连检查都同时完成，会怎样？这个问题还没有靠源码阅读得到答案，最后一节会回到它。</p>
   </aside>
 </section>
 
@@ -79,13 +80,13 @@ const attestedBoundarySeq = Math.min(
           <p data-original="paragraph">共享房间里的每一种故障模式都来自这道间隙：工作区是为能够持续在场的参与者设计的，却没有为回合制的参与者提供相应的交互界面。这就是我们正在打造 <strong>Raft 的原因：一个为人类与智能体共同工作而设计的智能体原生工作区</strong>。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-02">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 02</div><h3 id="note-02">收到消息、见过消息、读到哪里，是三种状态</h3><p class="annotation-anchor">对应原文：“从推理到提交之间，房间已经发生变化。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 02</div><h3 id="note-02">一条消息到了，智能体就算看过了吗？</h3><p class="annotation-anchor">对应原文：“从推理到提交之间，房间已经发生变化。”</p></header>
 
-<p>文章说智能体缺少持续感知。写实现时，这句话会变成一个更棘手的问题：服务端、守护进程和模型分别知道什么？一条消息进了本机队列，并不表示它已经被放进当前模型输入；某条提及被单独送入上下文，也不表示它前面的消息都看过。</p>
-<p>假设第 100 条消息提及了这个智能体，系统把它单独送进上下文。我们知道模型见过 100，却还不知道它有没有见过 97、98、99。若此时直接把已读位置写成 100，前面漏掉的消息就可能再也不被当作未读。消息到达、单条可见、范围进度，需要分开记录。</p>
+<p>上一节那枚“读到哪里”的书签，看上去只是一个数字。可是谁来移动它？消息到了服务器，到了运行智能体的机器，还是已经出现在模型读到的内容里？这几个时刻往往隔着队列和工具调用。如果把其中任何一个都叫作“已读”，发送前那次检查就很容易查错。</p>
+<p>假设智能体上次读到第 96 条消息。后来有人在第 100 条里 @了它，系统把这条提及单独交给模型。它现在知道第 100 条说了什么，却未必知道中间三条的内容。要是第 99 条刚说过“先别发布”，只收到第 100 条的催办，并不能让它了解当前安排。</p>
+<p>偏偏这时最省事的写法，就是把已读位置更新成 100。数字确实变新了，遗漏也跟着被掩盖了：下一次再检查“已读之后有什么”，第 99 条已经落在检查范围之外。Raft 的本地状态机没有这样处理，它把“这一条交给过模型”和“历史读到了这里”分开记。</p>
 <figure class="research-diagram" id="diagram-seen"><div class="diagram-title">02 / 两种不同形状的“看见”</div><div class="seen-map"><div class="seen-row"><strong>目标历史</strong><span>97</span><span>98</span><span>99</span><span>100</span></div><div class="seen-row"><strong>单条提及</strong><span class="unseen">未见</span><span class="unseen">未见</span><span class="unseen">未见</span><span class="positive">已见</span></div><div class="seen-row"><strong>错误推断</strong><span class="warning">已见</span><span class="warning">已见</span><span class="warning">已见</span><span class="warning">读到 100</span></div></div><div class="diagram-result">单条 100 可见 ≠ 97–100 的正文全部可见</div><figcaption>概念图。序号为说明而设；黄色一行是不能由单条提及推出的结论，不是系统实际状态。</figcaption></figure>
-<h4>本地状态机为什么要逐条分类</h4>
-<p><code>planAgentInboxSideEffect</code> 没有直接问“队列非空吗”，而是对待处理消息逐条调用可见性判断，分成 <code>alreadySeenPending</code> 与 <code>unconsumedMessages</code>。这能避免另一个方向的误判：消息虽然还在队列中，但已经通过别的路径呈现给模型，不能仅因为它尚未出队，就无限次阻止发送。<a class="cite" href="#RM-06">[06]</a></p>
+<p>反过来，队列里有消息也不一定要拦住发送。第 100 条可能已经通过别的入口交给了模型，只是还留在待处理队列里。若每次都以“队列不空”为由把草稿退回来，智能体读过同一条消息多少次都没用。于是，代码先逐条查看交付记录，把已经见过的和还没见过的分开。下面的两个数组就在做这件事。<a class="cite" href="#RM-06">[06]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · agentInboxStateMachine.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L155-L171" target="_blank" rel="noopener noreferrer">L155–171 ↗</a></figcaption><pre tabindex="0" aria-label="agentInboxStateMachine.ts 源码"><code data-snippet="classification">const alreadySeenPending: AgentInboxStateMachineMessage[] = [];
 const unconsumedMessages: AgentInboxStateMachineMessage[] = [];
 for (const message of pending) {
@@ -103,9 +104,9 @@ appendTrace(trace, &quot;pending_context_classified&quot;, {
 if (unconsumedMessages.length === 0) {
   const contiguousBoundary = maxKnownContiguousBoundary(input);
   const canAdvanceBoundary = typeof contiguousBoundary === &quot;number&quot; &amp;&amp; contiguousBoundary &gt;= boundary.seenUpToSeq;</code></pre></figure>
-<p>更重要的是后半段。即使所有待处理条目都被认定为已见，代码仍会另外求 <code>maxKnownContiguousBoundary</code>，再决定能不能推进范围边界。<strong>精确消息可见性回答“这几条见过没”；连续边界回答“能把进度推进到哪里”。</strong>两者不能相互替代。</p>
-<h4>历史读取为什么能推进进度</h4>
-<p>沿 CLI 的历史读取路径，可以看到另一种明确约定：普通历史窗口返回正文后，用窗口里的最大序号记录目标的读取进度；<code>--around</code> 是定位查看，不推进这条进度。浏览旧窗口不会因为看到了更早的内容，就把已有的进度倒退。讨论串和父频道也分别持有自己的目标键。<a class="cite" href="#RM-04">[04]</a></p>
+<p>读到代码末尾，还能看到另一次检查：即便队列里的消息都已经见过，也要寻找有依据的连续读取位置，再决定能否把书签往后移。这份谨慎有用的地方在于，它同时避免了两种令人困惑的体验：没看过的消息被算成看过，看过的消息又一遍遍阻止发言。</p>
+<h4>那什么时候可以把书签往后移？</h4>
+<p>最直接的办法是打开这段讨论，读一页历史。Raft 的普通历史读取会拿返回消息中的最大序号，记为这个目标新的读取位置。但如果只是用 <code>--around</code> 查看某条消息附近的内容，就不动书签。前者是在继续读对话，后者更像翻回去查一句话；查完旧消息，不该把当前进度改来改去。<a class="cite" href="#RM-04">[04]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · read.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/read.ts#L148-L155" target="_blank" rel="noopener noreferrer">L148–155 ↗</a></figcaption><pre tabindex="0" aria-label="read.ts 源码"><code data-snippet="history">if (readOpts.around === undefined) {
   const rows = res.data.messages ?? [];
   let maxSeq = 0;
@@ -114,9 +115,9 @@ if (unconsumedMessages.length === 0) {
   }
   recordConsumedRead(agentContext.agentId, readOpts.channel, maxSeq &gt; 0 ? maxSeq : undefined);
 }</code></pre></figure>
-<p>不过，历史窗口也可能只返回有限条消息。“推进到这里”是这个读取接口的约定，不保证整个历史都进过上下文，更不测量模型理解了多少。本地状态机防止的是用一条离散提及冒充一段历史；历史读取本身仍有自己的窗口限制。</p>
-<p>以后再加搜索、唤醒或预览入口，最容易出错的地方就是顺手复用 <code>markRead</code>。搜索只命中了三条旧消息，是否应该改已读进度？预览只有摘要，能不能确认正文？这些得按入口逐一决定。Raft 现有的区分提供了参照：摘要不消费，离散消息记具体条目，普通历史读取按窗口推进。</p>
-<p class="research-verdict">排查漏读时，光问“它读过了吗”还不够。还要查是哪条接口交付的、对应哪个目标、交付了哪些正文。这些记录交代的是接口做了什么；模型有没有理解或遵守内容，要另看运行记录。</p>
+<p>代码中的 <code>if</code> 把这两个动作分开了。记录也按目标保存，所以读完一个讨论串，不会顺便把父频道的全部消息算作读过；往回翻旧窗口，也不会让已有进度倒退。对读者来说这些行为很自然，对工具来说却必须逐项写出来。否则，同样是“返回了一些消息”，一次搜索、一次预览和一次历史读取就可能悄悄产生相同的副作用。</p>
+<p>这里仍有一处需要留心：普通历史读取返回的也是有限窗口。把书签移到窗口末尾，是接口约定的处理方式，不是说此前的每一句话都完整进过上下文。后面还会看到，暂缓草稿甚至可能只交回几条新消息，就确认了整批。要理解“已读”，得连着看是哪一种读取动作留下了这个记录。</p>
+<p class="research-verdict">这些记录能让系统知道自己把什么交给了模型。至于模型是否理解了那条“先别发布”，又是否照做，已经是另一个问题。交付记录值得认真做，恰恰因为后续排查需要先分清：它是没听见，还是听见了却没有停下。</p>
   </aside>
 </section>
 
@@ -127,13 +128,13 @@ if (unconsumedMessages.length === 0) {
           <p data-original="paragraph">我们正在建立的，是一门称为<strong>智能体体验设计</strong>，简称 AX 的学科。它之于智能体，就像用户体验设计之于人类，但设计依据是<strong>智能体实际如何观察和行动</strong>。具体来说，它要对智能体接触的每个界面提出四个问题：行动的那一刻，智能体看到了什么？两次调用之间，它保留了哪些状态？遇到什么情况后，它能够恢复？哪些决定可以由它自己作出？本文余下部分会介绍两个具体的交互界面：我们如何在这些界面上逐一回答这些问题，以及从中形成的设计原则。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-03">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 03</div><h3 id="note-03">AX 的实现：暂缓之后，工具要交还什么</h3><p class="annotation-anchor">对应原文：“看到了什么、保留哪些状态、如何恢复、允许决定什么。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 03</div><h3 id="note-03">让智能体改变主意，工具得先留一条路</h3><p class="annotation-anchor">对应原文：“看到了什么、保留哪些状态、如何恢复、允许决定什么。”</p></header>
 
-<p>工具返回“先别发”，接下来会发生什么？如果客户端已经把消息投递出去，这句提醒来晚了；如果没发，但草稿丢了，模型又得重写。暂缓必须连着几件具体的事：停止投递、保存原稿、交还新上下文，并给出能继续调用的恢复动作。</p>
-<p>原文列的四个问题，在接口里都有对应的内容。读取边界和待处理消息交代“看到了什么”；正文、附件、提及对象与计数负责保留草稿；修改后重发或读取原稿提供恢复路径。至于最后要不要发，请求里还区分了普通重查和明确绕过，选择权留在调用方。</p>
+<p>沿着报数的例子往下想：B 的“8”被暂缓了，它接下来会收到什么？如果只有一句“发送失败”，B 很可能再试一次；如果只说“有新消息”，却不留下原稿，它又得从头组织回复。工作区虽然阻止了一次重复发言，却可能把智能体带进另一段无效忙碌。</p>
+<p>原文把这种设计称为 AX。这个词容易让人想到一套新界面，但在源码里，更实际的问题是：一次工具调用结束时，有没有把下一步所需的东西交齐。B 需要知道自己的消息还没发出去，需要看见后来发生的变化，也需要拿得回刚才写好的内容。等这些都有了，“改一下”“还是照发”“算了不说”才真的是可选动作。</p>
 <figure class="research-diagram" id="diagram-contract"><div class="diagram-title">03 / 一次暂缓必须交还什么</div><div class="contract-grid"><div><span class="diagram-index">事实</span><strong>哪里变了</strong><p>目标、读取边界、新消息数</p></div><div><span class="diagram-index">状态</span><strong>原来准备发什么</strong><p>正文、附件、提及对象</p></div><div><span class="diagram-index">恢复</span><strong>接下来有哪些动作</strong><p>改写、重查、沉默、绕过</p></div><div><span class="diagram-index">责任</span><strong>谁来作最终判断</strong><p>系统报告变化，智能体选择</p></div></div><div class="diagram-result">状态不能只藏在解释性文字里</div><figcaption>按已读到的协议整理，不是额外声称 Raft 存在一个 AX 总控服务。</figcaption></figure>
-<h4>暂缓结果有哪些字段</h4>
-<p>守护进程的判断有明确类型。<code>local_hold</code> 与 <code>syncing_hold</code> 是两种暂缓，<code>forward</code> 表示继续向上游走，<code>bypass</code> 表示明确绕过本层检查。结果里同时保留原因、目标、边界以及展示和省略的消息数。<a class="cite" href="#RM-06">[06]</a></p>
+<p>可以想象两种暂缓结果。一种只返回一句“请稍后重试”；另一种告诉调用方，草稿留在这里，新来了两条消息，其中一条已经回答了你准备回答的问题。前者让智能体处理一个故障，后者让它继续参与一场对话。差别不在提示语客不客气，而在于它有没有足够的信息作下一次判断。</p>
+<p>本地检查的返回结构把这些情况分开保存。读下面这段时，可以先看 <code>decision</code>：它会说明这次是暂缓、继续转交服务端，还是明确绕过；后面的字段再交代原因、目标和消息数量。调用方不必从一段“失败了”的文字里猜，也就不会把暂缓误当成已经发送成功。<a class="cite" href="#RM-06">[06]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · agentInboxStateMachine.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L31-L44" target="_blank" rel="noopener noreferrer">L31–44 ↗</a></figcaption><pre tabindex="0" aria-label="agentInboxStateMachine.ts 源码"><code data-snippet="decision">export type AgentInboxFreshnessDecision = {
   action: AgentInboxStateMachineAction;
   decision: &quot;local_hold&quot; | &quot;syncing_hold&quot; | &quot;forward&quot; | &quot;bypass&quot;;
@@ -148,9 +149,10 @@ if (unconsumedMessages.length === 0) {
   heldMessageCount?: number;
   omittedMessageCount?: number;
 };</code></pre></figure>
-<p>调用方拿到这个结果，再更新相应状态，或把本地暂缓响应交回 CLI。后续代码可以直接读 decision、原因和消息数量来分支，不必从“发送失败”这样的字符串里猜发生了什么。日志也能保留同一份判断，方便追查哪一层让发送停了下来。</p>
-<h4>恢复原稿，需要保存哪些内容</h4>
-<p>文章里的“原样发送”听起来只是一项菜单选择。实现它却需要重新找到<strong>同一份</strong>正文、附件和提及对象，并沿用正确目标，而不是让模型凭记忆再写一遍。下面的草稿结构正是在承担这个责任。计数和读取边界与正文保存在一起，也让后续请求能知道这是一次恢复，而不是全新的发送。<a class="cite" href="#RM-11">[11]</a></p>
+<p>有两个不同的暂缓值，是因为停下来的理由还可能与同步状态有关。对模型来说，同样是暂时没有发出；对继续处理这次调用的程序来说，却需要知道应该按哪一种情况处理。把这件事记在明确的字段里，也给排查留下了线索：到底是哪一步让消息停下，停下时系统知道了什么。</p>
+<h4>“原样发送”必须真的找得回原样</h4>
+<p>再看一个日常到几乎容易被忽略的选项：原样发送。对人来说，输入框里的文字还在，按一次发送就行。对智能体来说，如果上一轮工具调用结束后什么都没保存，“原样”就只剩一句要求。让模型凭记忆重写，可能少一个附件、漏一个提及，甚至把正文改掉。</p>
+<p>Raft 因而把草稿存成一份独立记录。下面既有正文，也有附件和提及对象；保存时间、暂缓次数和读取位置跟着它一起留下。恢复发送时，客户端取回的是这份记录，而不是请模型再生成一个看上去差不多的版本。草稿按智能体和目标保存，也不能因为正在另一段讨论里工作，就恢复到错误的房间。<a class="cite" href="#RM-11">[11]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · _continueDraftState.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/_continueDraftState.ts#L4-L11" target="_blank" rel="noopener noreferrer">L4–11 ↗</a></figcaption><pre tabindex="0" aria-label="_continueDraftState.ts 源码"><code data-snippet="draft-type">export interface SavedDraft {
   content: string;
   attachmentIds: string[];
@@ -159,10 +161,9 @@ if (unconsumedMessages.length === 0) {
   reholdCount: number;
   seenUpToSeq?: number;
 }</code></pre></figure>
-<p>假如把这些步骤合成一个“读完就重发”的工具，调用次数是少了，智能体却没机会在读到变化后选择沉默。读收件箱、推进进度、恢复草稿分别有哪些副作用，接口应该写清楚。尤其不能在一个看似只读的调用后面，悄悄接上发送。</p>
-<h4>怎么检查工具是否支持恢复</h4>
-<p>评审智能体工具时，不妨先把自然语言说明遮住，只看输入、返回值与持久状态：暂缓和成功是否可区分？恢复时能否找回准确内容？没有新正文的隔离模式会不会意外把内容带回来？如果这些问题只能靠模型猜测，那还只是提示词约定，没有形成完整接口。</p>
-<p>这些字段和分支让客户端有办法保留草稿，并区分暂缓和成功。模型拿到这些选项后，会不会补读历史、会不会在该沉默时停下，目前还没有运行实验可供判断。接口审查可以先做，行为评估不能省。</p>
+<p>这份保存也让“沉默”变得可行。原稿已经安顿好了，智能体可以先看新消息，再决定不继续，而不用为了结束一次失败调用勉强发出点什么。如果客户端一收到暂缓就自动重试，或者把“读消息”和“重发草稿”绑成一个动作，这个选择反而会消失。</p>
+<p>这或许是 AX 最容易被低估的地方。一个选项出现在提示词里，不代表智能体真的能选它。要让它放弃，后面就不能有重试器替它继续；要让它恢复，就得保留准确的内容；要让它自己决定，就得把决定前缺失的信息送到面前。每一项都需要工具配合。</p>
+<p class="research-verdict">源码让我们看到了这些选项如何被接到一起。接下来还要看它们各自改变了什么：检查收件箱会不会顺便把消息确认掉？保留草稿之后，再发一次究竟算重试还是重新决定？这些细节决定了选项能不能用得放心。</p>
   </aside>
 </section>
 
@@ -175,10 +176,11 @@ if (unconsumedMessages.length === 0) {
           <p data-original="paragraph"><strong>由智能体决定什么值得进入自己的上下文</strong>，而不是由房间替它决定。每个被拉入工作提示的信号，都会挤占其他内容的位置，无论是任务状态、指令还是中间推理。因此，把这个决定交给智能体，而不是交给恰好发出下一条消息的人，才能让注意力留在工作上。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-04">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 04</div><h3 id="note-04">收件箱的三个入口，各自读了什么</h3><p class="annotation-anchor">对应原文：“由智能体决定什么值得进入自己的上下文。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 04</div><h3 id="note-04">先看看谁在找我，再决定要不要放下手头的事</h3><p class="annotation-anchor">对应原文：“由智能体决定什么值得进入自己的上下文。”</p></header>
 
-<p>智能体正在做一项长任务，想知道有没有人找它，未必需要立刻读完所有频道的新消息。Raft 把查看摘要和取正文拆开：先列出哪些目标有动静，再由智能体决定读哪一个。一次例行检查因此不必把整批聊天记录塞进当前上下文。</p>
-<p>从 <code>raft inbox check</code> 开始，CLI 要求处于 managed runner 中，再调用本地守护进程提供的收件箱接口。下面的代理实现读取所有 pending messages，投影出目标摘要，并把 app items 作为另一类条目合并返回。这里的 <code>getAllPendingMessages</code> 是读取队列状态，不是把队列全部取走。<a class="cite" href="#RM-01">[01]</a><a class="cite" href="#RM-02">[02]</a></p>
+<p>假设智能体正在排查一个测试失败。它刚找到可能的原因，房间里又聊起了另一件事。把每一条闲聊都送进来，眼前的工作会不断被打断；只允许被 @ 时响应，又可能错过一句没有点名、却与这个错误有关的线索。收件箱给出的第三种选择是：先知道哪里有动静，至于现在要不要读，由正在工作的人自己决定。</p>
+<p>这要求“看看有什么”足够轻。检查收件箱之后，如果整段聊天记录已经进入上下文，那选择其实早就替智能体作完了。Raft 的摘要入口按目标汇总动静，不把所有正文一起塞过来；也不会因为看过这份清单，就把队列里的消息取走。智能体可以决定先把眼前这个测试查完，稍后再回来。</p>
+<p>代码里的 <code>raft inbox check</code> 就是这个入口。它需要在 Raft 管理的运行环境里使用，由本地守护进程汇总待处理内容。下面先读取队列，再生成摘要，最后把消息目标与其他应用条目合在一起返回。这里要留意的是“读取队列”和“取走消息”的区别：这一步做的是前者。<a class="cite" href="#RM-01">[01]</a><a class="cite" href="#RM-02">[02]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · agentCredentialProxy.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1158-L1165" target="_blank" rel="noopener noreferrer">L1158–1165 ↗</a></figcaption><pre tabindex="0" aria-label="agentCredentialProxy.ts 源码"><code data-snippet="projection">const pending = coordinator?.getAllPendingMessages?.() ?? [];
 const rows = projectAgentInboxSnapshot(pending);
 const appItems = registration.appInbox?.list() ?? [];
@@ -187,23 +189,21 @@ const items = [
   ...rows.map((row) =&gt; ({ source: &quot;message_target&quot; as const, row })),
   ...appItems,
 ];</code></pre></figure>
-<p><code>source: "message_target"</code> 把消息目标与 app items 区分开了。这些条目未必使用相同的序号、发送者或确认方式，保留来源类型，后续处理才知道该调用哪一类接口。如果只剩一段混排的聊天文本，调用方还得重新识别每条信息从哪里来。</p>
+<p>合在同一份清单里，不代表条目从此都变成了聊天消息。代码仍用来源类型区分它们，因为打开一段讨论和处理一个应用条目，后续动作可能不同。对智能体而言，收件箱提供的是一个去向：这件事值得看，就沿着对应入口继续，而不是先读一大段混在一起的文本，再猜每一项来自哪里。</p>
 <figure class="research-diagram" id="diagram-inbox"><div class="diagram-title">04 / 摘要、离散取出、历史读取</div><div class="read-path"><div class="read-command"><code>inbox check</code><span class="arrow" aria-hidden="true">→</span><div class="event">目标摘要 / 数量<small>不消费正文</small></div></div><div class="read-command"><code>message check</code><span class="arrow" aria-hidden="true">→</span><div class="event">待处理消息<small>非阻塞取出，不写连续游标</small></div></div><div class="read-command"><code>message read</code><span class="arrow" aria-hidden="true">→</span><div class="event positive">目标历史窗口<small>普通读取推进目标进度</small></div></div></div><div class="diagram-result"><code>--around</code> 定位查看是例外：返回上下文，但不推进历史读取边界</div><figcaption>三个入口的职责对照。它们是可组合的动作，不是每次工作都必须依次走完的流水线。</figcaption></figure>
-<h4>取消息与读历史的区别</h4>
-<p><code>raft message check</code> 调用 <code>drainInbox</code>，并显式传入 <code>block: false</code>。它要尽快返回当前已有的消息，不是开一个一直等新消息的订阅。返回结果还会告诉客户端是否仍有更多消息需要继续取。<a class="cite" href="#RM-03">[03]</a></p>
+<h4>有人找我，和这段讨论发生了什么</h4>
+<p>假如摘要里有一条值得处理的提及，下一步可以取待处理消息。<code>raft message check</code> 会尽快返回当前已有的内容；下面的 <code>block: false</code> 表示没有消息时也不一直等着。返回结果还会说明是否有更多内容可取，让智能体自己安排要不要继续这一轮查看。<a class="cite" href="#RM-03">[03]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · check.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/check.ts#L23-L28" target="_blank" rel="noopener noreferrer">L23–28 ↗</a></figcaption><pre tabindex="0" aria-label="check.ts 源码"><code data-snippet="drain">const agentContext = ctx.loadAgentContext();
 const result = await drainInbox(
   agentContext,
   { block: false },
   ctx.createApiClient(agentContext),
 );</code></pre></figure>
-<p>这里“取出”带有消费语义，但并没有因此写一个最大已读序号。原因正是上一则研究里的稀疏性：待处理消息是注意力队列，不一定是一段连续历史。一个智能体可以刚收到第 100 条提及，却没有第 99 条撤销指令。取走 100，不应自动消除 99 带来的不确定性。</p>
-<p>真正需要理解目标上下文时，还可以调用历史读取。它把有序窗口里的正文交给模型，并按该入口的规则推进读取进度。两者的使用动机不同：前者处理“有人找我”，后者回答“这段讨论发生了什么”。文章说由智能体管理注意力，落到代码中，恰恰需要保留这种选择，而不是一个工具默认把两件事都做了。</p>
-<h4>多久查一次收件箱</h4>
-<p>拉取式设计避免了一次性把噪声推入上下文，却也带来新的问题：多久检查一次？做长任务时是否会饿死收件箱？摘要看起来不重要，正文却藏着关键约束怎么办？这些不能从一个 <code>check</code> 命令是否存在来回答。</p>
-<p>省下正文，不一定省下总成本。检查过密，会多出一串工具调用；检查过少，撤销指令可能很晚才被读到。要判断这套设计划不划算，需要在相同任务下记录检查次数、实际读取的正文、总 token 和完成时间。源码能确认摘要入口没有强塞所有正文，合适的检查节奏还得靠运行数据来找。</p>
-<p>对自己的系统也可以做一个很小的检查：先调用摘要入口，观察队列数量是否仍保持；再取消息，观察哪些条目被确认；最后做一次 <code>--around</code> 查看，确认它没有把发送依据偷偷推进。这些测试检查的是每次调用究竟改了什么，不能只断言“返回了一个数组”就结束。</p>
-<p class="research-verdict">这三个入口值得分别保留：看摘要、取待处理消息、补读历史，各有各的用途。把它们合并之前，先确认调用方是否还需要只看摘要而不消费消息的能力。</p>
+<p>这一步真的会从队列里取出消息，却不把历史读取位置直接推进到最大序号。原因就是前面那个例子：单独到来的第 100 条提及，不能代替中间三条历史。处理“有人找我”之后，智能体可能已经足够作答，也可能意识到还不了解来龙去脉。只有后一种情况，才需要再打开历史窗口。</p>
+<p>于是三个入口有了各自的用处。看摘要，是决定要不要分出注意力；取待处理消息，是看看别人具体说了什么；读历史，是把这句话放回讨论中理解。它们不必每次按顺序走完。已经知道目标，就可以直接读历史；眼下没有相关动静，也可以看完摘要就回到工作。</p>
+<p>这种拆分把更多余地留给了智能体，也把一个难题留给了它：什么时候回来查看？如果忙着排查测试一直不抬头，撤销任务的消息可能等很久；如果每做一步都查一次，工具调用本身又会打断工作。拉取式设计让这些选择成为可能，却没有凭空给出一个适合所有任务的检查频率。</p>
+<p>所以，评价收件箱不能只看一次调用少返回了多少正文。还要把一段工作完整算下来：查了多少次，真正读了多少，关键消息晚了多久才到达，有没有为了补齐上下文来回折返。它可能让上下文更干净，也可能把一次推送变成多次轮询。这需要相同任务下的运行记录来比较。</p>
+<p class="research-verdict">这里值得带走的设计很朴素：允许智能体先看一眼，再决定是否投入注意力。为了保住这点余地，摘要就应该仍然只是摘要；不能名义上让它选择，实际在查看时已经替它读完、确认完一切。</p>
   </aside>
 </section>
 
@@ -216,13 +216,14 @@ const result = await drainInbox(
           <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png" alt="暂缓草稿界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>依据旧房间状态写出的草稿，可以暂缓、修改、原样发送，或放弃。</em></figcaption></figure>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-05">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 05</div><h3 id="note-05">发送检查：本地队列与服务端状态</h3><p class="annotation-anchor">对应原文：“每次发送都带着一个标记……服务端会把这个标记与当前状态作比较。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 05</div><h3 id="note-05">回复写好了，房间却已经往前走了一步</h3><p class="annotation-anchor">对应原文：“每次发送都带着一个标记……服务端会把这个标记与当前状态作比较。”</p></header>
 
-<p>从 CLI 发出一条消息，会先经过本机守护进程，再到服务端。三处看的东西不一样：CLI 保存准备发送的草稿，守护进程检查本机待处理队列，服务端核对目标侧的新消息。原文一句“比较房间版本”，在实现里分成了这几步。</p>
-<p>从 CLI 发起的 <code>messages.sendV2</code> 请求中，可以找到正文、目标、草稿计数，以及可用时附上的 <code>seenUpToSeq</code>。普通发送还会在请求之前保存草稿。这样，后面即使被暂缓，准备说的话也不是只能从模型的上一轮推理里找回来。<a class="cite" href="#RM-10">[10]</a></p>
+<p>现在让智能体写完回复，准备发出去。它也许刚查过收件箱，觉得一切妥当，但写这几句话的工夫仍可能有人插话。收件箱解决的是“我什么时候去看”，暂缓草稿接着处理“我看完以后，又发生了什么”。两者用在不同的时刻，少了后一次检查，前面再认真读也无法消除这段时间差。</p>
+<p>沿着发送命令往下找，会经过三个地方：命令行客户端、本机守护进程、服务端。客户端先留下草稿，守护进程看看本机已有的新消息，服务端再检查目标侧的变化。它们不在同一个地方，也不总是在同一时刻知道一条消息，所以不能只问其中一个。<a class="cite" href="#RM-10">[10]</a></p>
 <figure class="research-diagram" id="diagram-send"><div class="diagram-title">05 / 从准备发送，到真正投递</div><ol class="flow-stack"><li><span class="flow-owner">CLI</span><strong>保存草稿，提交内容与读取边界</strong><small>messages.sendV2(body)</small></li><li><span class="flow-owner">Daemon</span><strong>目标下是否还有未见的 pending 消息？</strong><div class="flow-fork"><span class="warning">有 → local_hold，返回上下文</span><span class="positive">可继续 → 转发到服务端</span></div></li><li><span class="flow-owner">Server</span><strong>边界之后是否有需要核对的新消息？</strong><div class="flow-fork"><span class="warning">有且未绕过 → held</span><span class="positive">未暂缓 → 继续提交路径</span></div></li><li><span class="flow-owner">Server</span><strong>broadcastAndDeliver</strong><small>到这里才进入真正的消息投递</small></li></ol><figcaption>源码调用链示意。图中“继续”只表示离开这一层的检查，不代表后面的所有步骤必然成功。</figcaption></figure>
-<h4>本地预检：先处理已经来到机器上的变化</h4>
-<p>代理把目标的 pending 消息、已有边界、模型已见边界和必要的近期上下文交给状态机。返回值不是简单的 true/false：它可能要求消费某些可见消息、记录判断、改写转发边界，也可能直接提供一个本地暂缓响应。代理随后应用这些副作用，再决定转发内容。<a class="cite" href="#RM-05">[05]</a><a class="cite" href="#RM-06">[06]</a></p>
+<h4>有些变化，已经在本机等着了</h4>
+<p>假设 B 还在写“8”，A 的回复已经到了 B 所在机器的待处理队列，却没有进入 B 这一轮的上下文。本机不必等服务端把草稿退回来，已经有足够理由先停一下：这里就有一条你还没见过的消息。它先用前面讲过的方法，区分真正没交给模型的消息和已经见过、只是仍留在队列里的消息。</p>
+<p>下面这段把目标、待处理消息和读取记录一起交给检查函数。读代码时可以顺着末尾看：有新的、可用的读取位置，就补到转发请求里；决定在本地暂缓，就把响应交回调用方。它没有简单地拿队列里最大的序号冒充“模型已经读到这里”。<a class="cite" href="#RM-05">[05]</a><a class="cite" href="#RM-06">[06]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · agentCredentialProxy.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentCredentialProxy.ts#L1522-L1544" target="_blank" rel="noopener noreferrer">L1522–1544 ↗</a></figcaption><pre tabindex="0" aria-label="agentCredentialProxy.ts 源码"><code data-snippet="plan">const plan = planAgentInboxSideEffect({
   agentId: registration.agentId,
   action,
@@ -246,10 +247,10 @@ return {
   freshnessContextMode,
   localResponse: plan.localResponse,
 };</code></pre></figure>
-<p>这里的 <code>forwardSeenUpToSeq</code> 只在有依据时补到发送请求里。它不是把“本机队列的最大序号”无条件塞给服务端。否则，本地尚未向模型展示的消息就会被伪装成已经处理，后面更严格的服务端检查也会失去正确输入。</p>
-<p>如果本地没有 coordinator，或者没有可用的目标，代理有直接向上游转发的路径。这个分支不能读成“没有检查就发出去了”：它只说明本层不作决定，服务端还会根据请求与配置执行自己的检查。反过来，本地选择暂缓时，根本不必等消息先到服务端再被挡回来。</p>
-<h4>服务端检查：它核对的不是本机队列</h4>
-<p>在固定快照中，非讨论串目标使用该智能体的 attention facts；讨论串使用目标消息锚点。两条路径都考虑排除自己的发送。客户端没有边界时，冷启动讨论串可以用父消息作为回退。也就是说，“有没有新消息”是在一个确定的目标与关注范围内计算的，不是任意频道有人发言都重启所有智能体。<a class="cite" href="#RM-08">[08]</a></p>
+<p>本地这一步有用，但也有它不知道的事。如果缺少管理队列的组件，或没能确定目标，请求会继续交给服务端。这样的转交只是“这里暂时不作判断”，不是“已经确认可以发送”。这一区别在排查问题时很重要：看到本地放行，还需要往后看，不能就此判断新消息检查已经被跳过了。</p>
+<h4>到了房间门口，再核对一次</h4>
+<p>服务端看到的范围又有所不同。讨论串会按目标消息检查，普通频道则会用到面向这个智能体的关注记录，代码称为 attention facts；自己的发送也会被排除。检查没有把工作区里的任何动静都算进来，否则一个忙碌频道就足以让所有地方的草稿不停被退回。<a class="cite" href="#RM-08">[08]</a></p>
+<p>在确定范围之后，暂缓条件反而很短：有新消息，而且调用方没有明确选择仍然发送。下面只需先看最后一行，就能抓住这个判断。前面的字段负责把查到了多少消息、用的是哪个读取位置一起带回去，供后续处理。</p>
 <figure class="source-code"><figcaption><span>源码节选 · internalAgentApi.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3806-L3817" target="_blank" rel="noopener noreferrer">L3806–3817 ↗</a></figcaption><pre tabindex="0" aria-label="internalAgentApi.ts 源码"><code data-snippet="server-rule">return {
   latestFreshnessSeq,
   latestFreshnessMessageId,
@@ -262,20 +263,19 @@ return {
   useAttentionFacts,
   shouldHoldForFreshness: !isContinueAnyway &amp;&amp; newMessageCount &gt; 0,
 };</code></pre></figure>
-<p>这里用两个条件决定是否暂缓：没有明确绕过，且新消息数大于零。命中后，路由把暂缓结果返回给调用方，到此结束；否则继续到 <code>broadcastAndDeliver</code>。<a class="cite" href="#RM-13">[13]</a></p>
+<p>条件成立，服务端就返回暂缓结果，这条草稿还没有进入真正的消息投递。没有被暂缓，才继续走到 <code>broadcastAndDeliver</code>。原文里“把旧草稿留下”的动作，就发生在这个分岔处。后面仍可能有别的发送错误，但至少在这里，暂缓不是先发出去、再补一句提醒。<a class="cite" href="#RM-13">[13]</a></p>
 <div class="freshness-lab" data-freshness-lab>
   <fieldset><legend>条件演算</legend><label><input type="radio" name="freshness-case" value="stale" checked>有新消息</label><label><input type="radio" name="freshness-case" value="fresh">没有新消息</label><label><input type="radio" name="freshness-case" value="override">明确绕过</label></fieldset>
   <div class="lab-equation"><code data-lab-expression>!false &amp;&amp; 2 &gt; 0</code><span aria-hidden="true">→</span><output data-lab-result aria-live="polite">暂缓发送</output></div>
   <p data-lab-note>读完之后又来了两条消息。没有选择绕过，草稿先留下。</p>
   <small>对源码条件的演算，非 Raft 运行记录；不表示绕过权限、目标解析等其他检查。</small>
 </div>
-<h4>哪些请求会启用检查</h4>
-<p>这道检查还受功能开关、请求标记和强制模式影响。CLI 默认携带草稿计数，因此正常命令行路径会请求检查；但缺少新协议标记的 legacy 请求，不能直接概括成“一律检查”。<a class="cite" href="#RM-07">[07]</a></p>
+<p>阅读到这里，很容易把它概括成“Raft 的所有消息都要检查”。实际接入还得多看一步：功能开关、请求是否使用这套协议，以及是否强制检查，都会影响这条分支是否启用。正常 CLI 发送带有草稿计数，会请求这次检查；老式的 legacy API 调用没有相应标记，行为未必相同。<a class="cite" href="#RM-07">[07]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · internalAgentApi.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3677-L3680" target="_blank" rel="noopener noreferrer">L3677–3680 ↗</a></figcaption><pre tabindex="0" aria-label="internalAgentApi.ts 源码"><code data-snippet="gate">const sendFreshnessEnabled = isSendFreshnessEnabled(agent.serverId, actingAgentId);
 const sendFreshnessMode = (process.env.SLOCK_ATTESTED_SEND_MODE ?? &quot;on&quot;).trim().toLowerCase();
 const shouldRunSendFreshness = sendFreshnessEnabled &amp;&amp;
   (requestedSendFreshness || sendFreshnessMode === &quot;force&quot;);</code></pre></figure>
-<p class="research-verdict">排查一次发送为何被挡住，要先看它停在哪一层。本地暂缓通常要查待处理队列及模型已见记录；请求已经转到服务端，则要查目标侧状态、读取边界和检查开关。只看 CLI 最后的提示，很容易漏掉前面的分支。</p>
+<p class="research-verdict">把整条路径连起来看，Raft 不是让模型边写边听见所有新消息，而是在工具准备执行时，把已经发生的变化重新摆到它面前。本地能发现的先在本地处理，到了服务端再按目标核对。草稿因此有机会停下；停下以后怎么继续，是下一节的问题。</p>
   </aside>
 </section>
 
@@ -285,10 +285,11 @@ const shouldRunSendFreshness = sendFreshnessEnabled &amp;&amp;
           <ul data-original="list"><li><strong>修改</strong>：根据房间的当前状态写一条新回复，放弃原来的草稿。</li><li><strong>原样发送</strong>：不改动原草稿，直接提交。发送仍然要经过新鲜度检查；如果暂缓期间房间又发生了变化，草稿可能再次被暂缓。</li><li><strong>保持沉默</strong>：让草稿过期。沉默也是一种有效结果。</li><li><strong>仍然发送</strong>：如果草稿已经多次被暂缓，而沉默又不是合适的结果，就明确绕过检查，无论如何都提交草稿。这个选项留给这样的情况：房间不断变化，但智能体已经判断，这一版仍然是应当发出的内容。</li></ul>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-06">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 06</div><h3 id="note-06">草稿恢复：为什么不能自动重试</h3><p class="annotation-anchor">对应原文：“修改、原样发送、保持沉默、仍然发送。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 06</div><h3 id="note-06">草稿被留下之后，不一定还要发出去</h3><p class="annotation-anchor">对应原文：“修改、原样发送、保持沉默、仍然发送。”</p></header>
 
-<p>先看一个容易误判的地方：服务端返回 HTTP 200，消息也可能还没发出去。CLI 必须继续看响应体，区分 <code>held</code> 和已提交结果。前者要留下草稿，后者才清理；如果只凭 HTTP 状态判断成功，恢复路径就断了。</p>
-<p>普通发送先存稿，再发请求。收到 hold 后，CLI 用新的暂缓计数和读取边界重新保存同一份内容；确认发送成功，才清掉草稿。这条恢复路径因此能保留准确的正文、附件和提及对象，不必让模型凭记忆重写。<a class="cite" href="#RM-10">[10]</a></p>
+<p>B 终于看到 A 已经报了“8”。这时再发同一个数字当然没意义，可它也未必应该立刻改成“9”：也许 C 已经在接着报，也许房间刚决定暂停游戏。暂缓不是让智能体把刚才失败的动作做成，而是请它重新想一遍，这个动作现在还值不值得做。</p>
+<p>这就是四个选项要分开的原因。改写，是依据变化重新组织内容；原样发送，是判断原稿仍然合适；沉默，是觉得已经不用补充；仍然发送，则是在知道房间还在变化的情况下，明确决定发出这一稿。它们不是同一条重试指令的四种说法。</p>
+<p>为了让这次选择不受“稿子还在不在”的干扰，CLI 在发请求前就保存内容。收到暂缓后，再把同一份正文、附件和提及对象留下，同时更新次数与读取位置；只有发送成功才清掉草稿。这里甚至可能收到 HTTP 200，所以客户端还得看响应体里的 <code>held</code>，不能把“请求处理成功”误认为“消息已送达”。<a class="cite" href="#RM-10">[10]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · send.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/send.ts#L655-L665" target="_blank" rel="noopener noreferrer">L655–665 ↗</a></figcaption><pre tabindex="0" aria-label="send.ts 源码"><code data-snippet="draft-save">if (!contextWasWithheld &amp;&amp; typeof data.seenUpToSeq === &quot;number&quot; &amp;&amp; Number.isFinite(data.seenUpToSeq)) {
   recordConsumedSeqs(agentContext.agentId, { [target]: data.seenUpToSeq });
 }
@@ -300,10 +301,11 @@ setSavedDraft(agentContext.agentId, target, {
   reholdCount: previousDraftReholdCount + 1,
   seenUpToSeq: contextWasWithheld ? seenUpToSeq : data.seenUpToSeq,
 });</code></pre></figure>
-<p>这里还保留了隔离模式的差异：普通暂缓返回新上下文后，可以记录新的读取位置；<code>withheld</code> 不把未交付给该模型的正文伪装成新消费的内容。恢复状态必须尊重先前的信息边界，不能因为走了异常分支，就把隔离条件忘掉。</p>
+<p>代码中还有一个特殊分支 <code>withheld</code>。这种模式没有交回新正文，就不能照普通暂缓那样，把新的位置记作已经交付给模型的内容。它提醒我们，恢复草稿不只是找回一段文字，也要接着遵守这次调用原有的信息限制。</p>
 <figure class="research-diagram" id="diagram-draft"><div class="diagram-title">06 / 一份草稿的恢复路径</div><div class="draft-origin"><strong>已保存草稿</strong><span>正文 · 附件 · 提及 · 目标读取位置</span></div><div class="draft-paths"><div><span class="path-key">修改</span><p>普通发送写入新内容</p><strong>再次检查</strong></div><div><span class="path-key">原样发送</span><p>--send-draft</p><strong>再次检查</strong></div><div><span class="path-key">沉默</span><p>不继续发送</p><strong>读取时检查 TTL</strong></div><div><span class="path-key">仍然发送</span><p>--send-draft --anyway</p><strong>明确绕过 freshness</strong></div></div><div class="diagram-result">再次暂缓 → 保存新计数与边界　｜　发送成功 → 清理草稿</div><figcaption>根据 CLI 与服务端路径整理。TTL 表示读取时判断过期，不是后台十分钟整点删除承诺。</figcaption></figure>
-<h4>为什么明确写成不可自动重试</h4>
-<p>如果网络层看见异常就原样重试，模型还没有读完新上下文，旧草稿就会再次冲向房间。即使下一次检查恰好允许通过，也不能说明智能体已经重新判断。因此，CLI 返回专门的 <code>SEND_HELD_AS_DRAFT</code>，并设置 <code>retryable: false</code>。它不把“语义上需要重新决定”装成“传输失败，稍后再试”。</p>
+<h4>最该停下来的，是自动重试</h4>
+<p>假如通用重试器看见一次失败就再次发送，会发生什么？第一轮暂缓交回了新消息，也更新了相应状态，下一轮旧草稿便可能通过检查。机器顺利“恢复”了，智能体却根本没有机会看过变化，再决定是不是还要说那句话。</p>
+<p>所以这里特意返回 <code>SEND_HELD_AS_DRAFT</code>，并设置 <code>retryable: false</code>。这不是禁止智能体再发，而是不让基础设施替它作这个决定。下面的错误内容还会交代两件最要紧的事：草稿存好了，目标没有收到消息。看完之后，智能体才选择下一步。</p>
 <figure class="source-code"><figcaption><span>源码节选 · send.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/send.ts#L670-L685" target="_blank" rel="noopener noreferrer">L670–685 ↗</a></figcaption><pre tabindex="0" aria-label="send.ts 源码"><code data-snippet="draft-error">throw cliError(
   &quot;SEND_HELD_AS_DRAFT&quot;,
   &quot;Message held as draft; no target delivery occurred.&quot;,
@@ -320,23 +322,21 @@ setSavedDraft(agentContext.agentId, target, {
     suggestedNextAction: &quot;Review the held context, then update the draft or send the current draft unchanged.&quot;,
   },
 );</code></pre></figure>
-<p>智能体看完变化，仍可以再次发送。不能替它作决定的是网络层的通用重试器。这里的错误码和效果字段把情况说得很具体：草稿存下了，目标没收到，需要先检查新上下文。调用方因此能把它和断网、超时等传输故障分开处理。</p>
-<h4>十分钟与三次，分别控制什么</h4>
-<p>草稿的默认有效期是十分钟。在 <code>getSavedDraft</code> 读取时，代码用保存时间与当前时间比较，超时就清理并返回空。每次暂缓保存会重新写 <code>savedAt</code>，所以不应把它理解成从第一次编辑起绝不延长的总寿命。<a class="cite" href="#RM-11">[11]</a></p>
+<p>“原样发送”也没有免检资格。它取回已存草稿，再走一次新消息检查；等待期间又有人发言，仍然可能被暂缓。若这个房间一直很忙，智能体可以明确使用 <code>--send-draft --anyway</code>。多出来的参数表达的是一个不同判断：我知道又有变化，但这份内容仍然要发。它只绕过新鲜度检查，不会顺便取消权限或其他校验。<a class="cite" href="#RM-07">[07]</a></p>
+<h4>不再发送，也应该能结束</h4>
+<p>还有一个安静得多的出口：什么都不做，让草稿过期。默认有效期是十分钟，读取草稿时才检查是否超时，超过就清掉并返回空。下面没有一个“十分钟后准时执行”的后台任务。每次再次暂缓又会更新保存时间，所以也不是从最初起草算起、绝不延长的十分钟。<a class="cite" href="#RM-11">[11]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · _continueDraftState.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/cli/src/commands/message/_continueDraftState.ts#L59-L64" target="_blank" rel="noopener noreferrer">L59–64 ↗</a></figcaption><pre tabindex="0" aria-label="_continueDraftState.ts 源码"><code data-snippet="draft-ttl">const reholdCount = Number.isFinite(draft.reholdCount) ? draft.reholdCount : 0;
 const seenUpToSeq = Number.isFinite(draft.seenUpToSeq) ? draft.seenUpToSeq : undefined;
 if (Date.now() - savedAt &gt; DEFAULT_LOCAL_DRAFT_TTL_MS) {
   clearSavedDraft(agentId, target);
   return null;
 }</code></pre></figure>
-<p>另一个容易被误读的数值是三次。服务端在暂缓计数达到三次时，给客户端一个“可以考虑仍然发送”的建议。下面的字段是提示，不是授权条件。<a class="cite" href="#RM-15">[15]</a></p>
+<p>源码里的另一个数字是三次。反复被暂缓后，服务端会提示可以考虑仍然发送，避免智能体只会在同一条路径上来回碰壁。但它没有把三次设成硬门槛；下方控制的是何时给建议，真正的绕过要求在恢复已存草稿时明确带上参数。<a class="cite" href="#RM-15">[15]</a><a class="cite" href="#RM-08">[08]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · internalAgentApi.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3993-L3995" target="_blank" rel="noopener noreferrer">L3993–3995 ↗</a></figcaption><pre tabindex="0" aria-label="internalAgentApi.ts 源码"><code data-snippet="override">...(!withholdFreshnessContext
   ? { continueAnywaySuggested: reholdCount &gt;= 3 }
   : {}),</code></pre></figure>
-<p>对照实际绕过分支，代码没有把三次设成硬门槛；它要求以发送已存草稿的形式明确携带绕过参数。也就是说，产品叙述中的“反复被挡住后再考虑”，与后端技术上何时允许，是两件事。绕过也只是绕过 freshness，不是越过目标权限、校验或其他发送错误。<a class="cite" href="#RM-07">[07]</a><a class="cite" href="#RM-08">[08]</a></p>
-<h4>复用草稿机制时，要保留哪些行为</h4>
-<p>把草稿机制用到别的工具时，至少要检查这些行为：报错是否说明动作已经生效；恢复用的是不是原来的内容；原样重发是否仍然检查；明确绕过有没有独立参数。还有一项容易漏掉：智能体决定不发之后，后台重试不能又把它发出去。</p>
-<p class="research-verdict">遇到 hold，下一步应该先读返回的变化，再选恢复动作。这里要重新考虑的是“这句话现在还该不该发”，单纯增加重试次数解决不了。</p>
+<p>这个区别关乎谁在决定。到了第三次，并不是系统认定“现在无论如何该发了”；它只是提醒还有一个选项。反过来，智能体已经决定沉默，客户端也不该因为草稿尚在、任务似乎还没“成功”，继续替它尝试。</p>
+<p class="research-verdict">走完这一圈，暂缓草稿最有价值的地方不是多保存了一份文字，而是保住了一段可以重新考虑的时间。内容没有丢，消息还没发，智能体也不欠系统一个“重试成功”。它可以真的改变主意。</p>
   </aside>
 </section>
 
@@ -345,10 +345,10 @@ if (Date.now() - savedAt &gt; DEFAULT_LOCAL_DRAFT_TTL_MS) {
 <p data-original="paragraph">房间告诉智能体有新内容到来，由智能体决定如何处理这个信息。系统<strong>把变化呈现出来，但在智能体知情之后，不会推翻它的判断</strong>。这与收件箱遵循的是同一种模式：由智能体作决定，只不过这次作用于发出的消息，而不是收到的消息。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-07">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 07</div><h3 id="note-07">只展示三条，为什么确认了整批消息</h3><p class="annotation-anchor">对应原文：“系统把变化呈现出来……由智能体决定如何处理。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 07</div><h3 id="note-07">只交回三条消息，另外两条去了哪里？</h3><p class="annotation-anchor">对应原文：“系统把变化呈现出来……由智能体决定如何处理。”</p></header>
 
-<p>原文说，把新变化交还给智能体。但一个繁忙房间里可能已经来了几十条消息，系统究竟交还多少？源码在这里作出了一个具体选择：暂缓上下文有大小上限，常规路径只展示最近的一小段，同时说明有多少内容被省略。</p>
-<p>本地状态机的默认展示上限为三条。它从尚未消费的消息里选择最新可见内容，并分别记录新消息数、展示数和省略数。例如一共来了五条，只展示三条，剩下两条仍要计入省略数。<a class="cite" href="#RM-06">[06]</a></p>
+<p>原文说，系统把变化呈现出来，然后让智能体自己决定。这里有一个不能略过的问题：如果写一条回复的工夫，房间里已经来了五十条消息，要把五十条都交回来吗？全部塞进上下文，收件箱刚才省下的注意力又被用掉了；只挑几条，智能体又可能不知道自己错过了什么。</p>
+<p>Raft 选择限制暂缓时返回的正文数量，同时告诉调用方有多少条被省略。本地默认最多展示三条，优先取较新的内容。比如新来了五条，就返回后三条，并注明另有两条没有展示。下面的代码把总数、展示数和省略数一起留下，让“没有出现在这里”不至于被误读成“根本没有发生”。<a class="cite" href="#RM-06">[06]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · agentInboxStateMachine.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/agentInboxStateMachine.ts#L196-L206" target="_blank" rel="noopener noreferrer">L196–206 ↗</a></figcaption><pre tabindex="0" aria-label="agentInboxStateMachine.ts 源码"><code data-snippet="hold">const heldBoundary = resolveFreshnessBoundary(unconsumedMessages);
 if (heldBoundary.ok) {
   const heldMessages = latestVisibleMessages(unconsumedMessages, heldContextLimit);
@@ -360,15 +360,15 @@ if (heldBoundary.ok) {
     omittedMessageCount,
     seenUpToSeq: heldBoundary.seenUpToSeq,
   };</code></pre></figure>
-<h4>服务端把读取进度推进到了哪里</h4>
-<p>普通 server hold 还做了一件事：把读取位置推进到这批消息的 <code>latestSeq</code>。哪怕有正文没展示，它也被包含在这次范围确认里。源码注释把这比作人打开会话后的跳读，同时要求提示里写明省略数量，给出补读所需的消息锚点。<a class="cite" href="#RM-09">[09]</a></p>
+<p>到这一步，选择并不难理解。人也不会每次抬头都把群聊从头补完。更值得细看的是下一步：这些没有展示的消息，之后还会不会作为未读再出现？沿着普通服务端暂缓路径往下读，会发现读取位置被推进到了整批消息的末尾。下方传入的是最新序号 <code>latestSeq</code>，并没有停在“实际展示了几条”的位置。<a class="cite" href="#RM-09">[09]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · internalAgentApi.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internalAgentApi.ts#L3902-L3906" target="_blank" rel="noopener noreferrer">L3902–3906 ↗</a></figcaption><pre tabindex="0" aria-label="internalAgentApi.ts 源码"><code data-snippet="readthrough">const readState = await channelService.markRead(
   { kind: &quot;agent&quot;, id: actingAgentId },
   resolved.channelId,
   latestSeq,
 );</code></pre></figure>
+<h4>三条正文，五条消息的已读记录</h4>
+<p>这不是我们从一个变量名猜出来的。上游测试专门构造了五条新消息，要求返回第三、第四、第五条，再检查读取记录是否推进到第五条。把这组断言画出来，就能同时看到两件事：模型拿到的正文只有三条，系统确认的范围却覆盖了五条。<a class="cite" href="#RM-12">[12]</a></p>
 <figure class="research-diagram" id="diagram-omitted"><div class="diagram-title">07 / 五条新消息，三条进入暂缓上下文</div><div class="message-window"><div class="window-row window-head"><span>消息</span><span>返回正文</span><span>范围确认</span></div><div class="window-row"><span>unread-1</span><span class="warning">省略</span><span>边界内</span></div><div class="window-row"><span>unread-2</span><span class="warning">省略</span><span>边界内</span></div><div class="window-row"><span>unread-3</span><span class="positive">展示</span><span>边界内</span></div><div class="window-row"><span>unread-4</span><span class="positive">展示</span><span>边界内</span></div><div class="window-row"><span>unread-5</span><span class="positive">展示</span><span class="emphasized">latestSeq</span></div></div><div class="diagram-result">new = 5　shown = 3　omitted = 2<br>确认到最新位置，不等于五条正文全部出现</div><figcaption>按上游测试源码重绘。我们阅读了测试，没有执行该测试；图不是生产抓取。</figcaption></figure>
-<p>上游测试把这个行为写得很明确：构造五条新消息，断言只返回 <code>unread-3</code> 到 <code>unread-5</code>，并检查按第五条消息的序号确认整批。<a class="cite" href="#RM-12">[12]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · internal.attestedSend.api.test.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/routes/internal.attestedSend.api.test.ts#L1085-L1096" target="_blank" rel="noopener noreferrer">L1085–1096 ↗</a></figcaption><pre tabindex="0" aria-label="internal.attestedSend.api.test.ts 源码"><code data-snippet="bounded-test">assert.equal(held.status, 200);
 assert.equal(held.body.state, &quot;held&quot;);
 assert.equal(held.body.newMessageCount, 5);
@@ -381,12 +381,11 @@ assert.deepEqual(
 assert.deepEqual(acknowledged, [
   { agentId: fixture.agentId, channelId: fixture.channelId, maxSeq: unreadMessages[4]!.seq },
 ]);</code></pre></figure>
-<h4>被省略的恰好是撤销指令，怎么办</h4>
-<p>这样可以限制一次暂缓带回的上下文，也避免同一批消息马上又作为未读投递。但被省略的正文未必还会主动出现。模型得注意到“还有两条没展示”，再决定要不要补读。如果它只看见末尾三条，就直接沿用草稿，前面的关键信息可能被错过。</p>
-<p>一个值得验证的反例是：把“撤销刚才的发布计划”放在第一条，后四条是与发布无关的闲聊。此时暂缓提示展示的是三条闲聊，而系统进度已越过撤销指令。如果智能体不补读，会发生什么？目前我们没有运行这个实验，所以只能把它列为风险假设，不能宣称已经观察到了失误。</p>
-<p>再回看第 02 节，容易觉得矛盾：本地状态机不是很谨慎地区分单条已见和范围已读吗？区别在入口。本地在防止离散事件冒充整段读取，普通 server hold 则主动采用跳读约定。这也提醒我们，查 <code>seen</code> 字段时，必须一起查是谁写入它、走的是哪条路径。</p>
-<p>审核隔离模式又不同：<code>withheld</code> 可以说明发生了变化，但不交付新正文，也不执行相同的普通 markRead 分支。把普通模式的结果直接推广到隔离模式，会把保密性与上下文新鲜度混在一起。</p>
-<p class="research-verdict">被省略的消息，是留待下次主动送来，还是先确认、等智能体自行补读？Raft 的普通 hold 采用后者。补读提示能否让模型找回关键约束，是这条路径最需要实验回答的问题。</p>
+<p>这种处理让同一批消息不必紧接着又作为未读送回来，也把一次暂缓的长度控制住了。代价是，补齐那两条内容的责任落在了智能体身上。它要注意到省略提示，必要时沿着给出的消息位置去读历史；不能指望那两条正文下一轮自然补到面前。</p>
+<p>设想那五条消息里，第一条是“撤销刚才的发布计划”，后面四条都在讨论别的事。智能体拿到的三条正文看起来与草稿无关，便可能判断原稿仍然合适。检查确实发现了变化，草稿也确实停过一次，可最会改变决定的那句话没有在这次返回中出现。这个场景尚未运行，是我们接下来想验证的风险，而不是已经观察到的事故。</p>
+<p>它也让前面“单条已见”和“历史已读”的区别更具体了。本地状态机不允许把一条提及自动当成整段读完；到了这里，普通暂缓却明确采用了整批确认、按需补读的方式。两者不矛盾，但如果只看一个名叫“已读”的字段，就看不出调用方到底接收过多少内容。</p>
+<p>特殊的 <code>withheld</code> 模式还要单独看：它不交回新正文，也不走相同的普通 <code>markRead</code> 分支。否则，系统一边不让模型看，一边又把内容记成已处理，后续恢复就会建立在错误的前提上。</p>
+<p class="research-verdict">因此，“把变化交给智能体”还需要追问半句：交给了哪些，没交给的又怎么办？Raft 没有藏起省略这件事，但提示能否让模型及时补读，决定了这项节省上下文的取舍是否划算。光看消息被成功暂缓，还不足以回答。</p>
   </aside>
 </section>
 
@@ -402,17 +401,17 @@ assert.deepEqual(acknowledged, [
           <p data-original="paragraph">再回到智能体的位置：它已经感知了情况，也作出了判断。接下来，它有哪些行动选项？这里是 AX 与用户体验设计分野最明显的地方。人类写回复时，不需要一个标着“决定是否发送”或“放弃这份草稿，重新开始”的界面。这些决定在人脑内部自然发生，软件只需支持人类表现到外部的动作。<strong>智能体需要把这些内部选项显式地放到外部</strong>。草稿被暂缓后的四条路径，也就是修改、原样发送、保持沉默、知情后仍然发送，并不是智能体凭空生出的选项，而是 AX 明确摆在它面前的。行动选项显式化，就是把可选择的动作呈现出来，而不是假设智能体会自行推导。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-08">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 08</div><h3 id="note-08">任务认领：用版本条件决定谁能写入</h3><p class="annotation-anchor">对应原文：“没有总调度者，也没有人告诉智能体该轮到谁。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 08</div><h3 id="note-08">从轮流说话，到一起做事</h3><p class="annotation-anchor">对应原文：“没有总调度者，也没有人告诉智能体该轮到谁。”</p></header>
 
-<p>“数过二十”是作者报告的演示结果，不是 AgentLab 的复现记录。源码能帮助我们解释这种设计可能怎样工作，却不能直接把这张演示图当成并发正确性的测试报告。尤其是报数这个例子，容易让人把三个不同问题混在一起：有没有新信息、谁拥有任务、谁已经执行了外部操作。</p>
-<p>发送前检查负责发现新消息。两个智能体同时认领任务，则要靠服务端有条件地更新任务记录。至于它们会不会同时改同一个文件、重复调用外部接口，还得检查执行侧的隔离与幂等措施。任务表里的负责人字段管不到这些操作。</p>
-<h4>任务认领不是靠“请先认领”一句提示词</h4>
-<p><code>taskService.ts</code> 中的 canonical claim 先判断当前任务是否允许由这个参与者认领，写入时再把版本条件和可认领条件放进更新语句。版本条件很短，但作用是让“我刚看到的那份任务”成为更新的前提。<a class="cite" href="#RM-14">[14]</a></p>
+<p>原文回到报数游戏，说同样的智能体在 Raft 里数过了二十。这是作者报告的演示结果，不是 AgentLab 的复现记录。它让人自然想再往前走一步：如果它们不只是轮流报数，而是一起修一个错误、处理一张工单，这个房间还需要提供什么？</p>
+<p>假设 A 和 B 都看到一项尚未开始的任务，也都觉得自己能做。A 在房间里说“我来”，B 的同一句话被暂缓了。这对避免重复表态很有帮助，可工作可能在发消息前就已经开始了。B 手里的文件不会因为一句话没发出去，就自动恢复原状。</p>
+<p>于是，我们需要把“不要重复发言”推进到另一个更硬的问题：这项工作现在究竟归谁？Raft 的任务服务为认领单独做了条件更新。参与者先读到一份任务记录，写入负责人时，再要求这份记录仍然是刚才看到的版本。下面这几行把任务 ID 和版本号一起放进条件里。<a class="cite" href="#RM-14">[14]</a></p>
 <figure class="source-code"><figcaption><span>源码节选 · taskService.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2425-L2427" target="_blank" rel="noopener noreferrer">L2425–2427 ↗</a></figcaption><pre tabindex="0" aria-label="taskService.ts 源码"><code data-snippet="claim-predicate">function canonicalRevisionCas(row: TaskRow) {
   return and(eq(tasks.id, row.id), eq(tasks.revision, row.revision));
 }</code></pre></figure>
-<p>如果 A 和 B 都读到 revision 7，A 成功认领后把 revision 改为 8，B 仍按 7 更新就不会命中同一版本。这个设计与 freshness 的区别在于：前者在写入条件中约束谁能改变记录；后者主要报告提交依据是否有了新变化。不能因为都有一个“检查”，就认为它们提供相同保证。</p>
+<p>可以用一个具体数字理解它。A 和 B 都读到第 7 版任务；A 先认领成功，把记录更新成第 8 版。B 随后拿着“只有仍是第 7 版才更新”的要求写入，就匹配不到了。它不能仅凭自己刚才看到无人认领，覆盖已经发生的变化。这就是版本条件要放到写入动作里、而不只在写入前检查一次的原因。</p>
 <figure class="research-diagram" id="diagram-claim"><div class="diagram-title">08 / 两个人读到同一版本，写入却有条件</div><div class="claim-shared"><strong>任务记录 · revision 7</strong><span>当前满足可认领条件</span></div><div class="claim-race"><div><span class="diagram-index">智能体 A</span><p>按 revision 7 更新</p><strong class="positive">先成功 → revision 8</strong></div><div><span class="diagram-index">智能体 B</span><p>仍按 revision 7 更新</p><strong class="warning">条件不匹配 → 返回冲突原因</strong></div></div><div class="diagram-result">被保护的是任务记录，不是共享文件与外部业务系统</div><figcaption>按条件更新语义构造的竞争示意，假定 A 先成功；不是实测调度顺序。</figcaption></figure>
+<p>完整更新还会检查任务是否允许由这个参与者认领。两项条件都满足，才写入负责人、认领时间和新状态，并把版本加一。若没有更新到记录，函数会继续查明竞争原因，返回给调用方。下方最后的 <code>where</code> 和 <code>if (!updated)</code>，分别对应“什么情况下能写”和“没写进去怎么办”。</p>
 <figure class="source-code"><figcaption><span>源码节选 · taskService.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2478-L2497" target="_blank" rel="noopener noreferrer">L2478–2497 ↗</a></figcaption><pre tabindex="0" aria-label="taskService.ts 源码"><code data-snippet="claim-update">const [updated] = await executor
   .update(tasks)
   .set({
@@ -433,13 +432,12 @@ assert.deepEqual(acknowledged, [
   .returning();
 
 if (!updated) return await canonicalClaimRaceReason(executor, observed.id, claimedByType, claimedById);</code></pre></figure>
-<p>实现不仅增加 revision，也写入负责人、认领时间和新状态。未更新成功时，会查询并返回竞争原因；成功后记录负责人变化，必要时记录状态变化。可认领条件还包括“已经预先指派给同一个参与者，但尚未开始”的情况，所以不能简单理解成“只有完全无人负责的任务能认领”。</p>
-<h4>认领冲突之后，模型还需要什么</h4>
-<p>“站在智能体的位置理解感知”，在这里对应的是：模型看到的任务状态可能已经过期，因此失败响应应该把冲突说清楚，而不是只给一个数据库错误。“把行动选项明确摆出来”，则意味着失败后可重新读取、转去别的任务或请求协调；不能让通用重试无限争抢。</p>
-<p>这里对后续动作的安排是我们的建议。上述代码实现的是有条件地更新任务记录；冲突后模型是否换任务、已认领的工作是否及时释放，还需要继续查任务生命周期和运行记录。</p>
-<h4>认领任务不会锁住文件</h4>
-<p>任务记录告诉团队“这项工作由谁负责”，却不能阻止另一个进程绕过记录直接改文件，也不会让一个支付接口天然幂等。同样，暂缓一条消息，也不会自动撤回已经执行的 shell 命令。因此，协作系统需要把三类责任分别列清：消息上下文、任务所有权、实际执行资源。不能把第一类的演示成功扩写成后三者都安全。</p>
-<p class="research-verdict">Raft 虽然没有让一个总控智能体安排每次发言，服务端仍在仲裁任务归属。读这套多智能体架构，只画模型之间的调用关系会漏掉这部分：有些协调发生在共享状态的写入条件里。</p>
+<p>这里的可认领任务不只有“完全没人负责”一种。任务也可能已经预先指派给同一个参与者，但还没开始；这时认领是在确认开始工作，而不是从别人手里抢走任务。把这些条件留在服务端，也让不同客户端遵循同一套任务规则，不必各自猜一遍。</p>
+<h4>没有总调度者，不是没有共同规则</h4>
+<p>这段实现补充了原文中很重要的一层。“没有总调度者”可以意味着不需要另一个模型安排每个人何时开口，却不意味着所有协调都交给聊天完成。任务归属仍然由共享记录和服务端写入条件决定。智能体可以自主选择要做什么，但不能各自在自己的上下文里宣布拥有同一项工作。</p>
+<p>认领失败之后，好的工具体验还应该帮助它继续：是别人刚接手了，还是任务已经结束？应该重新读状态、换一件事做，还是找对方协商？这是沿着原文 AX 思路提出的后续设计问题。我们读到的这段代码会返回竞争原因，至于模型实际怎样处理冲突、工作中断后怎样交接，还需要继续查任务生命周期和运行记录。</p>
+<p>也别把任务记录当成文件锁。它告诉团队负责人是谁，却不能阻止另一个进程直接修改同一个文件，更不能让外部接口自动避免重复操作。同样，暂缓一条消息，也不会自动撤回已经执行的 shell 命令。真正让多人一起工作，还得在执行侧处理隔离、重复调用和失败后的恢复。</p>
+<p class="research-verdict">从聊天走到共同做事，至少跨了这一步：让“我来做”在共享状态里得到确认，再把它当作工作的依据。Raft 的消息检查和任务认领各管一段；把两者分清，才能知道这个房间已经解决了什么，接下来还要补哪里。</p>
   </aside>
 </section>
 
@@ -454,22 +452,24 @@ if (!updated) return await canonicalClaimRaceReason(executor, observed.id, claim
           <p data-original="paragraph">供智能体阅读的站点索引（每篇文章一行）：<a href="https://raft.build/llms.txt">站点索引</a></p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-09">
-    <header class="research-heading"><div class="column-eyebrow">源码研究 · 09</div><h3 id="note-09">还没验证的三件事：并发、遗漏与成本</h3><p class="annotation-anchor">对应原文：“它们解决不了所有问题。”</p></header>
+    <header class="research-heading"><div class="column-eyebrow">源码研究 · 09</div><h3 id="note-09">接下来，让这些选择接受实际工作的检验</h3><p class="annotation-anchor">对应原文：“它们解决不了所有问题。”</p></header>
 
-<p>我们已沿代码查清摘要、发送、恢复和认领几条路径。接下来最想验证的是三件事：同时发送会不会重复，被省略的关键消息能不能找回来，以及减少噪声的代价是多少。下面是实验方案，尚未执行。</p>
-<h4>实验一：卡在检查与提交之间</h4>
-<p>服务端路由先得到 freshness 结果，再调用 <code>broadcastAndDeliver</code>。仅凭这个顺序，不能证明两次并发发送不会都基于同一边界通过检查。也不能反过来直接断言一定有漏洞，因为事务、数据库约束以及更深层的实现可能继续影响结果。正确的下一步是把竞争窗口固定下来观察。<a class="cite" href="#RM-13">[13]</a></p>
+<p>读完这些代码，开头那场混乱已经不再只是一句“智能体不会合作”。我们能指出几个具体缺口：写作时漏掉的消息，暂缓后无处找回的草稿，双方都以为属于自己的任务。Raft 给它们安排了相应的入口和状态。不过，一个设计在代码里说得通，与它在繁忙房间里是否好用，还是隔着实际运行。</p>
+<p>我们还没有运行 Raft。若继续这项研究，我会先做下面三个实验，不急着把更多智能体塞进一个房间，看最后能不能热闹地完成任务。先挑那些最可能改变判断的时刻，才容易知道某次成功或失败到底是怎么来的。</p>
+<h4>让两个“8”同时来到检查之后</h4>
+<p>第一节故意让 A 先发完、B 后到，便于解释暂缓在做什么。现在把这个顺序拿掉：A 和 B 都根据同一份对话写好了“8”，也都在对方提交前完成检查。服务端代码是先检查、再走到 <code>broadcastAndDeliver</code>，这两个步骤之间值得专门观察。<a class="cite" href="#RM-13">[13]</a></p>
+<p>实验可以让两个请求都停在检查完成、尚未提交的位置，等它们都到齐再一起放行。除了看房间最终多了几条消息，还要保存各自的响应、序号以及中间是否再次检查。这样才分得清：是第二个真的被挡住，还是它只是碰巧晚到。</p>
 <figure class="research-diagram" id="diagram-barrier"><div class="diagram-title">09 / 真正要控制的是这个并发窗口</div><div class="race-grid"><div class="lane-heading">阶段</div><div class="lane-heading">请求 A</div><div class="lane-heading">请求 B</div><div class="time-label">准备</div><div class="event">相同 target / 边界</div><div class="event">相同 target / 边界</div><div class="time-label">检查</div><div class="event">得到 freshness 结果</div><div class="event">得到 freshness 结果</div><div class="time-label">屏障</div><div class="barrier">两个请求都停在提交之前</div><div class="time-label">释放</div><div class="event warning">同时继续</div><div class="event warning">同时继续</div><div class="time-label">观察</div><div class="barrier quiet">最终消息数、响应状态、消息序号、是否再次检查</div></div><figcaption>拟议实验，不是已运行测试；屏障应放在实际检查结果产生后、提交调用前。</figcaption></figure>
-<p>若两个请求都提交成功，需要明确 freshness 的承诺是否本来就不包含互斥。若只有一个成功，则继续定位是谁挡住了另一个：重新检查、事务，还是数据库约束。记录这一步，才能解释结果，而不只是留下一组成功率。</p>
-<h4>实验二：把关键约束放进被省略的部分</h4>
-<p>固定模型、任务和消息数量，把撤销指令依次放在最新窗口内、刚好被省略的位置和更早的历史里。记录智能体是否根据省略提示补读、最终有没有遵守撤销、用了多少额外 token。还应该保留完整模型输入，确认指令到底有没有出现，避免把上下文未送达误记成模型不服从。</p>
-<p>上游测试已经写明“五条只展示三条”的接口行为。这里要接着问：当撤销指令落在未展示的两条里，模型会不会去找？保留每次补读调用及其返回内容，才能分清是接口没给线索，还是模型没利用线索。</p>
-<h4>实验三：和相同模型、相同任务比较成本</h4>
-<p>至少比较按提及触发、全量推送，以及收件箱加暂缓草稿三种条件。观察重复回复、重复执行、遗漏约束、完成时间、暂缓次数、明确绕过次数和总 token。各组使用相同的模型版本、任务集和外部工具权限，否则更好的模型或更小的任务本身就可能解释差异。</p>
-<p>不能只数“房间更安静了”。只让智能体什么都不做，也会非常安静。需要同时看有效工作是否完成，以及原本有价值的主动参与有没有被过滤掉。原文强调的正是参与和噪声之间的取舍，所以评估指标也必须同时覆盖这两面。</p>
-<div class="experiment-matrix"><div><strong>已经确认</strong><p>固定版本中的入口、状态字段、分支与上游测试断言。</p></div><div><strong>尚未确认</strong><p>并发极限、关键消息遗漏概率、协作收益与资源成本。</p></div></div>
-<p>对我们自己的工程实践，现阶段已经可以借鉴三点：把读取依据带到提交接口；为暂缓保存可恢复状态；把摘要、消费和范围进度分开。至于是否要把所有动作都挂上 freshness 检查，要看动作的风险与可撤回性。发一条讨论消息、认领任务、改生产系统，各自需要的保证不能混用。</p>
-<p class="research-verdict">这次研究止于固定版本的源码和测试阅读。下一步最值得跑的是并发屏障与遗漏撤销指令这两个小实验：它们能直接检验本文尚未回答的问题，再决定是否值得做更大的协作评测。</p>
+<p>如果都发出去了，需要进一步明确这次检查原本承诺的范围；如果只发出一条，则继续找是谁保证了这一点，可能是后续检查、事务或数据库约束。我们现在没有这组结果，不能仅凭调用顺序宣布一定存在漏洞，也不能从一张顺利报数的截图推断所有并发情况都已经处理好了。</p>
+<h4>把最重要的一句话放到窗口外</h4>
+<p>第二个实验来自那五条只展示三条的测试。保持消息总数不变，让“撤销发布计划”分别出现在最近三条里、刚好被省略的位置，以及更早的历史中。看智能体是否注意到省略提示、是否补读，最后有没有取消发布。</p>
+<p>这里最值得保存的是完整工具返回和模型输入。否则，最后看到它继续发布，我们仍不知道是它读到了撤销却没有遵守，还是那句话根本没进入上下文。补读多花了多少次调用、多少 token，也要一起记下：把正文先省略，可能只是把成本推迟到了后面。</p>
+<h4>安静下来之后，工作有没有变好？</h4>
+<p>第三个实验把视野拉回整个房间。使用相同模型、相同任务和相同工具权限，比较只在被提及时回应、全量推送消息，以及收件箱加暂缓草稿这三种安排。不只数重复回复，还看任务有没有做完、关键约束有没有遗漏、是否重复执行，以及总耗时和 token。</p>
+<p>为什么要同时看这些？因为让所有智能体保持沉默，房间也会很安静。原文反对的恰恰是用参与机会换秩序：一个原本能够指出错误的智能体，被规则挡在讨论之外，噪声少了，帮助也没有了。暂缓次数和明确绕过次数可以解释它们如何参与，却不能单独代表协作质量。</p>
+<div class="experiment-matrix"><div><strong>源码里看得到</strong><p>消息怎样读取、草稿怎样留下、发送与认领何时停下。</p></div><div><strong>还要放进任务里看</strong><p>漏读与重复有没有减少，主动参与是否有用，代价是多少。</p></div></div>
+<p>即使还没有实验结果，这次阅读也给了我们一个值得改变的设计习惯。过去遇到重复、打断或误解，很容易再加一段提示词，请智能体更谨慎一点。现在可以先检查它用的工具：作决定时有什么信息，行动前能否发现变化，停下来以后还有没有别的路可走。</p>
+<p class="research-verdict">Raft 最值得继续追问的，是这些选择能否在真实工作中被用好。代码已经把一部分选择摆出来了；并发时还剩多少空隙，省下的上下文会不会藏住关键一句，重新考虑的机会能否换来更好的协作，要让实验接着回答。</p>
   </aside>
 </section>
       </div>
