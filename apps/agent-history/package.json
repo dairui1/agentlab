@@ -24,7 +24,7 @@
     "daily": "python3 scripts/daily_update.py"
   },
   "devDependencies": {
-    "monaco-editor": "0.52.2",
-    "wrangler": "4.114.0"
+    "monaco-editor": "0.57.0",
+    "wrangler": "4.139.0"
   }
 }
