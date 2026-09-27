@@ -100,6 +100,34 @@ the remaining valid history; the public manifest reports accepted/rejected
 counts, bounded warnings, and the active limits. Evidence left by a release that
 later becomes invalid is removed before changelog analysis.
 
+## Claude Code static evidence
+
+The full daily run also refreshes `Piebald-AI/claude-code-system-prompts` using
+`scripts/sync_claude_static.py`. It pins each release to its version commit,
+normalizes the newest 13 snapshots (12 comparisons plus a baseline), and retains
+previously collected versions in `.cache/claude-static/normalized`. Fetch or
+parse failures stop this required step. Snapshot hashes and commit identities
+are checked before enrichment. `--window` permits a bounded 2-100 snapshot
+backfill; use the normal analyzer limits to process the resulting queue.
+
+This layer is **third-party static extraction**, not official source code,
+runtime capture, feature availability, or a safety guarantee. Fragment metadata
+`ccVersion` is its last-change version, not its snapshot version. The builder
+keeps original runtime bytes/provenance unchanged and joins only matching
+Claude Code versions. Initial baselines never count the whole collection as
+new features; missing adjacent snapshots remain explicitly incomparable.
+
+The analyzer combines official release notes, public-repository code changes,
+runtime Prompt/Tool Schema differences, and bounded static before/after diffs.
+Static tool descriptions do not change runtime tool counts. Literal overlap is
+marked for deduplication, not execution verification. Behavioral instructions
+rank before ordinary Data/config strings. The comparison page exposes fixed
+source links and expandable evidence; raw upstream archives stay in the cache.
+
+The Claude manifest reports source commit, upstream version, coverage, and
+whether the latest runtime release has a static snapshot. Historical snapshots
+are retained; a third-party publication lag is not filled with another version.
+
 ## launchd
 
 The template runs daily at **08:37 in the Mac's local timezone**. The installer

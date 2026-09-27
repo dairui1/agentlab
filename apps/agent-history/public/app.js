@@ -101,6 +101,9 @@
     analysisEyebrow: document.getElementById("analysisEyebrow"),
     analysisStatus: document.getElementById("analysisStatus"),
     sourceLayerList: document.getElementById("sourceLayerList"),
+    claudeStaticEvidence: document.getElementById("claudeStaticEvidence"),
+    claudeStaticSummary: document.getElementById("claudeStaticSummary"),
+    claudeStaticItems: document.getElementById("claudeStaticItems"),
     implicationsList: document.getElementById("implicationsList"),
     categoryList: document.getElementById("categoryList"),
     changeMetrics: document.getElementById("changeMetrics"),
@@ -1251,6 +1254,46 @@
       .some((category) => /^(no-change|无行为变化|无可见变化)$/i.test(String(category).trim())));
   }
 
+  function renderClaudeStaticEvidence(entries) {
+    if (!elements.claudeStaticEvidence) return;
+    const snapshots = entries.filter((entry) => entry.layers?.staticPrompt?.current?.source?.sourceType === "third-party-static-prompt");
+    elements.claudeStaticEvidence.hidden = snapshots.length === 0;
+    elements.claudeStaticItems.replaceChildren();
+    if (!snapshots.length) return;
+    const items = [...snapshots].reverse().flatMap((entry) =>
+      (entry.layers.staticPrompt.changes?.items || []).map((item) => ({ ...item, version: entry.version })));
+    const total = snapshots.reduce((sum, entry) => {
+      const changes = entry.layers.staticPrompt.changes || {};
+      return sum + (changes.addedCount || 0) + (changes.modifiedCount || 0) + (changes.removedCount || 0);
+    }, 0);
+    elements.claudeStaticSummary.textContent = `Claude Code 静态指令差异 · ${total} 项${total > 40 ? " · 展示前 40 项" : ""}`;
+    if (!total) {
+      const note = document.createElement("p");
+      note.textContent = snapshots.some((entry) => entry.layers.staticPrompt.baselineOnly)
+        ? "本次建立静态基线，暂无相邻静态快照可比较。" : "已核验相邻静态快照，正文无变化。";
+      elements.claudeStaticItems.append(note);
+    }
+    for (const item of items.slice(0, 40)) {
+      const row = document.createElement("details");
+      const title = document.createElement("summary");
+      title.textContent = `${item.version} · ${{added: "新增收录", modified: "修改", removed: "移除收录"}[item.change] || item.change} · ${item.name}`;
+      const links = document.createElement("p");
+      for (const [label, url] of [["固定版本原文", item.sourceUrl], ["旧版原文", item.beforeSourceUrl]]) {
+        if (!/^https:\/\/github\.com\/Piebald-AI\/claude-code-system-prompts\/blob\/[a-f0-9]{40}\//.test(url || "")) continue;
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = label;
+        links.append(link, " ");
+      }
+      const excerpt = document.createElement("pre");
+      excerpt.textContent = item.diff || item.excerpt || "";
+      row.append(title, links, excerpt);
+      elements.claudeStaticItems.append(row);
+    }
+  }
+
   function renderAnalysisCondensed(condensed) {
     elements.changelogBand.dataset.condensed = String(condensed);
     elements.changelogBand.dataset.expanded = String(state.analysisExpanded);
@@ -1290,6 +1333,7 @@
       elements.releaseDetailsToggle.hidden = true;
       elements.releaseDetails.hidden = true;
       renderSourceLayers([]);
+      renderClaudeStaticEvidence([]);
       renderImplications([]);
       setStats({ hunks: 0, additions: 0, deletions: 0 });
       return;
@@ -1354,6 +1398,7 @@
     }
     elements.changeMetrics.replaceChildren(...metrics);
     renderSourceLayers(entries);
+    renderClaudeStaticEvidence(entries);
     renderImplications(entries);
     setStats({
       hunks: baseline ? 0 : stats.changedSections.length,

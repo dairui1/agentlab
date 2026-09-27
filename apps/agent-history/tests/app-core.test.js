@@ -126,6 +126,19 @@ test("source layers honor the public layers and sources provenance contract", ()
   assert.equal(layers.find((layer) => layer.id === "runtime-prompt").url, "https://example.test/prompt");
 });
 
+test("third-party static evidence retains its own source and cannot imply runtime tools", () => {
+  const url = "https://github.com/Piebald-AI/claude-code-system-prompts/tree/" + "a".repeat(40);
+  const layers = core.normalizeSourceLayers({
+    layers: { staticPrompt: { status: "available", comparisonStatus: "complete",
+      changes: { addedCount: 2, modifiedCount: 1, removedCount: 0 } } },
+    sources: [{ sourceType: "third-party-static-prompt", url }],
+  }, {}, {});
+  const layer = layers.find((item) => item.id === "static-prompt");
+  assert.equal(layer.url, url);
+  assert.equal(layer.state, "changed");
+  assert.notEqual(layers.find((item) => item.id === "tools").state, "changed");
+});
+
 test("unavailable runtime layers never become verified no-change", () => {
   const layers = core.normalizeSourceLayers({
     stats: { additions: 0, deletions: 0, toolsAdded: [], toolsRemoved: [], toolsModified: [] },

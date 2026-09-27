@@ -467,6 +467,16 @@ promptVersion: {PROMPT_VERSION}
 EVIDENCE PACKETS:
 {json.dumps(prompt_packets, ensure_ascii=False, separators=(",", ":"))}
 """
+    if any(packet.get("agent") == "claude-code" and
+           packet.get("staticPrompt", {}).get("current", {}).get("source")
+           for packet in packets if isinstance(packet.get("staticPrompt", {}).get("current"), dict)):
+        prompt += """\nClaude Code 专属分析规则：
+- Piebald 是第三方对发行包文本的静态提取，不是官方开源实现或实际请求捕获。静态新增只表示本次档案新增收录，可能是提取覆盖扩大；不得直接写成产品新上线、默认启用或安全机制已生效。
+- 优先分析静态差异中的子 Agent 编排、条件提醒、压缩与恢复、权限与跨机器信任边界；结合官方 release 确认发布语义。不要让公开仓库 mods/ 插件变化挤掉更重要的 Harness 指令契约。
+- modified 项依据 diff 和 beforeExcerpt 比较新旧，不能把新版全文中原有规则说成新增。baselineOnly 仅为基线，不能宣称此版新增了整套机制。
+- observedVerbatimInRuntime=true 仅表示当前快照含同一文本，不是执行验证；对重复信号合并叙述。false 不证明运行时不存在，模板插值或场景不同都可能导致不匹配。
+- Tool Description/Parameter 的静态变化不是实际 Tool Schema 增删；Data 类是配置、协议或界面文本，不冒充 system prompt。给出文件名或契约定位，并在相关陈述中自然标明静态证据。
+"""
     if correction:
         prompt += (
             "\n上次输出未通过本地校验："

@@ -30,6 +30,20 @@
   --mono: ui-monospace, "SF Mono", "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+.claude-static-evidence {
+  margin: 16px 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  min-width: 0;
+}
+.claude-static-evidence summary { cursor: pointer; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.claude-static-boundary { color: var(--muted); font-size: 12px; }
+.claude-static-evidence details { padding: 10px 0; border-top: 1px solid var(--border); }
+.claude-static-evidence a { color: var(--text-soft); font-size: 12px; margin-right: 12px; }
+.claude-static-evidence pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; max-height: 360px; overflow-y: auto; color: var(--text); }
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;

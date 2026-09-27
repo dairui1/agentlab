@@ -1783,6 +1783,7 @@ class DailyUpdateTests(unittest.TestCase):
                 "sync upstream",
                 "sync official sources",
                 "sync source-only captures",
+                "sync Claude static prompts",
                 "build deterministic evidence",
                 "analyze stale changelogs",
                 "merge validated changelogs",
@@ -1905,7 +1906,7 @@ class DailyUpdateTests(unittest.TestCase):
         package = json.loads((APP_ROOT / "package.json").read_text(encoding="utf-8"))
         self.assertEqual(
             package["scripts"]["sync"],
-            "npm run sync:phistory && npm run sync:official && npm run sync:source-captures",
+            "npm run sync:phistory && npm run sync:official && npm run sync:source-captures && npm run sync:claude-static",
         )
         command = package["scripts"]["build:data"]
         self.assertIn("--capture-overlay-root", command)

@@ -70,7 +70,7 @@
     { id: "official", label: "官方功能", aliases: ["official", "release", "release-notes", "feature", "official-release", "official-changelog"] },
     { id: "code", label: "Code", aliases: ["code", "source", "package", "artifact", "official-code-compare"] },
     { id: "runtime-prompt", label: "Runtime Prompt", aliases: ["runtime-prompt", "runtime_prompt", "prompt", "trace", "phistory-prompt", "phistory-prompt-capture", "phistory-trace"] },
-    { id: "static-prompt", label: "Static Prompt", aliases: ["static-prompt", "static_prompt", "static", "staticprompt", "phistory-static-prompt"] },
+    { id: "static-prompt", label: "Static Prompt", aliases: ["static-prompt", "static_prompt", "static", "staticprompt", "phistory-static-prompt", "third-party-static-prompt"] },
     { id: "tools", label: "Tools", aliases: ["tools", "tool", "tool-schema", "tool_schema", "phistory-tools"] },
   ];
 

@@ -6,7 +6,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "sync": "npm run sync:phistory && npm run sync:official && npm run sync:source-captures",
+    "sync": "npm run sync:phistory && npm run sync:official && npm run sync:source-captures && npm run sync:claude-static",
+    "sync:claude-static": "python3 scripts/sync_claude_static.py",
     "sync:phistory": "python3 scripts/sync_phistory.py --cache-root .cache/phistory",
     "sync:official": "python3 scripts/sync_official_sources.py --cache-root .cache/official-sources --allow-stale-on-error --capture-root .cache/phistory/upstream --capture-root \"${AGENT_HISTORY_CAPTURE_OVERLAY_ROOT:-.cache/agentlab-captures}\"",
     "sync:source-captures": "python3 scripts/sync_source_captures.py --official-root .cache/official-sources/normalized --phistory-root .cache/phistory/upstream --overlay-root \"${AGENT_HISTORY_CAPTURE_OVERLAY_ROOT:-.cache/agentlab-captures}\"",

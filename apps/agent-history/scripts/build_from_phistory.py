@@ -45,6 +45,7 @@ from terminology import normalize_changelog_record
 
 DEFAULT_OFFICIAL_ROOT = APP_ROOT / ".cache" / "official-sources" / "normalized"
 DEFAULT_CAPTURE_OVERLAY_ROOT = APP_ROOT / ".cache" / "agentlab-captures"
+DEFAULT_CLAUDE_STATIC_ROOT = APP_ROOT / ".cache" / "claude-static" / "normalized"
 SCHEMA_VERSION = 1
 MAX_DIFF_LINES = 500
 MAX_CAPTURES_PER_AGENT = 5_000
@@ -318,6 +319,7 @@ class StaticPrompt:
     description: str
     content_hash: str
     content: str
+    source_url: str = ""
 
 
 @dataclass(frozen=True)
@@ -329,6 +331,7 @@ class StaticPromptSet:
     unknown: int
     source_url: str
     items: tuple[StaticPrompt, ...]
+    source: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -957,6 +960,7 @@ def load_static_prompts(
                 ),
                 content_hash=content_hash,
                 content=content,
+                source_url=raw_item.get("sourceUrl", ""),
             )
         )
     summary = value.get("summary")
@@ -979,7 +983,41 @@ def load_static_prompts(
         unknown=counts["unknown"],
         source_url=source_url,
         items=tuple(items),
+        source=value.get("source") if isinstance(value.get("source"), dict) else None,
     )
+
+
+def attach_claude_static(capture: Capture, root: Path | None) -> Capture:
+    if capture.agent != "claude-code" or root is None:
+        return capture
+    path = root / f"{capture.version}.json"
+    index_path = root / "manifest.json"
+    manifest = json.loads(index_path.read_text()) if index_path.exists() else {}
+    if not path.exists():
+        if capture.version in manifest.get("versions", {}):
+            raise ValueError(f"missing Claude static snapshot: {path}")
+        return capture
+    if path.is_symlink():
+        raise ValueError(f"Claude static snapshot cannot be a symlink: {path}")
+    if manifest.get("sha256", {}).get(capture.version) != sha256_bytes(path.read_bytes()):
+        raise ValueError(f"incomplete Claude static generation: {path}")
+    from sync_claude_static import REPOSITORY, URL
+    value = load_static_prompts(path, agent=capture.agent, version=capture.version, source_url="")
+    source = value.source or {}
+    ref = source.get("ref", "")
+    if (source.get("sourceType") != "third-party-static-prompt"
+            or source.get("repository") != REPOSITORY
+            or not re.fullmatch(r"[0-9a-f]{40}", ref)
+            or source.get("url") != f"{URL}/tree/{ref}/system-prompts"):
+        raise ValueError(f"invalid third-party static provenance: {path}")
+    if manifest.get("versions", {}).get(capture.version) != ref:
+        raise ValueError(f"Claude static revision mismatch: {path}")
+    for item in value.items:
+        if (sha256_bytes(item.content.encode()) != item.content_hash
+                or item.source_url != f"{URL}/blob/{ref}/system-prompts/{item.id}.md"):
+            raise ValueError(f"invalid third-party static item: {path}:{item.id}")
+    # Enrich evidence only; the original runtime bytes and capture provenance stay intact.
+    return replace(capture, static_prompts=replace(value, source_url=source["url"]))
 
 
 def load_capture(
@@ -1517,16 +1555,25 @@ def bounded_excerpt(value: str, max_bytes: int = MAX_STATIC_PROMPT_EXCERPT_BYTES
     return ""
 
 
+def static_text_excerpt(value: str, max_bytes: int) -> str:
+    raw = value.encode("utf-8")
+    return (raw[:max_bytes].decode("utf-8", errors="ignore") + "\n... [truncated]"
+            if len(raw) > max_bytes else value)
+
+
 def static_prompt_facts(value: StaticPromptSet | None) -> dict[str, Any] | None:
     if value is None:
         return None
-    return {
+    facts = {
         "sha256": value.sha256,
         "bytes": value.bytes,
         "total": value.total,
         "known": value.known,
         "unknown": value.unknown,
     }
+    if value.source:
+        facts["source"] = dict(value.source)
+    return facts
 
 
 def static_prompt_change(
@@ -1549,6 +1596,8 @@ def static_prompt_change(
     excerpt = bounded_excerpt(item.content)
     if excerpt:
         value["excerpt"] = excerpt
+    if item.source_url:
+        value["sourceUrl"] = item.source_url
     return value
 
 
@@ -1558,6 +1607,7 @@ def static_prompt_evidence(
 ) -> dict[str, Any]:
     current_set = current.static_prompts
     previous_set = previous.static_prompts if previous else None
+    enhanced = bool(current_set and current_set.source)
     if current_set is None:
         return {
             "status": "unavailable",
@@ -1567,7 +1617,7 @@ def static_prompt_evidence(
             "comparisonStatus": "unavailable",
         }
     if previous_set is None:
-        return {
+        baseline = {
             "status": "available",
             "current": static_prompt_facts(current_set),
             "previous": None,
@@ -1585,6 +1635,10 @@ def static_prompt_evidence(
                 "truncated": False,
             },
         }
+        if enhanced:
+            baseline["baselineOnly"] = True
+            baseline["sourceUrl"] = current_set.source_url
+        return baseline
 
     before_exact = {(item.id, item.content_hash): item for item in previous_set.items}
     after_exact = {(item.id, item.content_hash): item for item in current_set.items}
@@ -1619,6 +1673,15 @@ def static_prompt_evidence(
                 after_hash=new_item.content_hash,
             )
         )
+        if enhanced:
+            candidates[-1]["beforeExcerpt"] = static_text_excerpt(old_item.content, 1600)
+            candidates[-1]["excerpt"] = static_text_excerpt(new_item.content, 1600)
+            delta = "\n".join(difflib.unified_diff(
+                old_item.content.splitlines(), new_item.content.splitlines(), n=3,
+                fromfile=old_item.id, tofile=new_item.id, lineterm=""))
+            candidates[-1]["diff"] = static_text_excerpt(delta, 4000)
+            candidates[-1]["diffTruncated"] = len(delta.encode()) > 4000
+            candidates[-1]["beforeSourceUrl"] = old_item.source_url
     for item in added:
         candidates.append(
             static_prompt_change(
@@ -1637,7 +1700,21 @@ def static_prompt_evidence(
                 after_hash=None,
             )
         )
-    return {
+    if enhanced:
+        by_id = {item.id: item for item in current_set.items}
+        for item in candidates:
+            raw = by_id.get(item["id"])
+            if raw and item["change"] == "added":
+                item["excerpt"] = static_text_excerpt(raw.content, 2400)
+            item["observedVerbatimInRuntime"] = bool(raw and raw.content in current.prompt_text)
+        # Prefer behavioral contracts over UI/config strings; do not count overlap twice.
+        candidates.sort(key=lambda item: (
+            item["observedVerbatimInRuntime"], item["category"] == "Data",
+            not any(word in item["id"] for word in
+                    ("security", "machine", "compaction", "coordinator", "permission", "agent")),
+            item["id"],
+        ))
+    result = {
         "status": "available",
         "current": static_prompt_facts(current_set),
         "previous": static_prompt_facts(previous_set),
@@ -1651,6 +1728,11 @@ def static_prompt_evidence(
             "maxItems": MAX_STATIC_PROMPT_CHANGES,
         },
     }
+    if enhanced:
+        result["sourceUrl"] = current_set.source_url
+        result["evidenceClass"] = "third-party-static-extraction"
+        result["runtimeVerified"] = False
+    return result
 
 
 def validate_source_digest(value: Mapping[str, Any], *, path: Path) -> None:
@@ -2205,6 +2287,9 @@ def capture_sources(
                     sha_key="staticPromptsSha256",
                 )
             )
+    if capture.static_prompts and capture.static_prompts.source:
+        sources.append({**capture.static_prompts.source,
+                        "contentSha256": capture.static_prompts.sha256})
     return sources
 
 
@@ -3012,6 +3097,7 @@ def build(
     analysis_root: Path,
     agents: Sequence[str] | None = None,
     official_root: Path | None = None,
+    claude_static_root: Path | None = None,
 ) -> dict[str, Any]:
     capture_roots, public, analysis = validate_roots(
         phistory_root,
@@ -3040,7 +3126,8 @@ def build(
         agent: merge_agent_captures(capture_roots, agent) for agent in agents
     }
     captures_by_agent = {
-        agent: ingestion_by_agent[agent].captures for agent in agents
+        agent: tuple(attach_claude_static(capture, claude_static_root)
+                     for capture in ingestion_by_agent[agent].captures) for agent in agents
     }
     official_sources = load_official_sources(official_root, agents)
     official_by_agent = official_sources.indices
@@ -3277,6 +3364,17 @@ def build(
         }
         if official_repository:
             manifest_agent["officialSourceUrl"] = f"https://github.com/{official_repository}"
+        if agent == "claude-code" and claude_static_root is not None:
+            source_manifest = claude_static_root / "manifest.json"
+            if source_manifest.exists():
+                static_index = json.loads(source_manifest.read_text())
+                manifest_agent["staticSource"] = {
+                    "repository": static_index["repository"],
+                    "commit": static_index["commit"],
+                    "latestVersion": static_index["latestVersion"],
+                    "status": "current" if captures[-1].static_prompts else "behind",
+                    "evidenceClass": "third-party-static-extraction",
+                }
         if definition.get("projectUrl"):
             manifest_agent["projectUrl"] = definition["projectUrl"]
         manifest_agents.append(manifest_agent)
@@ -3387,6 +3485,7 @@ def parser() -> argparse.ArgumentParser:
     )
     value.add_argument("--public-root", type=Path, required=True)
     value.add_argument("--analysis-root", type=Path, required=True)
+    value.add_argument("--claude-static-root", type=Path, default=DEFAULT_CLAUDE_STATIC_ROOT)
     value.add_argument(
         "--official-root",
         type=Path,
@@ -3412,6 +3511,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             analysis_root=arguments.analysis_root,
             agents=arguments.agents,
             official_root=arguments.official_root,
+            claude_static_root=arguments.claude_static_root,
         )
     except ValueError as exc:
         parser().error(str(exc))

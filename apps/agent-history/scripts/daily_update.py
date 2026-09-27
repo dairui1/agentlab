@@ -277,6 +277,10 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
     )
     if source_agents:
         steps.append(Step("sync source-only captures", tuple(sync_source_captures), APP_ROOT))
+    if requested_agents is None or "claude-code" in requested_agents:
+        steps.append(Step("sync Claude static prompts", (
+            python, str(SCRIPTS / "sync_claude_static.py"),
+        ), APP_ROOT))
     steps.extend(
         [
             Step("build deterministic evidence", tuple(build), APP_ROOT),
