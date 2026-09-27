@@ -139,7 +139,7 @@ test("paired translation changes only the approved Agent, Prompt and Thread term
   const previousWording = originals.join("\n")
     .replaceAll("某个 Thread 中的问题", "讨论中的问题")
     .replaceAll("一个供模型读取的 Thread", "一条供模型读取的消息流")
-    .replaceAll("工作 Prompt", "工作提示")
+    .replaceAll("工作 Prompt 的", "工作提示的")
     .replace(/(?<=\p{Script=Han}) (?=Thread)/gu, "")
     .replace(/(?<=Thread) (?=\p{Script=Han})/gu, "")
     .replaceAll("Thread", "讨论串")
