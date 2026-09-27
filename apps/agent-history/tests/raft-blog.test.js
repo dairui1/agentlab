@@ -163,8 +163,15 @@ test("paired translation changes only the approved Agent, Prompt and Thread term
     assert.ok(pair[0].includes(study.research.panels[index].title));
     assert.ok(pair[0].indexOf('class="original-column"') < pair[0].indexOf('class="research-note"'));
     assert.match(pair[0], /data-original=/);
-    assert.match(pair[0], /对应原文：/);
+    assert.doesNotMatch(pair[0], /对应原文：|column-eyebrow|annotation-anchor/);
   }
+  const readingBody = html.split('<section class="sources-section"')[0];
+  assert.doesNotMatch(readingBody, /research-facts|provenance|annotation-anchor|column-eyebrow/);
+  const heading = html.match(/<header class="blog-heading">[\s\S]*?<\/header>/)[0];
+  assert.doesNotMatch(heading, /09 则研究|19 段源码|09 幅机制图|05f7d8fd|实现快照/);
+  const sources = html.split('<section class="sources-section"')[1];
+  assert.match(sources, /2026-09-24 的实现快照/);
+  assert.match(sources, /未运行 Raft 或上游测试/);
   const css = read("raft-blog.css");
   assert.match(css, /grid-template-columns:minmax\(0,\.9fr\) minmax\(0,1\.3fr\)/);
   assert.match(css, /\.original-column.can-pin \.original-copy.*position:sticky/);
