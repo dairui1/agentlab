@@ -3,8 +3,8 @@
   "studies": [
     {
       "id": "autoresearch",
-      "readingLabel": "阅读全文：Autoresearch，谁来判断实验有进展",
-      "title": "Autoresearch：让 Agent 做实验",
+      "readingLabel": "对照阅读：自动对齐研究的完整正文译文与批注",
+      "title": "Autoresearch：自动对齐研究的原文与批注",
       "question": "Agent 可以连续提出方法、训练和评测，谁来判断它真的有进展？",
       "implication": "把实验前方案、代码、模型和分数绑定到同一次运行；共享研究记录，但把最终检验留在优化循环之外。",
       "boundary": "论文结果由作者报告；另核对晚于论文的固定公开代码。未运行上游实验、GPU 训练或模型 API，不是独立复现或安全认证。",

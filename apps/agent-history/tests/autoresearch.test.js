@@ -15,12 +15,12 @@ test("Autoresearch separates reported experiments from later static implementati
   assert.ok(study.source.commitDate > study.source.paperDate);
   assert.match(html, /后者晚于论文/);
   assert.match(html, /未独立复现论文收益/);
-  assert.match(html, /不是全文翻译/);
+  assert.match(html, /完整翻译的是论文正文/);
   assert.match(html, /不是每个格子都获胜/);
-  assert.match(html, /只能改数据，不能提出新的训练方法/);
-  assert.match(html, /保留集扮演验证集/);
-  assert.match(html, /每种条件只跑了一次/);
-  assert.match(html, /没有根据实验反馈继续迭代的机会/);
+  assert.match(html, /只能构造训练数据，不能提出新的训练方法/);
+  assert.match(html, /保留基准是验证集/);
+  assert.match(html, /每种条件只有一次运行/);
+  assert.match(html, /研究者无法迭代自己的想法/);
 });
 
 test("every source locator is pinned and has explicit provenance", () => {
@@ -43,20 +43,22 @@ test("every source locator is pinned and has explicit provenance", () => {
 });
 
 test("paper figures are local, unmodified, attributed and free of active content", () => {
-  assert.equal(study.assets.length, 3);
+  assert.equal(study.assets.length, 9);
   for (const asset of study.assets) {
     const bytes = fs.readFileSync(path.join(root, asset.path));
     assert.equal(createHash("sha256").update(bytes).digest("hex"), asset.sha256);
     assert.equal(asset.license, "CC-BY-4.0");
     assert.ok(asset.credit.includes("Jiaxin Wen"));
     assert.ok(html.includes(`src="${asset.path}"`));
-    assert.doesNotMatch(bytes.toString("utf8"), /<script|<foreignObject|\son\w+=|(?:href|src)=["']https?:/i);
+    if (asset.path.endsWith(".svg")) {
+      assert.doesNotMatch(bytes.toString("utf8"), /<script|<foreignObject|\son\w+=|(?:href|src)=["']https?:/i);
+    }
   }
   assert.match(html, /CC BY 4.0/);
   assert.match(html, /保留原图，增加中文图注/);
 });
 
-test("essay anchors, shared navigation and research index resolve", () => {
+test("translation anchors, shared navigation and research index resolve", () => {
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
   assert.equal(new Set(ids).size, ids.length);
   for (const [, id] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(ids.includes(id), id);
@@ -68,8 +70,35 @@ test("essay anchors, shared navigation and research index resolve", () => {
   const nav = require("../public/site-navigation.js").researchItems.find((s) => s.id === study.id);
   assert.equal(nav.href, entry.legacyHref);
   assert.match(html, /<agentlab-navigation current="autoresearch"/);
-  assert.equal([...html.matchAll(/data-article-section/g)].length, 9);
+  assert.equal([...html.matchAll(/data-article-section/g)].length, 12);
   assert.match(read("autoresearch.css"), /prefers-color-scheme: dark/);
   assert.match(read("autoresearch.css"), /max-width: 760px/);
   assert.doesNotMatch(html, /线程|智能体|提示词/);
+});
+
+test("the complete main-text translation preserves source paragraph and figure order", () => {
+  const outline = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/autoresearch-source-outline.json"), "utf8"));
+  const paragraphs = [...html.matchAll(/data-source="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(paragraphs, outline.paragraphs.map((p) => p.id));
+  assert.equal(paragraphs.length, study.translation.paragraphCount);
+  assert.deepEqual([...html.matchAll(/data-source-figure="([^"]+)"/g)].map((m) => m[1]), outline.figures);
+  assert.match(html, /data-source-table="S2.T1"/);
+  assert.match(html, /附录与参考文献链接至原文/);
+  assert.match(html, /译文中的“我们”指原作者/);
+  assert.doesNotMatch(html, /Raft|raft-/);
+  for (const note of html.matchAll(/<aside class="aar-note"[\s\S]*?<\/aside>/g)) {
+    assert.match(note[0], /AgentLab 批注/);
+    assert.doesNotMatch(note[0], /data-source=/);
+  }
+  assert.equal([...html.matchAll(/<aside class="aar-note"/g)].length, 11);
+});
+
+test("reader controls progressively enhance a readable static translation", () => {
+  const js = read("autoresearch.js");
+  assert.match(html, /<label class="aar-note-toggle" hidden>/);
+  assert.match(html, /<input id="aar-notes" type="checkbox" checked>/);
+  assert.match(js, /notes.closest\("label"\).hidden = false/);
+  assert.match(js, /classList.toggle\("aar-translation-only", !notes.checked\)/);
+  assert.match(js, /section.focus\(\{ preventScroll: true \}\)/);
+  assert.match(read("autoresearch.css"), /\.aar-translation-only \[data-annotation\] \{ display: none/);
 });

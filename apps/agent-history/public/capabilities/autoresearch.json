@@ -1,9 +1,9 @@
 {
   "id": "autoresearch",
-  "title": "Autoresearch：让 Agent 做实验",
+  "title": "Autoresearch：自动对齐研究的原文与批注",
   "product": "Anthropic AAR",
-  "subtitle": "研究循环、持久记忆、独立评测与结果可信性",
-  "description": "从一次自动对齐实验出发，追踪方案怎样变成代码、模型、分数与下一轮研究。",
+  "subtitle": "先读论文，再沿着原文追问实现与实验",
+  "description": "完整翻译论文正文的摘要、1–8 节、致谢及九幅图表，将源码分析与思考放在对应章节的独立批注中。",
   "verifiedAt": "2026-09-27",
   "status": "active",
   "source": {
@@ -19,7 +19,20 @@
     "license": "No repository license file observed in the pinned snapshot; paper figure license is separate.",
     "paperSha256": "6686c7bf3c80e319b3da79e12ac7e6ccf78c729a409815255748040cec14aa59"
   },
-  "boundary": "论文结果为作者报告；公开源码固定到晚于论文的提交，不声称它与实验版本完全一致。未运行上游测试、GPU 训练、模型 API 或独立复现。图表遵照论文 CC BY 4.0 署名原样使用，新增中文图注；未建立持续监控。",
+  "translation": {
+    "sourceUrl": "https://arxiv.org/html/2608.28945v3",
+    "license": "CC-BY-4.0",
+    "scope": "Abstract, sections 1-8, acknowledgements, figures 1-9 and table 1. Appendices and bibliography are linked, not translated.",
+    "paragraphCount": 62,
+    "annotations": "Separately authored AgentLab commentary; not part of the translation.",
+    "cover": {
+      "url": "https://www-cdn.anthropic.com/images/4zrzovbb/website/ddad92700787ec1bf1d80359c0c5e6ca305682b0-1000x1000.svg",
+      "credit": "Anthropic",
+      "sourceUrl": "https://www.anthropic.com/research/automated-researchers-mitigate-alignment-failures",
+      "license": "Separate website illustration, remotely embedded with attribution; not covered by the paper license."
+    }
+  },
+  "boundary": "译文与 AgentLab 批注分开呈现。论文结果为作者报告；公开源码固定到晚于论文的提交，不等同于实验版本。未运行上游测试、GPU 训练、模型 API 或独立复现。论文正文与图表依据 CC BY 4.0 翻译、署名使用；图 2 从 PDF 提取，其余原图未改动。附录与参考文献提供原文链接。",
   "evidence": [
     {
       "id": "AR-01",
@@ -329,6 +342,60 @@
     }
   ],
   "assets": [
+    {
+      "path": "/assets/autoresearch/harness.png",
+      "sourceUrl": "https://arxiv.org/pdf/2608.28945v3",
+      "figure": "2",
+      "sha256": "e4a44ea3a5e92da8ddecf42c57d8b5bd5fd4189602233a3d8e3171ebee4c9b4e",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Raster extraction from PDF page 4, clip [105,395,506,571], scale 4; Chinese caption by AgentLab."
+    },
+    {
+      "path": "/assets/autoresearch/hillclimb.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/geomean_hillclimb.svg",
+      "figure": "3",
+      "sha256": "65f10e36dfe08ca65ddc1a07c5f4ed0953490a747ea97796e8ba76b52d722d6c",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    },
+    {
+      "path": "/assets/autoresearch/petri.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/petri_turns_summary_corrected.svg",
+      "figure": "5",
+      "sha256": "1a82691e05359c54beee4c30a989ebbb2601bda0eddb90c3dcbe73da915b4f15",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    },
+    {
+      "path": "/assets/autoresearch/human.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/fig_human_all.svg",
+      "figure": "6",
+      "sha256": "8cb31860443407045817edd6f8c4685846f014fd0ed7ed0093692227e4e8f0e2",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    },
+    {
+      "path": "/assets/autoresearch/hours.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/fig_time_to_beat_ci.svg",
+      "figure": "7",
+      "sha256": "27aa063074ae338b4e4b0553b1f5f0d612046acda74df5d7c6473bfbd2a66668",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    },
+    {
+      "path": "/assets/autoresearch/seeds.svg",
+      "sourceUrl": "https://arxiv.org/html/2608.28945v3/fig_seeded_vs_unseeded.svg",
+      "figure": "8",
+      "sha256": "8baf213aeb269401dd189c7a0d0e52acdb5a49866248a81098a97586df5adb0e",
+      "license": "CC-BY-4.0",
+      "credit": "Chen Yueh-Han, Jiaxin Wen, Jan Hendrik Kirchner",
+      "modifications": "Original figure unchanged; Chinese caption by AgentLab."
+    },
     {
       "path": "/assets/autoresearch/teaser.svg",
       "sourceUrl": "https://arxiv.org/html/2608.28945v3/teaser_2x2.svg",
