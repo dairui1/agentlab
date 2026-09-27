@@ -159,7 +159,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Raft 多智能体博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Raft 多 Agent 博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : "research"/);

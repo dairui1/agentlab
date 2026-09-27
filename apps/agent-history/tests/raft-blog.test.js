@@ -130,11 +130,22 @@ test("no JavaScript still exposes translation, annotations and every source", ()
   assert.doesNotMatch(html, /data-original="[^"]+"[^>]*\bhidden\b/);
 });
 
-test("paired layout preserves every byte of the previously approved translated blocks", () => {
+test("paired translation changes only the approved Agent terminology", () => {
   const originals = html.match(/<(h[1-3]|p|ul|figure) data-original="[^"]+">[\s\S]*?<\/\1>|<hr data-original="separator">/g);
   assert.equal(originals.length, 42);
   assert.equal(createHash("sha256").update(originals.join("\n")).digest("hex"),
+    "519eb1857a1d618b80f5b2b4cee409b4c1df18cae09d709a6bc2f6b6d79557e1");
+  // Reversing the approved term and its CJK spacing must recover the exact prior translation.
+  const previousWording = originals.join("\n")
+    .replace(/(?<=\p{Script=Han}) (?=Agent)/gu, "")
+    .replace(/(?<=Agent) (?=\p{Script=Han})/gu, "")
+    .replaceAll("Agent", "智能体");
+  assert.equal(createHash("sha256").update(previousWording).digest("hex"),
     "dd30b712ae1688a9cf42fc4dcdd6e7ad0df38e2b1b8b142a7bf0369965d50966");
+  assert.doesNotMatch(html, /智能体/);
+  assert.doesNotMatch(JSON.stringify(study), /智能体/);
+  assert.match(html, /Agent 体验设计/);
+  assert.match(html, /Agent 原生工作区/);
   assert.equal(study.research.layout, "paired-columns");
   assert.equal(study.research.panels.length, 9);
   const pairs = [...html.matchAll(/<section class="reading-pair" id="([^"]+)"[\s\S]*?<\/section>/g)];

@@ -1,6 +1,6 @@
 {
   "id": "raft-multi-agent",
-  "title": "让智能体待在同一个房间，就注定会混乱吗？",
+  "title": "让 Agent 待在同一个房间，就注定会混乱吗？",
   "product": "Raft",
   "subtitle": "Raft 原文与源码对照研究",
   "description": "保留 Raft 博客完整中文译文，从报数时的重复回复讲到收件箱、暂缓草稿和任务认领；右侧结合 19 段源码与 9 幅图逐步展开。",
@@ -17,7 +17,7 @@
     "runtimeExperiment": "not-run"
   },
   "blog": {
-    "title": "让智能体待在同一个房间，就注定会混乱吗？",
+    "title": "让 Agent 待在同一个房间，就注定会混乱吗？",
     "author": "Tenny",
     "publishedAt": "2026-05-21",
     "url": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
@@ -28,7 +28,7 @@
     "translationSourceSha256": "c4fe3858b0b121f2e475701edae158bb9762f0e21ecaf12d915f556145cc5a19",
     "relationship": "later-source-snapshot-not-contemporaneous-implementation"
   },
-  "boundary": "译文保留作者观点与演示，批注另行署名。批注核对 2026-09-24 固定源码快照，不是博客发表时的实现；未运行 Raft、上游测试或多智能体实验。",
+  "boundary": "译文保留作者观点与演示，批注另行署名。批注核对 2026-09-24 固定源码快照，不是博客发表时的实现；未运行 Raft、上游测试或多 Agent 实验。",
   "evidence": [
     {
       "id": "RM-01",
@@ -312,26 +312,26 @@
       {
         "id": "01",
         "anchor": "opening",
-        "title": "两个智能体都没算错，为什么还是报重了？",
-        "focus": "“出问题的不是智能体，而是房间。”"
+        "title": "两个 Agent 都没算错，为什么还是报重了？",
+        "focus": "“出问题的不是 Agent，而是房间。”"
       },
       {
         "id": "02",
         "anchor": "why",
-        "title": "一条消息到了，智能体就算看过了吗？",
+        "title": "一条消息到了，Agent 就算看过了吗？",
         "focus": "“从推理到提交之间，房间已经发生变化。”"
       },
       {
         "id": "03",
         "anchor": "ax",
-        "title": "让智能体改变主意，工具得先留一条路",
+        "title": "让 Agent 改变主意，工具得先留一条路",
         "focus": "“看到了什么、保留哪些状态、如何恢复、允许决定什么。”"
       },
       {
         "id": "04",
         "anchor": "inbox",
         "title": "先看看谁在找我，再决定要不要放下手头的事",
-        "focus": "“由智能体决定什么值得进入自己的上下文。”"
+        "focus": "“由 Agent 决定什么值得进入自己的上下文。”"
       },
       {
         "id": "05",
@@ -349,13 +349,13 @@
         "id": "07",
         "anchor": "draft-context",
         "title": "只交回三条消息，另外两条去了哪里？",
-        "focus": "“系统把变化呈现出来……由智能体决定如何处理。”"
+        "focus": "“系统把变化呈现出来……由 Agent 决定如何处理。”"
       },
       {
         "id": "08",
         "anchor": "practice",
         "title": "从轮流说话，到一起做事",
-        "focus": "“没有总调度者，也没有人告诉智能体该轮到谁。”"
+        "focus": "“没有总调度者，也没有人告诉 Agent 该轮到谁。”"
       },
       {
         "id": "09",
