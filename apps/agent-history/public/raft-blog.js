@@ -1,9 +1,9 @@
 (function () {
   "use strict";
   const scenarios = {
-    stale: { count: 2, anyway: false, result: "暂缓发送", note: "新消息数为 2，未明确绕过，进入 held 分支。" },
-    fresh: { count: 0, anyway: false, result: "继续提交路径", note: "没有边界之后的新消息，不因 freshness 暂缓；仍可能遇到其他发送错误。" },
-    override: { count: 2, anyway: true, result: "明确绕过 freshness", note: "即使有两条新消息，这个条件也不再阻止发送；不是通过了新鲜度检查。" },
+    stale: { count: 2, anyway: false, result: "暂缓发送", note: "读完之后又来了两条消息。没有选择绕过，草稿先留下。" },
+    fresh: { count: 0, anyway: false, result: "继续发送流程", note: "读取位置之后没有新消息，继续发送；后续步骤仍可能报错。" },
+    override: { count: 2, anyway: true, result: "绕过新鲜度检查", note: "虽然又来了两条消息，但已明确选择绕过。这不表示草稿依据的上下文仍然最新。" },
   };
   function evaluateScenario(name) {
     const state = scenarios[name] || scenarios.stale;

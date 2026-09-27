@@ -141,6 +141,7 @@ test("paired layout preserves every byte of the previously approved translated b
   assert.equal(pairs.length, 9);
   for (const [index, pair] of pairs.entries()) {
     assert.equal(pair[1], study.research.panels[index].anchor);
+    assert.ok(pair[0].includes(study.research.panels[index].title));
     assert.ok(pair[0].indexOf('class="original-column"') < pair[0].indexOf('class="research-note"'));
     assert.match(pair[0], /data-original=/);
     assert.match(pair[0], /对应原文：/);
@@ -203,4 +204,27 @@ test("source verifier rejects edited snippets even when source hashes are valid"
   fixture.snippets[0].text = "first\nsecond";
   fixture.snippets[0].sourceUrl = fixture.snippets[0].sourceUrl.replace(study.source.revision, "main");
   await assert.rejects(() => verifyEvidenceFiles(fixture, async () => bytes), /Unpinned snippet locator/);
+});
+
+test("Raft reading surfaces and text follow the shared light and dark theme", () => {
+  const css = read("raft-blog.css");
+  assert.match(css, /--ink:var\(--text\)/);
+  assert.match(css, /--green:var\(--accent\)/);
+  assert.doesNotMatch(css, /--muted\s*:/);
+  assert.match(css, /background:var\(--page\)/);
+  assert.match(css, /\.research-note p,\.research-note li \{ color:var\(--text-soft\)/);
+  assert.match(css, /\.source-code pre \{[^}]*background:var\(--surface-raised\)/);
+  assert.match(css, /\.source-code pre code \{[^}]*color:var\(--text\)/);
+  assert.match(css, /@media\(prefers-color-scheme:dark\)/);
+  // Page-only brand colors may differ, but every component must use a theme token.
+  assert.doesNotMatch(css, /(?:^|[;{])\s*(?:color|background(?:-color)?|border(?:-[\w-]+)?|outline|box-shadow)\s*:[^;}]*#[\da-f]{3,8}\b/im);
+  for (const state of ["positive", "warning", "emphasized", "quiet", "unseen"]) {
+    assert.match(css, new RegExp(`\\.raft-blog \\.${state} \\{[^}]*color:var\\(`));
+  }
+});
+
+test("Raft current navigation overrides shared selected colors as a matched pair", () => {
+  const css = read("raft-blog.css");
+  assert.match(css, /\.blog-nav \.mode-switch \.mode-switch-menu-trigger\[data-current="true"\] \{[^}]*background:var\(--surface\); color:var\(--text\)/);
+  assert.match(css, /\.blog-nav \.mode-switch-menu-panel \{[^}]*background:var\(--surface\); color:var\(--ink\)/);
 });
