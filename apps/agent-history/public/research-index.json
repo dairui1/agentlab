@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "mimoagent",
+      "readingLabel": "阅读全文：黑盒接入与白盒训练",
+      "title": "MiMo Agent：黑盒接入与白盒训练",
+      "question": "小米怎样让模型适应黑盒 Agent：复刻内部逻辑，还是运行原版 scaffold？",
+      "implication": "白盒控制 prompt、工具与上下文变量，真实 CLI 检查迁移；同时记录适配改动，并把事件日志与可训练 token 轨迹分开。",
+      "boundary": "固定官方源码与技术报告；431 项离线测试通过、7 项跳过，另有合成事件探针。没有执行真实 CLI、模型 API、容器基准或 RL 训练；论文成绩为作者报告。",
+      "editorialRank": 19,
+      "verifiedAt": "2026-09-28",
+      "kind": "fixed-build",
+      "kindLabel": "源码与实验",
+      "topic": "训练与泛化",
+      "products": [{ "id": "mimoagent", "label": "MiMo Agent", "version": "467f0a19" }],
+      "fact": "claude-code / codex 接入真实 CLI，cc-agent / codex-agent 是可控白盒；报告用 mini-harness 训练并在保留 harness 上测迁移。黑盒统一轨迹主要保留任务和最终回复，中间事件另存。",
+      "sourceKinds": ["固定官方源码", "官方技术报告", "本地离线合同测试", "合成事件探针"],
+      "headlineEvidence": ["MI-01", "MI-04", "MI-08", "MI-13", "MI-23"],
+      "evidenceCount": 26,
+      "unknownCount": 5,
+      "data": "/capabilities/mimoagent.json",
+      "legacyHref": "/capabilities/mimoagent.html"
+    },
+    {
       "id": "autoresearch",
       "readingLabel": "对照阅读：自动对齐研究的完整正文译文与批注",
       "title": "Autoresearch：自动对齐研究的原文与批注",

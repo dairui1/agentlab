@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="小米 MiMo Agent 源码研究：真实 CLI 的黑盒接入、Claude 与 Codex 风格白盒、multi-harness RL，以及日志到训练样本之间缺失的环节。">
+  <title>MiMo Agent：黑盒接入与白盒训练 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/mimoagent.css">
+  <script src="/site-navigation.js"></script>
+</head>
+<body class="article-page mimo-study" data-evidence-source="/capabilities/mimoagent.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="mimo-nav"><div class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="mimoagent"></agentlab-navigation>
+    </div></header>
+    <main>
+      <header class="article-hero"><div class="article-hero-inner">
+        <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><span aria-hidden="true">/</span><span>MiMo Agent</span></nav>
+        <div class="mimo-title"><img src="/agent-icons/mimo.png" alt="" width="48" height="48"><h1>MiMo Agent</h1></div>
+        <p class="mimo-subtitle">黑盒究竟怎么“模拟”？</p>
+        <p class="article-dek">把原版 Agent 放进容器，与自己写一个长得像它的 Agent，是两件事。小米两条路都做了：前者接真实 CLI，后者把 prompt、工具和上下文管理拆开，用于可控的训练。最值得研究的，恰恰是它没有照搬的部分。</p>
+      </div></header>
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录"><span>从训练到执行</span><ol>
+          <li><a href="#distinction" data-index="01">先分清两条路径</a></li>
+          <li><a href="#training" data-index="02">为什么不用原版训练</a></li>
+          <li><a href="#whitebox" data-index="03">白盒具体对齐了什么</a></li>
+          <li><a href="#rollout" data-index="04">一次黑盒任务</a></li>
+          <li><a href="#routing" data-index="05">换模型，不换执行循环</a></li>
+          <li><a href="#fidelity" data-index="06">原版行为保留多少</a></li>
+          <li><a href="#trajectory" data-index="07">日志还不是训练样本</a></li>
+          <li><a href="#lifecycle" data-index="08">长任务与后续用户</a></li>
+          <li><a href="#reward" data-index="09">谁来判断做没做对</a></li>
+          <li><a href="#results" data-index="10">迁移证据与局限</a></li>
+          <li><a href="#verification" data-index="11">本地验证与下一步</a></li>
+          <li><a href="#sources" data-index="12">来源与版本</a></li>
+        </ol></aside>
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">假设要让一个 MiMo checkpoint 修复同一份仓库：一次用 Claude Code，一次用 Codex，再用小米自己的最小 Agent 跑一遍。真正需要固定的不只是模型。模型看见什么工具、什么时候被要求压缩、格式错了会收到什么反馈，都会改变它接下来能走的路。</p>
+          <p>这篇沿着这条任务链读源码。依据是小米 <code>mimoagent</code> 的固定公开提交和 MiMo-V2.6 技术报告；另外运行了离线测试与合成事件探针。没有运行真实模型或 RL 训练，文中的成绩仍是作者报告。</p>
+
+          <section id="distinction" data-article-section>
+            <h2>“黑盒”说的是怎么接入，不是代码一定闭源</h2>
+            <p>最容易读错的是名字。<code>cc-agent</code> 和 <code>claude-code</code> 不是别名；<code>codex-agent</code> 和 <code>codex</code> 也不是。前两组中的第一种由 mimoagent 自己掌握消息、模型调用和工具执行；第二种则在任务环境里启动上游 scaffold。注册类型决定路径，不能看模型名猜。<button class="evidence-ref" type="button" data-evidence="MI-01" data-evidence-trigger>路径依据</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>配置</th><th>真正运行谁的循环</th><th>适合回答什么</th></tr></thead><tbody>
+              <tr><td><code>cc-agent</code></td><td>小米 Python 循环，Claude 风格工具</td><td>工具与上下文机制怎样影响学习</td></tr>
+              <tr><td><code>codex-agent</code></td><td>小米循环，可复用 code-mode host</td><td>直接工具调用和代码调用工具如何训练</td></tr>
+              <tr><td><code>claude-code</code></td><td>Claude Agent SDK 驱动真实 Claude Code</td><td>模型放进这套生产 scaffold 后怎么表现</td></tr>
+              <tr><td><code>codex</code></td><td>真实 Codex CLI 子进程</td><td>同一模型在 Codex 执行环境里的表现</td></tr>
+            </tbody></table></div>
+            <p>这里的黑盒是<strong>把 Agent 当作外部进程使用</strong>。Codex、OpenCode 等即使有公开源码，也可以采用这种接法。对于 Claude Code，不需要先知道闭源内部每一个分支，就能运行它、指定模型服务、收集它公开输出的事件，再检查它改完的仓库。这是集成，不是反向训练一个“Claude Code 替身”。</p>
+          </section>
+
+          <section id="training" data-article-section>
+            <h2>训练时，他们反而不想照搬生产 Agent</h2>
+            <p>MiMo-V2.6 报告 §4.2.5 给了一个很具体的理由：生产 harness 里有许多安全约束、交互流程和产品指令，任务通过率却未必衡量这些要求。RL 只奖励修复成功，模型可能学会忽略那些没有被奖励覆盖的约束。另一个麻烦是组件耦合，换一种压缩策略，可能同时改变很多别的行为。<button class="evidence-ref" type="button" data-evidence="MI-23" data-evidence-trigger>报告依据</button></p>
+            <p>小米选择从最小循环出发，保留完成任务需要的 system prompt、工具和上下文管理，再组合成不同 mini-harness。目的不是尽可能像某一个产品，而是让模型接触多种可控制的交互条件，别把解题能力绑在一种工具包装上。</p>
+            <figure class="article-figure mimo-paths">
+              <div class="mimo-path"><strong>训练路径</strong><ol><li>最小 Agent 循环</li><li>重组 prompt、工具、上下文</li><li>任务反馈与 RL 更新</li></ol></div>
+              <div class="mimo-path"><strong>迁移检验</strong><ol><li>训练后的同一模型</li><li>接入保留的真实 harness</li><li>重新测量任务成绩</li></ol></div>
+              <figcaption>根据报告与源码整理的研究示意。它表达训练与检验的角色，不表示已找齐论文训练配置，也不是本地执行记录。</figcaption>
+            </figure>
+            <p>所以，研究问题应从“它怎样复刻黑盒”改成两问：<strong>白盒删掉和保留了哪些交互机制？这些机制学到的能力，换成真实 harness 以后还剩多少？</strong>报告中的保留 harness 实验正是在检查后一个问题。</p>
+          </section>
+
+          <section id="whitebox" data-article-section>
+            <h2>白盒对齐的是交互合同，不是整套产品</h2>
+            <h3>Claude 风格：连错误反馈也参与训练</h3>
+            <p><code>CCAgent</code> 使用大写的 <code>Bash / Read / Write / Edit</code> 等工具名，对齐参数形状，例如 Bash 的毫秒超时、Read 的 <code>file_path / offset / limit</code>。但示例 system prompt 只是几句通用任务说明，没有复制整套 Claude Code 指令。示例再显式加入 Grep、Glob、Agent、Compact，总共八种工具。工具目录里有，不代表默认配置都会启用。<button class="evidence-ref" type="button" data-evidence="MI-02 MI-21" data-evidence-trigger>工具与配置</button></p>
+            <p>压缩也被设计成可训练的动作：模型看到上下文压力提示，自己调用 <code>Compact</code>。当前工具调用先正常配对返回，到下一次 <code>query()</code> 才请求摘要，随后把历史改成 system、压缩边界、原始任务锚点和摘要。摘要失败或为空，保留旧历史。这里没有“token 到阈值便自动压缩”的规则。<button class="evidence-ref" type="button" data-evidence="MI-03" data-evidence-trigger>压缩实现</button></p>
+            <p>还有一个不显眼的差异：如果工具调用落成了普通文本里的 <code>&lt;tool_call&gt;</code>，CC 路径会报格式错误，让模型得到一次修正反馈；Codex 白盒路径没有同样的补救，没有结构化工具调用就可以结束 rollout。对训练来说，这不是显示细节。一次错误后还能不能继续，决定哪些轨迹能最终拿到奖励。<button class="evidence-ref" type="button" data-evidence="MI-02 MI-05" data-evidence-trigger>退出行为</button></p>
+            <h3>Codex 风格：复用宿主，不复用完整决策循环</h3>
+            <p><code>codex-agent</code> 只接受 Responses 协议。<code>ptc: true</code> 时，模型面对的是 <code>exec</code> 与 <code>wait</code>，用 JavaScript 调用嵌套的工具；<code>ptc: false</code> 则直接暴露配置里的工具。JavaScript 由独立的 Codex code-mode host 运行，但消息维护、工具派发和终止判断仍在小米这边。<button class="evidence-ref" type="button" data-evidence="MI-04 MI-05" data-evidence-trigger>白盒 Codex</button></p>
+            <p>它的 core prompt 明确是经过删减的版本：保留查找文件、编辑范围、交付等工程习惯，删除部分人格、用户交互、可视化与 skills 指令。自动压缩默认关闭；开启后也用普通模型请求做本地摘要，而不是专用远程 compact 端点。这些选择适合做机制实验，却让“完整模拟原版 Codex”的说法站不住。<button class="evidence-ref" type="button" data-evidence="MI-04 MI-22" data-evidence-trigger>删减与压缩</button></p>
+            <p>官方 NOTICE 也直接写明：Codex 部分重实现工具语义与 prompt，Claude 部分跟随工具 schema 和描述。这些材料展示了对齐后的实现，却没有交代一套自动探测黑盒、推断隐藏状态机的流程，也不足以重建所有工具合同最初如何采集、逐项怎样校准。这里能研究的是可观察交互的重实现，不能补写成一次已经完成的黑盒逆向工程。<button class="evidence-ref" type="button" data-evidence="MI-26" data-evidence-trigger>对齐来源</button></p>
+            <div class="article-callout"><strong>最值得借鉴的地方</strong><p>不是复制一份长 prompt，而是把会改变训练分布的东西变成明确配置：工具参数、输出截断、格式纠错、压缩时机和退出条件。这样才能知道一次收益究竟来自模型，还是来自 harness 替模型处理了错误。最后这句是本研究的工程判断。</p></div>
+          </section>
+
+          <section id="rollout" data-article-section>
+            <h2>到了黑盒路径，真的把 CLI 装进任务现场</h2>
+            <p>回到那条代码修复任务。batch runner 先准备数据集对应的环境，按 <code>agent.type</code> 创建适配器。黑盒适配器不调用小米的原生 <code>step()</code>，而是接管 <code>run(task)</code>：安装 scaffold，写配置，启动进程，取回结果。CLI 就在任务仓库所在环境里读文件、改文件和运行命令，不是在一个假文件系统里表演。<button class="evidence-ref" type="button" data-evidence="MI-06 MI-17" data-evidence-trigger>调用链</button></p>
+            <figure class="article-figure"><ol class="mimo-stages">
+              <li><span>01</span><strong>准备</strong><p>数据集任务、仓库镜像与工作目录</p></li>
+              <li><span>02</span><strong>安装</strong><p>固定 CLI 与需要的运行组件</p></li>
+              <li><span>03</span><strong>执行</strong><p>原版循环调用指定模型并修改仓库</p></li>
+              <li><span>04</span><strong>收集</strong><p>最终答复、原始事件、用量与状态</p></li>
+              <li><span>05</span><strong>评分</strong><p>检查修改后的环境，而非相信自述</p></li>
+            </ol><figcaption>黑盒适配器的控制流示意；本研究没有启动这些真实 CLI。</figcaption></figure>
+            <p>例如 Codex 安装脚本默认选择 <code>0.154.0</code>，下载的不只是一个命令，还包括 code-mode host 等组件，并检查版本与 bundle 是否完整。Claude 适配器默认固定 <code>2.1.269</code> 的 CLI，由 SDK runner 驱动。SDK 是控制通道，CLI 才是实际 scaffold。固定版本很重要，但脚本允许 <code>latest</code>，因此重现实验时仍须保存最终解析出的版本，不能只留 YAML。<button class="evidence-ref" type="button" data-evidence="MI-20 MI-06" data-evidence-trigger>安装依据</button></p>
+            <p>仓库还支持 OpenCode、Pi、Kimi、Grok、Hermes、DeepSeek Harness 等接入。可共用的是任务和环境合同；每家的启动参数、provider 配置、事件解析和续接方式仍要分别维护。“支持十四种”不是一次抽象就解决了十四种运行差异。</p>
+          </section>
+
+          <section id="routing" data-article-section>
+            <h2>换掉模型端点，让原来的循环继续工作</h2>
+            <p>为什么闭源 scaffold 也能用于测试其他模型？因为要替换的不是它的内部控制流，而是它向外请求推理的端点。Claude 适配器从共享模型配置派生 Anthropic 协议的地址、凭据和模型名，并把不同模型档位及子 Agent 路由钉到同一个模型，避免辅助调用悄悄跑到另一个默认模型上。<button class="evidence-ref" type="button" data-evidence="MI-07" data-evidence-trigger>模型路由</button></p>
+            <p>Codex 路径则写入独立 <code>CODEX_HOME</code> 下的 provider 配置，再启动 <code>codex exec</code>。原生 Python model 对象在这条路上主要充当配置和统计容器，不负责每一步推理。模型请求由外部 CLI 自己发起。<button class="evidence-ref" type="button" data-evidence="MI-10 MI-11" data-evidence-trigger>Codex 接入</button></p>
+            <p>因此，不必先重建隐藏的 system prompt，真实 scaffold 会按自己的流程组装请求；但目标端点必须接受它实际使用的协议、工具调用、流式事件和历史格式。填了一个 <code>base_url</code> 并不等于兼容性已经验证，更不代表仓库提供了全部模型服务或训练端的实现。</p>
+            <p>这套设计的研究价值在于把变量分开：可以固定模型比较不同 scaffold，也可以固定 scaffold 比较 checkpoint。前提是把工具裁剪、思考预算、压缩和权限设置一起记下来。否则，名义上只换了模型，实际上实验条件也变了。</p>
+          </section>
+
+          <section id="fidelity" data-article-section>
+            <h2>“运行原版”也不等于“原样运行”</h2>
+            <p>为了无人值守和批量 rollout，适配器会改掉日常交互的若干条件。最直观的是 Claude 的提问工具：遇到 <code>AskUserQuestion</code>，回调按每题选项顺序选第一个；没有选项则填空。退出计划和其他权限询问也不等真人确认。这解决了卡住的问题，却给任务加上了一种特定的“用户”。<button class="evidence-ref" type="button" data-evidence="MI-08 MI-09" data-evidence-trigger>自动交互</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>路径</th><th>此快照的改动</th><th>研究时要防止的误读</th></tr></thead><tbody>
+              <tr><td>Claude Code</td><td>保留内置 preset；默认关 WebSearch；自动处理权限与提问</td><td>不是有人类实时参与的默认交互条件</td></tr>
+              <tr><td>Codex</td><td>默认关网页搜索；绕过 CLI 审批与沙箱；可替换内置指令</td><td>执行隔离要靠外层容器，不能把 CLI 当最后防线</td></tr>
+              <tr><td>OpenCode</td><td>关闭项目配置与自动更新；固定标题；默认去掉 todowrite</td><td>任务仓库的原有配置与全部工具未必生效</td></tr>
+              <tr><td>Hermes</td><td>安装时修改历史 thinking block 的保留逻辑</td><td>这条路径包含源码补丁，不是未改动的上游</td></tr>
+            </tbody></table></div>
+            <p>上表是固定实现的差异记录，不是建议关闭安全控制。部分工具调整来自作者记录的端点兼容性问题；本研究没有重现这些上游服务的拒绝行为，也不把兼容补丁当成绕过服务限制的使用指南。<button class="evidence-ref" type="button" data-evidence="MI-09 MI-10 MI-11 MI-14 MI-15" data-evidence-trigger>各适配器依据</button></p>
+            <p>比较成绩时，实验对象最好写成“某版本 scaffold + 适配配置 + 目标模型”，而不是只写 Claude Code 或 Codex。黑盒接入省掉了重写循环的工作，没有省掉实验条件的说明。</p>
+          </section>
+
+          <section id="trajectory" data-article-section>
+            <h2>日志能解释一次运行，却未必能训练它</h2>
+            <p>这是这份开源最需要仔细读的地方。Claude Code 与 Codex 适配器都会把自身的 <code>messages</code> 保持得很短：本轮任务，加最终回复。<code>save_traj()</code> 直接序列化这些消息和查询参数；查询参数又是空的，所以统一 <code>traj.json</code> 不会自动出现原版 scaffold 的完整工具合同和所有中间轮次。完整程度必须去各自的原始日志里另查。<button class="evidence-ref" type="button" data-evidence="MI-06 MI-12 MI-13" data-evidence-trigger>轨迹实现</button></p>
+            <p>Codex 原始事件流会保存到 <code>codex.txt</code>。复制失败时还会退回到读取最后 2,000,000 字节，这显然不能保证长轨迹完整。统计也有近似：<code>api_calls</code> 按 assistant 消息计数估计，而非一个覆盖全部内部请求的计数器。Claude SDK 日志使用对象序列化，某些嵌套值可以退为字符串，也不能直接当成完整的线上 API 请求。<button class="evidence-ref" type="button" data-evidence="MI-12 MI-09" data-evidence-trigger>收集与统计</button></p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>拿到了什么</th><th>足够做什么</th><th>还不能据此认定什么</th></tr></thead><tbody>
+              <tr><td>退出状态与最终仓库</td><td>运行 verifier，衡量任务结果</td><td>过程可靠或所有工具都正确</td></tr>
+              <tr><td>事件流与工具记录</td><td>排错、回看可见操作</td><td>每轮模型实际输入完整无损</td></tr>
+              <tr><td>usage、最终答复</td><td>用量汇总与结果展示</td><td>逐 token 的训练概率已保存</td></tr>
+              <tr><td>实际模型请求和训练元数据</td><td>核对可训练样本、策略版本与掩码</td><td>仅凭这个仓库就拥有完整 RL 闭环</td></tr>
+            </tbody></table></div>
+            <p>技术报告 §6.2 另外描述了真正的大规模训练数据通路：轨迹载荷包括 token IDs、log-probabilities、MoE 路由与采样信息，Payload Porter 把它们放在分布式存储里，调度层只拿轻量元数据。这是训练系统的描述，不能倒过来算成每个黑盒 adapter 已经导出了这些字段。<button class="evidence-ref" type="button" data-evidence="MI-25" data-evidence-trigger>训练数据通路</button></p>
+            <p><strong>本研究的判断：</strong>若要把这套接入拿去做自己的黑盒 harness RL，关键补课在模型服务端，而不只是日志解析器。要能对齐最终 prompt、工具 schema、输出 token、策略版本以及哪些 token 参与学习。客户端留下一个“完成了”，离这些要求还很远。</p>
+          </section>
+
+          <section id="lifecycle" data-article-section>
+            <h2>长任务要活过连接；多轮任务要保留会话</h2>
+            <p>一个 rollout 跑几个小时，不能依赖一条永不掉线的 exec 连接。Kubernetes 和 Modal 使用的 detached 实现把命令放进独立会话，标准输出落到远端文件，控制端通过短请求轮询退出标记。可选 watchdog 按日志修改时间判断是否停滞；阈值太小会误杀慢模型，设为零则关闭。<button class="evidence-ref" type="button" data-evidence="MI-16" data-evidence-trigger>进程生命周期</button></p>
+            <p>多轮输入也不是把第二条消息塞给一个全新的 CLI。Codex 的后续调用使用 <code>resume --last</code>；Claude runner 使用继续会话选项，并继续写入 session 日志。工作目录保留与模型会话保留分别实现，不能以“文件还在”推断“上一轮上下文也在”。<button class="evidence-ref" type="button" data-evidence="MI-11 MI-07" data-evidence-trigger>会话续接</button></p>
+            <p>仓库里确实还有一种“模拟”：可选的 <code>UserAgentDriver</code>。它让独立模型检查主 Agent 的结果、轨迹和任务现场，生成后续用户消息，通过 <code>query_N.md</code> 交回主 Agent，再继续下一轮。轮数耗尽、交付缺失或主 Agent 状态不可续接时停止。这里模拟的是<strong>用户</strong>，不是那个被接入的黑盒 Agent。<button class="evidence-ref" type="button" data-evidence="MI-19" data-evidence-trigger>模拟用户</button></p>
+          </section>
+
+          <section id="reward" data-article-section>
+            <h2>CLI 说完成了，任务还没算通过</h2>
+            <p>黑盒进程正常退出，适配器返回的 <code>Completed</code> 只是执行状态。batch runner 还要把任务、Agent 与最终答复交给数据集环境，再计算 reward。任务是否通过，依赖仓库状态与 verifier，不依赖模型最后写了多有把握的总结。<button class="evidence-ref" type="button" data-evidence="MI-17" data-evidence-trigger>执行与评分</button></p>
+            <p>评分次序也值得保留：先捕获修改，如果配置了 rubric judge，先让它看交付现场，然后才运行可能恢复测试文件、应用标准测试补丁或清理工作区的 verifier。否则 judge 看到的就可能是评测器处理过的仓库，而不是 Agent 真正交付的版本。<button class="evidence-ref" type="button" data-evidence="MI-18" data-evidence-trigger>评分次序</button></p>
+            <p>但同容器运行 judge 不等于对恶意修改有硬隔离。白盒的 AntiHackGuard 也是默认关闭的可选拦截器，并不是所有黑盒工具都会经过它。评测环境坏了、网络断了、代码没修对，要分别看错误元数据；只留下一个零分，就会把基础设施失败变成模型的负样本。</p>
+          </section>
+
+          <section id="results" data-article-section>
+            <h2>作者展示了迁移，尚不能把提升全归因于多样性</h2>
+            <p>Figure 10 展示专门的 multi-harness 训练：四个训练 mini-harness 之外，Codex、Claude Code、mini-swe-agent 作为保留 harness，在 DeepSWE v1.1 上的平均 Pass@1 约从 50% 升到 66%。三者都有进步，但增幅不同，训练与保留 harness 的均值差距也缩小。它支持“学到的能力可以迁移”，不是“白盒与原版已经等价”。<button class="evidence-ref" type="button" data-evidence="MI-24" data-evidence-trigger>Figure 10</button></p>
+            <p>Table 7 是另一个实验：以 MiMo-V2.6-Distill-Qwen-9B 的 SFT checkpoint 为起点，再做 multi-harness RL。下面只摘出三个保留 harness，不混入大模型曲线，也不把基座到 SFT 的进步算作这次 RL 的收益。</p>
+            <div class="article-table-wrap"><table class="article-table mimo-scores"><caption>作者报告的 9B 实验，分数单位为 %；括号内为本研究计算的百分点变化</caption><thead><tr><th>评测</th><th>Codex<br>SFT → RL</th><th>Claude Code<br>SFT → RL</th><th>mini-swe-agent<br>SFT → RL</th></tr></thead><tbody>
+              <tr><td>SWE-bench Verified</td><td>58.5 → 61.1<br><small>（+2.6）</small></td><td>61.7 → 65.3<br><small>（+3.6）</small></td><td>65.3 → 66.7<br><small>（+1.4）</small></td></tr>
+              <tr><td>SWE-bench Pro</td><td>40.3 → 42.6<br><small>（+2.3）</small></td><td>42.2 → 43.1<br><small>（+0.9）</small></td><td>45.6 → 48.4<br><small>（+2.8）</small></td></tr>
+              <tr><td>MiMo Code Bench（mini）</td><td>46.0 → 50.7<br><small>（+4.7）</small></td><td>51.2 → 53.0<br><small>（+1.8）</small></td><td>56.8 → 62.0<br><small>（+5.2）</small></td></tr>
+            </tbody></table></div>
+            <p>这些成绩未由本研究复现。从这里也不能单独算出“增加 harness 多样性”相对同算力单 harness RL 的净收益：还需要严格固定训练起点、数据、预算与评分器的对照。公开仓库中的配置名，也没有在所读材料里逐一绑定到论文的 mini-harness1-4。不能因为恰好看到几种 native agent，就替作者补上这个映射。</p>
+          </section>
+
+          <section id="verification" data-article-section>
+            <h2>本地确认了哪些部分？</h2>
+            <p>本次执行了两组固定版本的上游测试：黑盒适配与 detached 生命周期组 <strong>358 通过、7 跳过</strong>；压缩、动作拦截、模拟用户、测试文件恢复与 rubric judge 组 <strong>73 通过</strong>。合计 431 通过。测试主要使用伪环境和固定事件；7 项真实 Linux shell / 进程组测试因当前 macOS 环境跳过。它们验证的是代码合同，不是生产 CLI 端到端可运行性。</p>
+            <p>另写了一个小探针，直接调用固定源码的 Codex adapter：给它两轮合成日志，其中包含 command_execution 事件，把原生 <code>model.query()</code> 设成一旦调用就报错。结果两轮都完成，原生模型调用为零，第二轮生成了续接命令；保存出的统一轨迹仍只有 user、assistant、user、assistant，没有工具 schema 或中间调用。Claude 的问答回调也确实选了第一项。<a href="/capabilities/mimoagent-probe.json">探针结果</a></p>
+            <div class="article-callout"><strong>没有做过的事</strong><p>没有安装并启动这些生产 CLI，没有连接真实模型 API，没有跑容器基准、GPU 训练或黑盒对照实验。探针替换了环境执行与 SDK 返回类型，不能拿它宣称 Claude Code 或 Codex 已在此机器上成功完成代码任务。</p></div>
+            <p>继续研究时，我会优先做三个实验，而不是先跑一张更大的成绩表：</p>
+            <ol class="mimo-experiments">
+              <li><strong>同模型、同任务的白盒与原版配对。</strong>比较实际工具参数、错误反馈、截断和压缩后的输入；记录最终 patch、任务成绩与 token 成本。</li>
+              <li><strong>把“日志完整”变成可检查的条件。</strong>在授权自建端点记录每次最终请求与响应，对照 CLI 事件、统一轨迹和训练字段，查缺失轮次与辅助调用。</li>
+              <li><strong>一次只变一个机制。</strong>固定模型与任务，分别改变 Compact、PTC、格式纠错、提问替代策略，再观察失败类型，避免把适配层收益错算成模型收益。</li>
+            </ol>
+            <p>到这里，我更愿意把 mimoagent 看成一套<strong>连接研究实验与真实 Agent 的 rollout 基础设施</strong>。它有价值的不是声称打开了所有黑盒，而是同时留下两种能力：在白盒里控制变量，在真实 scaffold 上检查迁移。两边的差异必须被记录下来，而不是被“模拟”这个词抹平。</p>
+          </section>
+
+          <section id="sources" data-article-section>
+            <h2>来源与复核</h2>
+            <p>源码：<a href="https://github.com/XiaomiMiMo/mimoagent/tree/467f0a19016f0ac4d63b8d17a1f0da9ba07f232c">XiaomiMiMo/mimoagent · 467f0a19</a>，分支 <code>mimo-oss</code>，提交时间 2026-09-21 14:01:34 −07:00。仓库源自 mini-swe-agent，当前项目许可证为 MIT；第三方 CLI 各有自己的许可与服务条款。没有采用仓库侧栏沿用的“100 行 / &gt;74%”文字作为小米新框架的实验成绩。</p>
+            <p>报告：<a href="https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Pro-RL/blob/73875d0/MiMo_V2_6_technical_report.pdf">MiMo-V2.6 技术报告 · 73875d0</a>，重点阅读 §4.2.5、Figure 10、§6.2 与 Table 7，并检查了图表页面。报告文件 SHA-256 为 <code>fb81e6e083801b3358f084ed6be953dc23b0d2e434690f4541d5eae03e01e7af</code>。</p>
+            <p>研究日期 2026-09-28。26 条证据分别标注固定源码或作者报告，16 个源文件保留 SHA-256；本地探针独立记录。本文是专题研究，不是报告全文译文，也未接入持续版本监控。</p>
+            <p><a href="/capabilities.html?study=mimoagent">全部证据与待验证问题</a> · <a href="/capabilities/mimoagent.json">结构化来源索引</a> · <a href="/capabilities/mimoagent-probe.json">本地合成探针</a></p>
+          </section>
+        </article>
+      </div>
+      <nav class="article-next" aria-label="返回专题"><a href="/capabilities.html?study=mimoagent"><span>证据索引</span><strong>MiMo Agent 的全部依据与未知问题</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">实现依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "revision": "467f0a19016f0ac4d63b8d17a1f0da9ba07f232c",
+  "evidenceClass": "local-synthetic-contract-probe",
+  "realCliExecuted": false,
+  "realModelCalled": false,
+  "codex": {
+    "turns": 2,
+    "nativeModelQueryCalls": 0,
+    "resumeCommandObserved": true,
+    "syntheticCommandEventInInput": true,
+    "unifiedTrajectoryMessageRoles": [
+      "user",
+      "assistant",
+      "user",
+      "assistant"
+    ],
+    "unifiedTrajectoryHasTools": false,
+    "unifiedTrajectoryHasToolCalls": false
+  },
+  "claudeQuestion": {
+    "selected": {
+      "Which approach?": "First"
+    },
+    "sdkTypeStubbed": true
+  }
+}
