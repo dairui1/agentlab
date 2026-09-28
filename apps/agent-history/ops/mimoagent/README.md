@@ -63,6 +63,10 @@ node --test tests/mimoagent.test.js
 
 生产发布后执行 `node ops/mimoagent/verify_live.mjs OUTPUT_JSON`，比对本地 dist 与 workers.dev、自定义域的 14 个资源 SHA-256，包含 manifest、专题正文、来源数据、独立主题、导航及图片。再对线上域运行 `check_ui.cjs`。缓存、报告 PDF、上游 clone、运行日志和截图不进入公开产物或提交；无关 `artifacts/` 保留不动。
 
+发布回执（2026-09-28）：专题源码提交 `b97e3502` 已推送到 `origin/main`，Wrangler Version ID 为 `c0b909d1-152e-4f33-b975-851b3eab5f15`，线上地址为 `https://agentlab.dairui1.com/capabilities/mimoagent`。两域 14/14 资源哈希一致，生产页五种视口配置与全部交互检查通过；发布后分析队列仍为零，无活跃流水线或占锁。本次未启动额外 analyzer，也没有使用失败后的确定性 fallback。
+
+生产静态托管会把 `.html` 重定向到无扩展名 URL，哈希脚本现显式跟随重定向。验收遇到的瞬时 TLS 连接中断通过有界重试恢复，未关闭证书验证。GitHub 在推送时另提示默认分支有 6 条依赖告警（2 高、4 中），本次没有改动依赖或调查这些告警。
+
 ## 未执行与未证实
 
 - 未安装或启动任何生产 CLI，未接真实模型服务、Docker/Kubernetes 或 GPU 训练。

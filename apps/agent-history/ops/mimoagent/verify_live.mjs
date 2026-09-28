@@ -24,7 +24,7 @@ for (const asset of paths) {
   const remote = [];
   for (const host of hosts) {
     const url = `${host}/${asset}?cb=${Date.now()}`;
-    const bytes = execFileSync("curl", ["--fail", "--silent", "--show-error", "--retry", "2", "--max-time", "45", url], { maxBuffer: 16 * 1024 * 1024 });
+    const bytes = execFileSync("curl", ["--fail", "--location", "--silent", "--show-error", "--retry", "3", "--retry-all-errors", "--connect-timeout", "15", "--max-time", "45", url], { maxBuffer: 16 * 1024 * 1024 });
     const sha256 = hash(bytes);
     assert.equal(sha256, local, `Published bytes differ: ${host}/${asset}`);
     remote.push({ host, sha256 });
