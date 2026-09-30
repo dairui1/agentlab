@@ -5,6 +5,18 @@ import re
 
 
 SOURCE_PROFILES = {
+    "raven": [
+        ("License", "Apache-2.0 License", "LICENSE"),
+        ("Prompt", "Raven-Code 工程纪律", "agents/raven-code/plugins/code-flow/prompts/CODE_DISCIPLINE.md"),
+        ("Prompt", "Raven-Code 工具说明", "agents/raven-code/plugins/code-flow/prompts/TOOLS_CODE.md"),
+        ("Tools", "工具注册与单轮可见性", "raven/agent/tools/registry.py"),
+        ("Harness", "第三方 Agent 接入预设", "raven/agent/subagent/presets.py"),
+        ("Harness", "ACP 权限应答", "raven/acp_client/permissions.py"),
+        ("Harness", "DAG 执行与恢复", "raven/agent/subagent/dag_runner.py"),
+        ("Harness", "Curator 候选生成与安装", "experimental/curator/workflow.py"),
+        ("Harness", "Curator 校验与可选 probe", "experimental/curator/raven_adapter/validate.py"),
+        ("Harness", "Curator 组合部署与回退", "experimental/curator/raven_adapter/deployment.py"),
+    ],
     "minimax-code-cli": [
         ("License", "MIT License", "LICENSE"),
         ("Prompt", "Mavis System Prompt", "packages/local-runtime-v2/assets/agents/mavis/system-prompt.md.hbs"),

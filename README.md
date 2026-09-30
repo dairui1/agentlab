@@ -96,6 +96,14 @@ ZCode 的本地图标复制自[官方仓库固定提交](https://github.com/zai-
 
 生成的 `public/`、`dist/` 和 `analysis/` 可从已同步的数据重建；`.cache/official-sources/` 还保存有界代码比较的历史账本，应像发布状态一样备份，不能在普通更新前删除。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。
 
+## Raven Harness 改进研究
+
+[Raven 专题](https://agentlab.dairui1.com/capabilities/raven) 沿反馈、候选、校验和安装追踪 Curator，固定官方提交 `e6c0344cb7ce00db25d554e4bb671ec1909a8f9f`。19 条证据区分静态源码、作者案例、技术报告与远端 CI；未运行上游测试、真实模型或基准，不把可选 probe 的装配检查写成效果验收，也不把 HarnessBank v2 的成绩归给当前 Curator。
+
+Raven 同时接入官方软件 release 与 source-only 日更，匹配 `vX.Y.Z`，排除 `tech-report-v1` 等文档标签。最新 release 对应的静态 Prompt、工具注册、ACP 权限及 Curator 源文件可在版本页查看；静态源码不是 Runtime Prompt 捕获。固定 main 研究与软件 release 数据分别标识，后者不会悄悄改写前者。
+
+在 `apps/agent-history` 执行 `node scripts/verify_raven_sources.mjs --source-tree /path/to/pinned/Raven --report /path/to/technical-report.pdf`，核对源文件哈希、行号、两段代码摘录、图标与报告哈希；或用 `--fetch` 从固定公开来源复核。该命令不运行 Raven。
+
 ## Raft 协作基础设施研究
 
 [Raft 多智能体博客](https://agentlab.dairui1.com/capabilities/raft-multi-agent) 左侧完整保留 Tenny 的 AX 文章中文译文与五张官网配图，右侧按段落展开九则长篇研究：19 段固定源码、9 幅机制图，追踪收件箱、可见性、发送检查、草稿恢复、任务认领和待验证实验。代码片段逐行核对固定版本，图示不冒充运行记录；手机上下衔接，可关闭批注连续读原文。依委托人转述的作者许可发布中文翻译，不刊载英文全文。原架构研究页保留不变。

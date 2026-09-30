@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "raven",
+      "readingLabel": "阅读全文：反馈如何落到执行层",
+      "title": "Raven：反馈怎样变成下一轮执行的 Harness",
+      "question": "一次交付不合格，下一轮多了一句提醒，还是多了一道真正执行的检查？",
+      "implication": "把反馈、实际装配、候选版本和机制活动串起来；分别验收能运行、确实触发和效果提升，不能拿安装成功代替改进证据。",
+      "boundary": "固定官方源码与报告，另核对远端 CI。未执行 Raven、真实模型、上游测试或基准；七组进化成绩来自 HarnessBank v2，不是当前 Curator 的独立复现。",
+      "editorialRank": 20,
+      "verifiedAt": "2026-09-30",
+      "kind": "fixed-build",
+      "kindLabel": "源码与报告",
+      "topic": "架构与扩展",
+      "products": [{"id": "raven", "label": "Raven", "version": "main / e6c0344c"}],
+      "fact": "Curator 改写受管根、子 Harness 的上下文、规划、工具与执行检查，校验后成组安装；行为 probe 可缺省，旧 Evolver 的晋级与显著性也分开。",
+      "sourceKinds": ["固定官方源码", "作者技术报告", "作者案例", "远端 CI 记录"],
+      "headlineEvidence": ["RV-03", "RV-07", "RV-09", "RV-11", "RV-18"],
+      "evidenceCount": 19,
+      "unknownCount": 5,
+      "data": "/capabilities/raven.json",
+      "legacyHref": "/capabilities/raven.html"
+    },
+    {
       "id": "mimoagent",
       "readingLabel": "阅读全文：黑盒接入与白盒训练",
       "title": "MiMo Agent：黑盒接入与白盒训练",

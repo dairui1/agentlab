@@ -9,6 +9,28 @@ from harness_sources import SOURCE_PROFILES, collect_source_snapshot
 
 
 class HarnessSourceTests(unittest.TestCase):
+    def test_raven_collects_static_harness_at_release_commit(self):
+        class Cache:
+            def __init__(self):
+                self.urls = []
+
+            def fetch(self, url, **kwargs):
+                self.urls.append(url)
+                return SimpleNamespace(body=b"pinned Raven source\n")
+
+        cache = Cache()
+        snapshot = collect_source_snapshot("raven", {
+            "repository": "EverMind-AI/Raven", "releases": {
+                "0.2.3": {"version": "0.2.3", "commitSha": "b" * 40}}},
+            cache, timeout=1, allow_stale_on_error=False)
+        self.assertEqual(snapshot["version"], "0.2.3")
+        self.assertEqual(snapshot["kind"], "static-source-baseline")
+        self.assertEqual(len(snapshot["files"]), 10)
+        self.assertTrue(all("/" + "b" * 40 + "/" in url for url in cache.urls))
+        paths = {file["path"] for file in snapshot["files"]}
+        self.assertIn("experimental/curator/raven_adapter/validate.py", paths)
+        self.assertIn("raven/acp_client/permissions.py", paths)
+
     def test_snapshot_is_bounded_pinned_and_preserves_full_text(self):
         calls = []
 

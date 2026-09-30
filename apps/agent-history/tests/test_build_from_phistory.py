@@ -266,6 +266,11 @@ class BuildFromPhistoryTests(unittest.TestCase):
             self.assertIn(agent, builder.PREFERRED_AGENT_ORDER)
             self.assertIn(agent, builder.AGENT_DEFINITIONS)
 
+    def test_raven_is_a_first_class_official_source_agent(self) -> None:
+        self.assertEqual(builder.AGENT_DEFINITIONS["raven"]["label"], "Raven")
+        self.assertEqual(builder.OFFICIAL_REPOSITORIES["raven"], "EverMind-AI/Raven")
+        self.assertIn("raven", builder.PREFERRED_AGENT_ORDER)
+
     def test_curated_catalog_replaces_wound_down_kimi_cli(self) -> None:
         self.assertNotIn("kimi", builder.AGENT_DEFINITIONS)
         self.assertNotIn("kimi", builder.PREFERRED_AGENT_ORDER)

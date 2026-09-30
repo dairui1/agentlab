@@ -180,6 +180,7 @@
     cline: "/agent-icons/cline.svg",
     "qwen-code": "/agent-icons/qwen-code.svg",
     reasonix: "/agent-icons/reasonix.svg",
+    raven: "/agent-icons/raven.png",
     "deepseek-harness": "/agent-icons/deepseek-harness.svg",
     exo: "/agent-icons/exo.svg",
   };

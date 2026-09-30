@@ -569,6 +569,7 @@ class OfficialSourceTests(unittest.TestCase):
             "pi": ("v0.84.1", "0.84.1"),
             "prime-agent": ("v0.8.1", "0.8.1"),
             "qwen-code": ("v0.21.8", "0.21.8"),
+            "raven": ("v0.2.3", "0.2.3"),
             "reasonix": ("v1.22.0", "1.22.0"),
         }
 
@@ -581,6 +582,23 @@ class OfficialSourceTests(unittest.TestCase):
             self.assertIsNotNone(match, agent)
             self.assertEqual(match.group(1), version)
             official.version_key(version)
+
+    def test_raven_report_release_is_not_a_software_version(self) -> None:
+        config = official.GITHUB_RELEASE_SOURCES["raven"]
+        self.assertEqual(config["repository"], "EverMind-AI/Raven")
+        self.assertIsNone(re.fullmatch(config["tagPattern"], "tech-report-v1"))
+        self.assertIn("raven", official.parse_args(["--agents", "all"]).agents)
+        self.assertIn("raven", SOURCE_CAPTURE_SOURCES)
+        releases = official.github_releases(
+            FakeCache(json.dumps([
+                {"tag_name": "tech-report-v1", "published_at": "2026-09-27T10:47:06Z", "draft": False, "prerelease": False},
+                {"tag_name": "v0.2.3", "published_at": "2026-09-27T04:05:17Z", "draft": False, "prerelease": False},
+                {"tag_name": "v0.2.2", "published_at": "2026-09-25T12:02:59Z", "draft": False, "prerelease": False},
+            ]).encode()),
+            repository=config["repository"], tag_pattern=re.compile(config["tagPattern"]),
+            product_name=config["label"], max_pages=1, timeout=1, allow_stale_on_error=False,
+        )
+        self.assertEqual([release["version"] for release in releases], ["0.2.2", "0.2.3"])
 
     def test_retired_kimi_cli_points_to_maintained_successor(self) -> None:
         self.assertNotIn("kimi", official.OFFICIAL_REPOSITORIES)

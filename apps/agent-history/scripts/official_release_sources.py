@@ -25,6 +25,7 @@ GITHUB_RELEASE_SOURCES = {
     "pi": {"repository": "badlogic/pi-mono", "label": "Pi", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "prime-agent": {"repository": "PrimeIntellect-ai/prime-agent", "label": "Prime Agent", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "qwen-code": {"repository": "QwenLM/qwen-code", "label": "Qwen Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
+    "raven": {"repository": "EverMind-AI/Raven", "label": "Raven", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "reasonix": {"repository": "esengine/DeepSeek-Reasonix", "label": "Reasonix", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
 }
 

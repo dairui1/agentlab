@@ -1,0 +1,439 @@
+{
+  "id": "raven",
+  "title": "Raven：反馈怎样变成下一轮执行的 Harness",
+  "product": "Raven",
+  "subtitle": "多 Agent 编排、Curator 与效果验证之间的距离",
+  "description": "沿反馈、候选、校验和安装追踪 Raven 的持久 Harness 改进，区分机制实现、作者成绩和仍未验证的 RSI 主张。",
+  "verifiedAt": "2026-09-30",
+  "status": "active",
+  "source": {
+    "repository": "EverMind-AI/Raven",
+    "revision": "e6c0344cb7ce00db25d554e4bb671ec1909a8f9f",
+    "branch": "main",
+    "commitDate": "2026-09-28T12:06:49Z",
+    "license": "Apache-2.0",
+    "evidenceClass": "official-source-static-and-author-report",
+    "trackingMode": "fixed-commit",
+    "runtimeExperiment": "not-run",
+    "realCliExperiment": "not-run"
+  },
+  "boundary": "固定官方源码与技术报告；远端 CI 另列。未安装或执行 Raven、上游测试、真实模型、训练或任务基准。报告七组进化结果来自 HarnessBank v2，不是当前 Curator 的独立复现；不据此认定强 RSI 或严格 Agentic RL。",
+  "evidence": [
+    {
+      "id": "RV-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "第三方接入固定 ACP 适配器，而非复制角色提示词",
+      "statement": "Codex 和 Claude Code 预设使用带版本的 ACP shim；shim 携带的 Agent 版本未必是用户 PATH 中的版本。Codex 预设设置 INITIAL_AGENT_MODE=agent-full-access。",
+      "artifact": "raven/agent/subagent/presets.py",
+      "lineStart": 136,
+      "lineEnd": 207,
+      "boundary": "确认预设命令和配置，未执行握手或真实任务；不同接入的权限、会话与工具能力不能一概而论。",
+      "sha256": "7b5eefc128f022ca12dcdb0eba85edceef5fcdec93eb4f67ac1e69c9871d2d5e",
+      "locator": "L136-L207",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · raven/agent/subagent/presets.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/raven/agent/subagent/presets.py#L136-L207"
+      }
+    },
+    {
+      "id": "RV-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "DAG 调度器调用完整 SubagentBackend",
+      "statement": "DAG runner 以 ready-set 调度节点，节点执行经过 SubagentBackend；停滞观察发出通知而不直接取消节点。",
+      "artifact": "raven/agent/subagent/dag_runner.py",
+      "lineStart": 1,
+      "lineEnd": 193,
+      "boundary": "调度和通知的代码存在，不代表规划正确或任务能端到端完成。",
+      "sha256": "6c248a54f4c9255958fb082bcf6e6aad793e693e45beb7586bc92accb4c74db0",
+      "locator": "L1-L193",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · raven/agent/subagent/dag_runner.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/raven/agent/subagent/dag_runner.py#L1-L193"
+      }
+    },
+    {
+      "id": "RV-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Curator 管理根与子 Harness 的四个策略面",
+      "statement": "设计文档把受管员工限制为根、子两层；memory、planning、capability、action 分别承载上下文、DAG/技能、工具与执行检查，并绑定 Raven 原生扩展点。",
+      "artifact": "experimental/docs/design.md",
+      "lineStart": 1,
+      "lineEnd": 76,
+      "boundary": "这是 Curator 的受管组合结构，不是所有第三方 Agent 都可被它改写，也不是任意深度递归。",
+      "sha256": "9a0c943c8fd2bc7c6eb34d9b53f3a9888f952c5ae25d825483f452fd6bc1683a",
+      "locator": "L1-L76",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · experimental/docs/design.md",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/docs/design.md#L1-L76"
+      }
+    },
+    {
+      "id": "RV-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "改进读取真实装配和带版本的执行记录",
+      "statement": "workflow 显式接收反馈，inspect 当前 worker，保留上次执行的 artifact_id 与 observations；propose 可生成而不安装候选。",
+      "artifact": "experimental/curator/workflow.py",
+      "lineStart": 24,
+      "lineEnd": 136,
+      "boundary": "普通消息不会自动推断为 curation 授权；生成候选本身不是效果评测。",
+      "sha256": "9180262b37ad2374e871597f4003ad825d7a3a389d1c48dd6a371bf25294c47a",
+      "locator": "L24-L136",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · experimental/curator/workflow.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/curator/workflow.py#L24-L136"
+      }
+    },
+    {
+      "id": "RV-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "最后一轮只评价，不再产生无人检验的修订",
+      "statement": "iteration 在执行和评价之后决定是否 curate；curated 还要求剩余下一轮，最后一轮的反馈保存但不触发修订。",
+      "artifact": "experimental/iteration/run.py",
+      "lineStart": 120,
+      "lineEnd": 226,
+      "boundary": "有后续执行机会不代表有独立保留集，也不保证修改带来净提升。",
+      "sha256": "e20dd930c43fbccc989632bd1b2e03c31e52052913313f69a54483d7358a9958",
+      "locator": "L120-L226",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · experimental/iteration/run.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/iteration/run.py#L120-L226"
+      }
+    },
+    {
+      "id": "RV-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "策略调用记录动作，失败只恢复自身状态",
+      "statement": "BoundStrategy 检查协议方法和类型，记录每次调用并保存状态；异常时恢复该策略拥有的 JSON 状态，不撤销外部副作用。",
+      "artifact": "experimental/curator/raven_adapter/strategy.py",
+      "lineStart": 109,
+      "lineEnd": 220,
+      "boundary": "策略状态回退不能撤销已发送消息、远端写入或其他外部动作。",
+      "sha256": "395b080a10a7261fd43160f332b304a880d985431b4264616407d90e74913c80",
+      "locator": "L109-L220",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · experimental/curator/raven_adapter/strategy.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/curator/raven_adapter/strategy.py#L109-L220"
+      }
+    },
+    {
+      "id": "RV-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "行为 probe 是可选项",
+      "statement": "static_checks 编译候选 Python；run_probe 在 probe 为 None 时记录 validation.probe 的 not_supplied 状态并返回。",
+      "artifact": "experimental/curator/raven_adapter/validate.py",
+      "lineStart": 1,
+      "lineEnd": 29,
+      "boundary": "没有 probe 时通过校验，不意味着行为已经受测，更不能据此声称效果提升。",
+      "sha256": "69feabceeef3d518e0d71e412dae0512034f863614f875d36233d903f38c2b46",
+      "locator": "L1-L29",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · experimental/curator/raven_adapter/validate.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/curator/raven_adapter/validate.py#L1-L29"
+      }
+    },
+    {
+      "id": "RV-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "候选在副本上装配，组合校验读取子版本状态",
+      "statement": "Worker.check / check_composition 在复制的状态上启动候选，读取装配记录、子 Harness readiness 与可选 probe，再把错误整理为 Validation。",
+      "artifact": "experimental/curator/raven_adapter/worker.py",
+      "lineStart": 604,
+      "lineEnd": 723,
+      "boundary": "这是装配和显式检查边界，不是统一的保留任务性能门禁或安全沙箱证明。",
+      "sha256": "87924f1dd29004a9e35536eed150782635e9b95b7da28a17400e0ffcb45be8b2",
+      "locator": "L604-L723",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · experimental/curator/raven_adapter/worker.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/curator/raven_adapter/worker.py#L604-L723"
+      }
+    },
+    {
+      "id": "RV-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "根子版本成组激活，启动失败恢复旧产物",
+      "statement": "deployment 要求根空闲及子调用完成，保存旧内容和策略 checkpoint，启动新组合并核对子版本指纹；异常时恢复旧内容、产物与 checkpoint。",
+      "artifact": "experimental/curator/raven_adapter/deployment.py",
+      "lineStart": 110,
+      "lineEnd": 190,
+      "boundary": "源码包含异常恢复路径；本次没有验证真实进程崩溃、断电恢复或外部副作用回滚。",
+      "sha256": "84bd359875be5185534aef060f117af274d56d4ceb8f6368ea78e0a019d7b400",
+      "locator": "L110-L190",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · experimental/curator/raven_adapter/deployment.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/curator/raven_adapter/deployment.py#L110-L190"
+      }
+    },
+    {
+      "id": "RV-10",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "author-case",
+      "title": "作者案例把交付反馈改成 action.strategy",
+      "statement": "旅行社模拟中，Curator 为需求单增加写盘前审核，并给 PPT 子 Harness 增加自检工具；第三轮记录审核打回四次。文档说明案例原用老板直接给要求，当前默认才经通用 Analyst。",
+      "artifact": "experimental/docs/rsi-iteration.md",
+      "lineStart": 84,
+      "lineEnd": 103,
+      "boundary": "作者叙述的单场景案例，未独立复现；不能把案例机制与当前完整默认流程视为同一次实验。",
+      "sha256": "f5fb6222817478e8fa63c3b1c62916ffc00901782f4336a193f76071a6bf7a0e",
+      "locator": "L84-L103",
+      "source": {
+        "label": "Raven 固定源码 · experimental/docs/rsi-iteration.md",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/experimental/docs/rsi-iteration.md#L84-L103"
+      }
+    },
+    {
+      "id": "RV-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Evolver 晋级和显著性是两个字段",
+      "statement": "paired_lift 用 candidate_mean > control_mean 决定 promoted，另用 z >= z_threshold 计算 credited_2sigma；晋级不要求达到显著性门槛。",
+      "artifact": "evolver/orchestrator/gates/paired.py",
+      "lineStart": 17,
+      "lineEnd": 103,
+      "boundary": "这里是旧 Evolver 的统计规则，不是 Curator 默认校验；不能声称所有采用的修改都有显著收益。",
+      "sha256": "1b7b65aa4c42cca345b044f308e5ac33abe73864bd46efda4992a878dc8beb8c",
+      "locator": "L17-L103",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · evolver/orchestrator/gates/paired.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/evolver/orchestrator/gates/paired.py#L17-L103"
+      }
+    },
+    {
+      "id": "RV-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Evolver 的可变对象不包括 evolver 自身",
+      "statement": "path guard 把 evolver/ 列入不可修改区，并保护部分评测和运行时测量表面。",
+      "artifact": "evolver/applier/path_guard.py",
+      "lineStart": 19,
+      "lineEnd": 98,
+      "boundary": "路径保护是特定演化流程的规则，不是操作系统级隔离，也不支持改进器自身持续进化的结论。",
+      "sha256": "100315eb8eb9c53140481c2f46dfff66323c1e2adb6befc333a4c6d075efa0c7",
+      "locator": "L19-L98",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · evolver/applier/path_guard.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/evolver/applier/path_guard.py#L19-L98"
+      }
+    },
+    {
+      "id": "RV-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "旧演化器明确披露规模和隔离限制",
+      "statement": "Evolver README 说明全规模真实运行及真实保留集流程尚未完整执行，候选与评分器同进程，设计步骤没有文件系统/网络硬隔离；文首另标明该目录计划退役。",
+      "artifact": "evolver/README.md",
+      "lineStart": 1,
+      "lineEnd": 225,
+      "boundary": "这是该目录的自述和威胁模型，不能扩大为 Raven 所有执行环境都没有沙箱。",
+      "sha256": "d0a658177b8cfbffd4aa56e03032f55262f1e1f19a686d0b977b881bc69d3e7f",
+      "locator": "L1-L225",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · evolver/README.md",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/evolver/README.md#L1-L225"
+      }
+    },
+    {
+      "id": "RV-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "真实模型测试需要主动配置",
+      "statement": "Curator real_llm smoke 被标记为 integration、real_llm、slow；缺少 CURATOR_TEST_CONFIG 时 skip，测试先生成策略再执行并修订标签。",
+      "artifact": "tests/integration/test_harness_curator_real_llm.py",
+      "lineStart": 1,
+      "lineEnd": 129,
+      "boundary": "测试代码存在不等于该测试在本次上游 CI 或本机执行；标签 smoke 也不是广泛任务收益。",
+      "sha256": "2a3b745000b79714fcb043b267a6e9cfb4b390de743dac6631d036c749b7f087",
+      "locator": "L1-L129",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · tests/integration/test_harness_curator_real_llm.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/tests/integration/test_harness_curator_real_llm.py#L1-L129"
+      }
+    },
+    {
+      "id": "RV-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Curator 仍是源码中的实验组件",
+      "statement": "官方 README 将 Curator 标注为 experimental，并说明随仓库而非已安装的软件包提供。",
+      "artifact": "README.md",
+      "lineStart": 187,
+      "lineEnd": 195,
+      "boundary": "不能将安装 v0.2.3 等同于开箱即用的运行时自进化；软件包、主分支和报告必须分别标识。",
+      "sha256": "7736d19ecbd2df42b7cea04fe863848520bfb4bcd6acb9653f8cd311cba1e993",
+      "locator": "L187-L195",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · README.md",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/README.md#L187-L195"
+      }
+    },
+    {
+      "id": "RV-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "主分支工具冻结新增当轮显式接入例外",
+      "statement": "turn_scope 冻结本轮工具实例；admit_to_this_turn 允许本轮主动连接到的工具进入后续 step，原地更新捕获字典，同时保留关闭与通道限制。",
+      "artifact": "raven/agent/tools/registry.py",
+      "lineStart": 638,
+      "lineEnd": 705,
+      "boundary": "这是研究提交中的实现，晚于 v0.2.3；不能写成已发布包的行为，也未做真实 MCP 实验。",
+      "sha256": "a07de02ce37bddf6912b34e0ab8d17c9e39eb65b8551ce2620da06ac1c6c8048",
+      "locator": "L638-L705",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · raven/agent/tools/registry.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/raven/agent/tools/registry.py#L638-L705"
+      }
+    },
+    {
+      "id": "RV-17",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "MAOB 测规划图，不执行完整任务",
+      "statement": "报告的 MAOB 含 140 个请求，固定四个专家领域；派工前比较预测图与参考图，衡量专家选择和依赖预测。",
+      "artifact": "technical-report.pdf",
+      "locator": "§7.1 · pp.41-45; Appendix C.1 · p.77",
+      "sha256": "14832f50de158ca431d63acf5dd06dfcad05c54a70a8607a50ecd79170fff831",
+      "boundary": "图结构分数不是任务交付成功率，固定角色集合也不覆盖所有职业与工具环境。",
+      "source": {
+        "label": "Raven 官方技术报告 · tech-report-v1",
+        "url": "https://github.com/EverMind-AI/Raven/releases/download/tech-report-v1/technical-report.pdf"
+      }
+    },
+    {
+      "id": "RV-18",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "七组进化结果复用 HarnessBank v2",
+      "statement": "报告 §7.2 和表 11 引用 HarnessBank v2：任务模型固定为 Qwen3.6-27B，每题三次尝试；AppWorld 41.3% 到 56.7%，BrowseComp+ 16.9% 到 30.8%。B.4 明确缺少完整逐次运行清单。",
+      "artifact": "technical-report.pdf",
+      "locator": "§7.2 · pp.45-46; Appendix B.4 · p.75; Table 11 · p.77",
+      "sha256": "14832f50de158ca431d63acf5dd06dfcad05c54a70a8607a50ecd79170fff831",
+      "boundary": "是作者引用的旧方法成绩，不是当前 experimental/curator 的复现；不能据此补出全部配置、顺序和跨代改进证据。",
+      "source": {
+        "label": "Raven 官方技术报告 · tech-report-v1",
+        "url": "https://github.com/EverMind-AI/Raven/releases/download/tech-report-v1/technical-report.pdf"
+      }
+    },
+    {
+      "id": "RV-19",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "ACP 自动批准只检查到达宿主的请求",
+      "statement": "ACP 权限应答优先 allow_always，命中宿主 deny 规则则拒绝；注释明确第三方自身直接放行的调用不会到达此检查。",
+      "artifact": "raven/acp_client/permissions.py",
+      "lineStart": 1,
+      "lineEnd": 81,
+      "boundary": "宿主审批回调不是所有第三方执行的统一强制点；无人值守不能等同于权限已经隔离。",
+      "sha256": "115bb7ab11d199bc6b381ebd421a80a1b368eb73c0bc086ebf9eba6c71c0085a",
+      "locator": "L1-L81",
+      "evidenceClass": "fixed-source",
+      "source": {
+        "label": "Raven 固定源码 · raven/acp_client/permissions.py",
+        "url": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/raven/acp_client/permissions.py#L1-L81"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "RV-KU-01",
+      "title": "Curator 的保留任务收益",
+      "text": "尚未独立验证当前 Curator 在未参与修订的任务上是否提升。",
+      "needed": "固定模型、预算与任务划分，配对运行基线和候选，并报告失败与成本。"
+    },
+    {
+      "id": "RV-KU-02",
+      "title": "部署恢复能覆盖哪些故障",
+      "text": "代码中的异常恢复尚未经过本地进程终止、写盘中断和远端副作用试验。",
+      "needed": "在隔离环境注入候选启动失败与中断，核对根子版本、checkpoint、文件和外部操作。"
+    },
+    {
+      "id": "RV-KU-03",
+      "title": "第三方 Agent 的权限闭包",
+      "text": "ACP 回调无法覆盖没有向宿主询问的第三方动作。",
+      "needed": "分别记录各适配器的实际执行身份、挂载、网络、审批与拒绝路径。"
+    },
+    {
+      "id": "RV-KU-04",
+      "title": "报告成绩的运行级来源",
+      "text": "HarnessBank 引用结果缺少完整逐次 manifest，不能仅凭报告复建七组实验。",
+      "needed": "获得每次配置、候选提交、任务子集、尝试顺序、评分和失败记录。"
+    },
+    {
+      "id": "RV-KU-05",
+      "title": "改进器是否能持续变强",
+      "text": "已读材料支持持久 Harness 修订，未建立改进器自身跨代改进的证据。",
+      "needed": "把 improver 自身设为受测对象，保留独立评估与跨代收益记录；不能仅展示更多任务优化。"
+    }
+  ],
+  "verification": {
+    "method": "fixed-source-review",
+    "upstreamTestsRunLocally": false,
+    "realModelCalls": 0,
+    "benchmarksReproduced": false,
+    "reportSha256": "14832f50de158ca431d63acf5dd06dfcad05c54a70a8607a50ecd79170fff831",
+    "ci": {
+      "url": "https://github.com/EverMind-AI/Raven/actions/runs/36419741818",
+      "revision": "e6c0344cb7ce00db25d554e4bb671ec1909a8f9f",
+      "conclusion": "success",
+      "jobsPassed": 16,
+      "checkedAt": "2026-09-30",
+      "evidenceClass": "upstream-ci-not-local-reproduction"
+    },
+    "softwareRelease": {
+      "version": "0.2.3",
+      "publishedAt": "2026-09-27T04:05:17Z",
+      "url": "https://github.com/EverMind-AI/Raven/releases/tag/v0.2.3"
+    }
+  },
+  "assets": [
+    {
+      "path": "/agent-icons/raven.png",
+      "artifact": "ui-web/src/assets/raven.png",
+      "license": "Apache-2.0",
+      "purpose": "product-identification",
+      "sha256": "71897eb34d67c38eff6e6ae686017756d6b4633ac457d286c7f3b2732b60f9f3",
+      "sourceUrl": "https://github.com/EverMind-AI/Raven/blob/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f/ui-web/src/assets/raven.png"
+    }
+  ],
+  "snippets": [
+    {
+      "id": "RV-07",
+      "artifact": "experimental/curator/raven_adapter/validate.py",
+      "lineStart": 19,
+      "lineEnd": 21,
+      "text": "    if probe is None:\n        bound.recorder.add(\"validation.probe\", status=\"not_supplied\")\n        return"
+    },
+    {
+      "id": "RV-11",
+      "artifact": "evolver/orchestrator/gates/paired.py",
+      "lineStart": 89,
+      "lineEnd": 90,
+      "text": "    promoted = candidate_mean > control_mean  # navigator: banks on beating vanilla\n    credited_2sigma = z >= z_threshold"
+    }
+  ]
+}

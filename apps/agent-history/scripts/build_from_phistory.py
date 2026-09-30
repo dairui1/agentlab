@@ -172,6 +172,11 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Reasonix Coding Agent 的官方发布与 Agent 设计变更历史。",
         "projectUrl": "https://github.com/esengine/DeepSeek-Reasonix",
     },
+    "raven": {
+        "label": "Raven",
+        "description": "Raven 多 Agent 编排与 Harness 改进的官方发布、静态 Prompt 和源码变化；不代表已复现实验。",
+        "projectUrl": "https://github.com/EverMind-AI/Raven",
+    },
     "minimax-code-cli": {
         "label": "MiniMax Code",
         "description": "MiniMax Code 开源 CLI 的官方发布、源码与 Agent Harness 演进历史。",
@@ -205,6 +210,7 @@ PREFERRED_AGENT_ORDER = (
     "qwen-code",
     "deepseek-harness",
     "reasonix",
+    "raven",
     "zcode",
     "minimax-code-cli",
 )
