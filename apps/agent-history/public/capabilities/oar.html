@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="固定 OAR v0.10.2 源码，拆解真实 Agent 接入、输入回执、原生记录、子 Agent 归属和恢复边界；附 398 项离线测试与六项合成探针。">
+  <title>OAR：统一 Agent 接口，不抹平运行时差异 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-navigation.js"></script>
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/oar.css">
+</head>
+<body class="article-page oar-study" data-evidence-source="/capabilities/oar.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="oar"></agentlab-navigation>
+      <div class="header-links"><a class="icon-button" href="https://github.com/botiverse/oar" target="_blank" rel="noopener noreferrer" aria-label="打开 OAR GitHub 仓库" title="OAR 源码"><i data-lucide="github" aria-hidden="true"></i></a></div>
+    </header>
+    <main>
+      <header class="article-hero">
+        <div class="article-hero-inner">
+          <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>OAR</span></nav>
+          <span class="article-series">固定源码研究 / Agent Runtime</span>
+          <div class="oar-title"><img src="/agent-icons/oar.png" alt="OAR 标识" width="56" height="56"><h1>OAR：统一 Agent 接口，不抹平运行时差异</h1></div>
+          <p class="article-dek">你在 Agent 执行中补了一句要求。接口返回 accepted，界面就能写“已读”吗？OAR 最值得研究的，是它把这几个看似相同的时刻拆开了。</p>
+          <div class="article-byline"><span>2026-10-01 核验</span><span>v0.10.2 · ef893acc</span><span>24 条固定证据</span><span>398 项离线测试</span></div>
+        </div>
+      </header>
+      <section class="article-scope-band" aria-label="研究范围">
+        <div class="article-scope-grid">
+          <div><span>研究对象</span><strong>Open Agent Runtime</strong><small>宿主与原生 Agent 之间的接口层</small></div>
+          <div><span>核心机制</span><strong>控制 / 记录 / 投影</strong><small>相同 API，保留不同语义</small></div>
+          <div><span>本地验证</span><strong>398 项测试 + 6 项探针</strong><small>没有真实模型或 CLI 任务</small></div>
+          <div><span>关键边界</span><strong>默认宽权限，宿主负责隔离</strong><small>不是 Agentic RL 或 RSI</small></div>
+        </div>
+      </section>
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
+          <span>从调用到可核验的状态</span>
+          <ol>
+            <li><a href="#verdict" data-index="01">它统一的是哪一层</a></li>
+            <li><a href="#adapters" data-index="02">真正跑的是谁</a></li>
+            <li><a href="#records" data-index="03">一条流，三种记录</a></li>
+            <li><a href="#delivery" data-index="04">accepted 离已读多远</a></li>
+            <li><a href="#attribution" data-index="05">谁完成了，谁用了 token</a></li>
+            <li><a href="#continuation" data-index="06">重放不等于恢复</a></li>
+            <li><a href="#liveness" data-index="07">超时为什么还不返回</a></li>
+            <li><a href="#permissions" data-index="08">默认权限与宿主责任</a></li>
+            <li><a href="#validation" data-index="09">验证究竟覆盖什么</a></li>
+            <li><a href="#sources" data-index="10">采用判断与来源</a></li>
+          </ol>
+          <div class="article-toc-note"><strong>三层证据分开读</strong>源码说明实现；本地测试检查合同；上游 CI 的真实 harness 配脚本模型。没有把其中任何一层写成真实任务能力证明。</div>
+        </aside>
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">做一个同时接入 Codex、Claude Code 和其他 Agent 的工作台，最容易统一的是“发送消息”按钮，最难统一的是按钮按下之后到底发生了什么。OAR 的价值不是再包一层函数，而是让应用少猜一点。</p>
+
+          <section id="verdict" data-article-section>
+            <h2>它不是新 Agent，而是嵌入 Agent 的接口层</h2>
+            <p>OAR 把安装发现、模型查询、会话控制和记录观察放在一套 TypeScript 接口后面。工作台可以替换 runtime，而不必重写整套消息、工具活动和会话状态逻辑。它没有把七种产品改造成同一个推理循环，也没有训练一个会模仿它们的模型。库依赖中同时有 ACP SDK 和 Pi SDK，已经提示了这几条不同的执行路径。<button class="evidence-ref" type="button" data-evidence="OA-01 OA-23" data-evidence-trigger>包与会话合同</button></p>
+            <p><strong>本文把它归为原生 Agent 接入与可观察性基础设施。</strong>它没有在本次核查范围内展示策略优化训练、自动修改自身后独立评估的闭环，因而不归为严格 Agentic RL 或 RSI。和 <a href="/capabilities/raven.html">Raven</a> 的区别尤其明确：OAR 不负责选择专家、安排 DAG 或修订 Harness，它把这些上层系统需要的控制与证据接口提供出来。</p>
+            <p>值得收录，但不宜把“provider-independent”读成“随便换一个后端，所有行为相同”。好的抽象应当让差异可查询，而不是让差异消失。OAR 暴露 steer、queue 的持久性、子 Agent 归属和图片输入等能力；应用仍须按后端能力作决定。</p>
+          </section>
+
+          <section id="adapters" data-article-section>
+            <h2>黑盒仍由原版执行，适配器负责控制与解释</h2>
+            <p>Codex 走 <code>app-server</code>，Claude Code 走原版 CLI 的 <code>stream-json</code>，Pi 直接调用进程内 SDK。其余四个通过 ACP，但各自还有厂商扩展。这与 <a href="/capabilities/mimoagent.html">MiMo Agent 的黑盒接入</a>有一处共通点：都不是复制一份 system prompt 就宣称复刻了 Agent。区别在于 OAR 首先服务嵌入式产品接口，而不是训练与基准评测。</p>
+            <div class="article-table-wrap"><table class="article-table"><caption>固定 v0.10.2 的接入方式和能力声明，非七后端实测成绩</caption><thead><tr><th>Runtime</th><th>实际接入</th><th>当轮补充 / 后续排队</th><th>子 Agent 归属</th></tr></thead><tbody>
+              <tr><td>Codex</td><td>app-server JSON-RPC</td><td>steer；原生持久队列</td><td>nested，独立子线程</td></tr>
+              <tr><td>Claude Code</td><td>CLI stream-json</td><td>写 stdin；适配器内存队列</td><td>attributed，同流路径</td></tr>
+              <tr><td>Pi</td><td>进程内 AgentSession</td><td>SDK steer；适配器内存队列</td><td>none，无原生子 Agent</td></tr>
+              <tr><td>Grok</td><td>ACP + 厂商通知</td><td>sendNow；非持久队列</td><td>nested，独立子会话</td></tr>
+              <tr><td>Cursor</td><td>ACP + subagents opt-in</td><td>无 steer；非持久队列</td><td>nested，扩展须开启</td></tr>
+              <tr><td>Kimi</td><td>ACP 主 Agent 接口</td><td>无 steer；非持久队列</td><td>opaque，不能补出子树</td></tr>
+              <tr><td>Antigravity</td><td>ACP server</td><td>无 steer；非持久队列</td><td>opaque，活动可能混入父流</td></tr>
+            </tbody></table></div>
+            <p><button class="evidence-ref" type="button" data-evidence="OA-06 OA-07 OA-08 OA-09 OA-10 OA-11 OA-12" data-evidence-trigger>逐项查看七种适配器</button></p>
+            <p>同名的 <code>steer</code> 也有不同后果。Codex 用 <code>expectedTurnId</code> 让原生服务仲裁“要改的还是不是那一轮”；Claude 写入 stdin 后，由自身时序决定进入当前模型步骤还是下一轮；Grok 的 <code>sendNow</code> 则可能取消旧 prompt 并启动新模型轮次。源码注释记录了中断工具再次发出的现象。对有副作用的动作，这不能简化成“无损追加一句话”。</p>
+          </section>
+
+          <section id="records" data-article-section>
+            <h2>不要从界面状态反推事实，要从记录重建状态</h2>
+            <p>OAR 的底层单位不是一段回复，而是一条按 <code>seq</code> 排序的记录。<code>frame</code> 装原生消息及适配器读出的含义；<code>request</code> 表示一项需要回应的动作，方向可为 toRuntime 或 toApp；<code>response</code> 则指向先前请求。它们共用一条流，而不是把回执放 Promise、工具放另一条事件总线，再要求 UI 自行拼接。<button class="evidence-ref" type="button" data-evidence="OA-02 OA-03" data-evidence-trigger>记录内核与事件投影</button></p>
+            <figure class="article-figure">
+              <div class="oar-flow">
+                <div><span>控制</span><strong>request / response</strong><p>请求了什么，是否接手</p></div>
+                <div><span>原生事实</span><strong>frame + native</strong><p>哪个 session、哪个 Agent 说了什么</p></div>
+                <div><span>应用视图</span><strong>events / conversation</strong><p>从记录计算，不成为另一份事实源</p></div>
+              </div>
+              <figcaption>源码结构示意，不是运行截图。事实记录与控制记录在同一条有序流中，应用按需要投影。</figcaption>
+            </figure>
+            <p><code>events()</code> 是便捷阅读面，<code>rawEvents()</code> 和 <code>records()</code> 才保留底层记录。一个原生 frame 能读出三个事件，三个事件共享 seq；没有已知语义的 frame 也可能读不出事件。因此按 seq 对扁平事件去重，会把同一帧的第二、第三个事实删掉。本地探针用一帧两项事件确认了这个行为。</p>
+            <p>还有一个小但重要的命名细节：扁平流的 <code>turn_started</code> 可以来自应用发出的 prompt request。之后仍可能收到 busy 拒绝。它是操作起点，不是模型已开始工作的凭证。正确做法是一起读取 request、response 和后续原生结束，而不是见到 started 就锁定“已运行”。</p>
+            <p>“无损”也有范围。Claude 的 <code>get_settings</code> 回读可能携带用户环境配置，适配器特意消费但不记录这一行。这里追求的是可追踪的会话事实，不是全进程字节级抓包；更不是对所有敏感字段自动脱敏。<button class="evidence-ref" type="button" data-evidence="OA-07" data-evidence-trigger>被排除的配置回读</button></p>
+          </section>
+
+          <section id="delivery" data-article-section>
+            <h2>accepted 只回答“接手了吗”，没有回答“读到了吗”</h2>
+            <p>用户在执行中补发要求，steer 可能因没有活动轮次而被拒，随后 queue 成功。界面不应因此出现两条用户消息。OAR 用 <code>inputId</code> 表示同一逻辑输入，以不同 request ID 保存两次投递尝试；<code>steerOrQueue</code> 返回具体落点 steered、queued 或 rejected。<button class="evidence-ref" type="button" data-evidence="OA-04 OA-05" data-evidence-trigger>身份与 fallback</button></p>
+            <div class="oar-sequence" aria-label="合成投递示例">
+              <div><span>01</span><strong>steer 请求</strong><code>inputId = A · request = R1</code></div>
+              <div><span>02</span><strong>拒绝当轮注入</strong><code>response → R1</code></div>
+              <div><span>03</span><strong>queue 请求</strong><code>inputId = A · request = R2</code></div>
+              <div><span>04</span><strong>接受排队</strong><code>response → R2 · queued</code></div>
+            </div>
+            <p class="oar-caption">合成示意：一个输入、两次尝试。不是任何真实 Agent 的执行轨迹。</p>
+            <p>接下来还要看原生观察。Codex 可以把 <code>clientUserMessageId</code> 对回 userMessage item；Claude 的 UUID 可通过 replay-user-messages 回显；Pi 的原生用户消息缺少已证明的请求关联，所以不会因文字相同就强行配对。<strong>接受、原生回显、进入模型请求、产生语义效果，是四个不同层次。</strong>目前会话投影只保存它实际掌握的回执和观察，没有通用的“模型已消费”状态。</p>
+            <p>本地合成探针确认：steer 拒绝后 queue 接受，只产生一个逻辑输入，保留两次尝试。这也不是 exactly-once 保证。若进程在动作发出后、回执保存前消失，宿主仍须处理“不知道是否送达”，不能拿相同 inputId 当作原生服务一定去重的承诺。</p>
+          </section>
+
+          <section id="attribution" data-article-section>
+            <h2>子 Agent 先结束，不能让父任务跟着结束</h2>
+            <p>两个 Agent 的 tool call ID 都叫 7，并不罕见。OAR 用 sessionId 与 agentPath 区分归属：Claude 的子活动可以挂在同一流的路径下；Codex、Cursor、Grok 的子活动则可能拥有独立 session ID。ACP 记录器不会因为一条通知不是根 session 就把它丢弃，而是保留节点；只有明确读到父子关系才连边。<button class="evidence-ref" type="button" data-evidence="OA-13" data-evidence-trigger>节点与父子边</button></p>
+            <p>归属不是 UI 的装饰。<code>turnEndAfter</code> 必须忽略子会话的完成，否则一个快子任务会提前结束父调用。本地探针先注入 child 的 completed，根结果仍为 null。这检查的是 OAR 的过滤逻辑，没有声称真实 Codex 子线程已在本机跑通。<button class="evidence-ref" type="button" data-evidence="OA-15" data-evidence-trigger>根结束的筛选</button></p>
+            <p>用量也一样。根 <code>session.usage()</code> 不自动加上独立子 session 的数字；同 session 内则按 agentPath 保留最新累计量，避免每次通知都重复累加。没有报告时是 <code>null</code>，不是零成本。要算全树账单，宿主还得核对原生计费是否已包含子调用。Grok 源码就记载过父 prompt 账单包含子模型调用的口径，盲加父子会再算一次。<button class="evidence-ref" type="button" data-evidence="OA-14 OA-09" data-evidence-trigger>用量查询与厂商口径</button></p>
+            <p>opaque 同样是一种有用答案。Kimi 或 Antigravity 的选定传输看不清子树，接口应保留这个未知，而不是从工具名称或文本猜一棵看起来完整的树。</p>
+          </section>
+
+          <section id="continuation" data-article-section>
+            <h2>cursor 重放、native resume、跨产品迁移是三件事</h2>
+            <p>在同一个 Session 实例里，cursor 让订阅者从 afterSeq 之后补读内存中的记录，再接实时流。这解决的是观察者重连。它没有把内存 log 自动放进数据库，也没有把尚未送出的内存 queue 变成持久任务。<button class="evidence-ref" type="button" data-evidence="OA-02 OA-23" data-evidence-trigger>流的生命周期</button></p>
+            <p>native resume 则重新打开原生会话。原生 session ID 可以相同，OAR 的新流仍从 seq 0 开始。应用必须为新流另分配 <code>streamId</code> 并一同持久化；否则 conversation reducer 会把较小的 seq 当成读过的记录。本地探针中，复用旧 streamId 时输入数仍为 1，换成新 streamId 才是 2。<button class="evidence-ref" type="button" data-evidence="OA-05 OA-22" data-evidence-trigger>恢复去重与回归测试</button></p>
+            <p>需要落盘时，Voyage 提供显式 JSONL 格式：header 描述 runtime 与会话，record 保存原始记录，end 表示捕获收尾。文件没有 end，可以识别为不完整捕获；但这里没有 fsync，也不应把同步 writeSync 写成断电事务保证。原生 payload 可能包含用户内容，日志的访问控制和分享脱敏同样属于产品责任。<button class="evidence-ref" type="button" data-evidence="OA-17" data-evidence-trigger>Voyage 写入实现</button></p>
+            <p>恢复时换模型也不能只相信传入参数。Codex 的新建路径用 config 设置 effort；恢复路径刻意避免该覆盖重建模型设置，而是在原生线程上回读、更新。统一入口之下，需要保留这种厂商级处理。<button class="evidence-ref" type="button" data-evidence="OA-19" data-evidence-trigger>恢复配置与回读</button></p>
+            <p>至于从 Claude 迁移到 Codex，本文没有看到可直接交付的统一会话迁移保证。跨宿主 handoff、通用热切换 <code>Session.configure</code> 与远程 <code>oar serve</code> 仍出现在后续计划中，不能把路线图读成 v0.10.2 已有功能。<button class="evidence-ref" type="button" data-evidence="OA-21" data-evidence-trigger>已交付与路线图</button></p>
+          </section>
+
+          <section id="liveness" data-article-section>
+            <h2>timeout 不是硬截止：为什么函数还可能一直等</h2>
+            <p><code>promptAndWait({ timeoutMs })</code> 是本文最建议调用者仔细读的一处。超时后，它发出 abort，然后继续等待 runtime 自己给出 turn end；这段等待没有第二个截止时间。这样的设计不伪造完成结果，但调用方若把 timeoutMs 当成“最晚返回时间”，仍会挂住。<button class="evidence-ref" type="button" data-evidence="OA-15" data-evidence-trigger>超时后的 await</button></p>
+            <div class="article-callout"><strong>本地合成探针：10 ms 超时，100 ms 后仍未返回</strong><p>我们构造一个只接受 prompt 和 abort、始终不发 turn end 的内存适配器。超时确实触发 abort，但 100 ms 后 Promise 仍 pending。直到探针注入合成 exited 记录才结束，结果保留 interrupted 与 runtime_exited 失败。这不是某个真实模型卡死的复现，而是公共 helper 的可重复合同检查。</p><p><a href="/capabilities/oar-probe.json">查看六项探针回执</a></p></div>
+            <p><code>observeStalls</code> 解决的是“多久没有新事实”，不是“进程一定死了”。它报告静默时长和最后记录，由宿主决定是否提醒、中断、处置 Session 或重建环境。<button class="evidence-ref" type="button" data-evidence="OA-16" data-evidence-trigger>停滞信号的职责</button></p>
+            <p>一个可用的产品需要再加独立总截止与收尾策略，并记录最后游标及未决副作用。不能简单地超时就重发任务：原调用可能已执行，只是回执没回来。另一方面，内核完整保留 log，若干查询每次扫描全量记录；长会话的内存和延迟也需由实际负载验证，不能仅因小测试很快就认定可无限积累。</p>
+          </section>
+
+          <section id="permissions" data-article-section>
+            <h2>OAR 默认放宽执行权限，不替宿主建立安全边界</h2>
+            <p>这一点不适合藏在脚注。Claude 以 <code>--dangerously-skip-permissions</code> 启动；Codex 默认 <code>approvalPolicy: never</code>，并覆盖 <code>sandbox_mode</code> 为 <code>danger-full-access</code>；ACP 权限回调优先选择 allow_always。其设计理由是无人值守嵌入时不能等人工审批，但产品必须自己提供隔离，不能把“不会弹窗”理解为“更安全”。<button class="evidence-ref" type="button" data-evidence="OA-06 OA-07 OA-18 OA-23" data-evidence-trigger>默认权限证据</button></p>
+            <p>Codex 的例外配置是宿主进程环境中的 <code>OAR_CODEX_SANDBOX</code>；设为 inherit 时不加覆盖，让原配置生效。由于这里直接读 <code>process.env</code>，不能想当然地只把同名变量塞进 SessionOptions.env，就认为它改变了这段启动选择。</p>
+            <p>ACP 还有一条容易忽略的反向执行链：runtime 可以请宿主创建 terminal。实现检查命令非空、cwd 为绝对路径后直接 spawn，并没有将目录限制在初始工作区之下。需要的是受限执行身份、挂载和网络，而不是只在 UI 上显示“当前项目”。<button class="evidence-ref" type="button" data-evidence="OA-24" data-evidence-trigger>宿主 terminal 实现</button></p>
+            <p>也不能把“支持 toApp 记录”理解为“已有完整审批与追问产品”。Codex 适配器记录意外到来的 server request，但不自动应答；Cursor 的若干厂商请求则明确拒绝，让原生产品走自己的 fallback。这些不同处置仍可能影响停滞与交互。接入前应逐项核对，而不是拿一张统一协议图替代运行合同。</p>
+          </section>
+
+          <section id="validation" data-article-section>
+            <h2>测试有价值，前提是把测量对象写清楚</h2>
+            <div class="article-table-wrap"><table class="article-table"><caption>本次研究的验证层级</caption><thead><tr><th>证据</th><th>实际完成</th><th>没有回答</th></tr></thead><tbody>
+              <tr><td>固定源码核查</td><td>24 条行号与文件 SHA-256</td><td>生产环境会不会命中同一路径</td></tr>
+              <tr><td>本地上游 tests/</td><td>66 个文件，398 项全部通过</td><td>真实登录、模型质量、七后端 E2E</td></tr>
+              <tr><td>本地合成探针</td><td>身份、归属、seq、cursor、恢复、timeout 共 6 项</td><td>真实进程崩溃和外部副作用</td></tr>
+              <tr><td>上游远端 CI</td><td>固定提交 12 个 job 成功</td><td>不是本地独立复现或能力基准</td></tr>
+            </tbody></table></div>
+            <p>本地使用 Node 24.14.0 与 pnpm 11.22.0，按 frozen lockfile 安装并禁用安装脚本，先构建库，再以 <code>CI=1</code>、移除 <code>OAR_TEST</code> 执行 <code>vitest run tests</code>。首轮受构建时序和本地监听权限影响失败；构建完成、允许测试的 loopback 服务后完整重跑通过。没有更新上游快照来迁就测试，也没有运行真实账户 backend。<button class="evidence-ref" type="button" data-evidence="OA-22" data-evidence-trigger>测试覆盖样例</button></p>
+            <p>固定提交的 <a href="https://github.com/botiverse/oar/actions/runs/36749798809">CI 记录</a>另有 3 个系统的常规检查，加上 3 个系统 × Claude、Codex、Pi 的 9 个行为 job。它们使用真实 harness 配脚本模型端，能检查 API 到原生程序再到 provider 请求的链路，比只 mock 一个适配器更有价值。但不能据此宣布七个 runtime 的真实模型任务全部可靠。后端不可用还存在 skip 机制，job 绿色也不等于每个行为 case 都执行了。<button class="evidence-ref" type="button" data-evidence="OA-20" data-evidence-trigger>CI 配置与范围</button></p>
+            <p>作者文档保留了不少实验过程，阅读时要注意时点。例如 steer 调查明确写着 pre-0.6 的旧状态，当前代码已补上输入身份；部分能力矩阵的现场证据备注也落后于后来适配器注释。本文以固定实现为准，作者的现场观察单独标记，不把旧调查表直接当现版本行为。</p>
+          </section>
+
+          <section id="sources" data-article-section>
+            <h2>值得借鉴的是证据模型，采用时仍要补齐宿主</h2>
+            <p><strong>做多 Agent 工作台，OAR 值得进入原型验证；把它当安全托管平台或可靠任务调度器，范围就错了。</strong>最值得带走的三个选择是：逻辑输入和投递尝试分开；原生记录与显示投影分开；父任务和子 Agent 的身份、完成、账单分开。它们能让产品少一些“看起来已经好了”的状态。</p>
+            <p>真正采用时，先选一到两个后端固定版本，补宿主持久化、streamId、权限隔离和硬截止。再做 accepted 后杀进程、子 Agent 先结束、相同文本重复输入等故障实验。只有这些都能留下可核对的记录，换后端的低成本才不是把难题挪到恢复现场。</p>
+            <p>来源固定为 <a href="https://github.com/botiverse/oar/tree/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2">botiverse/oar · ef893acc</a>，对应 <a href="https://github.com/botiverse/oar/tree/v0.10.2">v0.10.2</a>，提交时间 2026-09-30 17:12:56 UTC。根许可证 Apache-2.0，库为 ESM、要求 Node.js 24+。页面标识原样取自该提交的 assets/logo.png。本文是原创源码研究，不是官方介绍的全文译文。</p>
+            <p><strong>没有在本机运行真实 Agent CLI、模型 API、登录账户或任务基准。</strong>本地通过的是离线合同测试与合成探针；AgentLab 的页面测试只证明专题可阅读和来源可定位。本文仅增加固定专题，不将 OAR 登记为已接入日更的 Agent 产品。</p>
+            <p><a href="/capabilities.html?study=oar">全部证据与五项待验证问题</a> · <a href="/capabilities/oar.json">结构化来源索引</a> · <a href="/capabilities/oar-probe.json">本地合成探针回执</a></p>
+          </section>
+        </article>
+      </div>
+      <nav class="article-next" aria-label="相关专题"><a href="/capabilities/mimoagent.html"><span>继续阅读</span><strong>MiMo Agent：黑盒接入与白盒训练</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">实现依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>

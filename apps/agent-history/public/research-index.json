@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "oar",
+      "readingLabel": "阅读全文：统一接口与原生语义",
+      "title": "OAR：统一 Agent 接口，不抹平运行时差异",
+      "question": "接口返回 accepted，模型就真的读到了吗？切换 Agent 时，哪些状态不能被统一掉？",
+      "implication": "把输入身份、投递回执、原生观察和任务结果分开保存；持久化时标记流实例，并由宿主提供隔离、硬截止和副作用恢复。",
+      "boundary": "固定 v0.10.2；398 项本地离线测试、6 项合成探针通过。没有真实 CLI 或模型任务；远端 CI 的真实 harness 配脚本模型不是本地复现。",
+      "editorialRank": 21,
+      "verifiedAt": "2026-10-01",
+      "kind": "fixed-build",
+      "kindLabel": "源码与合同测试",
+      "topic": "架构与扩展",
+      "products": [{"id": "oar", "label": "OAR", "version": "v0.10.2 / ef893acc"}],
+      "fact": "OAR 接入真实 CLI、SDK 与 ACP，以 frame/request/response 保留事实，再投影会话；accepted 不是模型已读，timeout 不是硬截止，默认权限隔离需宿主补齐。",
+      "sourceKinds": ["固定官方源码", "本地离线合同测试", "本地合成探针", "远端 CI 记录"],
+      "headlineEvidence": ["OA-02", "OA-04", "OA-05", "OA-15", "OA-23"],
+      "evidenceCount": 24,
+      "unknownCount": 5,
+      "data": "/capabilities/oar.json",
+      "legacyHref": "/capabilities/oar.html"
+    },
+    {
       "id": "raven",
       "readingLabel": "阅读全文：反馈如何落到执行层",
       "title": "Raven：反馈怎样变成下一轮执行的 Harness",

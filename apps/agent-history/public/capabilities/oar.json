@@ -1,0 +1,535 @@
+{
+  "id": "oar",
+  "title": "OAR：统一 Agent 接口，不抹平运行时差异",
+  "product": "OAR",
+  "subtitle": "输入回执、事实流、子 Agent 归属与恢复边界",
+  "description": "固定 v0.10.2 源码，追踪 OAR 怎样控制真实 Agent、保留原生记录并构建可重放会话，附离线测试与合成探针。",
+  "verifiedAt": "2026-10-01",
+  "status": "active",
+  "source": {
+    "repository": "botiverse/oar",
+    "revision": "ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2",
+    "branch": "main",
+    "version": "0.10.2",
+    "commitDate": "2026-09-30T17:12:56Z",
+    "license": "Apache-2.0",
+    "evidenceClass": "fixed-source-and-local-contract-tests",
+    "trackingMode": "fixed-commit",
+    "runtimeExperiment": "synthetic-only",
+    "realCliExperiment": "not-run"
+  },
+  "boundary": "固定源码；本地 66 个文件、398 项离线测试与 6 项合成探针通过。未运行真实 Agent CLI、模型 API、账户登录或任务基准。作者 CI 的真实 harness + 脚本模型与本地验证分开列示；这是运行时接口基础设施，不是 Agentic RL 或 RSI.",
+  "evidence": [
+    {
+      "id": "OA-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "包与依赖的接入边界",
+      "statement": "库版本 0.10.2，ESM-only，Node.js >=24；同时依赖 ACP SDK 与 Pi SDK，并不替换所有 Agent 的推理循环。",
+      "artifact": "packages/oar/package.json",
+      "lineStart": 1,
+      "lineEnd": 65,
+      "locator": "L1-L65",
+      "sha256": "0d4725e1b8b3db44da5b800a8689cc0c1bcc5af3279014905536f74bfa209fc8",
+      "evidenceClass": "fixed-source",
+      "boundary": "元数据说明运行条件，不保证任意外部 CLI 版本兼容。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/package.json",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/package.json#L1-L65"
+      }
+    },
+    {
+      "id": "OA-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "内核有序保留记录，控制拒绝不删除事实",
+      "statement": "内存 log 追加 frame、request、response 并分配 seq；退出或 dispose 后拒绝控制但不关闭 frame 入口。游标先重放 retained log，再订阅实时记录。",
+      "artifact": "packages/oar/src/shared/session-kernel.ts",
+      "lineStart": 102,
+      "lineEnd": 190,
+      "locator": "L102-L190",
+      "sha256": "b7a13c3a72bfed00d665a2a50ad9cd3f866315b6cc42e7badf81a7c787276f2a",
+      "evidenceClass": "fixed-source",
+      "boundary": "仅限当前流保留记录；没有数据库、跨进程恢复或有界内存保证。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/shared/session-kernel.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/shared/session-kernel.ts#L102-L190"
+      }
+    },
+    {
+      "id": "OA-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "扁平事件是投影，不是原生帧",
+      "statement": "一个 frame 可产生多个共享 seq 的 Event，也可没有 Event。prompt request 被读成 turn_started，拒绝另由 control_rejected 表达。",
+      "artifact": "packages/oar/src/observe/events.ts",
+      "lineStart": 9,
+      "lineEnd": 82,
+      "locator": "L9-L82",
+      "sha256": "f8b32b524fe6052ceb0802baebc26ad51f66ed0b574c4ce62ef0bef61cff2484",
+      "evidenceClass": "fixed-source",
+      "boundary": "seq 不是扁平事件唯一键；turn_started 不表示 runtime 已接受输入。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/observe/events.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/observe/events.ts#L9-L82"
+      }
+    },
+    {
+      "id": "OA-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "同一输入的不同投递尝试",
+      "statement": "sealSession 校验 inputId；steerOrQueue 在 steer 被拒且有 queue 能力时用同一 inputId 排队，各操作仍有不同 request 与 response。",
+      "artifact": "packages/oar/src/shared/seal-session.ts",
+      "lineStart": 14,
+      "lineEnd": 92,
+      "locator": "L14-L92",
+      "sha256": "2bb945c9c9a34befa1138e5402e1d736434c4dda3e1dcbac2348fa336e0e841f",
+      "evidenceClass": "fixed-source",
+      "boundary": "queued 不是当轮已读或执行成功；inputId 关联不提供 exactly-once 执行。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/shared/seal-session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/shared/seal-session.ts#L14-L92"
+      }
+    },
+    {
+      "id": "OA-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "会话投影不按文本猜消费",
+      "statement": "输入身份含 sessionId、agentPath、inputId，操作身份另含 streamId；分别保存尝试结果和原生观察，不按文本合并无关联消息。",
+      "artifact": "packages/oar/src/observe/conversation.ts",
+      "lineStart": 36,
+      "lineEnd": 113,
+      "locator": "L36-L113",
+      "sha256": "f511cbdb9576ab9863c487ec1b5eedbc5026da621979aa2c4f605eede90fb2de",
+      "evidenceClass": "fixed-source",
+      "boundary": "原生观察不证明模型采纳；resume 复用 streamId 可能丢掉 seq 重置后的新记录。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/observe/conversation.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/observe/conversation.ts#L36-L113"
+      }
+    },
+    {
+      "id": "OA-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Codex 使用 app-server 与原生队列",
+      "statement": "缺省 sandbox_mode 为 danger-full-access；保留子线程通知与 graph；prompt/steer/queue 对应 turn/start、turn/steer、thread/queue/add，steer 带 expectedTurnId，输入带 clientUserMessageId。toApp 请求只记录。",
+      "artifact": "packages/oar/src/runtimes/codex/session.ts",
+      "lineStart": 60,
+      "lineEnd": 278,
+      "locator": "L60-L278",
+      "sha256": "c7ff370185db27c2a20cd775fb1df3394c7ded3d0f3afe00a5309bb7fcef2e05",
+      "evidenceClass": "fixed-source",
+      "boundary": "durable 是原生队列能力声明，非本次崩溃恢复证明；无通用应答入口，意外 toApp 请求可能悬挂。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/codex/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/codex/session.ts#L60-L278"
+      }
+    },
+    {
+      "id": "OA-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Claude 的 stream-json 与内存队列",
+      "statement": "CLI 启用 stream-json、replay-user-messages 和输入 UUID；accepted 表示写入 stdin；queue 在适配器内存。默认 dangerously-skip-permissions；get_settings 回读因可能含配置秘密而不入记录。",
+      "artifact": "packages/oar/src/runtimes/claude/session.ts",
+      "lineStart": 28,
+      "lineEnd": 249,
+      "locator": "L28-L249",
+      "sha256": "7439353631289aa3af656b22c2dce1ad9d10bf6a13387fde98570b29ac93b987",
+      "evidenceClass": "fixed-source",
+      "boundary": "写入 stdin 不保证本轮已读；无损不是完整进程流量抓包，也不是统一脱敏保证。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/claude/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/claude/session.ts#L28-L249"
+      }
+    },
+    {
+      "id": "OA-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Pi 使用进程内 SDK",
+      "statement": "Pi 控制 AgentSession，steer 调 SDK；为防 native followUp 落在同一 turn，后续轮次 queue 由适配器另存。声明 attribution: none、queue.durable: false。",
+      "artifact": "packages/oar/src/runtimes/pi/session.ts",
+      "lineStart": 20,
+      "lineEnd": 218,
+      "locator": "L20-L218",
+      "sha256": "708a1830a9d6fab797c6d349da40d522ca359f51947587ae177cfe061399c410",
+      "evidenceClass": "fixed-source",
+      "boundary": "Pi 本身无原生子 Agent 归属；宿主自行组合不由此接口补出。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/pi/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/pi/session.ts#L20-L218"
+      }
+    },
+    {
+      "id": "OA-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Grok 的 steer 可以中断再启动",
+      "statement": "Grok 经 ACP，启动参数含 always-approve；订阅厂商通知，steer 使用 _meta.sendNow。注释记录取消旧 prompt 并启动新模型轮次，两次应答归入同一 OAR turn。",
+      "artifact": "packages/oar/src/runtimes/grok/session.ts",
+      "lineStart": 63,
+      "lineEnd": 151,
+      "locator": "L63-L151",
+      "sha256": "2b262e178500811130326c768b261ff6fdc96ada1f2227ed03d5323a4b82e23f",
+      "evidenceClass": "fixed-source",
+      "boundary": "重复发出的工具不能假定幂等；注释现场观察属作者证据，本次没有运行 Grok。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/grok/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/grok/session.ts#L63-L151"
+      }
+    },
+    {
+      "id": "OA-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Kimi 的 ACP 只暴露主 Agent",
+      "statement": "Kimi 经 acp，声明不支持 steer、opaque 归属、非持久 queue；可用时切 yolo，并拒绝不支持的 systemPrompt override。",
+      "artifact": "packages/oar/src/runtimes/kimi/session.ts",
+      "lineStart": 34,
+      "lineEnd": 56,
+      "locator": "L34-L56",
+      "sha256": "8dd3e9c9b33be25d5847f25e6097149fa7772318f2f0e26599ceebcdff3798ec",
+      "evidenceClass": "fixed-source",
+      "boundary": "opaque 指选定接口，不表示 Kimi 本身没有子 Agent。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/kimi/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/kimi/session.ts#L34-L56"
+      }
+    },
+    {
+      "id": "OA-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Cursor 显式打开子 Agent 扩展",
+      "statement": "Cursor 用 --force acp，声明 nested、不支持 steer；握手打开 subagents 和 parameterizedModelPicker。厂商请求记录后以 method-not-found 拒绝。",
+      "artifact": "packages/oar/src/runtimes/cursor/session.ts",
+      "lineStart": 15,
+      "lineEnd": 82,
+      "locator": "L15-L82",
+      "sha256": "ed3a4963aafd3d92476687fd6144603546aa855c5e59ff6dbbed0a28a7ce1dcd",
+      "evidenceClass": "fixed-source",
+      "boundary": "扩展不是 ACP 对所有 runtime 的统一保证；降级动作由 Cursor 决定。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/cursor/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/cursor/session.ts#L15-L82"
+      }
+    },
+    {
+      "id": "OA-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Antigravity 的 opaque ACP 接入",
+      "statement": "Antigravity 声明无 steer、非持久 queue、opaque attribution；每次打开或恢复后，可用时选择 yolo mode。",
+      "artifact": "packages/oar/src/runtimes/antigravity/session.ts",
+      "lineStart": 35,
+      "lineEnd": 66,
+      "locator": "L35-L66",
+      "sha256": "d3eaae7c9ec08354686c34e6ee5b0c2cd8189b7f057169da7c7f9df1277a2985",
+      "evidenceClass": "fixed-source",
+      "boundary": "子活动可能混在父 session，不凭显示文本虚构独立子树。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/antigravity/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/antigravity/session.ts#L35-L66"
+      }
+    },
+    {
+      "id": "OA-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "ACP 保留其他 session 的通知",
+      "statement": "按实际 sessionId 保留通知并登记未知来源节点；仅在消息显式给出父子关系时建立 graph edge。",
+      "artifact": "packages/oar/src/shared/acp/records.ts",
+      "lineStart": 53,
+      "lineEnd": 149,
+      "locator": "L53-L149",
+      "sha256": "ca637ed46798ea41a9a197cd03397c42fa0b297f0811ab4a4a1b91d2791a9a5b",
+      "evidenceClass": "fixed-source",
+      "boundary": "选定传输未暴露的事件无法恢复；有节点不等于父子边已知。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/shared/acp/records.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/shared/acp/records.ts#L53-L149"
+      }
+    },
+    {
+      "id": "OA-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "根用量不包含独立子会话",
+      "statement": "usageOf 按 sessionId 筛选、按 agentPath 保留最新累计 token；无报告时 total: null，其他 sessionId 不计入根查询。",
+      "artifact": "packages/oar/src/observe/usage.ts",
+      "lineStart": 83,
+      "lineEnd": 114,
+      "locator": "L83-L114",
+      "sha256": "84570dc7baeec1c807c346eb2ab69d5c515f9b518f2a2915b0eafb5e12d437f7",
+      "evidenceClass": "fixed-source",
+      "boundary": "全树聚合要另核对供应商计费口径，避免加总已经包含子调用的数字。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/observe/usage.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/observe/usage.ts#L83-L114"
+      }
+    },
+    {
+      "id": "OA-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "timeout 不是硬截止",
+      "statement": "turnEndAfter 只接纳指定根 session、根 agent 的结束；promptAndWait 超时调用 abort，随后没有第二个截止时间地等待原生结束。",
+      "artifact": "packages/oar/src/observe/turns.ts",
+      "lineStart": 18,
+      "lineEnd": 155,
+      "locator": "L18-L155",
+      "sha256": "67202b931624a07cd3696cd69d78133b3cb5f3de3717f9c8273827e72c76c238",
+      "evidenceClass": "fixed-source",
+      "boundary": "合成探针验证接受 abort 但不结束的路径，未验证真实 vendor 挂起或强杀。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/observe/turns.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/observe/turns.ts#L18-L155"
+      }
+    },
+    {
+      "id": "OA-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "停滞观察不自动恢复",
+      "statement": "observeStalls 由记录和静默时长触发 onStall，下一条记录重置计时，宿主决定是否提示、中断或恢复。",
+      "artifact": "packages/oar/src/observe/stall-observer.ts",
+      "lineStart": 4,
+      "lineEnd": 58,
+      "locator": "L4-L58",
+      "sha256": "c5f096f8f00f3b276d212cd6b5f7086929cfca9f9ff17f0de06d70ea65f0f100",
+      "evidenceClass": "fixed-source",
+      "boundary": "沉默不是死亡诊断；观察器不撤销副作用，也不提供硬截止。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/observe/stall-observer.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/observe/stall-observer.ts#L4-L58"
+      }
+    },
+    {
+      "id": "OA-17",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Voyage 显式记录 JSONL",
+      "statement": "oar-voyage/3 包含 header、原样 record 与 end；openVoyage 用 writeSync 顺序写盘，缺 end 表示未完整收尾。",
+      "artifact": "packages/oar/src/voyage.ts",
+      "lineStart": 5,
+      "lineEnd": 72,
+      "locator": "L5-L72",
+      "sha256": "495b68c0d4c2c3512a7e04633766cd9a36e18f51c973537fe7615ec5c6eb7a4b",
+      "evidenceClass": "fixed-source",
+      "boundary": "不是数据库或跨 provider 迁移；未 fsync，不能保证掉电持久性，也不是自动脱敏。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/voyage.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/voyage.ts#L5-L72"
+      }
+    },
+    {
+      "id": "OA-18",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "ACP 自动许可与终端反向调用",
+      "statement": "权限优先选 allow_always、再选 allow_once，否则取消；注册终端创建、输出、等待、终止和释放 handlers，记录请求与回答。",
+      "artifact": "packages/oar/src/shared/acp/client-app.ts",
+      "lineStart": 38,
+      "lineEnd": 99,
+      "locator": "L38-L99",
+      "sha256": "4de080ca4867702c36a579f9a29ee008b730c5903e5e77164a29b0ef8f02934d",
+      "evidenceClass": "fixed-source",
+      "boundary": "记录审批不表示有人审核；OAR 不是隔离边界。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/shared/acp/client-app.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/shared/acp/client-app.ts#L38-L99"
+      }
+    },
+    {
+      "id": "OA-19",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Codex 恢复回读模型与 effort",
+      "statement": "新建与恢复均设 approvalPolicy: never；新建用 config 设 effort，恢复避免该覆盖重建模型配置，再按回读更新 effort。",
+      "artifact": "packages/oar/src/runtimes/codex/open.ts",
+      "lineStart": 12,
+      "lineEnd": 111,
+      "locator": "L12-L111",
+      "sha256": "9e5400d417a90e27451405a679fc6dea87cb8508d0e4aea26fc4bec184127a8a",
+      "evidenceClass": "fixed-source",
+      "boundary": "runtime 回读不保证 provider 接受任意 effort，也不等于已有通用 Session.configure。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/runtimes/codex/open.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/runtimes/codex/open.ts#L12-L111"
+      }
+    },
+    {
+      "id": "OA-20",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "CI 矩阵是三种 harness 的脚本模型测试",
+      "statement": "三种 OS 各跑 check；Claude/Codex/Pi 各跑 aimock 行为与 vendor assertions。Claude/Codex 安装真实 CLI，模型端使用脚本服务。",
+      "artifact": ".github/workflows/ci.yml",
+      "lineStart": 1,
+      "lineEnd": 75,
+      "locator": "L1-L75",
+      "sha256": "d29975220eedabbf93fabfa3b084b8fc46630321f2c769c93abac369b0e2f3e9",
+      "evidenceClass": "fixed-source",
+      "boundary": "远端 12 job 成功不是本地复现，后端不可用可能跳过，也不测七种真实模型任务质量。",
+      "source": {
+        "label": "OAR 固定源码 · .github/workflows/ci.yml",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/.github/workflows/ci.yml#L1-L75"
+      }
+    },
+    {
+      "id": "OA-21",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "路线图中的能力尚不能当作交付",
+      "statement": "continuation artifact、有界 replay、Session.configure 与远程 oar serve 仍列为后续增量；现有 model/effort 在打开或恢复时应用。",
+      "artifact": "docs/design/roadmap.md",
+      "lineStart": 56,
+      "lineEnd": 130,
+      "locator": "L56-L130",
+      "sha256": "1dddedf50d26b905e9b55820cc238a07efa5a292e643befc85f16ee22a24cf4b",
+      "evidenceClass": "fixed-source",
+      "boundary": "设计讨论不代表 v0.10.2 已有远程控制或跨 runtime 迁移。",
+      "source": {
+        "label": "OAR 固定源码 · docs/design/roadmap.md",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/docs/design/roadmap.md#L56-L130"
+      }
+    },
+    {
+      "id": "OA-22",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "输入身份与恢复回归测试",
+      "statement": "覆盖 fallback、echo 先于回执、相同文本、子 Agent 身份、恢复 seq 重置，以及 turn end 不猜输入消费。",
+      "artifact": "tests/conversation.test.ts",
+      "lineStart": 18,
+      "lineEnd": 88,
+      "locator": "L18-L88",
+      "sha256": "26d5b7fe89bc36ea94f328bdf257c46b95514be7703a5560f63c15eb49512bd8",
+      "evidenceClass": "fixed-source",
+      "boundary": "本机运行了 tests/ 全集；这是合同测试，不是生产可靠性或模型遵循实验。",
+      "source": {
+        "label": "OAR 固定源码 · tests/conversation.test.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/tests/conversation.test.ts#L18-L88"
+      }
+    },
+    {
+      "id": "OA-23",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "合同说明 cursor 与宿主责任",
+      "statement": "默认禁用交互审批和默认沙箱；宿主自行选择隔离。cursor 只覆盖适配器进程内流，native resume 另开从 seq 0 开始的新流。",
+      "artifact": "packages/oar/src/contracts/session.ts",
+      "lineStart": 70,
+      "lineEnd": 100,
+      "locator": "L70-L100",
+      "sha256": "8d308c194891b97de77524a60e6b7402ccfccf707e7a7ab5c4e6ed33d552ebc7",
+      "evidenceClass": "fixed-source",
+      "boundary": "没有多控制者仲裁；同一原生 session ID 不代表同一 stream instance。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/contracts/session.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/contracts/session.ts#L70-L100"
+      }
+    },
+    {
+      "id": "OA-24",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "终端 cwd 不是工作区边界",
+      "statement": "terminal/create 仅查非空命令与绝对 cwd 后直接 spawn、合并环境；不限制 cwd 为原工作区子目录。",
+      "artifact": "packages/oar/src/shared/acp/terminal.ts",
+      "lineStart": 125,
+      "lineEnd": 156,
+      "locator": "L125-L156",
+      "sha256": "69746f41b874f4b6621ed57464ae9ed170ef4c85531c42dda63b3b8e2ecacc30",
+      "evidenceClass": "fixed-source",
+      "boundary": "源码检查不是沙箱逃逸实测，安全边界需要由外部环境提供。",
+      "source": {
+        "label": "OAR 固定源码 · packages/oar/src/shared/acp/terminal.ts",
+        "url": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/packages/oar/src/shared/acp/terminal.ts#L125-L156"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "OA-KU-01",
+      "title": "七种 runtime 的兼容范围",
+      "text": "没有逐一运行真实 runtime；CI 脚本模型矩阵只覆盖三种。",
+      "needed": "固定各 CLI/SDK 版本，在隔离环境跑控制、子 Agent、工具副作用与恢复合同，保留全部跳过和失败。"
+    },
+    {
+      "id": "OA-KU-02",
+      "title": "原生队列的崩溃恢复",
+      "text": "Codex 声明 durable，其他队列在内存；本次未进行真实断进程恢复。",
+      "needed": "在 accepted 后分阶段杀进程，核对原生队列、新流与外部副作用，保留未知投递窗口。"
+    },
+    {
+      "id": "OA-KU-03",
+      "title": "长会话内存与读取成本",
+      "text": "内核保留完整内存 log，若干查询扫描全量记录，没有本地长会话基准。",
+      "needed": "测量大量记录下的内存、查询、重放，并验证宿主持久化和裁剪策略。"
+    },
+    {
+      "id": "OA-KU-04",
+      "title": "硬截止和进程清理",
+      "text": "timeout 不是硬截止，本次只做合成退出记录。",
+      "needed": "在隔离环境注入 abort 后永久沉默，测 dispose、进程组清理及副作用恢复范围。"
+    },
+    {
+      "id": "OA-KU-05",
+      "title": "部署隔离与日志脱敏",
+      "text": "默认执行权限宽，原生 payload 可能敏感，OAR 不提供统一安全边界。",
+      "needed": "评审执行身份、凭据、网络、挂载、日志 ACL 和脱敏，不把 get_settings 单点保护当成全量保密保证。"
+    }
+  ],
+  "verification": {
+    "method": "fixed-source-and-offline-contract-probes",
+    "upstreamTestsRunLocally": true,
+    "upstreamTests": {
+      "command": "env -u OAR_TEST CI=1 node_modules/.bin/vitest run tests",
+      "filesPassed": 66,
+      "testsPassed": 398,
+      "testsFailed": 0,
+      "scope": "unit-and-fake-process-contract-tests",
+      "node": "24.14.0",
+      "packageManager": "pnpm 11.22.0",
+      "installScripts": false,
+      "note": "先构建 packages/oar；沙箱内首轮受构建时序和本地监听限制失败，构建后允许 loopback 的完整重跑通过。"
+    },
+    "probe": {
+      "path": "/capabilities/oar-probe.json",
+      "cases": 6,
+      "evidenceClass": "local-synthetic-contract-probe"
+    },
+    "realModelCalls": 0,
+    "realCliRuns": 0,
+    "benchmarksReproduced": false,
+    "ci": {
+      "url": "https://github.com/botiverse/oar/actions/runs/36749798809",
+      "revision": "ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2",
+      "conclusion": "success",
+      "jobsPassed": 12,
+      "checkedAt": "2026-10-01",
+      "evidenceClass": "upstream-ci-not-local-reproduction"
+    },
+    "release": {
+      "version": "0.10.2",
+      "tagUrl": "https://github.com/botiverse/oar/tree/v0.10.2",
+      "publishWorkflow": "https://github.com/botiverse/oar/actions/runs/36749803053"
+    }
+  },
+  "assets": [
+    {
+      "path": "/agent-icons/oar.png",
+      "artifact": "assets/logo.png",
+      "sha256": "301e3360469d05d951ecaf9970554dfccec644a34cec24ab05b713694258b804",
+      "license": "Apache-2.0 (repository root)",
+      "purpose": "product-identification",
+      "sourceUrl": "https://github.com/botiverse/oar/blob/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2/assets/logo.png"
+    }
+  ],
+  "snippets": []
+}

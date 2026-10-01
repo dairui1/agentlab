@@ -1,0 +1,53 @@
+{
+  "revision": "ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2",
+  "checkedAt": "2026-10-01T08:34:01.685Z",
+  "node": "v24.14.0",
+  "evidenceClass": "local-synthetic-contract-probe",
+  "realModelCalls": 0,
+  "realCliRuns": 0,
+  "boundary": "Synthetic frames and an in-process adapter exercise OAR helpers, not vendor runtimes, accounts, task quality or process-kill behavior.",
+  "results": [
+    {
+      "id": "fallback-identity",
+      "passed": true,
+      "inputs": 1,
+      "attempts": [
+        "rejected",
+        "accepted"
+      ],
+      "landed": "queued"
+    },
+    {
+      "id": "child-end-isolation",
+      "passed": true,
+      "rootOutcome": null
+    },
+    {
+      "id": "flat-seq-is-not-event-id",
+      "passed": true,
+      "events": 2,
+      "distinctSeq": 1
+    },
+    {
+      "id": "cursor-replay-and-live",
+      "passed": true,
+      "seq": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "resume-needs-new-stream-id",
+      "passed": true,
+      "withoutNewStream": 1,
+      "withNewStream": 2
+    },
+    {
+      "id": "timeout-is-not-hard-deadline",
+      "passed": true,
+      "timeoutMs": 10,
+      "pendingAfterMs": 100,
+      "settledOnlyAfterSyntheticExit": true
+    }
+  ]
+}
