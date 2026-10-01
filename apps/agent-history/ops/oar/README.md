@@ -74,11 +74,35 @@ using the existing daily data snapshot; it does not claim a new upstream scan.
 Before the attempted deployment, both production hosts and local dist had the
 same manifest SHA-256:
 `986313a327c4ee0a63437fab7a47b123722f39320fda3f8c78311ec81433323f`.
-The production deployment command was rejected by the environment approval
-reviewer before execution: the user authorized research and commit/push, not
-an explicit production deployment. No deployment ran and no live OAR article
-verification is claimed. `verify_live.mjs` is prepared for a separately
-authorized release. Existing unrelated `artifacts/` remain untouched.
+The initial production command was rejected before execution because deployment
+had not yet been explicitly authorized. The user subsequently requested
+deployment, and the release below completed. Existing unrelated `artifacts/`
+remain untouched.
+
+### Authorized Production Release
+
+On 2026-10-01, `npm run deploy` rebuilt all 1779 releases / 24 agents, passed
+deployment data verification, and uploaded the seven changed topic assets.
+Wrangler Version ID: `347b3bfe-2f11-4ee0-ae92-6024863b5fea`.
+The deployed research commit is `c8588b5b`.
+
+- Article: https://agentlab.dairui1.com/capabilities/oar
+- Full tests were rerun: 157 Python and 244 Node tests passed.
+- At 11:56:15 UTC, all 15 assets checked by `verify_live.mjs` matched local
+  dist on both workers.dev and the custom domain, including the manifest,
+  article, evidence, probe receipt, styles, navigation and product image.
+- The manifest hash remains the value above: the topic publication did not
+  replace or roll back the existing daily snapshot. Source metadata remains
+  fresh/current, with zero warnings and no retained agents.
+- The production Playwright run passed all five viewport/theme combinations,
+  evidence drawer and focus return, deep link, index entry and no-JS reading.
+  Desktop and mobile screenshots were visually reviewed.
+- The post-deploy analyzer dry run inspected 1779 releases with zero
+  model-stale, zero deterministic no-signal and zero selected work. No analyzer
+  calls, analyzer-failure fallback, or new upstream scan occurred in this run.
+- The scheduled daily pipeline had already completed successfully at 08:47:24
+  Asia/Shanghai; launchd reported last exit code 0 and no active run. No daily
+  recovery was needed for this topic-only deployment.
 
 Remote CI is separate evidence: the pinned commit's CI run
 `36749798809` has 12 successful jobs (three OS checks and nine behavior jobs).
