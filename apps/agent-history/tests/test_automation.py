@@ -1732,6 +1732,12 @@ class SourceCaptureSyncTests(unittest.TestCase):
 
 
 class DailyUpdateTests(unittest.TestCase):
+    def test_codex_binary_candidates_cover_current_chatgpt_bundle(self):
+        self.assertIn(
+            Path("/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"),
+            runtime.MACOS_CODEX_BINARIES,
+        )
+
     def test_codex_binary_prefers_desktop_and_preserves_overrides(self):
         with tempfile.TemporaryDirectory() as temporary:
             binary = Path(temporary) / "codex"
