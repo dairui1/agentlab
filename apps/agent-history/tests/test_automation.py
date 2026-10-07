@@ -287,7 +287,7 @@ class AnalyzeChangelogsTests(unittest.TestCase):
         with self.assertRaisesRegex(analyze.AnalysisError, "observed source mechanisms"):
             analyze.validate_analysis(result, packet)
 
-    def test_source_rich_analysis_allows_one_compound_limit_sentence(self):
+    def test_source_rich_analysis_bounds_limit_sentences(self):
         packet = evidence(agent="minimax-code-cli")
         packet["official"]["codeChange"] = {
             "status": "available",
@@ -309,6 +309,8 @@ class AnalyzeChangelogsTests(unittest.TestCase):
 
         self.assertEqual(analyze.validate_analysis(result, packet), result)
         result["highlights"].append("Tool Schema 未捕获。")
+        self.assertEqual(analyze.validate_analysis(result, packet), result)
+        result["highlights"].append("静态 Prompt 无法确认。")
         with self.assertRaisesRegex(analyze.AnalysisError, "overstates evidence limitations"):
             analyze.validate_analysis(result, packet)
 

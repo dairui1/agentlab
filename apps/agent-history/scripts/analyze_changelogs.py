@@ -232,7 +232,7 @@ def validate_analysis(value: object, evidence: dict[str, object]) -> dict[str, o
             for sentence in re.split(r"[。！？；\n]+", limitation_text)
             if re.search(r"不可用|无法证明|证据不足|无法确认|未捕获", sentence)
         ]
-        if len(limitation_sentences) > 1:
+        if len(limitation_sentences) > 2:
             raise AnalysisError(
                 f"analysis for {identity} overstates evidence limitations"
             )
