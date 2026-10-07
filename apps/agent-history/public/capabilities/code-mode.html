@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="从近期 Pi 原生 codemode 与 Codex exec/wait 出发，讨论程序化工具调用减少了什么，又把哪些判断留给模型。">
+  <title>Code Mode：把确定的步骤交给程序 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <script src="/site-navigation.js"></script>
+</head>
+<body class="article-page" data-evidence-source="/capabilities/code-mode.json">
+  <div class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header><div class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="code-mode"></agentlab-navigation>
+    </div></header>
+    <main>
+      <header class="article-hero"><div class="article-hero-inner"><div>
+        <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><span aria-hidden="true">/</span><span>Code Mode</span></nav>
+        <h1>Code Mode：把确定的步骤交给程序</h1>
+        <p class="article-dek">查三份资料，筛出同一个版本，再把结果拼起来。这中间真的每一步都需要模型再想一次吗？</p>
+        <p>2026-10-07 · Pi 与 Codex 源码短评</p>
+      </div></div></header>
+      <div class="capability-reading">
+        <aside class="article-toc" data-article-toc aria-label="文章目录"><span>Code Mode</span><ol>
+          <li><a href="#program" data-index="01">少一次往返</a></li>
+          <li><a href="#pi" data-index="02">Pi 已经内置</a></li>
+          <li><a href="#lifetime" data-index="03">脚本怎么结束</a></li>
+          <li><a href="#judgment" data-index="04">哪里该停下来</a></li>
+        </ol></aside>
+        <article class="capability-article">
+          <p class="article-lead">我更愿意把 Code Mode 理解成一种分工：模型决定要做什么，程序接手已经确定的步骤。它不是让 Agent 更会写代码，而是让 Agent 不必用一轮轮对话模拟一个循环。</p>
+          <section id="program" data-article-section>
+            <h2>少的不是工具调用，是中间的模型往返</h2>
+            <p>假设要查三个仓库的版本。普通工具调用可以每查一个就把结果交回模型，也可以由 harness 支持批量调用。Code Mode 则让模型写一段短程序：发出查询、提取版本、比较结果，最后只输出差异。工具仍然执行三次；能省掉的是中间那些不需要新判断的往返，以及整份结果进入上下文的负担。</p>
+            <p>Pi 的 <code>codemode</code> 和 Codex 的 <code>exec</code> 都提供了这种组合入口。收益来自批处理和选择性输出，不来自 JavaScript 这个名字。把十页搜索结果打印回去，上下文照样会涨；把查询、判断、发布硬塞进一次执行，也未必更好。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-05" data-evidence-trigger>两个入口的合同</button></p>
+          </section>
+          <section id="pi" data-article-section>
+            <h2>最近的 Pi，已经不只是一个扩展</h2>
+            <p>搜“Pi Code Mode”容易先找到 Luan 的扩展。可到 9 月 30 日，这个仓库已经移除自建运行时，转用 Pi 0.99 的内置能力；10 月 5 日的配置也直接用了 <code>codemode.mode: "only"</code>。所以讨论近期 Pi，不宜继续把旧扩展当成当前实现。<button class="evidence-ref" type="button" data-evidence="CM-02" data-evidence-trigger>迁移与配置</button></p>
+            <p>当前原生实现把脚本放进 QuickJS/WASM，通过注入的工具访问外部世界。工具多了，也不用把所有 schema 一次塞满：脚本可以先 <code>searchTools()</code>，再 <code>describeTool()</code> 看签名。这里有个很实际的修复：main 的未发布记录专门补上这些函数是 async 的说明，否则模型可能把没等完的 Promise 打印成 <code>{}</code>。目录再聪明，调用合同写错，仍然会白跑。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-07" data-evidence-trigger>发现与近期修复</button></p>
+            <p>还有一个不能从“沙箱”二字跳过去的区别。Pi 内置工具经 <code>ctx.executeTool()</code> 派发；独立内核的文档却提醒，自己直接调用 <code>tool.execute()</code> 会跳过 Agent 的前后 hooks。Codex 的嵌套调用也进入工具运行时，而不是在 V8 里自己操作文件。<strong>限制脚本能碰什么，与检查工具获准做什么，是两件事。</strong>具体权限仍要看工具和宿主，不能只看引擎有没有沙箱。<button class="evidence-ref" type="button" data-evidence="CM-04 CM-08" data-evidence-trigger>实际派发路径</button></p>
+          </section>
+          <section id="lifetime" data-article-section>
+            <h2>Pi 与 Codex，最值得比较的是结束语义</h2>
+            <p>Pi 每次创建新 VM，脚本结束后把结果交回。它并不保留上一段 JavaScript 的变量；需要接续的小状态用 <code>store/load</code>。这些写入只有脚本成功时才进入会话日志，恢复会话和分支时也沿各自路径读取。<button class="evidence-ref" type="button" data-evidence="CM-03" data-evidence-trigger>Pi 状态提交</button></p>
+            <p>Codex 同样用新的 V8 isolate 执行，但多了一层长任务交接：<code>exec</code> 可以先返回 running cell，模型再用 <code>wait</code> 收集后续输出，或明确终止它。这里的 <code>yield_time_ms</code> 是“多久交还一次控制”，不是“多久判任务失败”。读到 running 时，不该因为这次等待结束了，就把仍在做事的 cell 杀掉。<button class="evidence-ref" type="button" data-evidence="CM-05 CM-06" data-evidence-trigger>Codex cell 的交接</button></p>
+            <p>真正棘手的情况是：工具已经改了文件，脚本随后报错。Pi 的状态写入不会提交，文件修改却不会撤销。两个实现都要求认真等待需要完成的 Promise；脚本结束后，没等完的工作不能靠“我已经发出去了”来保证完成。Code Mode 不是事务。重试前先查副作用，尤其别把“脚本失败”读成“什么都没发生”。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-03 CM-05" data-evidence-trigger>失败后还剩什么</button></p>
+          </section>
+          <section id="judgment" data-article-section>
+            <h2>让程序多做一点，不等于让模型少看一眼</h2>
+            <p>我的判断是：独立查询、已知字段的过滤、确定规则的聚合，很适合放进一段短程序。发现陌生接口之后，要先让模型看签名；桌面操作之后，需要看新画面再决定；发布、付款或删除之前，可能需要用户确认。这些停顿不是低效，它们是任务里尚未确定的部分。</p>
+            <p>过滤还会改变模型能看到的证据。只输出“没有异常”，却丢掉被截断、权限不足和失败结果，模型得到的不是更干净的信息，而是更少的事实。比较稳妥的输出应保留错误、来源标识与截断状态，让后续判断有东西可核对。</p>
+            <p><strong>值得追的不是“能不能把一切都包进 exec”，而是程序执行到哪里，就该把判断权交回来。</strong>要验证收益，至少得用同一模型、同一任务比较正确率、耗时、上下文量和失败恢复成本。本文只核对公开源码，没有运行这样的模型对照，也不把“少一次往返”写成已经测得的提速比例。</p>
+            <p>源码固定为 <a href="https://github.com/badlogic/pi-mono/tree/592fb57b70e34a7f1011f3d7f20b556dce17c321">Pi · 592fb57b</a> 与 <a href="https://github.com/openai/codex/tree/b17c74cfd5ebb39fe70ffaff78de198120278636">Codex · b17c74cf</a>。Pi 快照包含 1.0.4 之后的未发布改动，Codex 也是 main 快照，均不代表所有已安装版本。<a href="/capabilities.html?study=code-mode">八项证据与三个待验证问题</a>保留在专题索引中。</p>
+          </section>
+        </article>
+      </div>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">实现依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>

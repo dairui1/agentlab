@@ -1,0 +1,93 @@
+{
+  "id": "code-mode",
+  "title": "Code Mode：把确定的步骤交给程序",
+  "product": "Pi / Codex",
+  "subtitle": "工具组合、状态提交与长任务交接",
+  "description": "从近期 Pi 原生 codemode 与 Codex exec/wait 出发的源码短评。",
+  "verifiedAt": "2026-10-07",
+  "status": "active",
+  "source": {
+    "trackingMode": "fixed-commit",
+    "runtimeExperiment": "not-run",
+    "upstreamTests": "not-run",
+    "revisions": {
+      "badlogic/pi-mono": "592fb57b70e34a7f1011f3d7f20b556dce17c321",
+      "openai/codex": "b17c74cfd5ebb39fe70ffaff78de198120278636",
+      "luan/agents": "dac9040e408c92aae5d375cd3218af31748d8146"
+    }
+  },
+  "boundary": "核对固定公开源码与使用合同，Pi main 包含 1.0.4 之后的未发布改动；Luan 配置仅作迁移佐证。未运行上游测试、真实模型对照或安全攻防实验；不宣称测得提速比例。",
+  "evidence": [
+    {
+      "id": "CM-01", "kind": "observation", "confidence": "high", "title": "Pi 原生工具组合与按需发现",
+      "statement": "codemode 执行 QuickJS 沙箱脚本，只有脚本输出进入模型；无 Node、文件系统、网络或 timers。searchTools/describeTool/describeNamespace 提供 async 发现，on/only 控制工具暴露。脚本失败不撤销此前工具调用，结束时取消未完成调用。",
+      "artifact": "packages/coding-agent/docs/codemode.md", "lineStart": 1, "lineEnd": 58, "locator": "L1-L58",
+      "sha256": "40ac8e539d365599f47f4372d1eb61b918879625cc5541e5a841f48758538798", "evidenceClass": "fixed-official-contract",
+      "boundary": "能过滤输出不代表任务正确；工具自身仍可能访问文件和网络，不保证外部副作用回滚。",
+      "source": {"label": "Pi 固定使用合同", "url": "https://github.com/badlogic/pi-mono/blob/592fb57b70e34a7f1011f3d7f20b556dce17c321/packages/coding-agent/docs/codemode.md#L1-L58"}
+    },
+    {
+      "id": "CM-02", "kind": "observation", "confidence": "high", "title": "Luan 已转用原生 codemode",
+      "statement": "固定配置未加载旧 pi-code-mode 包，而设置 codemode.mode=only 并将 codemode 放入默认工具。2026-09-30 的迁移提交明确移除自建运行时，采用 Pi 0.99 内置能力。",
+      "artifact": "harnesses/pi/agent/settings.json", "lineStart": 8, "lineEnd": 82, "locator": "L8-L82；迁移提交 46145bc5",
+      "sha256": "b22f83f2b3ce1336cfda9aed5e236419e56809f9ddb358494c0a7052866eb474", "evidenceClass": "fixed-third-party-config",
+      "boundary": "这是第三方配置与迁移记录，不是 Pi 官方默认配置，也不代表所有同名扩展。",
+      "source": {"label": "Luan 固定配置", "url": "https://github.com/luan/agents/blob/dac9040e408c92aae5d375cd3218af31748d8146/harnesses/pi/agent/settings.json#L8-L82"},
+      "compare": {"label": "移除旧运行时的提交", "url": "https://github.com/luan/agents/commit/46145bc50e4aa2292fb1a269b458d24d7124c627"}
+    },
+    {
+      "id": "CM-03", "kind": "observation", "confidence": "high", "title": "Pi 小状态只在成功后提交",
+      "statement": "执行前沿当前会话分支读取 store；只有 result.ok 时才追加 codemode-store entry。失败保留部分输出，不追加状态写入；成功返回值作为文本输出。",
+      "artifact": "packages/coding-agent/src/extensions/codemode/execute.ts", "lineStart": 490, "lineEnd": 534, "locator": "L490-L534",
+      "sha256": "3e1d957d40d395b1b3743cb56fc9333b247c33d6e2420574f4422cdfcd6d2a40", "evidenceClass": "fixed-source",
+      "boundary": "这只是 store 的提交条件，工具已经产生的文件或远端副作用并不随之回滚；恢复与分支合同另见 CM-01 的文档第 56 行。",
+      "source": {"label": "Pi 状态提交实现", "url": "https://github.com/badlogic/pi-mono/blob/592fb57b70e34a7f1011f3d7f20b556dce17c321/packages/coding-agent/src/extensions/codemode/execute.ts#L490-L534"}
+    },
+    {
+      "id": "CM-04", "kind": "observation", "confidence": "high", "title": "内置 Pi 与自行接入内核的路径不同",
+      "statement": "内置 codemode 从 ctx.tools 建立可调用集合，通过 ctx.executeTool 派发，并记录 running/ok/error/cancelled。独立内核 README 第 161 行提醒直接 tool.execute 会跳过 beforeToolCall/afterToolCall。",
+      "artifact": "packages/coding-agent/src/extensions/codemode/execute.ts", "lineStart": 441, "lineEnd": 475, "locator": "L441-L475；另见内核 README L161",
+      "sha256": "3e1d957d40d395b1b3743cb56fc9333b247c33d6e2420574f4422cdfcd6d2a40", "evidenceClass": "fixed-source",
+      "boundary": "派发入口不等于任意工具有完备权限检查。自行接入独立内核时需要另行检查 hooks、取消与授权。",
+      "source": {"label": "Pi 嵌套派发实现", "url": "https://github.com/badlogic/pi-mono/blob/592fb57b70e34a7f1011f3d7f20b556dce17c321/packages/coding-agent/src/extensions/codemode/execute.ts#L441-L475"},
+      "compare": {"label": "独立内核接入说明", "url": "https://github.com/badlogic/pi-mono/blob/592fb57b70e34a7f1011f3d7f20b556dce17c321/packages/codemode/README.md#L161-L184"}
+    },
+    {
+      "id": "CM-05", "kind": "observation", "confidence": "high", "title": "Codex 使用新 V8 isolate 与显式输出",
+      "statement": "exec 在新的 V8 isolate 执行 raw JavaScript async module，无 Node/文件系统/网络；通过 tools 调用宿主能力，text/image 等输出结果，store/load 保存可序列化小状态。isolate 结束后丢弃未等待的 Promise；yield_control 可先交还输出继续运行。",
+      "artifact": "codex-rs/code-mode-protocol/src/description.rs", "lineStart": 16, "lineEnd": 47, "locator": "L16-L47",
+      "sha256": "4bba813dac9bd7e9e3088bc144052b50cec7b9843070a89afef0b79653fcab94", "evidenceClass": "fixed-official-contract",
+      "boundary": "模型工具描述允许覆盖；此处没有检验 store 的跨进程恢复语义或当前产品的默认工具模式。",
+      "source": {"label": "Codex exec 模型合同", "url": "https://github.com/openai/codex/blob/b17c74cfd5ebb39fe70ffaff78de198120278636/codex-rs/code-mode-protocol/src/description.rs#L16-L47"}
+    },
+    {
+      "id": "CM-06", "kind": "observation", "confidence": "high", "title": "wait 是交接，不是任务超时",
+      "statement": "exec 的 yield_time_ms 请求仍运行时先交还控制；wait 在 running cell 之后收集新增输出。terminate=true 明确停止 cell，未设置则继续等，可以多次返回同一 cell ID。",
+      "artifact": "codex-rs/code-mode-protocol/src/description.rs", "lineStart": 30, "lineEnd": 55, "locator": "L30-L55",
+      "sha256": "4bba813dac9bd7e9e3088bc144052b50cec7b9843070a89afef0b79653fcab94", "evidenceClass": "fixed-official-contract",
+      "boundary": "交还控制不表示失败或工具完成；取消 cell 不能据此推定已发生的外部动作被撤销。",
+      "source": {"label": "Codex exec/wait 生命周期合同", "url": "https://github.com/openai/codex/blob/b17c74cfd5ebb39fe70ffaff78de198120278636/codex-rs/code-mode-protocol/src/description.rs#L30-L55"}
+    },
+    {
+      "id": "CM-07", "kind": "observation", "confidence": "high", "title": "Pi 近期修复的是实际调用合同",
+      "statement": "main 的 Unreleased 记录修复发现函数漏写 async、多个输出混在一起；1.0.4 修复 read 图片结果丢失、隐藏工具 prompt guidelines 与 built-in prototype 修改引起崩溃。",
+      "artifact": "packages/coding-agent/CHANGELOG.md", "lineStart": 3, "lineEnd": 49, "locator": "L3-L49",
+      "sha256": "126b657e58578177f382981a6bd9f25b9e05453c13a48ed1ff2ce3f34eede949", "evidenceClass": "fixed-official-changelog",
+      "boundary": "Unreleased 与已发布 1.0.4 分开；修复记录不是安全认证或性能基准。",
+      "source": {"label": "Pi 近期变化及未发布修复", "url": "https://github.com/badlogic/pi-mono/blob/592fb57b70e34a7f1011f3d7f20b556dce17c321/packages/coding-agent/CHANGELOG.md#L3-L49"}
+    },
+    {
+      "id": "CM-08", "kind": "observation", "confidence": "high", "title": "Codex 嵌套工具进入共享工具运行时",
+      "statement": "submit_nested_tool 建立 ToolCall，记录 ChildStarted，再调用 ToolCallRuntime.handle_tool_call_with_source，标记 CodeMode 的 cell/runtime_tool_call_id，最后取得 code_mode_result；不在 V8 内自行实现文件工具。",
+      "artifact": "codex-rs/core/src/tools/code_mode/mod.rs", "lineStart": 337, "lineEnd": 415, "locator": "L337-L415",
+      "sha256": "3bc73b9a929d72b598aa3a6682eb531cfa31ea161de2e9dc628b96b9bcca2219", "evidenceClass": "fixed-source",
+      "boundary": "只确认路由入口与来源标记；未做授权绕过、并发取消或副作用恢复实验。",
+      "source": {"label": "Codex 嵌套派发实现", "url": "https://github.com/openai/codex/blob/b17c74cfd5ebb39fe70ffaff78de198120278636/codex-rs/core/src/tools/code_mode/mod.rs#L337-L415"}
+    }
+  ],
+  "unknowns": [
+    {"id": "CM-KU-01", "title": "哪些任务真正获益？", "text": "没有同模型同任务的 direct 与 code-mode 对照结果，无法量化提速或正确率。", "needed": "固定模型和工具集，对比正确率、端到端耗时、token、发现成本与失败恢复。"},
+    {"id": "CM-KU-02", "title": "失败之后能否可靠接续？", "text": "脚本状态、工具副作用与进程存活是不同状态，静态合同不足以确认故障恢复。", "needed": "在工具完成后注入脚本错误、取消与断进程，核对 store、实际文件或远端回执及重试行为。"},
+    {"id": "CM-KU-03", "title": "输出过滤是否漏掉关键证据？", "text": "程序可能只返回成功摘要，隐藏错误、截断或来源，未测量其对后续模型判断的影响。", "needed": "以混合成功、isError、非零退出和截断结果测试摘要，检查失败标识与来源能否保留。"}
+  ]
+}

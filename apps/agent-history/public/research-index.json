@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "code-mode",
+      "readingLabel": "阅读全文：哪些步骤值得写成程序",
+      "title": "Code Mode：把确定的步骤交给程序",
+      "question": "工具调用之间，真的每一步都需要模型再想一次吗？",
+      "implication": "将独立查询、过滤与聚合写成短程序；遇到未知接口、需要重新观察或高风险副作用时，把决定交回模型与用户。",
+      "boundary": "核对 2026-10-07 固定公开源码，包含 Pi main 未发布改动；未运行 Pi/Codex 上游测试或同任务模型对照，不宣称性能提升比例。",
+      "editorialRank": 22,
+      "verifiedAt": "2026-10-07",
+      "kind": "fixed-build",
+      "kindLabel": "源码短评",
+      "topic": "架构与扩展",
+      "products": [{"id": "pi", "label": "Pi", "version": "592fb57b / main"}, {"id": "codex", "label": "Codex", "version": "b17c74cf / main"}],
+      "fact": "Pi 原生 codemode 在 QuickJS/WASM 中组合工具，成功后把小状态写入会话分支；Codex 用 V8 exec/wait 让长 cell 交还输出后继续运行。程序失败不会撤销已发生的工具副作用。",
+      "sourceKinds": ["固定官方源码", "官方使用合同", "第三方迁移配置"],
+      "headlineEvidence": ["CM-01", "CM-03", "CM-05", "CM-06"],
+      "evidenceCount": 8,
+      "unknownCount": 3,
+      "data": "/capabilities/code-mode.json",
+      "legacyHref": "/capabilities/code-mode.html"
+    },
+    {
       "id": "oar",
       "readingLabel": "阅读全文：统一接口与原生语义",
       "title": "OAR：统一 Agent 接口，不抹平运行时差异",
