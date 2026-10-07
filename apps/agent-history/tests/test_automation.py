@@ -287,6 +287,31 @@ class AnalyzeChangelogsTests(unittest.TestCase):
         with self.assertRaisesRegex(analyze.AnalysisError, "observed source mechanisms"):
             analyze.validate_analysis(result, packet)
 
+    def test_source_rich_analysis_allows_one_compound_limit_sentence(self):
+        packet = evidence(agent="minimax-code-cli")
+        packet["official"]["codeChange"] = {
+            "status": "available",
+            "changeSamples": [{"path": "src/catalog.ts", "sample": ["+doctor"]}],
+        }
+        packet["evidenceDigest"] = analyze.evidence_digest(packet)
+        result = analyze.fake_batch([packet])["results"][0]
+        result["summary"] = (
+            "源码在 src/catalog.ts 增加 doctor 命令，并把诊断入口接入侧边会话目录，"
+            "让失败响应可以留在当前上下文中继续排查；对应目录测试覆盖命令可见性和调用条件。"
+            "这一改动把诊断操作从主会话扩展到局部交互，而不改变退出命令的既有边界。"
+            "运行时捕获不可用，因此无法确认线上调用路径。"
+        )
+        result["generator"] = {
+            "promptVersion": analyze.PROMPT_VERSION,
+            "model": "test-model",
+            "reasoningEffort": "medium",
+        }
+
+        self.assertEqual(analyze.validate_analysis(result, packet), result)
+        result["highlights"].append("Tool Schema 未捕获。")
+        with self.assertRaisesRegex(analyze.AnalysisError, "overstates evidence limitations"):
+            analyze.validate_analysis(result, packet)
+
     def test_fake_analyzer_writes_only_stale_outputs(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

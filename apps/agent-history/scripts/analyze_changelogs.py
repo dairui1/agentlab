@@ -226,13 +226,13 @@ def validate_analysis(value: object, evidence: dict[str, object]) -> dict[str, o
             raise AnalysisError(
                 f"analysis for {identity} must lead with observed source mechanisms"
             )
-        limitation_count = len(
-            re.findall(
-                r"不可用|无法证明|证据不足|无法确认|未捕获",
-                summary + " " + " ".join(value.get("highlights", [])),
-            )
-        )
-        if limitation_count > 1:
+        limitation_text = summary + "。" + "。".join(value.get("highlights", []))
+        limitation_sentences = [
+            sentence
+            for sentence in re.split(r"[。！？；\n]+", limitation_text)
+            if re.search(r"不可用|无法证明|证据不足|无法确认|未捕获", sentence)
+        ]
+        if len(limitation_sentences) > 1:
             raise AnalysisError(
                 f"analysis for {identity} overstates evidence limitations"
             )
