@@ -130,6 +130,7 @@ python3 scripts/analyze_changelogs.py \
   --agents all \
   --newest-first \
   --fair-agents \
+  --recent-releases-per-agent 3 \
   --max-releases 20 \
   --batch-size 1 \
   --dry-run
@@ -137,7 +138,7 @@ python3 scripts/analyze_changelogs.py \
 
 只有同时满足以下条件才可 no-op：
 
-- `0 model-stale`
+- 最近 3 个版本范围内 `0 model-stale`
 - `0 deterministic no-signal`
 - `0 selected`
 - 没有 failed 或 deferred
@@ -169,7 +170,7 @@ cd "$APP_ROOT"
 python3 scripts/daily_update.py --deploy
 ```
 
-生产 analyzer 默认使用 `gpt-6.1-sol`、每版本独立调用、严格 JSON schema、证据摘要、缓存键、重试和有界并发。不要重复分析 provenance 已匹配的版本，也不要从外层另起一套分析替代它。升级默认模型时保留历史分析的真实 model/provenance，并按现有限额补跑；不要改写历史署名或绕过队列门禁。
+生产 analyzer 默认使用 `gpt-6.1-sol`、每版本独立调用、严格 JSON schema、证据摘要、缓存键、重试和有界并发。不要重复分析 provenance 已匹配的版本，也不要从外层另起一套分析替代它。升级默认模型时保留历史分析的真实 model/provenance，只补跑每个 Agent 最近 3 个版本；更早版本不因单纯模型升级进入队列。不要改写历史署名或绕过近期队列门禁。
 
 macOS 默认优先使用已安装桌面应用内置的 Codex CLI，避免 PATH 中旧 CLI 不支持新模型；其他平台使用 PATH。`CODEX_BIN` 和 `--codex-bin` 仍可显式覆盖。模型列表不等于可调用性，升级后必须用实际分析入口验证。
 
@@ -224,7 +225,7 @@ git ls-remote origin refs/heads/main
 回执保持简洁，但必须包含：
 
 - 新发现的 Agent 与版本
-- 每个版本是 Luna AI 分析、确定性 no-signal，还是未完成
+- 每个版本是 GPT-6.1 Sol AI 分析、确定性 no-signal，还是未完成
 - 是否使用 analyzer-failure fallback
 - launchd 是否按时成功，是否触发恢复
 - 自动化修复、commit 和 push（若有）

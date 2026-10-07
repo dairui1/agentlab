@@ -425,6 +425,21 @@ def select_pending_packets(
     return selected
 
 
+def limit_recent_packets(
+    packets: Sequence[dict[str, object]], per_agent: int | None
+) -> list[dict[str, object]]:
+    """Keep only the newest release frontier for each agent."""
+    if per_agent is None:
+        return list(packets)
+    by_agent: dict[str, list[dict[str, object]]] = {}
+    for packet in packets:
+        by_agent.setdefault(str(packet["agent"]), []).append(packet)
+    scoped: list[dict[str, object]] = []
+    for values in by_agent.values():
+        scoped.extend(sorted(values, key=freshness_key, reverse=True)[:per_agent])
+    return scoped
+
+
 def build_prompt(packets: Sequence[dict[str, object]], correction: str = "") -> str:
     prompt_packets = []
     for packet in packets:
@@ -1102,6 +1117,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="analyze at most this many stale releases (useful for initial backfill)",
     )
     parser.add_argument(
+        "--recent-releases-per-agent",
+        type=positive_int,
+        help=(
+            "only evaluate the newest N releases per agent; older analyses keep "
+            "their existing model provenance"
+        ),
+    )
+    parser.add_argument(
         "--batch-delay",
         type=float,
         default=0.0,
@@ -1186,7 +1209,17 @@ def _main(argv: Sequence[str] | None = None) -> int:
         reasoning_effort=args.reasoning_effort,
         jobs=args.jobs,
     )
-    packets = load_evidence(options)
+    all_packets = load_evidence(options)
+    packets = limit_recent_packets(all_packets, args.recent_releases_per_agent)
+    ignored_older = len(all_packets) - len(packets)
+    if ignored_older:
+        LOG.info(
+            "recent scope: evaluating %d release%s; ignoring %d older release%s",
+            len(packets),
+            "" if len(packets) == 1 else "s",
+            ignored_older,
+            "" if ignored_older == 1 else "s",
+        )
     pending: list[dict[str, object]] = []
     deterministic_pending: list[dict[str, object]] = []
     for packet in packets:

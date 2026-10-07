@@ -248,6 +248,8 @@ def build_steps(args: argparse.Namespace) -> list[Step]:
         "--codex-bin",
         args.codex_bin,
         "--fair-agents",
+        "--recent-releases-per-agent",
+        str(args.recent_releases_per_agent),
     ]
     if args.model:
         analyze.extend(("--model", args.model))
@@ -416,6 +418,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="maximum stale releases per daily run; use 0 for no cap",
     )
     parser.add_argument(
+        "--recent-releases-per-agent",
+        type=int,
+        default=int(os.environ.get("AGENT_HISTORY_RECENT_RELEASES_PER_AGENT", "3")),
+        help="only refresh the newest N releases per agent (default: 3)",
+    )
+    parser.add_argument(
         "--newest-first",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -455,6 +463,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         parser.error("--jobs must be between 1 and 64")
     if args.max_releases is not None and args.max_releases < 1:
         parser.error("--max-releases must be at least 1, or 0 for no cap")
+    if args.recent_releases_per_agent < 1:
+        parser.error("--recent-releases-per-agent must be at least 1")
     if args.batch_delay < 0 or args.codex_timeout <= 0 or args.step_timeout <= 0:
         parser.error("timeouts must be positive and --batch-delay must be non-negative")
     if args.retries < 0:

@@ -17,6 +17,7 @@ test("release ops skill preserves the production analysis and deploy gates", () 
     "scripts/daily_update.py --deploy",
     "scripts/analyze_changelogs.py",
     "--fair-agents",
+    "--recent-releases-per-agent 3",
     "--max-releases 20",
     "--batch-size 1",
     "--dry-run",

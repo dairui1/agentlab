@@ -414,6 +414,28 @@ class AnalyzeChangelogsTests(unittest.TestCase):
         self.assertEqual({packet["agent"] for packet in fair}, {"claude-code", "codex", "grok"})
         self.assertEqual([packet["agent"] for packet in global_only], ["claude-code"] * 3)
 
+    def test_recent_scope_keeps_only_latest_versions_per_agent(self):
+        packets = [
+            evidence("1.0.0", agent="codex", captured_at="2026-08-01T00:00:00Z"),
+            evidence("1.1.0", agent="codex", captured_at="2026-08-02T00:00:00Z"),
+            evidence("1.2.0", agent="codex", captured_at="2026-08-03T00:00:00Z"),
+            evidence("2.0.0", agent="cline", captured_at="2026-07-31T00:00:00Z"),
+            evidence("2.1.0", agent="cline", captured_at="2026-08-04T00:00:00Z"),
+        ]
+
+        scoped = analyze.limit_recent_packets(packets, 2)
+
+        self.assertEqual(
+            {(packet["agent"], packet["version"]) for packet in scoped},
+            {
+                ("codex", "1.1.0"),
+                ("codex", "1.2.0"),
+                ("cline", "2.0.0"),
+                ("cline", "2.1.0"),
+            },
+        )
+        self.assertEqual(analyze.limit_recent_packets(packets, None), packets)
+
     def test_all_agent_selector_discovers_evidence_directories(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -1851,6 +1873,10 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertIn("12", analyze_command)
         self.assertIn("--newest-first", analyze_command)
         self.assertIn("--fair-agents", analyze_command)
+        self.assertEqual(
+            analyze_command[analyze_command.index("--recent-releases-per-agent") + 1],
+            "3",
+        )
         self.assertEqual(args.agents, "all")
         self.assertEqual(steps[-2].command, (args.python_bin, "scripts/verify_deploy.py"))
         self.assertEqual(steps[-2].environment, steps[-3].environment)
