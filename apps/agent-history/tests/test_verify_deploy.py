@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 import subprocess
@@ -52,6 +53,8 @@ class VerifyDeployTests(unittest.TestCase):
 
     def _write_manifest(self, agents: list[str], *, status: str = "fresh") -> None:
         value = {
+            "schemaVersion": 1,
+            "generatedAt": "2026-01-01T00:00:00.000Z",
             "agents": [{"id": agent, "releaseCount": 1} for agent in agents],
             "officialSources": {
                 "status": status,
@@ -65,6 +68,30 @@ class VerifyDeployTests(unittest.TestCase):
             path = root / "data/manifest.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(value), encoding="utf-8")
+            (root / "syndication-withdrawals.json").write_text(
+                json.dumps({"schemaVersion": 1, "withdrawn": []}), encoding="utf-8"
+            )
+            suppressed = []
+            for agent in agents:
+                folder = root / "data/agents" / agent
+                folder.mkdir(parents=True, exist_ok=True)
+                (folder / "history.json").write_text(json.dumps({
+                    "versions": [{"version": "1.0.0", "capturedAt": value["generatedAt"]}]
+                }), encoding="utf-8")
+                (folder / "changelog.json").write_text(json.dumps({"entries": []}), encoding="utf-8")
+                record = {"id": f"agentlab:release:{agent}:1.0.0", "reason": "analysis-incomplete"}
+                suppressed.append({**record, "revision": self._digest(record)})
+            feed = {
+                "schemaVersion": 1, "generatedAt": value["generatedAt"], "exportedAt": "2026-01-01T01:00:00.000Z",
+                "coverage": {"scope": "all-known-releases", "absenceMeansWithdrawal": False, "researchIncluded": False},
+                "items": [], "suppressed": sorted(suppressed, key=lambda item: item["id"]), "withdrawn": [],
+            }
+            feed["snapshotDigest"] = self._digest(feed)
+            (root / "data/syndication.json").write_text(json.dumps(feed), encoding="utf-8")
+
+    @staticmethod
+    def _digest(value: object) -> str:
+        return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
 
     def _verify(self) -> int:
         with (
@@ -91,6 +118,24 @@ class VerifyDeployTests(unittest.TestCase):
 
     def test_accepts_complete_catalog_from_git_tree_and_overlay(self) -> None:
         self.assertEqual(self._verify(), 2)
+
+    def test_rejects_missing_syndication(self) -> None:
+        (self.dist / "data/syndication.json").unlink()
+        with self.assertRaisesRegex(deploy.DeployDataError, "syndication verification"):
+            self._verify()
+
+    def test_rejects_mismatched_syndication(self) -> None:
+        (self.dist / "data/syndication.json").write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(deploy.DeployDataError, "syndication verification"):
+            self._verify()
+
+    def test_rejects_stale_syndication_even_if_public_and_dist_match(self) -> None:
+        (self.public / "syndication-withdrawals.json").write_text(json.dumps({
+            "schemaVersion": 1,
+            "withdrawn": [{"id": "agentlab:release:codex:1.0.0", "reason": "Correction"}],
+        }), encoding="utf-8")
+        with self.assertRaisesRegex(deploy.DeployDataError, "syndication verification"):
+            self._verify()
 
     def test_accepts_canonical_agent_for_phistory_alias(self) -> None:
         capture = self.phistory / "captures/dsh/0.1.0-rc.6/meta.json"

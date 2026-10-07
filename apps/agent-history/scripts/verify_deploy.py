@@ -149,6 +149,21 @@ def verify(
         or retained != []
     ):
         raise DeployDataError("official source generation is not a full refresh")
+    try:
+        subprocess.run(
+            [
+                "node",
+                str(APP_ROOT / "scripts/verify_syndication.cjs"),
+                str(public_root),
+                str(dist_root),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as error:
+        details = getattr(error, "stderr", "") or str(error)
+        raise DeployDataError(f"syndication verification failed: {details.strip()}") from error
     return len(actual)
 
 

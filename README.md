@@ -118,6 +118,30 @@ Raven 同时接入官方软件 release 与 source-only 日更，匹配 `vX.Y.Z`�
 
 ## Agent 数据访问
 
+### 向 AgentHot 供稿
+
+`https://agentlab.dairui1.com/data/syndication.json` 是供聚合站使用的扁平快照，由正常
+`npm run build` 从同一份完整版本分析生成，不再次调用模型。原有 `/data/feed.json` 与 skill 查询不变。
+
+- `items` 包含所有 `complete` / `reviewed` 且通过本站现有信号规则的版本，不按任意分数或条数截断。
+- `id` 固定为 `agentlab:release:<agent>:<version>`。正文是 AgentLab 分析而非厂商声明，保留证据摘要、原始来源与明确的新鲜度。
+- `url` 使用稳定的 `?mode=compare&agent=<agent>&version=<version>`。页面会找该版本的相邻前版；历史补录不会改变文章身份。
+- `publishedAt` 采用上游发布日期；无发布日期时用采集日期并标记 `dateKind: captured`，不能冒充新闻发布日期。AgentHot 首版不公开这类条目。
+- `sourceFreshness` 独立于 `analysisStatus`，取 `fresh`、`stale`、`degraded`、`not-synced`、`not-collected` 或 `unknown`。分析完成不代表上游来源已经更新；AgentHot 首版仅公开 `fresh` 条目。
+- `revision` 是完整供稿条目的确定性 SHA-256；`snapshotDigest` 是包含 `exportedAt` 的整个快照的 SHA-256，均不包含自身字段。递归按对象键排序，数组保留顺序，按 UTF-8 JSON 编码。
+- `generatedAt` 沿用 manifest 的最新采集证据时间，不是构建或修订时间，不能用于快照排序。
+- `exportedAt` 是供稿快照的构建时间。语义内容不变时复用旧值；发生修订时按当前时间递增，至少比本地上一份快照晚 1 毫秒。消费方拒绝更旧快照，以及时间相同但摘要不同的快照，防止缓存或部署回滚复活撤回内容。无旧产物的全新构建使用当前时间；不能自动绕过消费方的旧快照保护。
+- `suppressed` 显式列出当前因分析未完成或无信号而不再准入的版本；`withdrawn` 只来自人工撤回声明。列表中缺席从不意味着撤回。
+- `sources` 保留无 URL 的 source-only 占位溯源，但每篇必须至少有一条真实公开来源 URL；不输出 Runtime Prompt 全文。
+
+人工撤回在 `apps/agent-history/public/syndication-withdrawals.json` 中写入
+`{"id":"agentlab:release:codex:1.2.3","reason":"具体撤回原因"}`，经过测试和正常发布后生效。
+撤回记录可以保留已退出当前目录的历史 ID；删除撤回记录代表允许重新按现有证据准入，而非新文章。
+研究专题暂不供稿：索引中的 `verifiedAt` 是核验日期，不能替代尚未记录的初次发布日期。
+
+协议、修订、抑制、撤回、来源校验及稳定深链的测试在 `tests/syndication.test.js`。
+部署门禁会从当前完整数据重新计算供稿内容，并检查 `public` / `dist` 一致性，不会在只读验证时生成新时间。
+
 项目内置 [`agentlab-update-feed`](.codex/skills/agentlab-update-feed/SKILL.md) skill，指导 Agent 组合 `feedAgent`、`signal`、`priority` 等 filter，将公开更新情报输出为 Markdown，并沿 manifest 获取指定版本的原始 Prompt Markdown。skill 安装后只访问 `agentlab.dairui1.com` 的公开数据，不依赖本仓库 checkout。
 
 安装到当前项目，并在交互提示中选择要使用的 Agent：

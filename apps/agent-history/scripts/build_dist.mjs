@@ -1,11 +1,13 @@
 import { cp, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import syndication from "./build_syndication.cjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = path.join(root, "public");
 const target = path.join(root, "dist");
 
+await syndication.buildSyndication(source);
 await rm(target, { recursive: true, force: true });
 await mkdir(target, { recursive: true });
 await cp(source, target, { recursive: true });
@@ -21,6 +23,9 @@ await writeFile(
     "  Cache-Control: no-cache",
     "",
     "/data/feed.json",
+    "  Cache-Control: no-cache",
+    "",
+    "/data/syndication.json",
     "  Cache-Control: no-cache",
     "",
     "/data/agents/*",

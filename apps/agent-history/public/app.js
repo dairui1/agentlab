@@ -345,7 +345,7 @@
 
   function readUrlState() {
     const params = new URLSearchParams(window.location.search);
-    const hasComparisonState = ["left", "right", "section", "view"].some((key) => params.has(key));
+    const hasComparisonState = ["left", "right", "version", "section", "view"].some((key) => params.has(key));
     return {
       mode: params.get("mode") === "compare" || hasComparisonState ? "compare" : "intelligence",
       agent: params.get("agent") === "minimax-code" ? "minimax-code-cli" : params.get("agent"),
@@ -355,6 +355,7 @@
       feedImportance: params.get("priority") === "high" ? "high" : "all",
       left: params.get("left"),
       right: params.get("right"),
+      version: params.get("version"),
       section: params.get("section"),
       view: params.get("view") === "structure" ? "structure" : "request",
       wrap: params.get("wrap") !== "0",
@@ -375,6 +376,7 @@
 
   function syncUrl() {
     const url = new URL(window.location.href);
+    url.searchParams.delete("version");
     if (state.mode !== "compare") {
       ["mode", "agent", "left", "right", "view", "wrap", "section"].forEach((key) => (
         url.searchParams.delete(key)
@@ -1033,10 +1035,9 @@
 
   function chooseVersions(requested = {}) {
     const versions = state.history.versions.map((entry) => entry.version);
-    const latest = versions.at(-1);
-    const previous = versions.at(-2) || latest;
-    state.left = versions.includes(requested.left) ? requested.left : previous;
-    state.right = versions.includes(requested.right) ? requested.right : latest;
+    const selected = appCore.resolveComparisonVersions(versions, requested);
+    state.left = selected.left;
+    state.right = selected.right;
     state.view = requested.view === "structure" ? "structure" : "request";
     state.wrap = requested.wrap !== false;
     state.section = appCore.resolveOutlineKey(currentOutlineItems(), requested.section);
@@ -1044,6 +1045,9 @@
 
   async function selectAgent(agentId, requested = {}) {
     const request = ++state.loadRequest;
+    if (requested.version && !state.manifest.agents.some((item) => item.id === agentId)) {
+      throw new Error(`Agent ${agentId} 不在当前目录中，无法展示该条证据。`);
+    }
     const agent = state.manifest.agents.find((item) => item.id === agentId)
       || state.manifest.agents.find((item) => item.id === state.manifest.defaultAgent)
       || state.manifest.agents[0];
@@ -2134,7 +2138,7 @@
         renderIntelligenceFeed();
       });
       if (state.mode === "compare") {
-        const requestedAgent = state.manifest.agents.some((agent) => agent.id === requested.agent)
+        const requestedAgent = requested.version || state.manifest.agents.some((agent) => agent.id === requested.agent)
           ? requested.agent
           : state.manifest.defaultAgent;
         await selectAgent(requestedAgent, requested);

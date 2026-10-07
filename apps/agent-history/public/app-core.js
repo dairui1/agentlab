@@ -466,6 +466,20 @@
     }).slice(0, limit);
   }
 
+  function resolveComparisonVersions(versions, requested = {}) {
+    const latest = versions.at(-1);
+    const previous = versions.at(-2) || latest;
+    if (requested.version) {
+      const index = versions.indexOf(requested.version);
+      if (index < 0) throw new Error(`版本 ${requested.version} 不在当前历史中，无法展示该条证据。`);
+      return { left: versions[Math.max(0, index - 1)], right: versions[index] };
+    }
+    return {
+      left: versions.includes(requested.left) ? requested.left : previous,
+      right: versions.includes(requested.right) ? requested.right : latest,
+    };
+  }
+
   function dataHealth(manifest, datasets) {
     const entries = (datasets || []).flatMap((dataset) => dataset.changelog?.entries || []);
     const explicit = manifest?.dataHealth || manifest?.health || {};
@@ -503,6 +517,7 @@
     isRuntimeBaseline,
     normalizeSourceLayers,
     resolveImportance,
+    resolveComparisonVersions,
     resolveOutlineKey,
     selectRangeEntries,
     sourceLayerDefinitions,
