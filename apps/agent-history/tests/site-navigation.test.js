@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { define, researchItems } = require("../public/site-navigation.js");
 
-function mount(current = "auto", search = "") {
+function mount(current = "auto", search = "", attributes = {}) {
   const documentListeners = new Map();
   const document = {
     activeElement: null,
@@ -47,8 +47,10 @@ function mount(current = "auto", search = "") {
   });
   const navigation = new Navigation();
   navigation.setAttribute("current", current);
+  for (const [name, value] of Object.entries(attributes)) navigation.setAttribute(name, value);
   navigation.connectedCallback();
   const menuContainer = navigation.children[0].children.at(-1);
+  if (menuContainer.tag === "a") return { navigation, document, documentListeners, researchLink: menuContainer };
   const [trigger, menu] = menuContainer.children;
   return { navigation, document, documentListeners, menuContainer, trigger, menu, links: menu.children };
 }
@@ -61,6 +63,20 @@ test("research navigation retains all destinations and marks the catalog current
   assert.deepEqual(links.map((link) => link.href), researchItems.map((item) => item.href));
   const goal = mount("auto", "?study=goal-mode");
   assert.equal(goal.links.find((link) => link.href.includes("?study=goal-mode")).getAttribute("aria-current"), "page");
+});
+
+test("Code Mode research navigation is a direct link with no disclosure or popup", () => {
+  const { navigation, researchLink, documentListeners } = mount("code-mode", "", { "research-navigation": "link" });
+  assert.equal(researchLink.tag, "a");
+  assert.equal(researchLink.href, "/capabilities.html");
+  assert.equal(researchLink.getAttribute("aria-current"), "page");
+  assert.equal(researchLink.querySelector("span").textContent, "专题研究");
+  assert.equal(researchLink.getAttribute("aria-expanded"), undefined);
+  assert.equal(researchLink.getAttribute("aria-haspopup"), undefined);
+  assert.equal(navigation.querySelectorAll("button").length, 0);
+  assert.equal(navigation.querySelectorAll("div").length, 0);
+  assert.ok(navigation.querySelectorAll("i").every((icon) => !icon.dataset.lucide.startsWith("chevron")));
+  assert.equal(documentListeners.size, 0);
 });
 
 test("research menu supports arrow navigation, wraparound, Home, End, and Escape", () => {

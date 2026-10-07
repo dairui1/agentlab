@@ -116,6 +116,8 @@ async function main() {
       assert.equal(await page.locator("[data-node]").count(), 23);
       assert.equal(await page.locator("[data-node]:visible").count(), 1);
       assert.equal(await page.locator("details, summary").count(), 0);
+      assert.equal(await page.locator('agentlab-navigation [aria-haspopup], agentlab-navigation [aria-expanded], .mode-switch-menu, .mode-switch-menu-chevron').count(), 0);
+      assert.equal(await page.locator('agentlab-navigation a[href="/capabilities.html"]').count(), 1);
       assert.equal(await page.locator("#overview").isVisible(), true);
       await page.locator(".brand img").evaluate((image) => image.decode());
       await noOverflow(page, "overview");
