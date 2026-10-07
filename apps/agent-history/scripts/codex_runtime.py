@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-DEFAULT_CODEX_MODEL = "gpt-6-luna"
+DEFAULT_CODEX_MODEL = "gpt-6.1-sol"
 MACOS_CODEX_BINARIES = (
     Path("/Applications/Codex.app/Contents/Resources/codex"),
     Path("/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"),

@@ -1762,7 +1762,7 @@ class DailyUpdateTests(unittest.TestCase):
         for module in (daily, analyze):
             with self.subTest(module=module.__name__):
                 with mock.patch.dict(os.environ, {}, clear=True):
-                    self.assertEqual(module.parse_args([]).model, "gpt-6-luna")
+                    self.assertEqual(module.parse_args([]).model, "gpt-6.1-sol")
                 with mock.patch.dict(os.environ, {"AGENT_HISTORY_CODEX_MODEL": "gpt-6-sol"}):
                     self.assertEqual(module.parse_args([]).model, "gpt-6-sol")
                     self.assertEqual(
@@ -1840,7 +1840,7 @@ class DailyUpdateTests(unittest.TestCase):
         self.assertEqual(analyze_command[analyze_command.index("--jobs") + 1], "8")
         self.assertEqual(
             analyze_command[analyze_command.index("--model") + 1],
-            "gpt-6-luna",
+            "gpt-6.1-sol",
         )
         self.assertEqual(analyze_command[analyze_command.index("--timeout") + 1], "180.0")
         self.assertEqual(
