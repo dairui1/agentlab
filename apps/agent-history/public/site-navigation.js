@@ -77,18 +77,6 @@
           nav.append(control);
         }
 
-        const currentResearch = researchItems.find((item) => item.id === current);
-        if (this.getAttribute("research-navigation") === "link") {
-          const researchLink = root.document.createElement("a");
-          researchLink.href = "/capabilities.html";
-          if (currentResearch) researchLink.setAttribute("aria-current", "page");
-          appendIcon(root, researchLink, "library");
-          appendLabel(root, researchLink, "专题研究");
-          nav.append(researchLink);
-          this.replaceChildren(nav);
-          return;
-        }
-
         const researchMenu = root.document.createElement("div");
         researchMenu.className = "mode-switch-menu";
         const menuButton = root.document.createElement("button");
@@ -97,6 +85,7 @@
         menuButton.setAttribute("aria-haspopup", "menu");
         menuButton.setAttribute("aria-expanded", "false");
         menuButton.setAttribute("aria-controls", "researchMenu");
+        const currentResearch = researchItems.find((item) => item.id === current);
         if (currentResearch) {
           menuButton.dataset.current = "true";
           menuButton.setAttribute("aria-label", `专题研究，当前：${currentResearch.label}`);

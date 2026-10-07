@@ -11,7 +11,6 @@ test("Code Mode follows one rooted reading tree without disclosure widgets", () 
   assert.equal(study.source.runtimeExperiment, "not-run");
   assert.equal(study.source.upstreamTests, "not-run");
   assert.doesNotMatch(html, /<\/?(?:details|summary)\b/i);
-  assert.match(html, /<agentlab-navigation\b[^>]*research-navigation="link"/);
   const attribute = (tag, name) => tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
   const nodes = [...html.matchAll(/<section\b[^>]*\bdata-node\b[^>]*>/g)].map(([tag]) => ({ id: attribute(tag, "id"), parent: attribute(tag, "data-parent") }));
   assert.equal(nodes.length, 23);
