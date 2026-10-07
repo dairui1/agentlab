@@ -73,6 +73,7 @@
 .cm-reading-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; border-top: 1px solid var(--border); margin-top: 40px; padding-top: 22px; }
 .cm-reading-nav a { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 7px 10px; color: var(--text); font-size: 13px; text-decoration: none; line-height: 1.6; }
 .cm-reading-nav a[rel="next"] { text-align: right; grid-template-columns: minmax(0, 1fr) 18px; grid-column: 2; }
+.cm-reading-nav a[rel="prev"][hidden] + a { grid-column: 1 / -1; }
 .cm-reading-nav small { display: block; color: var(--muted); font-size: 11px; margin-bottom: 5px; }
 .cm-reading-nav svg { width: 16px; height: 16px; margin-top: 24px; }
 .cm-reading-nav a:hover { color: var(--cm-accent); }
@@ -87,6 +88,8 @@
 .cm-lane { position: relative; min-width: 0; padding: 14px 10px; border-top: 2px solid var(--border); background: var(--cm-wash); }
 .cm-lane[data-edge="forward"]::after, .cm-lane[data-edge="back"]::after { content: ""; position: absolute; right: -20px; top: 50%; width: 8px; height: 8px; border-top: 1px solid var(--border-strong); border-right: 1px solid var(--border-strong); transform: rotate(45deg); }
 .cm-lane[data-active] { border-top-color: var(--cm-accent); background: var(--accent-soft); }
+.cm-diagram:not([data-kind="state"]) .cm-lane:first-child[data-active]:not([data-warning]) { border-top-color: var(--cm-blue); background: var(--left-soft); }
+.cm-diagram:not([data-kind="state"]) .cm-lane:last-child[data-active]:not([data-warning]) { border-top-color: var(--text-soft); background: var(--surface-muted); }
 .cm-lane[data-warning] { border-top-color: var(--cm-warning); }
 .cm-lane[data-edge="back"]::after { transform: rotate(225deg); }
 .cm-lane > span { display: block; font-size: 11px; color: var(--muted); margin-bottom: 10px; }
@@ -136,7 +139,8 @@
   .cm-lane strong { font-size: 12px; min-height: 62px; }
   .cm-lane > span { font-size: 10px; }
   .cm-diagram[data-kind="state"] .cm-lanes { gap: 8px; }
-  .cm-reading-nav { gap: 18px; margin-top: 32px; }
+  .cm-reading-nav { grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 32px; }
+  .cm-reading-nav a[rel="next"] { grid-column: 1; }
   .cm-reading-nav a { font-size: 12px; gap: 7px; }
 }
 @media (prefers-reduced-motion: no-preference) { .cm-enhanced .cm-tree { transition: transform 160ms ease; } }

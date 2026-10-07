@@ -304,6 +304,12 @@
     }
     doc.body.classList.add("cm-enhanced");
     show();
+    // Initial fragment scrolling must account for the sticky mobile navigation.
+    root.addEventListener("load", () => root.requestAnimationFrame(() => {
+      if (!root.location.hash) return;
+      if (current === "overview") root.scrollTo(0, 0);
+      else content.scrollIntoView({ block: "start" });
+    }), { once: true });
     root.addEventListener("hashchange", () => show(true));
     let resize;
     root.addEventListener("resize", () => {
