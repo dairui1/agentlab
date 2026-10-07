@@ -4,63 +4,220 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="从近期 Pi 原生 codemode 与 Codex exec/wait 出发，讨论程序化工具调用减少了什么，又把哪些判断留给模型。">
-  <title>Code Mode：把确定的步骤交给程序 · AgentLab</title>
+  <meta name="description" content="从一个例子认识 Code Mode，沿研究树深入工具组合、Pi 与 Codex 实现、沙盒、权限、状态和研究问题。">
+  <title>Code Mode · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/code-mode.css">
   <script src="/site-navigation.js"></script>
 </head>
-<body class="article-page" data-evidence-source="/capabilities/code-mode.json">
-  <div class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+<body class="article-page cm-page" data-evidence-source="/capabilities/code-mode.json">
   <div class="app-shell article-shell">
     <header><div class="topbar">
       <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
       <agentlab-navigation current="code-mode"></agentlab-navigation>
     </div></header>
-    <main>
-      <header class="article-hero"><div class="article-hero-inner"><div>
-        <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><span aria-hidden="true">/</span><span>Code Mode</span></nav>
-        <h1>Code Mode：把确定的步骤交给程序</h1>
-        <p class="article-dek">查三份资料，筛出同一个版本，再把结果拼起来。这中间真的每一步都需要模型再想一次吗？</p>
-        <p>2026-10-07 · Pi 与 Codex 源码短评</p>
-      </div></div></header>
-      <div class="capability-reading">
-        <aside class="article-toc" data-article-toc aria-label="文章目录"><span>Code Mode</span><ol>
-          <li><a href="#program" data-index="01">少一次往返</a></li>
-          <li><a href="#pi" data-index="02">Pi 已经内置</a></li>
-          <li><a href="#lifetime" data-index="03">脚本怎么结束</a></li>
-          <li><a href="#judgment" data-index="04">哪里该停下来</a></li>
-        </ol></aside>
-        <article class="capability-article">
-          <p class="article-lead">我更愿意把 Code Mode 理解成一种分工：模型决定要做什么，程序接手已经确定的步骤。它不是让 Agent 更会写代码，而是让 Agent 不必用一轮轮对话模拟一个循环。</p>
-          <section id="program" data-article-section>
-            <h2>少的不是工具调用，是中间的模型往返</h2>
-            <p>假设要查三个仓库的版本。普通工具调用可以每查一个就把结果交回模型，也可以由 harness 支持批量调用。Code Mode 则让模型写一段短程序：发出查询、提取版本、比较结果，最后只输出差异。工具仍然执行三次；能省掉的是中间那些不需要新判断的往返，以及整份结果进入上下文的负担。</p>
-            <p>Pi 的 <code>codemode</code> 和 Codex 的 <code>exec</code> 都提供了这种组合入口。收益来自批处理和选择性输出，不来自 JavaScript 这个名字。把十页搜索结果打印回去，上下文照样会涨；把查询、判断、发布硬塞进一次执行，也未必更好。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-05" data-evidence-trigger>两个入口的合同</button></p>
+    <div class="cm-workspace">
+      <details class="cm-tree" open>
+        <summary><i data-lucide="git-branch" aria-hidden="true"></i><span>Code Mode</span><i class="cm-tree-chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary>
+        <nav aria-label="Code Mode 研究树">
+          <a class="cm-root-link" href="#overview">全貌</a>
+          <ol class="cm-branches">
+            <li><a href="#basics">认识 Code Mode</a><ol><li><a href="#motivation">为什么会出现</a></li><li><a href="#neighbors">与相邻概念的区别</a></li><li><a href="#origins">来路与相关工作</a></li></ol></li>
+            <li><a href="#execution">一次调用怎样工作</a><ol><li><a href="#discovery">发现工具与读签名</a></li><li><a href="#composition">组合、分支与并发</a></li><li><a href="#output">哪些结果交给模型</a></li></ol></li>
+            <li><a href="#implementations">具体实现</a><ol><li><a href="#pi">Pi 原生 Code Mode</a></li><li><a href="#codex">Codex exec / wait</a></li></ol></li>
+            <li><a href="#boundaries">执行边界</a><ol><li><a href="#sandbox">沙盒与运行时</a></li><li><a href="#permissions">工具权限与检查</a></li><li><a href="#state">变量、状态与持久化</a></li><li><a href="#lifetime">等待、结束与取消</a></li></ol></li>
+            <li><a href="#questions">研究问题</a><ol><li><a href="#performance">性能与适用任务</a></li><li><a href="#reliability">错误与恢复</a></li><li><a href="#harness">Harness 设计</a></li><li><a href="#training">训练与评测</a></li></ol></li>
+          </ol>
+          <a class="cm-root-link" href="#sources">来源与证据边界</a>
+        </nav>
+      </details>
+      <main class="cm-content" id="cmContent">
+        <article class="capability-article cm-nodes">
+          <section id="overview" data-node data-parent="" aria-labelledby="overview-title">
+            <div class="cm-location"><a href="/capabilities.html">专题研究</a><span>/</span><span>Code Mode</span></div>
+            <h1 id="overview-title" tabindex="-1">Code Mode</h1>
+            <p class="cm-answer">Code Mode 是让 AI <strong>写一小段程序来调用工具</strong>，而不是每一步都单独发出工具请求。程序可以接着上一项结果做下一步，也可以循环、并发和筛选，最后只把需要的结果交回 AI。比如“查三个仓库，找出版本不同的那个”：AI 写好查询和比较的代码，运行环境执行它，AI 再根据差异回答你。</p>
+            <div class="cm-example">
+              <div class="cm-example-head"><h2>同一个任务，两种做法</h2><span>示例推演 · 三个仓库版本比较</span></div>
+              <div class="cm-example-tabs" role="tablist" aria-label="调用方式"><button id="directTab" role="tab" aria-selected="true" aria-controls="directExample" type="button">逐个调用</button><button id="programTab" role="tab" aria-selected="false" aria-controls="programExample" tabindex="-1" type="button">Code Mode</button></div>
+              <div id="directExample" role="tabpanel" aria-labelledby="directTab">
+                <ol class="cm-sequence"><li><span>AI 发出查询</span><strong>查 A → 读结果</strong></li><li><span>AI 发出查询</span><strong>查 B → 读结果</strong></li><li><span>AI 发出查询</span><strong>查 C → 读结果</strong></li><li><span>AI 比较</span><strong>C 的版本不同</strong></li></ol>
+                <p>每份结果回到 AI，由 AI 决定下一步。这是逐个调用的示例；普通工具接口也可以支持批量或并行调用。</p>
+              </div>
+              <div id="programExample" role="tabpanel" aria-labelledby="programTab">
+                <ol class="cm-sequence"><li><span>AI 写程序</span><strong>查询 + 比较</strong></li><li><span>运行环境与宿主执行</span><strong>查 A、B、C</strong></li><li><span>程序筛选</span><strong>只输出差异</strong></li><li><span>AI 读结果</span><strong>C 的版本不同</strong></li></ol>
+                <p>工具还是查了三次，但中间数据可以留在程序里。少的是不必要的模型往返，不是查仓库这件事。</p>
+                <details class="cm-deeper"><summary>这段程序长什么样</summary><pre><code>// 教学示意：版本工具是虚构接口，不是 Pi / Codex 内置工具。
+const names = ["A", "B", "C"];
+const rows = await Promise.all(names.map(async (name) => ({
+  name, version: await tools.getVersion({ name })
+})));
+text(rows.filter((row) => row.version !== rows[0].version));</code></pre><p>假定返回 A=1.2、B=1.2、C=1.3，输出就是 C=1.3。以 A 为基准比较，并未断言哪个版本正确。</p></details>
+              </div>
+            </div>
+            <h2>这件事的全貌</h2>
+            <div class="cm-map">
+              <a href="#basics"><span>01</span><div><strong>认识 Code Mode</strong><p>它解决什么问题，与工具调用、Shell、REPL 有何区别。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+              <a href="#execution"><span>02</span><div><strong>一次调用怎样工作</strong><p>发现工具，写程序，执行，再把结果交回模型。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+              <a href="#implementations"><span>03</span><div><strong>具体实现</strong><p>Pi 和 Codex 走了哪些相同或不同的路。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+              <a href="#boundaries"><span>04</span><div><strong>执行边界</strong><p>代码能碰什么，工具由谁授权，状态如何接续。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+              <a href="#questions"><span>05</span><div><strong>研究问题</strong><p>什么时候更划算，怎样恢复，对 Harness 和训练意味着什么。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <p class="cm-note">概念说明与教学示例是研究整理；实现依据固定在 2026-10-07 的公开源码。<a href="#sources">来源与验证范围</a></p>
           </section>
-          <section id="pi" data-article-section>
-            <h2>最近的 Pi，已经不只是一个扩展</h2>
-            <p>搜“Pi Code Mode”容易先找到 Luan 的扩展。可到 9 月 30 日，这个仓库已经移除自建运行时，转用 Pi 0.99 的内置能力；10 月 5 日的配置也直接用了 <code>codemode.mode: "only"</code>。所以讨论近期 Pi，不宜继续把旧扩展当成当前实现。<button class="evidence-ref" type="button" data-evidence="CM-02" data-evidence-trigger>迁移与配置</button></p>
-            <p>当前原生实现把脚本放进 QuickJS/WASM，通过注入的工具访问外部世界。工具多了，也不用把所有 schema 一次塞满：脚本可以先 <code>searchTools()</code>，再 <code>describeTool()</code> 看签名。这里有个很实际的修复：main 的未发布记录专门补上这些函数是 async 的说明，否则模型可能把没等完的 Promise 打印成 <code>{}</code>。目录再聪明，调用合同写错，仍然会白跑。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-07" data-evidence-trigger>发现与近期修复</button></p>
-            <p>还有一个不能从“沙箱”二字跳过去的区别。Pi 内置工具经 <code>ctx.executeTool()</code> 派发；独立内核的文档却提醒，自己直接调用 <code>tool.execute()</code> 会跳过 Agent 的前后 hooks。Codex 的嵌套调用也进入工具运行时，而不是在 V8 里自己操作文件。<strong>限制脚本能碰什么，与检查工具获准做什么，是两件事。</strong>具体权限仍要看工具和宿主，不能只看引擎有没有沙箱。<button class="evidence-ref" type="button" data-evidence="CM-04 CM-08" data-evidence-trigger>实际派发路径</button></p>
+          <section id="basics" data-node data-parent="overview" aria-labelledby="basics-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / 认识 Code Mode</p><h2 id="basics-title" tabindex="-1">先认识这件事</h2>
+            <p class="cm-answer">AI 不会因为生成了“查询数据库”几个字就查到数据。需要外部程序识别它的请求，执行工具，再把结果送回来。Code Mode 改的是请求的形式：AI 不只给出一次调用的参数，还能写出连接多次调用的程序。工具和数据来源并没有消失，多出来的是一个执行这段程序的运行环境。</p>
+            <ul class="cm-child-links"><li><a href="#motivation">为什么会出现<span>工具目录、模型往返与中间数据</span></a></li><li><a href="#neighbors">与相邻概念的区别<span>普通调用、批量调用、Shell、REPL、MCP</span></a></li><li><a href="#origins">来路与相关工作<span>Cloudflare、Anthropic 与程序化工具使用</span></a></li></ul>
           </section>
-          <section id="lifetime" data-article-section>
-            <h2>Pi 与 Codex，最值得比较的是结束语义</h2>
-            <p>Pi 每次创建新 VM，脚本结束后把结果交回。它并不保留上一段 JavaScript 的变量；需要接续的小状态用 <code>store/load</code>。这些写入只有脚本成功时才进入会话日志，恢复会话和分支时也沿各自路径读取。<button class="evidence-ref" type="button" data-evidence="CM-03" data-evidence-trigger>Pi 状态提交</button></p>
-            <p>Codex 同样用新的 V8 isolate 执行，但多了一层长任务交接：<code>exec</code> 可以先返回 running cell，模型再用 <code>wait</code> 收集后续输出，或明确终止它。这里的 <code>yield_time_ms</code> 是“多久交还一次控制”，不是“多久判任务失败”。读到 running 时，不该因为这次等待结束了，就把仍在做事的 cell 杀掉。<button class="evidence-ref" type="button" data-evidence="CM-05 CM-06" data-evidence-trigger>Codex cell 的交接</button></p>
-            <p>真正棘手的情况是：工具已经改了文件，脚本随后报错。Pi 的状态写入不会提交，文件修改却不会撤销。两个实现都要求认真等待需要完成的 Promise；脚本结束后，没等完的工作不能靠“我已经发出去了”来保证完成。Code Mode 不是事务。重试前先查副作用，尤其别把“脚本失败”读成“什么都没发生”。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-03 CM-05" data-evidence-trigger>失败后还剩什么</button></p>
+          <section id="motivation" data-node data-parent="basics" aria-labelledby="motivation-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#basics">认识</a></p><h2 id="motivation-title" tabindex="-1">为什么会出现</h2>
+            <p class="cm-answer">有些工作需要 AI 判断，有些只是在搬运和整理数据。读取一千条记录再筛出三条，没必要先让模型读完一千条；从一个接口取得 ID 再传给另一个，也未必需要模型重写它。Code Mode 把这部分交给程序，同时可以按需发现工具，缓解工具说明和中间结果占用上下文的问题。</p>
+            <details class="cm-deeper"><summary>收益到底来自哪里</summary><p>少加载无关工具说明，少让中间结果进入模型，少做无需新判断的模型往返。这三项应分别衡量，并非每个实现都同时具备。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-05" data-evidence-trigger>两种工具合同</button></p></details>
           </section>
-          <section id="judgment" data-article-section>
-            <h2>让程序多做一点，不等于让模型少看一眼</h2>
-            <p>我的判断是：独立查询、已知字段的过滤、确定规则的聚合，很适合放进一段短程序。发现陌生接口之后，要先让模型看签名；桌面操作之后，需要看新画面再决定；发布、付款或删除之前，可能需要用户确认。这些停顿不是低效，它们是任务里尚未确定的部分。</p>
-            <p>过滤还会改变模型能看到的证据。只输出“没有异常”，却丢掉被截断、权限不足和失败结果，模型得到的不是更干净的信息，而是更少的事实。比较稳妥的输出应保留错误、来源标识与截断状态，让后续判断有东西可核对。</p>
-            <p><strong>值得追的不是“能不能把一切都包进 exec”，而是程序执行到哪里，就该把判断权交回来。</strong>要验证收益，至少得用同一模型、同一任务比较正确率、耗时、上下文量和失败恢复成本。本文只核对公开源码，没有运行这样的模型对照，也不把“少一次往返”写成已经测得的提速比例。</p>
-            <p>源码固定为 <a href="https://github.com/badlogic/pi-mono/tree/592fb57b70e34a7f1011f3d7f20b556dce17c321">Pi · 592fb57b</a> 与 <a href="https://github.com/openai/codex/tree/b17c74cfd5ebb39fe70ffaff78de198120278636">Codex · b17c74cf</a>。Pi 快照包含 1.0.4 之后的未发布改动，Codex 也是 main 快照，均不代表所有已安装版本。<a href="/capabilities.html?study=code-mode">八项证据与三个待验证问题</a>保留在专题索引中。</p>
+          <section id="neighbors" data-node data-parent="basics" aria-labelledby="neighbors-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#basics">认识</a></p><h2 id="neighbors-title" tabindex="-1">它与其他方式有什么区别</h2>
+            <p class="cm-answer">Code Mode 是组织工具使用的方式，不是一种语言，也不是 MCP 的替代品。普通调用把一次请求交给宿主；批量调用把几次请求一起交过去；Code Mode 还允许程序根据结果循环、分支和加工数据。Shell 或 REPL 也能执行代码，但能访问什么工具、保留什么状态、如何限制权限，要看具体接入。</p>
+            <div class="cm-table-wrap"><table><thead><tr><th>概念</th><th>负责什么</th><th>别混淆的地方</th></tr></thead><tbody><tr><th>工具调用</th><td>请求执行功能</td><td>可以批量，并非必然一轮一个</td></tr><tr><th>Code Mode</th><td>用程序组织工具与数据</td><td>里面仍会发生工具调用</td></tr><tr><th>Shell</th><td>运行命令或程序</td><td>不自动拥有宿主工具目录</td></tr><tr><th>REPL</th><td>交互式代码求值</td><td>是否持久、是否受限没有统一保证</td></tr><tr><th>MCP</th><td>连接工具与资源的协议</td><td>可直接调用，也可在代码中调用</td></tr><tr><th>工作流</th><td>安排步骤与依赖</td><td>可预写，也可由模型生成</td></tr></tbody></table></div>
+          </section>
+          <section id="origins" data-node data-parent="basics" aria-labelledby="origins-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#basics">认识</a></p><h2 id="origins-title" tabindex="-1">来路与相关工作</h2>
+            <p class="cm-answer">“让模型写程序来用工具”不是某一家独有的点子。Cloudflare 在 2025 年 9 月的 Code Mode 文章中，将 MCP 工具转为 TypeScript API，让模型写代码调用；Anthropic 同年 11 月讨论了用代码访问 MCP、按需加载工具和处理数据。Pi 与 Codex 是这条思路在 Coding Agent 中的实现。这里列的是相关路线，不是发明优先权的判定。</p>
+            <ul class="cm-child-links"><li><a href="https://blog.cloudflare.com/code-mode/">Cloudflare · Code Mode<span>2025-09-26 · API 表达与隔离执行</span></a></li><li><a href="https://www.anthropic.com/engineering/code-execution-with-mcp">Anthropic · Code execution with MCP<span>2025-11-04 · 工具目录与中间数据</span></a></li><li><a href="#implementations">Pi 与 Codex<span>固定源码下的实现对照</span></a></li></ul>
+          </section>
+          <section id="execution" data-node data-parent="overview" aria-labelledby="execution-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / 工作过程</p><h2 id="execution-title" tabindex="-1">一次调用怎样工作</h2>
+            <p class="cm-answer">模型先知道有哪些工具、怎样传参，再生成程序。运行环境执行代码，遇到工具调用时请求宿主执行，结果返回程序继续处理；程序通过输出函数把选中的内容交回模型。模型可能回答用户，也可能写下一段程序。这不是把模型放进循环里，而是把一部分循环移到了程序里。</p>
+            <ol class="cm-sequence"><li><span>模型</span><strong>读工具签名</strong></li><li><span>模型</span><strong>生成程序</strong></li><li><span>运行环境与宿主</span><strong>执行工具和处理数据</strong></li><li><span>模型</span><strong>读选出的结果</strong></li></ol>
+            <ul class="cm-child-links"><li><a href="#discovery">发现工具与读签名<span>目录、参数、返回值</span></a></li><li><a href="#composition">组合、分支与并发<span>哪些步骤可以一起做</span></a></li><li><a href="#output">哪些结果交给模型<span>数据过滤与证据保留</span></a></li></ul>
+          </section>
+          <section id="discovery" data-node data-parent="execution" aria-labelledby="discovery-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#execution">工作过程</a></p><h2 id="discovery-title" tabindex="-1">先找到工具，再看它怎么用</h2>
+            <p class="cm-answer">工具名不是完整说明。写程序前需要知道参数和返回值，否则可能工具找对了，却读错字段。Pi 提供异步的 <code>searchTools()</code>、<code>describeTool()</code> 和 <code>describeNamespace()</code>；Codex 合同列出 <code>ALL_TOOLS</code>，并在相应目录模式下提供搜索指引。发现是找候选，读签名才足以开始调用。</p>
+            <details class="cm-deeper"><summary>Pi 的发现代码与近期修复</summary><pre><code>const matches = await searchTools("查找文件");
+text(matches);
+// 实际程序还需处理空结果。
+text(await describeTool(matches[0].name));</code></pre><p>main 的未发布记录修复发现函数漏写 async 的说明，否则模型可能把 Promise 打印成 <code>{}</code>。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-05 CM-07" data-evidence-trigger>合同与修复依据</button></p></details>
+          </section>
+          <section id="composition" data-node data-parent="execution" aria-labelledby="composition-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#execution">工作过程</a></p><h2 id="composition-title" tabindex="-1">程序怎样连接多个动作</h2>
+            <p class="cm-answer">独立查询可以并发，依赖上一项结果的调用必须等待；重复结构可以循环，结果不同可以走不同分支。这是程序的控制流，不需要每一步交给模型重新生成。但“能并发”不代表工具一定同时执行：宿主可能排队或限流，操作相同文件或远端数据时还可能出现竞争。</p>
+            <details class="cm-deeper"><summary>并发不等于整体成功</summary><pre><code>// 教学示意：两个独立读取。
+const [a, b] = await Promise.all([
+  tools.read({ path: "a.json" }),
+  tools.read({ path: "b.json" })
+]);
+text({ a, b });</code></pre><p><code>Promise.all()</code> 在一项拒绝时整体拒绝，却不自动撤销其他调用。想保留各项结果，可以用 <code>Promise.allSettled()</code>。<button class="evidence-ref" type="button" data-evidence="CM-01" data-evidence-trigger>Pi 错误处理合同</button></p></details>
+          </section>
+          <section id="output" data-node data-parent="execution" aria-labelledby="output-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#execution">工作过程</a></p><h2 id="output-title" tabindex="-1">模型看见什么，由输出决定</h2>
+            <p class="cm-answer">工具结果先回到程序，不必全部回到模型。程序可只输出字段、统计结果或图片，减少无关数据和重新抄写。但输出也是证据选择：只留下“成功”，丢掉错误、截断和来源，后续模型就可能误判。过滤数据与隐瞒失败不是同一回事。</p>
+            <details class="cm-deeper"><summary>不同返回值不能当成同一种成功</summary><p>Pi 的结构化工具可能返回包含错误标识的值，而不抛异常。MCP 的 <code>isError</code>、命令退出码和脚本异常是不同层的失败。图片用 <code>image()</code> 交回，不把 base64 当文本打印。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-04 CM-05" data-evidence-trigger>返回值与输出合同</button></p></details>
+          </section>
+          <section id="implementations" data-node data-parent="overview" aria-labelledby="implementations-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / 具体实现</p><h2 id="implementations-title" tabindex="-1">Pi 与 Codex：同一思路，不同合同</h2>
+            <p class="cm-answer">两者都让模型写 JavaScript 组合工具，但一家的脚本不是另一家的合同。Pi 原生 <code>codemode</code> 用 QuickJS/WASM，成功后把小状态写入会话；Codex <code>exec</code> 用 V8 isolate，配合 <code>wait</code> 接续未结束的 cell。入口、可用函数、状态保存与长任务交接需要分别读。</p>
+            <div class="cm-table-wrap"><table><thead><tr><th>问题</th><th>Pi</th><th>Codex</th></tr></thead><tbody><tr><th>入口</th><td>codemode</td><td>exec / wait</td></tr><tr><th>引擎</th><td>QuickJS / WASM</td><td>新的 V8 isolate</td></tr><tr><th>发现</th><td>searchTools / describeTool</td><td>ALL_TOOLS；相应目录模式下的搜索</td></tr><tr><th>小状态</th><td>成功后提交到会话分支</td><td>store / load；跨进程恢复未核验</td></tr><tr><th>交回结果</th><td>脚本结束后的输出</td><td>可先 yield，再 wait</td></tr></tbody></table></div>
+            <ul class="cm-child-links"><li><a href="#pi">Pi 原生实现<span>工具派发与会话状态</span></a></li><li><a href="#codex">Codex 实现<span>cell、宿主与嵌套调用</span></a></li></ul>
+          </section>
+          <section id="pi" data-node data-parent="implementations" aria-labelledby="pi-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#implementations">实现</a></p><h2 id="pi-title" tabindex="-1">Pi 原生 Code Mode</h2>
+            <p class="cm-answer">Pi 从会话工具集建立可调用函数，程序在独立 QuickJS VM 中执行。工具请求通过 <code>ctx.executeTool()</code> 回到宿主，结果返回程序；脚本成功时，才把 <code>store()</code> 的修改写入当前会话分支。Luan 的旧扩展已转用原生能力，不能把它与其他同名扩展混作一个实现。</p>
+            <details class="cm-deeper"><summary>沿源码走一次派发</summary><pre><code>// execute.ts：关键语句摘录，中间记录逻辑省略。
+const callable = ctx ? getCodemodeCallableTools(ctx.tools) : [];
+const outcome = await ctx.executeTool(tool.name, args, { signal: callSignal });
+return toScriptValue(tool, outcome);
+// 只有 result.ok 才追加状态 entry。
+result = await sandbox.execute(code, { signal, store });</code></pre><p>会话决定能调用什么，内核执行代码和往返消息。<button class="evidence-ref" type="button" data-evidence="CM-02 CM-03 CM-04 CM-07" data-evidence-trigger>源码与迁移依据</button></p></details>
+          </section>
+          <section id="codex" data-node data-parent="implementations" aria-labelledby="codex-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#implementations">实现</a></p><h2 id="codex-title" tabindex="-1">Codex exec / wait</h2>
+            <p class="cm-answer">Codex 的 <code>exec</code> 接收原始 JavaScript，在新的 V8 isolate 中执行，通过 <code>tools</code> 请求宿主能力。嵌套调用被转换为工具运行时的请求，保留 cell 和调用身份。程序可以先交还输出而继续运行，模型再用 <code>wait</code> 接续，比只等待整段结束多了一层生命周期管理。</p>
+            <details class="cm-deeper"><summary>嵌套调用进入共享工具运行时</summary><pre><code>// mod.rs L405-L415
+let result = tool_runtime.handle_tool_call_with_source(
+    step_context,
+    call,
+    ToolCallSource::CodeMode {
+        cell_id: cell_id.to_string(),
+        runtime_tool_call_id,
+    },
+    cancellation_token,
+    Arc::default(),
+);</code></pre><p>这确认路由入口，不是权限安全的完整证明。当前产品是否启用这条路径，也不能由 main 源码推定。<button class="evidence-ref" type="button" data-evidence="CM-05 CM-06 CM-08" data-evidence-trigger>Codex 合同与派发源码</button></p></details>
+          </section>
+          <section id="boundaries" data-node data-parent="overview" aria-labelledby="boundaries-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / 执行边界</p><h2 id="boundaries-title" tabindex="-1">程序在哪里运行，能做到哪一步</h2>
+            <p class="cm-answer">模型生成的程序需要执行，但不能因此任意读取主机、联网或取得凭据。运行时限制代码能接触什么，宿主决定工具能做什么；状态保存决定下一次怎样接续，生命周期决定何时结束。“用了沙盒”不能替代这四项检查。</p>
+            <ul class="cm-child-links"><li><a href="#sandbox">沙盒与运行时<span>隔离、资源、宿主桥接</span></a></li><li><a href="#permissions">工具权限与检查<span>能力暴露不等于动作授权</span></a></li><li><a href="#state">变量、状态与持久化<span>一次执行与下一次之间</span></a></li><li><a href="#lifetime">等待、结束与取消<span>交还控制不是任务超时</span></a></li></ul>
+          </section>
+          <section id="sandbox" data-node data-parent="boundaries" aria-labelledby="sandbox-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#boundaries">执行边界</a></p><h2 id="sandbox-title" tabindex="-1">沙盒与运行时</h2>
+            <p class="cm-answer">沙盒把生成的代码与宿主隔开，只开放选定的入口。Pi 把 QuickJS 编译为 WASM，在 worker 中启动新 VM，工具请求通过消息桥回到宿主；Codex 合同使用新的 V8 isolate，不提供 Node、文件系统或网络访问。限制直接访问不意味着工具没有这些能力：工具仍可能执行命令或修改远端数据。</p>
+            <details class="cm-deeper"><summary>Pi 的资源与中断机制</summary><p>原生工具给 VM 256 MB 内存；<code>timeout_ms</code> 可设置整段脚本期限，默认不设。宿主持有 deadline 与 abort signal，以共享中断标志配合终止 worker，避免 WASM 无限循环拖住宿主。QuickJS 是解释器，轻量编排和大量计算是不同负载。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-05 CM-09 CM-10" data-evidence-trigger>隔离与资源合同</button></p></details>
+            <details class="cm-deeper"><summary>代码里，工具怎样穿过沙盒</summary><pre><code>// worker.ts L52-L62：新 VM 及其资源、中断配置。
+const vm = await QuickJS.create({
+  wasm: data.wasm,
+  memoryLimit: data.memoryLimitBytes,
+  maxStackSize: MAX_STACK_SIZE,
+  interruptHandler: () => Atomics.load(interrupt, 0) !== 0,
+  wasi: discardOutput,
+});
+// bridge 发出 call 消息，host.ts L276-L280 从注册表取工具。
+const tool = (isTool ? this.tools : this.globals).get(name);
+const value = await tool.execute(args, { signal: pending.controller.signal });</code></pre><p>这是不同文件的关键语句摘录，不是一段可直接运行的脚本。工具函数留在宿主，沙盒获得的是请求通道，而不是宿主的全部环境。<button class="evidence-ref" type="button" data-evidence="CM-11 CM-12" data-evidence-trigger>worker 与 host 实现</button></p></details>
+          </section>
+          <section id="permissions" data-node data-parent="boundaries" aria-labelledby="permissions-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#boundaries">执行边界</a></p><h2 id="permissions-title" tabindex="-1">工具权限与检查</h2>
+            <p class="cm-answer">能调用函数，只表示入口被暴露，不表示可以无条件完成动作。读写权限、用户审批和前后检查要在宿主派发时落实。Pi 内置实现经会话接口派发；自行接入独立内核若直接调用 <code>tool.execute()</code>，会跳过 Agent 的前后 hooks。集成方式因此是权限研究的一部分。</p>
+            <details class="cm-deeper"><summary>读代码时要追到哪一层</summary><p>沿“目录 → 参数校验 → 前置检查 → 审批 → handler → 结果记录”逐项核对。本专题确认派发入口，未审计所有工具的授权链，也没有做沙盒逃逸实验。<button class="evidence-ref" type="button" data-evidence="CM-04 CM-08 CM-09" data-evidence-trigger>入口与接入警告</button></p></details>
+          </section>
+          <section id="state" data-node data-parent="boundaries" aria-labelledby="state-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#boundaries">执行边界</a></p><h2 id="state-title" tabindex="-1">变量、状态与持久化</h2>
+            <p class="cm-answer">一段代码的变量不自动成为下一段的记忆。Pi 和 Codex 都为一次执行建立新环境，以 <code>store/load</code> 保存可序列化小状态。Pi 只有脚本成功才提交修改，并随会话分支恢复；Codex 合同说明同会话接续，本专题未核验跨进程恢复。会话记忆与已修改的文件还必须分开看。</p>
+            <details class="cm-deeper"><summary>状态提交与副作用并不同步</summary><p>假定脚本改了文件、写入 store，然后抛错：Pi 不提交此次 store，但文件仍然改过。上一次成功的 store 可能落后于现实。Code Mode 不是事务，核对文件或远端回执再重试。<button class="evidence-ref" type="button" data-evidence="CM-01 CM-03 CM-05" data-evidence-trigger>状态与失败合同</button></p></details>
+          </section>
+          <section id="lifetime" data-node data-parent="boundaries" aria-labelledby="lifetime-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#boundaries">执行边界</a></p><h2 id="lifetime-title" tabindex="-1">等待、结束与取消</h2>
+            <p class="cm-answer">“这次等待结束”不等于“任务结束”。Codex 的 <code>yield_time_ms</code> 决定多久先交还控制；收到 running cell 后，<code>wait</code> 继续收集输出，<code>terminate: true</code> 才明确停止。Pi 提供整段脚本的可选 deadline。两者都不能靠未等待的 Promise 保证完成，更不能把取消解释成外部动作已撤销。</p>
+            <details class="cm-deeper"><summary>三种结束要分别记录</summary><ul><li>成功：程序返回，不代表任务验收通过。</li><li>失败：保留部分输出，核对已经发生的动作。</li><li>取消或超时：外部服务可能已经完成请求。</li></ul><p><button class="evidence-ref" type="button" data-evidence="CM-01 CM-06 CM-09" data-evidence-trigger>结束与取消依据</button></p></details>
+          </section>
+          <section id="questions" data-node data-parent="overview" aria-labelledby="questions-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / 研究问题</p><h2 id="questions-title" tabindex="-1">我们关注的，不只是能运行</h2>
+            <p class="cm-answer">Code Mode 是否值得使用，取决于任务、模型与宿主。能执行代码只是起点：还要比较是否更省、更准确，失败后能否恢复，工具记录是否可追踪，训练是否适应执行合同。下面是基于机制提出的研究判断和实验方向，不是已经测得的结论。</p>
+            <ul class="cm-child-links"><li><a href="#performance">性能与适用任务<span>省下的成本是否超过新成本</span></a></li><li><a href="#reliability">错误与恢复<span>程序、工具与任务三层失败</span></a></li><li><a href="#harness">Harness 设计<span>目录、派发、轨迹与接续</span></a></li><li><a href="#training">训练与评测<span>从调用参数到完整小程序</span></a></li></ul>
+          </section>
+          <section id="performance" data-node data-parent="questions" aria-labelledby="performance-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#questions">研究问题</a></p><h2 id="performance-title" tabindex="-1">哪些任务真正受益</h2>
+            <p class="cm-answer">机制上，重复查询、大结果筛选与确定规则的聚合是合理候选；只有一个简单动作，或每一步都要看新画面时，收益可能有限。生成代码、发现工具、启动环境和调试也花时间。模型往返更少不自动等于总耗时更低，必须在同一任务里比较。</p>
+            <details class="cm-deeper"><summary>一个可检验的对照</summary><p>固定模型、工具、权限和任务，对比逐个调用、批量调用与 Code Mode；记录成功率、总耗时、token、发现成本与恢复次数。按单动作、重复查询、大结果和副作用任务拆开统计。没有运行这样的对照，不能宣称提速比例。</p></details>
+          </section>
+          <section id="reliability" data-node data-parent="questions" aria-labelledby="reliability-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#questions">研究问题</a></p><h2 id="reliability-title" tabindex="-1">失败后，究竟重做什么</h2>
+            <p class="cm-answer">语法错误、工具拒绝和任务结果错误是三层失败：代码跑通不表示工具成功，工具成功也不表示用户目标达到。“文件已改，下一步报错”时，整段重跑可能重复写入。先确定哪些动作已经发生，再重做缺失部分，而不是把脚本失败当作从未开始。</p>
+            <details class="cm-deeper"><summary>值得做的故障实验</summary><p>在首次写入后注入异常；取消远端请求；让并行查询一项失败；返回带错误或截断的结果。检查副作用、输出、store 和嵌套记录能否拼回同一个现场。<button class="evidence-ref" type="button" data-evidence="CM-03 CM-04 CM-08" data-evidence-trigger>状态与记录依据</button></p></details>
+          </section>
+          <section id="harness" data-node data-parent="questions" aria-labelledby="harness-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#questions">研究问题</a></p><h2 id="harness-title" tabindex="-1">对 Harness 设计意味着什么</h2>
+            <p class="cm-answer">Harness 是连接模型、工具与执行环境的程序。引入 Code Mode 后，既要执行生成的代码，也要管理里面的每次调用。我的设计判断是：不能只保存“脚本成功”，还要追踪工具身份、审批、耗时、错误和副作用。模型可以少看中间数据，宿主却不能失去审计和恢复需要的事实。</p>
+            <details class="cm-deeper"><summary>两层轨迹，而不是一个状态灯</summary><p>外层记录代码、运行身份、输出与终止原因；内层记录每个工具的参数、授权和结果。Pi 记录嵌套调用状态，Codex 保留 cell/runtime-tool-call 身份，但入口不等于完整审计产品。这是基于源码的设计推断。<button class="evidence-ref" type="button" data-evidence="CM-04 CM-08" data-evidence-trigger>记录入口</button></p></details>
+          </section>
+          <section id="training" data-node data-parent="questions" aria-labelledby="training-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#questions">研究问题</a></p><h2 id="training-title" tabindex="-1">对训练与评测意味着什么</h2>
+            <p class="cm-answer">模型需要学的不只是填调用参数，还包括读签名、写控制流、处理返回值和选择输出。该奖励短代码，还是任务成功、证据完整与可恢复？这里列为研究方向：使用 Code Mode 本身不是 Agentic RL，也没有证据说明某个实现已经带来更好的训练效果。</p>
+            <details class="cm-deeper"><summary>可研究，但尚未证明</summary><p>用可重置任务比较不同工具合同下的迁移；让训练与测试使用不同命名、错误形状和状态语义，避免只记住 API。奖励应检验外部结果与权限，而不只看脚本退出成功。本专题没有运行训练或 RL 实验。</p></details>
+          </section>
+          <section id="sources" data-node data-parent="overview" aria-labelledby="sources-title">
+            <p class="cm-location"><a href="#overview">Code Mode</a> / 来源</p><h2 id="sources-title" tabindex="-1">来源与证据边界</h2>
+            <p class="cm-answer">概念、实现事实与研究判断分开呈现。机制依据固定公开源码，相关工作用于说明来路；教学代码不是实际运行记录。没有运行上游测试、模型性能对照、权限攻防或训练实验，因此不宣称提速比例、安全认证或训练收益。</p>
+            <ul class="cm-child-links"><li><a href="https://github.com/badlogic/pi-mono/tree/592fb57b70e34a7f1011f3d7f20b556dce17c321">Pi · 592fb57b<span>2026-10-07 · main，包含 1.0.4 之后的未发布改动</span></a></li><li><a href="https://github.com/openai/codex/tree/b17c74cfd5ebb39fe70ffaff78de198120278636">Codex · b17c74cf<span>2026-10-07 · main，不代表所有安装版本</span></a></li><li><a href="https://github.com/luan/agents/commit/46145bc50e4aa2292fb1a269b458d24d7124c627">Luan 的原生能力迁移<span>2026-09-30 · 第三方佐证，不是 Pi 默认配置</span></a></li><li><a href="/capabilities.html?study=code-mode">结构化证据索引<span>12 项依据与 3 个待验证问题</span></a></li></ul>
+            <p><button class="evidence-ref" type="button" data-evidence="CM-01 CM-05 CM-09 CM-10" data-evidence-trigger>固定文件与行号</button></p>
           </section>
         </article>
-      </div>
-    </main>
+        <nav class="cm-return" aria-label="返回上层"><a id="cmParentLink" href="#overview"><i data-lucide="corner-left-up" aria-hidden="true"></i><span>Code Mode 全貌</span></a></nav>
+      </main>
+    </div>
   </div>
   <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
   <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
@@ -68,6 +225,7 @@
     <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
   </aside>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/code-mode.js"></script>
   <script src="/capability-article.js"></script>
 </body>
 </html>
