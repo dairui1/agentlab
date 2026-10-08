@@ -1,0 +1,88 @@
+/* Keep older studies' domain colors in step with the selected mode, not the OS. */
+:root[data-theme] {
+  --theme-coral: #b64943;
+  --theme-coral-soft: #fae8e6;
+  --theme-teal: #17685e;
+  --theme-teal-soft: #eaf4f1;
+  --theme-gold: #8b671e;
+  --theme-gold-soft: #f7efdc;
+  --theme-pink: #8c2550;
+  --theme-pink-soft: #fce7ec;
+}
+:root[data-color-scheme="dark"] {
+  --theme-coral: #ee8b84;
+  --theme-coral-soft: #472725;
+  --theme-teal: #65c2b5;
+  --theme-teal-soft: #183a35;
+  --theme-gold: #e0b661;
+  --theme-gold-soft: #40351f;
+  --theme-pink: #eea3c5;
+  --theme-pink-soft: #3e2934;
+}
+:root[data-theme] body {
+  --article-signal: var(--accent);
+  --mimo-route: var(--left);
+  --mimo-wash: var(--surface-muted);
+  --token-window: var(--theme-teal);
+  --token-notes: var(--theme-pink);
+  --token-history: var(--theme-gold);
+  --token-ink: var(--text);
+  --run-codex: var(--theme-coral);
+  --run-codex-soft: var(--theme-coral-soft);
+  --run-claude: var(--theme-teal);
+  --run-claude-soft: var(--theme-teal-soft);
+  --run-proof: var(--add);
+  --run-proof-soft: var(--add-soft);
+  --blog-banner: var(--surface-muted);
+  --blog-banner-text: var(--text);
+  --blog-cite: var(--theme-pink);
+  --blog-cite-line: var(--theme-pink);
+  --blog-barrier: var(--theme-pink-soft);
+}
+:root[data-theme] {
+  --grok-coral: var(--theme-coral);
+  --grok-teal: var(--theme-teal);
+  --grok-blue: var(--left);
+  --grok-gold: var(--theme-gold);
+  --claude: var(--theme-coral);
+  --claude-soft: var(--theme-coral-soft);
+  --codex: var(--theme-teal);
+  --codex-soft: var(--theme-teal-soft);
+  --opencode: var(--theme-gold);
+  --opencode-soft: var(--theme-gold-soft);
+  --contract-critical: var(--delete);
+  --contract-high: var(--pending);
+  --contract-medium: var(--text-soft);
+}
+:root[data-theme] .goal-mode-lab {
+  --goal-codex: var(--theme-coral);
+  --goal-codex-soft: var(--theme-coral-soft);
+  --goal-claude: var(--theme-teal);
+  --goal-claude-soft: var(--theme-teal-soft);
+}
+:root[data-theme] .cua-trace-lab {
+  --trace-pass: var(--add);
+  --trace-blocked: var(--delete);
+  --trace-unknown: var(--pending);
+  --trace-next: var(--left);
+}
+:root[data-theme] .grok-layer:hover,
+:root[data-theme] .grok-x-card:hover,
+:root[data-theme] .grok-evidence-item:hover,
+:root[data-theme] .grok-mechanism-button[aria-selected="true"],
+:root[data-theme] .grok-architecture-node,
+:root[data-theme] .grok-architecture-node:not(:last-child)::after,
+:root[data-theme] .grok-flow li,
+:root[data-theme] .grok-flow li:not(:last-child)::after { background: var(--surface); }
+:root[data-theme] .grok-unknown { background: var(--pending-soft); }
+:root[data-theme] .dsh-plugin-capability p,
+:root[data-theme] .dsh-official-group li,
+:root[data-theme] .dsh-analysis-highlights li,
+:root[data-theme] .dsh-boundary span { color: var(--text-soft); }
+:root[data-theme] .cua-desktop { background: var(--surface-muted); }
+:root[data-theme] .cua-screen-badge { border-color: var(--border-strong); }
+:root[data-theme] .aar-cover-art { background: var(--accent-soft); }
+:root[data-theme] .aar-note { border-color: var(--border-strong); }
+:root[data-theme] .aar-nav .mode-switch a,
+:root[data-theme] .aar-nav .mode-switch button { color: var(--text); }
+:root[data-theme] .aar-nav .mode-switch [aria-current] { background: var(--accent-soft); color: var(--text); }

@@ -98,7 +98,8 @@ test("research node links fall back safely and keep explicit branches above evid
   assert.deepEqual(adjacentNodes("sandbox", ids), { previous: "pi", next: null });
   const css = read("code-mode.css");
   assert.doesNotMatch(css, /font-size:[^;]*(?:vw|cqw)|letter-spacing:\s*-/);
-  assert.match(css, /prefers-color-scheme: dark/);
+  assert.match(css, /--cm-accent:\s*var\(--accent\)/);
+  assert.doesNotMatch(css, /prefers-color-scheme/);
   assert.match(css, /max-width:\s*680px/);
 });
 

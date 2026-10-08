@@ -7,9 +7,12 @@
   <meta name="description" content="从一个例子认识 Code Mode，沿研究树深入工具组合、Pi 与 Codex 实现、沙盒、权限、状态和研究问题。">
   <title>Code Mode · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <script src="/site-theme.js"></script>
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/capability-article.css?v=3">
-  <link rel="stylesheet" href="/code-mode.css">
+  <link rel="stylesheet" href="/code-mode.css?v=3">
+  <link rel="stylesheet" href="/site-theme.css">
+  <link rel="stylesheet" href="/site-theme-compat.css">
   <script src="/site-navigation.js"></script>
 </head>
 <body class="article-page cm-page" data-evidence-source="/capabilities/code-mode.json">
@@ -20,7 +23,7 @@
     </div></header>
     <div class="cm-workspace">
       <aside class="cm-tree" id="cmTree">
-        <div class="cm-tree-heading"><i data-lucide="git-branch" aria-hidden="true"></i><a href="#overview">Code Mode</a></div>
+        <div class="cm-tree-heading"><a href="#overview">Code Mode</a></div>
         <nav id="cmTreeNav" aria-label="Code Mode 研究树">
           <a class="cm-root-link" href="#overview">全貌</a>
           <ol class="cm-branches">
@@ -38,7 +41,9 @@
           <section id="overview" data-node data-parent="" aria-labelledby="overview-title">
             <div class="cm-location"><a href="/capabilities.html">专题研究</a><span>/</span><span>Code Mode</span></div>
             <h1 id="overview-title" tabindex="-1">Code Mode</h1>
-            <p class="cm-answer">Code Mode 是让 AI <strong>写一小段程序来调用工具</strong>，而不是每一步都单独发出工具请求。比如“查三个仓库，找出版本不同的那个”，AI 可以把查询、比较和筛选写进同一段代码，由运行环境执行，最后只读到差异。工具依然在干活，只是中间那些规则已经明确的步骤，不再需要 AI 一次次接手。</p>
+            <p class="cm-byline"><time datetime="2026-10-07">2026-10-07</time><span>Pi / Codex 源码研究</span><a href="#sources">来源与验证范围</a></p>
+            <p class="cm-answer cm-lead">Code Mode 让模型<strong>写一小段程序来调用工具</strong>。查询、比较、筛选可以在程序里接着做，不必每走一步，就把结果交回模型。</p>
+            <p class="cm-answer">比如“查三个仓库，找出版本不同的那个”：工具仍然查了三个仓库，程序把版本放在一起比较，最后只输出差异。模型少经手的是中间数据，不是少做了查询。</p>
             <div class="cm-example">
               <div class="cm-example-head"><h2>同一个任务，两种做法</h2><span>示例推演 · 三个仓库版本比较</span></div>
               <div class="cm-example-tabs" role="tablist" aria-label="调用方式"><button id="directTab" role="tab" aria-selected="true" aria-controls="directExample" type="button">逐个调用</button><button id="programTab" role="tab" aria-selected="false" aria-controls="programExample" tabindex="-1" type="button">Code Mode</button></div>
@@ -51,15 +56,15 @@
                 <p>工具还是查了三次，但中间数据可以留在程序里。少的是不必要的模型往返，不是查仓库这件事。</p>
               </div>
             </div>
-            <h2>这件事的全貌</h2>
+            <h2>继续读</h2>
             <div class="cm-map">
-              <a href="#basics"><span>01</span><div><strong>从一个任务理解</strong><p>既然已经能调用工具，为什么还要写代码？</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-              <a href="#execution"><span>02</span><div><strong>程序如何接手</strong><p>沿着一次查询，看模型、程序和工具怎样配合。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-              <a href="#implementations"><span>03</span><div><strong>Pi、Codex 怎么做</strong><p>同样是 JavaScript，接进 Agent 的方式并不相同。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-              <a href="#boundaries"><span>04</span><div><strong>交出去以后谁负责</strong><p>程序碰得到什么，出了错又留下了什么？</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-              <a href="#questions"><span>05</span><div><strong>怎样判断值得用</strong><p>从读懂实现，走到任务比较、恢复和训练。</p></div><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+              <a href="#basics"><strong>从一个任务理解</strong><span>代码省下了什么</span></a>
+              <a href="#execution"><strong>程序如何接手</strong><span>发现、调用与输出</span></a>
+              <a href="#implementations"><strong>Pi 与 Codex</strong><span>两种接入方式</span></a>
+              <a href="#boundaries"><strong>执行边界</strong><span>权限、状态与取消</span></a>
+              <a href="#questions"><strong>值得验证的问题</strong><span>性能、恢复与训练</span></a>
             </div>
-            <p class="cm-note">概念说明与教学示例是研究整理；实现依据固定在 2026-10-07 的公开源码。<a href="#sources">来源与验证范围</a></p>
+            <p class="cm-note">实现依据固定在 2026-10-07 的公开源码。文中的场景是教学推演，不是实测结果。</p>
           </section>
           <section id="basics" data-node data-parent="overview" aria-labelledby="basics-title">
             <p class="cm-location"><a href="#overview">Code Mode</a> / 从一个任务理解</p><h2 id="basics-title" tabindex="-1">查三个仓库，需要 AI 想几次？</h2>
@@ -149,7 +154,7 @@ return toScriptValue(tool, outcome);</code></pre>
           </section>
           <section id="codex" data-node data-parent="implementations" aria-labelledby="codex-title">
             <p class="cm-location"><a href="#overview">Code Mode</a> / <a href="#implementations">Pi、Codex 怎么做</a></p><h2 id="codex-title" tabindex="-1">Codex：exec 与 wait</h2>
-            <p class="cm-answer">Codex 把一次 <code>exec</code> 当作一段可以持续运行的程序：代码在新的 V8 isolate 中执行，工具请求交给宿主。假如它还在等图像生成，exec 可以先交还控制权，给模型一个 cell ID；下一次用 <code>wait</code> 接着等的，仍然是原来的程序。理解这一点，就不会把“返回了”误当成“结束了”，更不会重复提交任务。</p>
+            <p class="cm-answer">Codex 把一次 <code>exec</code> 当作一段可以持续运行的程序：代码在新的 V8 isolate 中执行，工具请求交给宿主。假如它还在等图像生成，exec 可以先交还控制权，给模型一个 cell ID；下一次用 <code>wait</code> 接着等的，仍然是原来的程序。返回不等于结束；此时应继续等待，而不是重新提交任务。</p>
             <div data-diagram="codex"></div>
             <p class="cm-note">这描述的是本文固定的 Codex main 源码；具体产品是否启用此入口，要以那次会话暴露的工具为准。</p>
             <p class="cm-sources"><button class="evidence-ref" type="button" data-evidence="CM-05 CM-06 CM-08" data-evidence-trigger>exec / wait 约定与内部调用派发</button></p>
@@ -225,7 +230,7 @@ return toScriptValue(tool, outcome);</code></pre>
     <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
   </aside>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="/code-mode.js"></script>
+  <script src="/code-mode.js?v=3"></script>
   <script src="/capability-article.js"></script>
 </body>
 </html>

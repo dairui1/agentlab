@@ -23,10 +23,10 @@
       lanes: ["模型", "运行单元 cell", "宿主工具"],
       edges: [["forward", "forward"], ["back", "none"], ["forward", "back"], ["back", "none"]],
       steps: [
-        { label: "exec", values: ["提交代码", "开始执行", "处理请求"], active: [0, 1, 2], text: "模型提交一段含 await 的程序，Codex 启动新的 V8 执行环境。工具还没做完时，程序会在 await 处等待。" },
-        { label: "先返回", values: ["收到 cell ID", "继续等待", "仍在执行"], active: [1, 2], text: "等到 yield_time_ms，宿主可以先把已有输出和 running cell ID 交给模型。这里只结束了本轮等待，程序和工具并没有因此被取消。" },
-        { label: "wait", values: ["凭 ID 等待", "仍是同一段程序", "返回工具结果"], active: [0, 1, 2], text: "模型用 wait 接着收结果，而不是重新提交一次 exec。再次等到时间但还没完成时，返回的仍是这个 cell ID。" },
-        { label: "完成", values: ["收到最终输出", "执行结束", "请求已返回"], active: [0], text: "程序完成，最后一批输出交回模型，cell 关闭。脚本里没有 await 的后台 Promise 不能靠这一机制续命；执行环境结束时，它们会被丢弃。" }
+        { label: "exec", values: ["提交代码", "开始执行", "处理请求"], active: [0, 1, 2], transition: "提交代码，发起工具请求", text: "模型提交一段含 await 的程序，Codex 启动新的 V8 执行环境。工具还没做完时，程序会在 await 处等待。" },
+        { label: "先返回", values: ["收到 cell ID", "继续等待", "仍在执行"], active: [1, 2], transition: "交回已有输出与 cell ID；工具请求继续", text: "等到 yield_time_ms，宿主可以先把已有输出和 running cell ID 交给模型。这里只结束了本轮等待，程序和工具并没有因此被取消。" },
+        { label: "wait", values: ["凭 ID 等待", "仍是同一段程序", "返回工具结果"], active: [0, 1, 2], transition: "凭 ID 继续等待，不再提交代码", text: "模型用 wait 接着收结果，而不是重新提交一次 exec。再次等到时间但还没完成时，返回的仍是这个 cell ID。" },
+        { label: "完成", values: ["收到最终输出", "执行结束", "请求已返回"], active: [0], transition: "交回最终输出，关闭 cell", text: "程序完成，最后一批输出交回模型，cell 关闭。脚本里没有 await 的后台 Promise 不能靠这一机制续命；执行环境结束时，它们会被丢弃。" }
       ]
     },
     sandbox: {
@@ -100,7 +100,7 @@
     toggle.setAttribute("aria-expanded", "false");
     const mobileTitle = el("div");
     const mobileCurrent = el("span");
-    mobileTitle.append(el("strong", "", "Code Mode"), mobileCurrent);
+    mobileTitle.append(el("strong", "", "目录"), mobileCurrent);
     mobileBar.append(toggle, mobileTitle);
     doc.querySelector(".cm-workspace").before(mobileBar);
     const closeTree = iconButton("x", "关闭目录");
@@ -172,9 +172,10 @@
       return link;
     }
     const previous = readingLink("cmPrevLink", "prev", "上一节", "arrow-left");
-    const next = readingLink("cmNextLink", "next", "接着讲", "arrow-right");
+    const next = readingLink("cmNextLink", "next", "下一节", "arrow-right");
     parentLink.parentElement.before(readingNav);
     doc.querySelectorAll(".cm-child-links a").forEach((link) => link.append(icon(link.host === root.location.host ? "arrow-right" : "arrow-up-right")));
+    doc.querySelectorAll(".cm-sources .evidence-ref").forEach((link) => link.prepend(icon("file-text")));
 
     // Each example is a local illustration; no source code or tool is executed here.
     Object.entries(diagrams).forEach(([name, data]) => {
@@ -208,7 +209,9 @@
           lane.append(el("span", "", label), el("strong", "", step.values[laneIndex]));
           lanes.append(lane);
         });
-        panel.append(lanes, el("p", "", step.text));
+        panel.append(lanes);
+        if (step.transition) panel.append(el("p", "cm-diagram-transfer", step.transition));
+        panel.append(el("p", "", step.text));
         figure.append(panel);
       });
       const footer = el("div", "cm-diagram-counter");
@@ -317,6 +320,11 @@
       resize = root.requestAnimationFrame(() => tabGroups.forEach((group) => group.measure()));
     });
     doc.fonts?.ready.then(() => tabGroups.forEach((group) => group.measure()));
+    doc.fonts?.addEventListener("loadingdone", () => tabGroups.forEach((group) => group.measure()));
+    root.addEventListener("agentlab:themechange", () => {
+      root.requestAnimationFrame(() => tabGroups.forEach((group) => group.measure()));
+      doc.fonts?.ready.then(() => tabGroups.forEach((group) => group.measure()));
+    });
     root.lucide?.createIcons?.();
   }
   return { resolveNode, adjacentNodes, diagrams, mount };

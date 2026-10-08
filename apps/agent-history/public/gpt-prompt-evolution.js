@@ -55,6 +55,7 @@
     const wrapControl = document.getElementById("promptWrap");
     const unchangedControl = document.getElementById("promptUnchanged");
     const dark = root.matchMedia("(prefers-color-scheme: dark)");
+    const editorTheme = () => (root.AgentLabTheme?.getColorScheme() || (dark.matches ? "dark" : "light")) === "dark" ? "vs-dark" : "vs";
     const url = new URL(root.location.href);
     pairControl.value = Object.hasOwn(pairs, url.searchParams.get("pair")) ? url.searchParams.get("pair") : defaultPair;
     let wrap = url.searchParams.get("wrap") !== "0";
@@ -135,7 +136,7 @@
       try {
         const monaco = await loadMonaco();
         if (record.epoch !== epoch || !record.host.isConnected) return;
-        monaco.editor.setTheme(dark.matches ? "vs-dark" : "vs");
+        monaco.editor.setTheme(editorTheme());
         record.host.replaceChildren();
         const editor = monaco.editor.createDiffEditor(record.host, {
           automaticLayout: true, readOnly: true, originalEditable: false,
@@ -317,7 +318,9 @@
       persist();
       records.forEach((record) => record.editor?.updateOptions(options()));
     });
-    dark.addEventListener("change", () => root.monaco?.editor.setTheme(dark.matches ? "vs-dark" : "vs"));
+    const updateEditorTheme = () => root.monaco?.editor?.setTheme(editorTheme());
+    dark.addEventListener("change", updateEditorTheme);
+    root.addEventListener("agentlab:themechange", updateEditorTheme);
     root.addEventListener("scroll", updateActiveSection, { passive: true });
     persist();
     load();

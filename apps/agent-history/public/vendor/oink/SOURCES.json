@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/pgsty/oink",
+  "tag": "v1.2.0",
+  "commit": "f8f476e660cf053a2645b7b923ae8d08d5448fce",
+  "fonts": [
+    {
+      "file": "fonts/inter-latin-wght-normal.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "file": "fonts/ibm-plex-sans-latin-wght-normal.woff2",
+      "sha256": "e2291e842cf5af167122a22881a740c7f2dda7716f1e8cd76680264f4a859470"
+    },
+    {
+      "file": "fonts/ibm-plex-mono-latin-400-normal.woff2",
+      "sha256": "08949f728dc52d528e69b1667d15c89a5686a4ee9a296ff90983985f99c380f7"
+    },
+    {
+      "file": "fonts/ibm-plex-mono-latin-600-normal.woff2",
+      "sha256": "0d1f0b8d0722224e32e9f28261bdc86c79115be73444ae5eceb73976a1bcdf83"
+    }
+  ]
+}

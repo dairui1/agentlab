@@ -31,7 +31,8 @@ apps/agent-history/node_modules/
 apps/agent-history/dist/
 apps/agent-history/.wrangler/
 apps/agent-history/public/data/
-apps/agent-history/public/vendor/
+apps/agent-history/public/vendor/*
+!apps/agent-history/public/vendor/oink/
 apps/agent-history/analysis/evidence/
 apps/agent-history/analysis/changelogs/**/*.json
 apps/agent-history/*.log

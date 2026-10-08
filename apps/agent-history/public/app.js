@@ -1629,7 +1629,7 @@
 
   function ensureEditor(monaco) {
     if (state.editor) return state.editor;
-    monaco.editor.setTheme(state.darkScheme.matches ? "vs-dark" : "vs");
+    monaco.editor.setTheme(editorTheme());
     state.editor = monaco.editor.createDiffEditor(elements.diffEditor, {
       automaticLayout: true,
       readOnly: true,
@@ -2095,9 +2095,14 @@
     elements.releaseDetailsToggle.setAttribute("aria-expanded", String(state.releaseDetailsOpen));
   });
 
-  state.darkScheme.addEventListener?.("change", () => {
-    if (window.monaco?.editor) window.monaco.editor.setTheme(state.darkScheme.matches ? "vs-dark" : "vs");
-  });
+  function editorTheme() {
+    const scheme = window.AgentLabTheme?.getColorScheme() || (state.darkScheme.matches ? "dark" : "light");
+    return scheme === "dark" ? "vs-dark" : "vs";
+  }
+
+  const updateEditorTheme = () => window.monaco?.editor?.setTheme(editorTheme());
+  state.darkScheme.addEventListener?.("change", updateEditorTheme);
+  window.addEventListener("agentlab:themechange", updateEditorTheme);
 
   function handleFatalError(error) {
     const message = error instanceof Error ? error.message : "页面初始化失败";
