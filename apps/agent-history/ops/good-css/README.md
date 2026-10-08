@@ -75,3 +75,25 @@ coverage is Chromium, not physical Android/iOS or a full Safari/Firefox matrix.
 - The full-page Ink light/dark matrix passed 112/112 cases, 12,896 text samples,
   and 722 image decodes with no runtime, resource, contrast, or geometry errors.
   Native Monaco editor palette switching was outside this layout-only matrix.
+
+## Production
+
+Published runtime commit: `11fcd1aaaaf7fca91a8d6a340d5dece0daf1f9b1`.
+Cloudflare version: `82e2c981-614a-4899-a743-63ebc11373c9`.
+
+Both production domains passed 97/97 exact-byte comparisons, including all
+entry HTML, root styles/scripts, manifest, local icons, fonts, and source media.
+Receipt: `/private/tmp/agentlab-good-css-live-bytes.json`.
+
+The accepted production browser run passed eight Ink/Terminal light/dark menu
+cases at 320px portrait and 844px landscape, plus desktop/mobile reading
+gestures, evidence geometry, no-JS reading, and anchor-free positioning.
+Receipt: `/private/tmp/agentlab-good-css-production-accepted/results.json`.
+Native in-app browser opening and Escape dismissal were also verified.
+
+An earlier production attempt failed the expected native-popover-state assertion.
+A normal-URL script read and a focused same-size browser probe then confirmed
+the current script and open native popover; the unchanged suite passed on retry.
+The earlier receipt remains in `/private/tmp/agentlab-good-css-production/`.
+The cause of that first observation was not established; do not infer a cache
+diagnosis or report zero failures across all attempts.
