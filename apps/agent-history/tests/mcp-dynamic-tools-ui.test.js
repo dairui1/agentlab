@@ -143,7 +143,7 @@ test("model invocation and host direct invocation retain different authority", (
   const modelPath = operation("OP10").cells.codex;
   const directPath = operation("OP11").cells.codex;
   assert.ok(modelPath.claims.includes("MCP-CX-20"));
-  assert.match(modelPath.contract, /等待current server.*approval/);
+  assert.match(modelPath.contract, /等待当前服务就绪.*重新准备.*审批/);
   assert.deepEqual(directPath.claims, ["MCP-CX-21"]);
   assert.match(directPath.contract, /App-server direct path.*不进入 model-path approval/);
   assert.match(directPath.edge, /Host API authority.*单独记录和验证/);
@@ -167,7 +167,7 @@ test("catalog refresh, identity, reconnection, and error boundaries stay product
   assert.match(operation("OP15").cells.opencode.contract, /普通close.*failed.*404仅特殊重试一次/);
   assert.match(operation("OP15").cells.opencode.edge, /不能宣传成generic auto-reconnect/);
   assert.match(JSON.stringify(workbench.sharpEdges), /tool error ≠ transport failure/);
-  assert.match(operation("OP10").cells["claude-code"].edge, /Tool error不能标 connection failed/);
+  assert.match(operation("OP10").cells["claude-code"].edge, /工具报错不代表连接失败/);
 });
 
 test("operation fields, flow states, and hazard priorities are authored contracts rather than templates", () => {

@@ -68,6 +68,17 @@ test("all forty-eight operation cells expose native join and terminal contracts"
   }
 });
 
+test("operation explanations do not concatenate a terminal template or repeat their warning", () => {
+  for (const item of workbench.operations) {
+    for (const [agent, cell] of Object.entries(item.cells)) {
+      assert.doesNotMatch(cell.contract, /作为该 surface 的收口条件/, `${item.id}/${agent} retained the concatenation template`);
+      assert.ok(!cell.contract.includes(cell.edge), `${item.id}/${agent} repeats its full warning`);
+      assert.match(cell.contract, /[\u4e00-\u9fff]/, `${item.id}/${agent} lacks an explanation`);
+    }
+  }
+  assert.match(operation("settle-outcome").question, /调用结束.*结果字段/);
+});
+
 test("all 51 facts and 17 known unknowns are unique, pinned, sourced, and reachable", () => {
   assert.equal(evidence.claims.length, 51);
   assert.equal(claims.size, 51, "duplicate fact IDs");
@@ -100,7 +111,7 @@ test("snapshot versions exist in AgentLab local release history", { skip: !hasGe
 });
 
 test("catalog, identity, and validation stay native instead of falsely normalized", () => {
-  assert.match(operation("snapshot-catalog").cells["claude-code"].edge, /28 blocks 当全集|初始 tool list/);
+  assert.match(operation("snapshot-catalog").cells["claude-code"].edge, /28 个 blocks 不是全部能力.*初始工具列表/);
   assert.match(operation("snapshot-catalog").cells.codex.contract, /direct\/deferred\/code-mode/);
   assert.match(operation("snapshot-catalog").cells.opencode.edge, /ToolPart 本身不留 origin\/schema version/);
   assert.match(operation("correlate-call").cells["claude-code"].primitive, /tool_use_id/);
@@ -112,18 +123,19 @@ test("catalog, identity, and validation stay native instead of falsely normalize
 });
 
 test("shell outcome keeps all three timeout and stream semantics distinct", () => {
-  assert.match(operation("execute-shell").cells["claude-code"].edge, /stdout.*combined.*stderr.*harness notices/);
-  assert.match(operation("execute-shell").cells.codex.edge, /status \+ exitCode \+ aggregatedOutput/);
-  assert.match(operation("execute-shell").cells.opencode.edge, /metadata\.exit.*nonzero 不转 ToolPart error/);
+  assert.match(operation("execute-shell").cells["claude-code"].contract, /stdout 合并.*stdout\/stderr.*stderr.*Harness 提示/);
+  assert.match(operation("execute-shell").cells.codex.contract, /status.*exitCode.*aggregatedOutput/);
+  assert.match(operation("execute-shell").cells.opencode.edge, /metadata\.exit.*nonzero.*不会自动转成 ToolPart error/);
   const deadlineFlow = workbench.flows.find((item) => item.id === "claude-timeout");
   assert.match(JSON.stringify(deadlineFlow), /background_running.*do not retry/);
   assert.match(hazard("execution timeout全部映射为failed").signal, /Claude background_running.*Codex exit 124.*OpenCode completed/);
 });
 
 test("native terminal and semantic outcome remain separate", () => {
-  assert.match(operation("settle-outcome").cells["claude-code"].edge, /query另判|call/);
-  assert.match(operation("settle-outcome").cells.codex.edge, /item\/completed authoritative.*generic function wire无 success.*isError/);
-  assert.match(operation("settle-outcome").cells.opencode.edge, /semantic success.*exit\/timeout\/diagnostics\/provider metadata decoder/);
+  assert.match(operation("settle-outcome").cells["claude-code"].contract, /content\/is_error.*query.*另判/);
+  assert.match(operation("settle-outcome").cells.codex.contract, /item\/completed.*isError != true/);
+  assert.match(operation("settle-outcome").cells.codex.edge, /generic function.*没有通用 success.*不是.*业务成功证明/);
+  assert.match(operation("settle-outcome").cells.opencode.edge, /completed.*终态.*exit\/timeout\/diagnostics\/provider metadata decoder/);
   assert.match(hazard("terminal envelope或generic success当业务成功").recovery, /native terminal.*tool-specific semantic decoder/);
   assert.match(hazard("ACK、approval resolution或delta-end当terminal").recovery, /item\/completed/);
 });
@@ -140,24 +152,27 @@ test("failure inventory contains distinct invariants, triggers, signals, and fal
 });
 
 test("effects, cancellation, and retries never imply rollback or exactly-once", () => {
-  assert.match(operation("preserve-projections").cells["claude-code"].edge, /post rewrite不回滚side effect/);
+  assert.match(operation("preserve-projections").cells["claude-code"].edge, /post-hook 改写不回滚副作用/);
   assert.match(operation("apply-file-change").cells.codex.edge, /failed\/denied.*committed prefix/);
   assert.match(operation("preserve-projections").cells.opencode.edge, /after-hook error.*副作用/);
-  assert.match(operation("cancel-and-teardown").cells.codex.edge, /每item terminal.*background另行terminate.*acknowledgement 不证明 kill/);
-  assert.match(operation("cancel-and-teardown").cells.opencode.edge, /completed与interrupted error都可能有output\/effects.*acknowledgement 不证明 kill/);
+  assert.match(operation("cancel-and-teardown").cells.codex.edge, /每个 item.*后台.*另行 terminate.*不能证明 kill/);
+  assert.match(operation("cancel-and-teardown").cells.opencode.edge, /completed 与 interrupted error 都可能有 output\/effects.*不说明进程已被杀死/);
   assert.match(JSON.stringify(workbench.flows.find((item) => item.id === "opencode-abort-retry")), /250ms cleanup/);
-  assert.match(operation("retry-safely").cells.codex.contract, /sandbox denial.*最多second attempt.*first-attempt delta\/effects/);
-  assert.match(operation("retry-safely").cells.opencode.edge, /provider status\/effect receipts.*不是幂等键/);
+  assert.match(operation("retry-safely").cells.codex.contract, /sandbox denial.*最多.*第二次.*第一次.*副作用/);
+  assert.match(operation("retry-safely").cells.codex.edge, /call_id 不是幂等键.*first-attempt delta\/effects/);
+  assert.match(operation("retry-safely").cells.opencode.edge, /provider status.*effect receipts.*不是幂等键/);
   assert.match(hazard("retry当exactly-once或天然幂等").recovery, /attempt.*effect receipt/);
 });
 
 test("delegated work, transport drain, and reconnect use independent gates", () => {
-  assert.match(operation("track-delegated-work").cells["claude-code"].edge, /partial prose不算完成/);
-  assert.match(operation("track-delegated-work").cells.codex.edge, /wait timed_out不证明child完成/);
+  assert.match(operation("track-delegated-work").cells["claude-code"].edge, /partial prose 不算完成/);
+  assert.match(operation("track-delegated-work").cells.codex.edge, /wait timed_out 都不证明 child 完成/);
   assert.match(operation("track-delegated-work").cells.opencode.edge, /child job\/session terminal/);
-  assert.match(operation("reconcile-terminal").cells["claude-code"].edge, /Result记录query.*EOF记录transport.*task notification记录background/);
-  assert.match(operation("reconcile-terminal").cells.codex.edge, /item truth不由turn fallback、ACK或delta替代.*background terminal另算/);
-  assert.match(operation("reconcile-terminal").cells.opencode.edge, /SSE无Last-Event-ID replay.*GET reconcile/);
+  assert.match(operation("reconcile-terminal").cells["claude-code"].edge, /Result 记录 query.*EOF 记录 transport.*task notification 记录 background/);
+  assert.match(operation("reconcile-terminal").cells.codex.edge, /不能由 turn fallback、ACK 或 delta 代替/);
+  assert.match(operation("reconcile-terminal").cells.codex.contract, /后台工作另算/);
+  assert.match(operation("reconcile-terminal").cells.opencode.contract, /断线后重新 GET.*ToolPart/);
+  assert.match(operation("reconcile-terminal").cells.opencode.edge, /SSE 没有 Last-Event-ID replay/);
   assert.match(hazard("收到Result\/turn state就停止transport drain").recovery, /drain|GET reconcile/);
 });
 

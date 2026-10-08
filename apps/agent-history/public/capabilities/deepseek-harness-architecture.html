@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="拆解 DeepSeek Harness 的 Cordis 插件树、Profile 组合、Agent Loop、事件溯源 Session、能力接缝与外部协议。">
+  <meta name="description" content="从替换执行环境理解 DeepSeek Harness：插件怎样装配，一条请求怎样执行，历史怎样保存，以及为什么可替换不等于任意组合都安全。">
   <title>DeepSeek Harness 架构 · 专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <script src="/site-theme.js"></script>
@@ -37,7 +37,7 @@
             </nav>
             <span class="article-series">固定源码架构研究</span>
             <h1>DeepSeek Harness 架构</h1>
-            <p class="article-dek">一棵 Cordis 插件树怎样把配置、模型、工具、状态、Agent Loop 和执行环境拆开，又怎样靠事件日志把它们重新接成可回放的运行链。</p>
+            <p class="article-dek">把文件和命令搬进远端环境，为什么不必重写 Agent 的循环？从这个改动看 DeepSeek Harness 怎样组合插件、运行任务和保存历史。</p>
             <div class="article-byline">
               <span>提交 47f943859bef</span>
               <span>2026-08-13 核验</span>
@@ -48,26 +48,17 @@
         </div>
       </header>
 
-      <section class="article-scope-band" aria-label="文章核验范围">
-        <div class="article-scope-grid">
-          <div><span>产品</span><strong>DeepSeek Harness</strong><small>developer preview</small></div>
-          <div><span>源码</span><strong>47f943859bef</strong><small>固定公开提交</small></div>
-          <div><span>包版本</span><strong>0.1.0-rc.5</strong><small>源码 manifest</small></div>
-          <div><span>证据</span><strong>14 条固定文件记录</strong><small>无生产运行 trace</small></div>
-        </div>
-      </section>
-
       <div class="capability-reading">
         <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
           <span>组合、运行与扩展路径</span>
           <ol>
-            <li><a href="#overall-model" data-index="01">整体模型：运行中的 dsh 是一棵插件树</a></li>
-            <li><a href="#boot-composition" data-index="02">启动组合：Profile、Bundle 与 Patch</a></li>
-            <li><a href="#core-spine" data-index="03">核心脊柱：六个 Service 各管什么</a></li>
+            <li><a href="#overall-model" data-index="01">整体模型：换执行环境，不先改循环</a></li>
+            <li><a href="#boot-composition" data-index="02">启动组合：这次到底加载哪些插件</a></li>
+            <li><a href="#core-spine" data-index="03">核心脊柱：一条请求怎样分给六个服务</a></li>
             <li><a href="#turn-execution" data-index="04">回合执行：输入怎样穿过 Turn 与 Step</a></li>
             <li><a href="#session-log" data-index="05">持久状态：SessionEvent 为什么是事实源</a></li>
             <li><a href="#event-domains" data-index="06">扩展协议：三类 Event 与 Waterfall</a></li>
-            <li><a href="#capability-seams" data-index="07">能力接缝：Definition、Provider、Consumer</a></li>
+            <li><a href="#capability-seams" data-index="07">能力替换：接口不变，实现可以换</a></li>
             <li><a href="#agent-scope" data-index="08">Agent 作用域：Preset、Scope 与 Isolate</a></li>
             <li><a href="#execution-world" data-index="09">执行世界：换 Provider 会移动什么</a></li>
             <li><a href="#external-surfaces" data-index="10">外部接口：Headless、SDK 与 ACP</a></li>
@@ -78,12 +69,16 @@
         </aside>
 
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">DeepSeek Harness 最关键的设计不是“工具很多”，而是没有哪一块因为重要就获得不可替换的特权。模型适配器、工具注册表、Session log，连默认 Agent Loop 都是 Cordis 插件。真正把系统连起来的，是共享 Context 上的 service、typed event 和可撤销注册。</p>
+          <div class="article-opening">
+            <p class="article-lead">要让 Agent 从本机改到远端环境工作，只把“读文件”换掉是不够的。如果文件从远端读，Bash 却还在本机执行，模型看到的目录和命令改动的目录就不是同一个。</p>
+            <p>DeepSeek Harness 为这类改动留出了替换位置：文件、进程、模型、工具和任务循环各自有接口，由插件提供实现。本文先解释插件如何组成一次运行，再看请求和历史怎样穿过它们。远端环境是帮助理解架构的例子，不是本次已执行的部署。</p>
 
+          </div>
           <section id="overall-model" data-article-section>
             <span class="section-number">01 / 整体模型</span>
-            <h2>整体模型：运行中的 dsh 是一棵插件树</h2>
-            <p>从静态架构看，<code>dsh</code> 不是一个大循环外加若干 helper，而是一棵在启动时组装的 Cordis 插件树。插件向 <code>ctx</code> 提供 service，监听 typed event，并用 effect 描述注册的生命周期。插件卸载时，effect 反向撤销。这让“换模型”“换文件系统”“换工具 Consumer”和“换 loop”落在同一种组合机制里。<button class="evidence-ref" type="button" data-evidence="DSH-01" data-evidence-trigger>DSH-01</button></p>
+            <h2>整体模型：换执行环境，不先改循环</h2>
+            <p>这里没有一个必须承包所有功能的大循环。模型适配器、工具注册表、会话日志，连默认 Agent Loop 都由插件提供。上层依赖约定的接口，而不是直接绑住某个实现；所以换文件系统时，不必先去重写循环。<button class="evidence-ref" type="button" data-evidence="DSH-01" data-evidence-trigger>插件化的职责</button></p>
+            <p>负责装配这些插件的是 Cordis。插件把服务注册到共享上下文 <code>ctx</code>，也可以监听带明确数据类型的事件。注册时留下清理函数，卸载时反向撤销；源码把这套生命周期登记叫作 <code>effect</code>。这样，装进去的能力也有明确的撤出方式。</p>
             <figure class="article-figure">
               <div class="article-flow" style="--flow-count: 5">
                 <div><span>01</span><strong>配置层</strong><small>profile / bundle / patch</small></div>
@@ -94,13 +89,14 @@
               </div>
               <figcaption>这里的“可替换”是配置和接口层的能力，不是“随便拼都能正确运行”。插件之间仍有依赖、作用域与生命周期约束。</figcaption>
             </figure>
-            <p>这种结构带来一个很实际的判断方法：研究某项能力时，先找它注册了哪个 service 或 event，再找谁提供、谁消费。直接从 <code>agent-loop</code> 往下翻，反而容易把默认 driver 误当成整个产品。</p>
+            <p>读源码时，先找某项能力的接口，再找提供它的插件和使用它的工具。默认 <code>agent-loop</code> 只是驱动请求的一种实现，并不是每种新能力都必须改动的地方。可替换也不等于随意拼装：远端文件和本机命令错配的问题，仍要由配置者避免。</p>
           </section>
 
           <section id="boot-composition" data-article-section>
             <span class="section-number">02 / 启动组合</span>
-            <h2>启动组合：Profile、Bundle 与 Patch</h2>
-            <p>Profile 是用户真正启动的命名组合。它先按顺序叠加 bundle，再应用 profile 自己的 <code>cordis.patch.yml</code>，然后才轮到 home patch 和命令行 <code>--patch</code>。后面的 layer 可以按 row id 覆盖前面的配置。内置 <code>web</code> 与 <code>headless</code> 都从 base bundle 出发，只是在上面挂不同的宿主表面。<button class="evidence-ref" type="button" data-evidence="DSH-02" data-evidence-trigger>DSH-02</button></p>
+            <h2>启动组合：这次到底加载哪些插件</h2>
+            <p>“仓库里有这个插件”和“这次运行用了这个插件”是两回事。启动时选择一套命名配置，项目称为 <code>Profile</code>；它先加载预先打包的插件组合 <code>Bundle</code>，再叠加配置覆盖 <code>Patch</code>。内置 <code>web</code> 和 <code>headless</code> 共用基础组合，区别主要在用户或外部程序怎样调用它。</p>
+            <p>覆盖有先后：bundle、profile 自己的 <code>cordis.patch.yml</code>、home patch，最后是命令行 <code>--patch</code>。后来的配置可按行标识覆盖前面的值。因此，即便选了同名 profile，两台机器的最终插件组合也可能不同。<button class="evidence-ref" type="button" data-evidence="DSH-02" data-evidence-trigger>启动与覆盖顺序</button></p>
             <div class="article-table-wrap"><table class="article-table">
               <thead><tr><th>层</th><th>负责什么</th><th>最容易看错的地方</th></tr></thead>
               <tbody>
@@ -110,13 +106,14 @@
                 <tr><td>CLI overlay</td><td>本次启动的最后覆盖</td><td>静态模板不能证明最终值</td></tr>
               </tbody>
             </table></div>
-            <p>因此，“默认 headless 包含什么”与“这次 headless 启动了什么”是两种证据。前者能从仓库回答，后者要看该机器的 resolved config。没有 <code>--dump-config</code> 记录时，研究只能停在组合规则，不能替某次部署补完现场。</p>
+            <p>确认实际运行组合，要看该机器输出的最终配置 <code>--dump-config</code>。本研究没有这份运行记录，只能说明内置模板和组合规则，不能替某次部署断言它加载了什么。</p>
           </section>
 
           <section id="core-spine" data-article-section>
             <span class="section-number">03 / 核心脊柱</span>
-            <h2>核心脊柱：六个 Service 各管什么</h2>
-            <p>默认运行链可以压成六个 service：Session 保存事件；System Prompt 组装 prompt section 与 tool schema；Tools 管 scoped registry 和执行门禁；Agent 给宿主一个稳定接口与 live registry；Agent Loop 驱动 turn/step；LLM 负责 provider adapter。拆开以后，Web、ACP、SDK 和 headless 都能驱动同一个 <code>ctx.agents</code>，而不用各写一套模型循环。<button class="evidence-ref" type="button" data-evidence="DSH-03" data-evidence-trigger>DSH-03</button></p>
+            <h2>核心脊柱：一条请求怎样分给六个服务</h2>
+            <p>用户或外部程序先通过 Agent 接口提交工作。默认 Agent Loop 驱动每一轮：从 Session 取历史，让 System Prompt 组装指令与工具描述，再通过 LLM 适配器请求模型。模型要求调用工具时，Tools 负责找到当前 Agent 可用的工具并检查执行条件。<button class="evidence-ref" type="button" data-evidence="DSH-03" data-evidence-trigger>六个服务的分工</button></p>
+            <p>这就是默认核心的六种职责。Web 界面、SDK、ACP 客户端和 headless 命令都能调用同一个 <code>ctx.agents</code>，不必各写一套模型循环。但会话历史能保存下来，正在运行的 Agent 对象不能跟着进程一起保存；下面把两者分开。</p>
             <div class="article-tabs" data-article-tabs style="--tab-count: 3">
               <div role="tablist" aria-label="DeepSeek Harness 核心服务分组">
                 <button id="dshTabState" type="button" role="tab" aria-selected="true" aria-controls="dshPanelState">状态</button>
@@ -144,7 +141,8 @@
           <section id="turn-execution" data-article-section>
             <span class="section-number">04 / 回合执行</span>
             <h2>回合执行：输入怎样穿过 Turn 与 Step</h2>
-            <p>一个 turn 可以有零个或多个 step；一个 step 才对应一次模型请求及其工具调用。默认 driver 在领取输入前就写 <code>turn/start</code>，经过 <code>agent/pre-step</code> 后才决定是否进入模型。即使输入被拒绝或被改写为空，turn 也会留下终态。这个细节让“没有调用模型”与“什么都没发生”不再是同一件事。<button class="evidence-ref" type="button" data-evidence="DSH-04" data-evidence-trigger>DSH-04</button></p>
+            <p>先把两个计数单位说清：一次用户输入驱动的工作称为 <code>turn</code>；其中一次模型请求及随后的工具调用称为 <code>step</code>。模型看完工具结果再请求一次，就进入下一 step。输入在请求前被拒绝时，一个 turn 也可能没有任何 step。</p>
+            <p>默认循环先写 <code>turn/start</code>，再领取输入、经过 <code>agent/pre-step</code> 检查。即使输入被拒绝或改为空，也会写结束状态。所以“没有请求模型”仍可能有一条可查的处理记录。<button class="evidence-ref" type="button" data-evidence="DSH-04" data-evidence-trigger>开始与结束记录</button></p>
             <figure class="article-figure">
               <div class="article-flow" style="--flow-count: 7">
                 <div><span>01</span><strong>turn/start</strong><small>先占住持久边界</small></div>
@@ -163,15 +161,16 @@
           <section id="session-log" data-article-section>
             <span class="section-number">05 / 持久状态</span>
             <h2>持久状态：SessionEvent 为什么是事实源</h2>
-            <p>Session 不把“给模型的 messages”“给 UI 的 transcript”和“落盘记录”维护成三套平行状态。它保存 append-only typed events，再由 <code>deriveMessages()</code> 和其他 projection 生成各自视图。原始 <code>assistant/chunk</code> 服务回放，<code>assistant/message</code> 服务稳定消息面，compaction 也必须以事件表达替换关系。<button class="evidence-ref" type="button" data-evidence="DSH-07" data-evidence-trigger>DSH-07</button></p>
+            <p>界面要重放逐字输出，模型下一次请求却需要完整消息。Session 没有为它们各维护一份独立历史，而是保存一条只追加的事件日志，再从中生成不同视图。<code>assistant/chunk</code> 记录流式片段，<code>assistant/message</code> 记录聚合消息；<code>deriveMessages()</code> 从同一日志生成给模型的内容。压缩对话也要留下事件，说明哪些内容被替换。<button class="evidence-ref" type="button" data-evidence="DSH-07" data-evidence-trigger>同一日志，不同视图</button></p>
             <p><code>Session.append</code> 在写入前先做 lossless JSON snapshot、surface 验证和重入检查。事件一旦进入内存 log，就分配连续 seq 并同步通知观察者；观察者抛错不会把已经接受的事件回滚。这条规则保护事实源不被监听器的偶发失败改写，但持久化 flush 仍由另一个 capability 负责。<button class="evidence-ref" type="button" data-evidence="DSH-06" data-evidence-trigger>DSH-06</button></p>
             <blockquote class="article-pullquote">“模型可见”不是一个临时数组里的状态。能进入下一次模型请求的内容，必须能从 Session log 重建。<small>固定架构中的核心不变量</small></blockquote>
           </section>
 
+          <details class="article-disclosure"><summary>扩展细节：事件怎么拦截，能力怎么替换，Agent 怎么分开</summary>
           <section id="event-domains" data-article-section>
             <span class="section-number">06 / 扩展协议</span>
             <h2>扩展协议：三类 Event 与 Waterfall</h2>
-            <p>事件并不是一条万能总线。需要跨 reload 的事实属于 session event；正在运行的 Agent、inbox、request 与 continuation 属于 <code>agent/*</code>；文件、工具、遥测等策略与 adapter 属于 capability event。先选事件域，再写 listener，可以避免为了观察一次 tool call 就把插件绑到具体 loop 类上。<button class="evidence-ref" type="button" data-evidence="DSH-08" data-evidence-trigger>DSH-08</button></p>
+            <p>想给工具执行加一条规则，不必直接导入默认循环。插件可以监听对应事件，但要先分清规则要保存多久：消息和工具结果需要重开后仍能查到，进入 Session 日志；请求前改写、运行中续跑属于 <code>agent/*</code>；文件或工具的权限规则则挂在各自能力事件上。<button class="evidence-ref" type="button" data-evidence="DSH-08" data-evidence-trigger>三种事件的用途</button></p>
             <div class="article-table-wrap"><table class="article-table">
               <thead><tr><th>事件域</th><th>保存多久</th><th>适合表达什么</th><th>不该拿来替代什么</th></tr></thead>
               <tbody>
@@ -184,9 +183,10 @@
           </section>
 
           <section id="capability-seams" data-article-section>
-            <span class="section-number">07 / 能力接缝</span>
-            <h2>能力接缝：Definition、Provider、Consumer</h2>
-            <p>DeepSeek Harness 不把“有一个 interface 文件”就叫完整能力。一个 capability seam 至少有三种角色：Definition 声明 service；Provider 实现它；Consumer 把能力接到产品行为，常见形式是模型可见工具。换 Provider 时，Consumer 仍依赖同一个 service，而不是改 Agent Loop。<button class="evidence-ref" type="button" data-evidence="DSH-09" data-evidence-trigger>DSH-09</button></p>
+            <span class="section-number">07 / 能力替换</span>
+            <h2>能力替换：接口不变，实现可以换</h2>
+            <p>回到远端读文件。工具需要知道“给一个路径，返回什么”，这由接口定义说明；文件从本机还是远端读取，由具体实现决定；最后，读文件工具把这个能力交给模型。项目把三个角色称为 <code>Definition</code>、<code>Provider</code> 和 <code>Consumer</code>。<button class="evidence-ref" type="button" data-evidence="DSH-09" data-evidence-trigger>接口、实现与使用者</button></p>
+            <p>换的是 Provider。只要请求和结果约定不变，工具仍调用同一个服务，不必因此改 Agent Loop。只有接口文件、没有实现或没有使用者，还不算接通了一项能力。</p>
             <figure class="article-figure">
               <div class="article-flow" style="--flow-count: 3">
                 <div><span>01</span><strong>Definition</strong><small>接口、请求与结果语义</small></div>
@@ -201,10 +201,12 @@
           <section id="agent-scope" data-article-section>
             <span class="section-number">08 / Agent 作用域</span>
             <h2>Agent 作用域：Preset、Scope 与 Isolate</h2>
-            <p>全局插件树解决“这个 runtime 有什么”，preset 则解决“这个 Session 的 Agent 拿到哪一组能力”。preset 挂出的 service 会进入 isolate realm，避免两个 Session 的实现碰撞；Agent 自己的 scope key 再把工具、persona 和其他 scoped registration 限定到对应实例。<button class="evidence-ref" type="button" data-evidence="DSH-10" data-evidence-trigger>DSH-10</button></p>
+            <p>一个进程里可以有多个 Agent。全局插件决定进程具备哪些能力，每个 Agent 的 <code>preset</code> 再选择自己用的那一组。preset 提供的服务放进独立的服务命名范围 <code>isolate realm</code>，避免两个会话的实现互相覆盖；Agent 的 <code>scope key</code> 则把工具、角色指令等注册项限定到自己的实例。<button class="evidence-ref" type="button" data-evidence="DSH-10" data-evidence-trigger>每个 Agent 的能力范围</button></p>
             <p>这里的 isolate 很容易被安全术语带偏。它隔开的是 Cordis service realm，防止一个 preset 的 provider 泄露到 root 或另一个 Session。它不是操作系统进程隔离，也不自动限制文件、网络与 subprocess。需要安全约束时，还得看 sandbox、fs policy、approval 和具体 Provider。</p>
             <div class="article-callout"><strong>同一个 Agent，不止一个作用域</strong><p>宿主通过全局 <code>ctx.agents</code> 找到 live Agent；Agent 的 preset 组合提供 Session 专属 service；Agent scope 再过滤注册项。把三层压成一个“agent config”，会丢掉最重要的所有权关系。</p></div>
           </section>
+
+          </details>
 
           <section id="execution-world" data-article-section>
             <span class="section-number">09 / 执行世界</span>
@@ -237,6 +239,7 @@
             <p>这三种接口不能只按“有没有 JSON-RPC”归成一类。SDK 的 <code>session/prompt</code> 回执只表示消息已持久入队，不标识后来哪条 assistant message 属于它；ACP 等到 Agent idle，却只公开 committed text；headless 直接把进程生命周期当任务边界。接入系统必须选择自己真正需要的语义，而不是再包一层字符串协议。</p>
           </section>
 
+          <details class="article-disclosure"><summary>开发者参考：新增行为应该改哪一层</summary>
           <section id="extension-path" data-article-section>
             <span class="section-number">11 / 变更路径</span>
             <h2>变更路径：新行为该放在哪一层</h2>
@@ -254,18 +257,30 @@
             </table></div>
           </section>
 
+          </details>
+
           <section id="conclusion-boundary" data-article-section>
             <span class="section-number">12 / 结论与边界</span>
             <h2>结论与边界：可替换不等于任意组合</h2>
             <p>DeepSeek Harness 把 Agent 系统拆成了三个互相咬合的平面：Profile 与 patch 决定启动组合；service 与 typed event 决定运行时协作；SessionEvent log 决定哪些事实能够持久、回放并重新进入模型上下文。Agent Loop 是其中一个默认 driver，不是所有扩展都必须穿过的中心。</p>
             <p>这套架构最强的约束也来自同一个地方。Provider 能换，不代表安全和性能等价；preset isolate 隔的是 service realm，不是操作系统；事件可回放，不代表外部副作用能撤销；SDK、ACP 和 headless 都能驱动 Agent，不代表它们的取消与结果归属相同。真正可靠的扩展，需要把能力放到正确的事件域和 service 上，再证明相邻生命周期仍能闭合。</p>
             <div class="article-callout"><strong>固定提交只能回答静态职责</strong><p>本文没有记录一棵实际 resolved plugin tree，也没有验证并发取消、崩溃边缘 flush、第三方 Provider 组合或 RC 之间的兼容性。要回答这些问题，需要固定 profile 的 <code>--dump-config</code>、带 seq 的 runtime trace、故障注入与版本迁移记录，而不是把架构意图当成运行结果。</p></div>
+            <details class="article-disclosure"><summary>固定样本与核验信息</summary>
+      <section class="article-scope-band" aria-label="文章核验范围">
+        <div class="article-scope-grid">
+          <div><span>产品</span><strong>DeepSeek Harness</strong><small>developer preview</small></div>
+          <div><span>源码</span><strong>47f943859bef</strong><small>固定公开提交</small></div>
+          <div><span>包版本</span><strong>0.1.0-rc.5</strong><small>源码 manifest</small></div>
+          <div><span>证据</span><strong>14 条固定文件记录</strong><small>无生产运行 trace</small></div>
+        </div>
+      </section>
+            </details>
           </section>
         </article>
 
         <aside class="article-margin" aria-label="读到这里可以随时回看的侧注">
           <div class="article-margin-block"><span>一句话模型</span><strong>配置组装插件树，事件连接运行链，日志保存模型可见事实。</strong><small>三层各自有不同的所有权。</small></div>
-          <div class="article-margin-block"><span>先问什么</span><strong>这是 durable fact、live interception，还是 swappable capability？</strong><small>答案决定代码应落在哪个域。</small></div>
+          <div class="article-margin-block"><span>先区分改动</span><strong>要保存长期记录、影响当前执行，还是替换一项能力？</strong><small>三类职责的扩展位置不同。</small></div>
           <div class="article-margin-block"><span>别混淆</span><strong>Preset isolate 不等于系统沙箱。</strong><small>文件、进程与网络权限仍由具体 Provider 和 policy 决定。</small></div>
           <div class="article-margin-block"><span>外部接入</span><strong>Headless、SDK 与 ACP 不是同一种结果语义。</strong><small>先选生命周期，再选协议。</small></div>
         </aside>
@@ -289,5 +304,6 @@
 
   <script src="/vendor/lucide/lucide.min.js"></script>
   <script src="/capability-article.js"></script>
+  <script src="/article-disclosures.js"></script>
 </body>
 </html>

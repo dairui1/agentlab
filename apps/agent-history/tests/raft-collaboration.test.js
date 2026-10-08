@@ -37,8 +37,13 @@ test("Raft evidence locators and every article reference resolve", () => {
   }
   assert.deepEqual(cited, ids);
   const sections = new Set([...html.matchAll(/<section id="([^"]+)" data-article-section/g)].map((m) => m[1]));
-  assert.equal(sections.size, 10);
+  assert.equal(sections.size, 9);
   for (const [, target] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(sections.has(target), target);
+  assert.match(html, /<details id="experiments" class="study-notes">/);
+  assert.match(html, /还缺哪些失败路径实验/);
+  assert.match(html, /查看数据库怎样检查认领版本/);
+  assert.match(html, /查看 Codex 续接错误的分类源码/);
+  assert.match(html, /src="\/article-disclosures.js"/);
 });
 
 test("Raft essay shares the blog theme without repetitive editorial chrome", () => {

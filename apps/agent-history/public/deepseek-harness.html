@@ -31,7 +31,7 @@
       <header class="dsh-product-header">
         <div class="dsh-product-identity">
           <img src="/agent-icons/deepseek-harness.svg" alt="" aria-hidden="true">
-          <div><span>PLATFORM RELEASE INTELLIGENCE</span><h1>DeepSeek Harness</h1><p>组合、运行、持久化与宿主界面的版本演进</p></div>
+          <div><span>版本追踪</span><h1>DeepSeek Harness</h1><p>每次更新改了什么，升级前有哪些兼容性问题需要核对。</p></div>
         </div>
         <div class="dsh-current-release">
           <span>当前追踪</span>
@@ -42,7 +42,7 @@
 
       <div class="dsh-tracker-layout">
         <aside class="dsh-release-rail" aria-labelledby="releaseRailTitle">
-          <div class="dsh-rail-heading"><span>RELEASE STREAM</span><h2 id="releaseRailTitle">版本流</h2></div>
+          <div class="dsh-rail-heading"><span>发布记录</span><h2 id="releaseRailTitle">版本</h2></div>
           <div id="releaseList" class="dsh-release-list"></div>
         </aside>
 
@@ -52,7 +52,7 @@
             <span id="selectedImportance" class="dsh-importance">—</span>
           </header>
 
-          <div id="selectedDomains" class="dsh-selected-domains" aria-label="涉及平面"></div>
+          <div id="selectedDomains" class="dsh-selected-domains" aria-label="涉及的能力"></div>
 
           <section class="dsh-release-facts" aria-labelledby="releaseFactsTitle">
             <div class="dsh-subheading"><h3 id="releaseFactsTitle">版本事实</h3><span>官方说明优先</span></div>
@@ -61,7 +61,7 @@
           </section>
 
           <section class="dsh-evidence-ledger" aria-labelledby="evidenceLedgerTitle">
-            <div class="dsh-subheading"><h3 id="evidenceLedgerTitle">证据账本</h3><span>每层单独标注</span></div>
+            <div class="dsh-subheading"><h3 id="evidenceLedgerTitle">有哪些证据</h3><span>官方说明、代码和请求快照分开核对</span></div>
             <div id="evidenceLedger" class="dsh-evidence-grid"></div>
           </section>
 
@@ -74,13 +74,13 @@
 
       <section class="dsh-plugin-section" aria-labelledby="pluginTitle">
         <div class="dsh-section-heading">
-          <div><span>PLUGIN CAPABILITY MAP</span><h2 id="pluginTitle">插件作用地图</h2></div>
-          <p>不做实时排名，只看插件把 Harness 的能力边界扩展到了哪里。</p>
+          <div><span>插件分类</span><h2 id="pluginTitle">插件能补上什么</h2></div>
+          <p>按插件提供的能力分类，不按热度排名。</p>
         </div>
         <div class="dsh-plugin-intro">
           <div>
-            <strong>插件是 DSH 的能力组合层</strong>
-            <p>它们可以改造界面，也可以接入 Memory、模型、工具、工作流和远程宿主。不同类型对应不同的权限、状态和失败边界。</p>
+            <strong>插件不只是改界面</strong>
+            <p>它们也能接入记忆、模型、工具、工作流和远程运行环境。安装前要看它能读取什么、执行什么，以及停止后会留下什么。</p>
           </div>
           <a href="https://github.com/awesome-dsh-plugin/awesome-dsh-plugin" target="_blank" rel="noopener noreferrer">浏览 awesome-dsh-plugin <i data-lucide="external-link" aria-hidden="true"></i></a>
         </div>
@@ -101,7 +101,7 @@
             <div><span>Runtime Capture</span><strong id="runtimeCount">—</strong><small>请求快照</small></div>
           </section>
           <section class="dsh-domain-section" aria-labelledby="domainTitle">
-            <div class="dsh-section-heading"><div><span>EVOLUTION PLANES</span><h2 id="domainTitle">Harness 演进平面</h2></div><p>Release 信号按平台职责归位，不把所有变化压成 Prompt 行数。</p></div>
+            <div class="dsh-section-heading"><div><span>更新分类</span><h2 id="domainTitle">哪些能力在变化</h2></div><p>分别统计插件、编排、上下文、执行和存储等变化，不只计算 Prompt 行数。</p></div>
             <div id="domainGrid" class="dsh-domain-grid"></div>
           </section>
         </div>

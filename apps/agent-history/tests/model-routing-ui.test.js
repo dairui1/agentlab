@@ -165,9 +165,9 @@ test("four fallback categories stay visibly separate", () => {
 });
 
 test("overload, reasoning adjustment, and subagent routing remain product-specific", () => {
-  assert.match(operation("handle-overload").cells["claude-code"].contract, /最多三跳/);
+  assert.match(operation("handle-overload").cells["claude-code"].contract, /最多.*三跳/);
   assert.match(operation("handle-overload").cells.codex.contract, /不可重试/);
-  assert.match(operation("handle-overload").cells.opencode.contract, /无内建 max attempt/);
+  assert.match(operation("handle-overload").cells.opencode.contract, /input\.model.*没有最大尝试次数/);
   assert.match(operation("adjust-reasoning").cells["claude-code"].edge, /docs-forward/);
   assert.match(operation("adjust-reasoning").cells.codex.contract, /中位/);
   assert.match(operation("adjust-reasoning").cells.opencode.contract, /静默丢弃/);

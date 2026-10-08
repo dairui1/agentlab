@@ -38,6 +38,9 @@
 .mimo-study .article-toc a[aria-current="location"] { color:var(--text); font-weight:650; }
 .mimo-study .capability-article { grid-area:body; min-width:0; }
 .mimo-study .article-lead { margin:0 0 20px; padding:0; border:0; font-size:17px; }
+.mimo-study .study-notes { border-top:1px solid var(--border); margin:22px 0; scroll-margin-top:24px; }
+.mimo-study .study-notes > summary { padding:16px 0; cursor:pointer; font-size:16px; font-weight:650; line-height:1.7; overflow-wrap:anywhere; }
+.mimo-study .study-notes > p { font-size:14px; }
 .mimo-study .capability-article section[data-article-section] { margin:38px 0 48px; padding-top:30px; border-top:1px solid var(--border); }
 .mimo-study .capability-article h2 { font-size:25px; line-height:1.55; font-weight:650; margin-bottom:20px; }
 .mimo-study .capability-article h3 { font-size:19px; line-height:1.65; margin:30px 0 16px; }
@@ -82,6 +85,7 @@
   .mimo-study .mimo-stages { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media(max-width:860px) {
+  .mimo-study .study-notes { scroll-margin-top:70px; }
   .mimo-study .capability-reading { display:block; padding:0 0 40px; }
   .mimo-study .article-toc { position:static; margin:0 0 28px; padding:12px 0; border-left:0; backdrop-filter:none; background:var(--page); mask-image:linear-gradient(to right, #000 calc(100% - 24px), transparent); }
   .mimo-study .article-toc ol { display:flex; gap:22px; padding-right:24px; }

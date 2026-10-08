@@ -16,7 +16,7 @@
     "alt": "Grok Bot 0.18 重建仓库中的 Router 设置界面，模型提供方选择为 Codex",
     "caption": "仓库文档中的 Router 设置截图。Codex、Claude 与 OpenRouter 路由和这个设置页是重建作者添加的实验，不是已证明的上游 Grok Bot 原生界面。"
   },
-  "thesis": "公开仓库恢复了一个相当完整的桌面 Agent 运行骨架，但交付物仍是“可读 runtime + 固定上游 renderer + 定向补丁”的 hybrid。更关键的是，作者新增的非 Cursor 路由绕开了完整 Agent runner：界面连续，不代表模型上下文、工具、安全门与状态也连续。",
+  "thesis": "在这份非官方重建中，切到作者新增的 Codex、Claude 或 OpenRouter 路由后，界面还显示旧聊天，模型却走了另一份历史和另一套工具、权限路径。仓库恢复了桌面 Agent 的大块运行结构，但软件包仍保留上游已打包的界面，再加定向补丁，并不是完整的上游源码。",
   "layers": [
     {
       "id": "official-product",
@@ -58,7 +58,7 @@
       "question": "“源码重建”是否等于拿到了完整上游源码？",
       "layer": "重建边界",
       "confidence": "高",
-      "verdict": "不是。默认包是 hybrid：可读 runtime 被重新编译，上游 renderer 仍以校验和固定的已打包产物保留，再对两个压缩 chunk 注入 Router UI。",
+      "verdict": "不是。默认软件包只重新编译可读的运行代码；界面仍来自上游已打包产物，并用校验和固定版本。作者再向两个压缩代码块注入 Router 设置界面，所以这是混合包，不是完整的上游源码。",
       "steps": [
         "固定 DMG 与 app.asar 哈希",
         "编译可读 runtime",
@@ -99,7 +99,7 @@
       "question": "默认模型的一次 turn 如何穿过桌面、box 与 Agent runner？",
       "layer": "上游重建",
       "confidence": "中高",
-      "verdict": "Renderer 经 preload/RPC 进入 Electron main，再连接 remote box 或本地 box，穿过 coordinator 与 host，最终由完整 runner 绑定 SQLite conversation、memory、routines、workflows、channels、MCP、附件和工具。",
+      "verdict": "默认请求从桌面界面进入连接协调进程，再到远端或本地运行环境，由完整 Agent runner 执行。聊天记录、记忆、定时任务、工作流、消息通道、MCP、附件和工具都在这条路径中接入；具体进程与端口交接见下方实现细节。",
       "steps": [
         "Renderer 发送 prompt",
         "Electron RPC 进入 box",

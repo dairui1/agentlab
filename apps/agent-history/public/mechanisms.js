@@ -15,11 +15,11 @@
   };
   const productAgents = ["claude-code", "codex", "opencode"];
   const defaultViewCopy = {
-    compare: ["事实对照", "操作速查", "primitive、默认行为、返回通道与危险边界放在同一个比较行。"],
-    flows: ["可观测链路", "生命周期", "图中只画公开合同可观测的状态与控制，不冒充内部 scheduler 实现。"],
-    failures: ["失败与副作用", "失败面", "按重复执行、payload 丢失、文件冲突与资源生命周期排序。"],
-    resources: ["隔离与限额", "隔离与资源", "Conversation、workspace、permission 与 limits 分开陈述，数字保留分母和作用域。"],
-    changes: ["版本事实", "版本变化", "只保留会改变调用、默认值、返回值、限额或 failure shape 的节点。"],
+    compare: ["事实对照", "操作速查", "对照调用入口、默认行为、返回结果和容易误判的地方。"],
+    flows: ["可观测链路", "生命周期", "沿公开接口能看到的状态追踪一次操作；未公开的内部调度不在图中。"],
+    failures: ["失败与副作用", "失败面", "排查重复执行、结果丢失、文件冲突和资源未释放。"],
+    resources: ["隔离与限额", "隔离与资源", "对话、文件、权限和限额分别比较，每个数字都注明它限制什么。"],
+    changes: ["版本事实", "版本变化", "哪些版本改变了调用方式、默认值、返回结果、限额或错误处理。"],
   };
   const dossierRegistry = {
     "subagent-orchestration": {
@@ -127,7 +127,7 @@
   }
 
   function statusTag(value) {
-    const labels = { exposed: "已暴露", partial: "有边界", "not-exposed": "未暴露", unknown: "未知" };
+    const labels = { exposed: "有公开入口", partial: "有条件", "not-exposed": "无公开入口", unknown: "尚未确认" };
     const tag = el("span", "contract-status-tag", labels[value] || value);
     tag.dataset.state = value;
     return tag;
@@ -188,7 +188,7 @@
     search.append(input);
     toolbar.append(search);
 
-    const empty = el("p", "collection-empty", "没有匹配的合同记录。");
+    const empty = el("p", "collection-empty", "没有匹配的记录。换个关键词或清除筛选后再试。");
     const more = el("button", "collection-more");
     more.type = "button";
     more.append(icon("chevron-down"), el("span", "", `再显示 ${collectionChunks[config.view] || 12} 条`));
@@ -410,7 +410,7 @@
       table.setAttribute("aria-label", operations[0].label);
     }
     const head = el("div", "operation-row operation-head");
-    ["操作合同", ...productAgents.map((agent) => agentMeta[agent].label)].forEach((label) => {
+    ["要做的操作", ...productAgents.map((agent) => agentMeta[agent].label)].forEach((label) => {
       const cell = el("div", "", label);
       cell.setAttribute("role", "columnheader");
       head.append(cell);
@@ -435,7 +435,7 @@
         cellHead.append(statusTag(data.status), evidenceButton(data.claims, data.unknown, `${operation.label} / ${agentMeta[agent].label}`));
         const primitive = el("code", "operation-primitive", data.primitive);
         const call = el("div", "operation-field");
-        call.append(el("span", "operation-field-label", "CALL / SIGNAL"), primitive);
+        call.append(el("span", "operation-field-label", "调用 / 信号"), primitive);
         const guarantee = el("div", "operation-field");
         guarantee.append(el("span", "operation-field-label", "已核对行为"), el("p", "operation-contract", data.contract));
         const details = el("dl", "operation-details");
@@ -445,7 +445,7 @@
           details.append(line);
         });
         const edge = el("p", "operation-edge");
-        edge.append(icon("triangle-alert"), el("strong", "", "TRAP"), el("span", "", data.edge));
+        edge.append(icon("triangle-alert"), el("strong", "", "注意"), el("span", "", data.edge));
         cell.append(cellHead, call, guarantee);
         if (data.details?.length) cell.append(details);
         cell.append(edge);
@@ -517,7 +517,7 @@
       const contract = el("div", "hazard-contract", hazard.contract);
       if (hazard.unknown) contract.append(el("small", "", `未核验 · ${hazard.unknown}`));
       const diagnostics = el("dl", "hazard-diagnostics");
-      [["TRIGGER", hazard.trigger], ["SIGNAL", hazard.signal], ["RECOVERY", hazard.recovery]].forEach(([label, value]) => {
+      [["何时发生", hazard.trigger], ["观察什么", hazard.signal], ["怎样恢复", hazard.recovery]].forEach(([label, value]) => {
         const line = el("div");
         line.append(el("dt", "", label), el("dd", "", value));
         diagnostics.append(line);
@@ -1041,7 +1041,7 @@
     app.setAttribute("aria-busy", "false");
     renderWorkspace(false);
   }).catch((error) => {
-    status.textContent = `控制合同载入失败：${error.message}`;
+    status.textContent = `比较数据暂时未能载入。请刷新页面重试。错误：${error.message}`;
     status.dataset.state = "error";
     app.setAttribute("aria-busy", "false");
   });

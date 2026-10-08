@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="拆解 Kimi Computer Use 的 Plugin、MCP、后台服务、AX 与截图链路，核对后台操作、权限和动作验证的真实边界。">
+  <meta name="description" content="装好插件为何还不能操作桌面？从 Kimi Code、KimiCU 服务与 macOS 权限的分工，解释后台输入、状态检查与静态研究的证据边界。">
   <title>Kimi Computer Use · 专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <script src="/site-theme.js"></script>
@@ -33,7 +33,7 @@
             <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Kimi Computer Use</span></nav>
             <span class="article-series">官方源码 + 发行包静态研究</span>
             <h1>Kimi Computer Use</h1>
-            <p class="article-dek">它不是给 Kimi Code 加一组截图命令，而是把 Plugin、MCP、launchd 服务和 macOS 原生输入链连成一项可安装能力。最特别的不是“能点”，而是尽量不抢鼠标、不切前台。</p>
+            <p class="article-dek">装好插件，还不等于能操作桌面。Kimi Code 负责接入工具，独立的 KimiCU 服务负责屏幕与输入，macOS 再决定系统权限。</p>
             <div class="article-byline"><span>Kimi Code b184b3149794</span><span>KimiCU 0.5.8</span><span>2026-09-04 核验</span></div>
           </div>
           <div class="article-product-mark" aria-hidden="true"><img src="/agent-icons/kimi-computer-use.png" alt=""></div>
@@ -43,7 +43,7 @@
       <section class="article-scope-band" aria-label="文章核验范围">
         <div class="article-scope-grid">
           <div><span>首次内置</span><strong>Kimi Code 0.33.0</strong><small>2026-08-05</small></div>
-          <div><span>当前 macOS 包</span><strong>KimiCU 0.5.8</strong><small>专有二进制</small></div>
+          <div><span>核验 macOS 样本</span><strong>KimiCU 0.5.8</strong><small>专有二进制</small></div>
           <div><span>Agent 接口</span><strong>Skill + MCP</strong><small>10 个 GUI 工具</small></div>
           <div><span>系统执行</span><strong>launchd + XPC</strong><small>后台服务持有权限</small></div>
         </div>
@@ -54,7 +54,7 @@
           <span>从一句话到系统输入</span>
           <ol>
             <li><a href="#verdict" data-index="01">先说结论：这不是一只普通 MCP</a></li>
-            <li><a href="#release" data-index="02">这轮更新到底新在哪</a></li>
+            <li><a href="#release" data-index="02">发布时间线与核验样本</a></li>
             <li><a href="#layers" data-index="03">四层架构：Kimi Code 不直接碰桌面</a></li>
             <li><a href="#observe" data-index="04">观察：AX 树与截图是一份快照</a></li>
             <li><a href="#background" data-index="05">后台输入：不抢鼠标是怎么做到的</a></li>
@@ -66,28 +66,30 @@
         </aside>
 
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">Kimi Computer Use 最准确的定位，是一项由 Kimi Code 管理、经 MCP 暴露、由独立原生服务执行的本地桌面能力。Plugin 负责告诉模型怎么用，KimiCU.app 负责真正看见和操作 macOS；两者缺一不可。</p>
+          <div class="article-opening">
+            <p class="article-lead">Agent 已经能看见“点击”工具，为什么还是动不了桌面？因为工具入口、执行服务和系统权限是三件事。Kimi Computer Use 把它们分别检测：插件告诉模型怎样用，MCP 传递调用，KimiCU.app 里的服务真正读取屏幕与发送输入。</p>
 
+          </div>
           <section id="verdict" data-article-section>
             <span class="section-number">01 / 先说结论</span>
             <h2>先说结论：这不是一只普通 MCP</h2>
-            <p>普通 MCP 往往是一个进程加一组工具。Kimi Computer Use 被 Kimi Code 提升成了 <em>capability</em>：CLI 同时检查 Plugin、App、后台服务和系统权限，缺哪一层就补哪一层；安装中断后也能从当前状态继续。<button class="evidence-ref" type="button" data-evidence="KCU-01 KCU-04" data-evidence-trigger>KCU-01、04</button></p>
-            <p>它的主循环并不神秘：列出 App，读取 AX 树与截图，按 index 或像素坐标执行一个动作，再重新观察。真正有区分度的是执行层：macOS 版把截图和输入放进独立 launchd/XPC 服务，尝试把事件直接送进目标窗口，而不是搬动用户的真实鼠标。<button class="evidence-ref" type="button" data-evidence="KCU-03 KCU-06 KCU-08" data-evidence-trigger>KCU-03、06、08</button></p>
+            <p>Kimi Code 不只登记一组 MCP 工具，还管理整项能力的安装和就绪状态，源码称为 <em>capability</em>。CLI 分别检查插件、App、后台服务和系统权限；安装中断以后，也能从已有状态继续，而不是把“插件装好了”当成全部完成。<button class="evidence-ref" type="button" data-evidence="KCU-01 KCU-04" data-evidence-trigger>能力怎样判断就绪</button></p>
+            <p>操作顺序是列出 App，读取辅助功能树（AX）与截图，按元素编号或截图坐标做一个动作，再观察。macOS 执行服务由 <code>launchd</code> 管理，经 <code>XPC</code> 接收请求；后台输入尝试直接投递给目标窗口，而不是搬动用户的真实鼠标。<button class="evidence-ref" type="button" data-evidence="KCU-03 KCU-06 KCU-08" data-evidence-trigger>工具到服务的路径</button></p>
             <blockquote class="article-pullquote">Kimi Code 负责把能力接进 Agent；KimiCU 服务才是桌面权限与系统输入的实际持有者。<small>本专题的核心判断</small></blockquote>
           </section>
 
           <section id="release" data-article-section>
             <span class="section-number">02 / 更新时间线</span>
-            <h2>这轮更新到底新在哪</h2>
+            <h2>发布时间线与核验样本</h2>
             <div class="article-table-wrap"><table class="article-table">
               <thead><tr><th>时间</th><th>变化</th><th>意义</th></tr></thead>
               <tbody>
                 <tr><td>08-05 · 0.33.0</td><td>Computer Use 进入官方插件市场</td><td>从手动 MCP 配置变成内置 capability</td></tr>
                 <tr><td>08-06 · 0.34.0</td><td>新增 Windows x64</td><td>同一产品名下出现两套系统执行语义</td></tr>
-                <tr><td>08-11 · 0.5.8</td><td>当前 CDN 的 macOS Plugin 与 App</td><td>Skill 写明快照失效、写后验证与 Electron 路径</td></tr>
+                <tr><td>09-04 · 核验 0.5.8</td><td>本次从官方 CDN 下载的 macOS Plugin 与 App</td><td>Skill 写明快照失效、写后验证与 Electron 路径</td></tr>
               </tbody>
             </table></div>
-            <p>所以“最近更新”判断是对的，但要分清两条版本线：Kimi Code 的 CLI 版本决定安装和生命周期管理；KimiCU 自己的版本决定桌面动作实现。官方文档标题仍写 <code>0.5.4</code>，当前官方 CDN 包已经是 <code>0.5.8</code>。<button class="evidence-ref" type="button" data-evidence="KCU-01 KCU-02" data-evidence-trigger>KCU-01、02</button></p>
+            <p>这里有两条版本线：Kimi Code 的 CLI 版本决定安装与管理，KimiCU 的版本决定桌面执行实现。固定文档标题仍写 <code>0.5.4</code>，但 2026-09-04 下载的 Plugin 与 App 均为 <code>0.5.8</code>。CDN 地址会被覆盖，因此研究按下载日期和哈希认样本，不把它称作今天的最新版本。<button class="evidence-ref" type="button" data-evidence="KCU-01 KCU-02" data-evidence-trigger>版本与样本来源</button></p>
             <div class="article-tabs" data-article-tabs style="--tab-count: 2">
               <div role="tablist" aria-label="Kimi Computer Use 平台差异">
                 <button id="kcuTabMac" type="button" role="tab" aria-selected="true" aria-controls="kcuPanelMac">macOS</button>
@@ -124,7 +126,8 @@
           <section id="background" data-article-section>
             <span class="section-number">05 / 后台输入</span>
             <h2>后台输入：不抢鼠标是怎么做到的</h2>
-            <p>签名二进制链接了 AppKit、ApplicationServices、CoreGraphics、ScreenCaptureKit 与 Swift XPC。静态字符串同时出现 <code>AXUIElementPerformAction</code>、窗口定向事件位置、按 PID 投递输入和后台输入 fallback。结合工具说明，可以确认它至少组合了两条路：原生控件优先走 AX action/value；需要渲染层焦点时，向目标窗口做不移动实体指针的后台点击和键盘投递。<button class="evidence-ref" type="button" data-evidence="KCU-07 KCU-08" data-evidence-trigger>KCU-07、08</button></p>
+            <p>原生控件可通过辅助功能动作或设置值来操作；另一些动作可把点击或按键投递给窗口。工具说明和二进制线索共同支持这两条路径并存的判断，但没有还原完整控制流，不能写成“AX 不能表达时才改走定向输入”的互斥选择规则。本次也没有运行探针，不能给出每个 App 实际走哪条路的映射。</p>
+            <p>线索包括 AppKit、ApplicationServices、CoreGraphics、ScreenCaptureKit 与 Swift XPC 依赖，以及 <code>AXUIElementPerformAction</code>、窗口定向事件位置、按 PID 投递和后台输入回退的静态字符串。它们支持组合 AX 动作与定向输入的判断，不是完整原生控制流。<button class="evidence-ref" type="button" data-evidence="KCU-07 KCU-08" data-evidence-trigger>后台输入的静态依据</button></p>
             <p>这不是“所有 App 永不切前台”的数学保证。官方文档已经保留了少量系统弹窗会唤起前台的例外；Skill 也承认 Chromium 拖拽不可靠、Electron 右键不接受同一条合成路径。Windows 更直接：它可能短暂激活窗口并占用真实键鼠。<button class="evidence-ref" type="button" data-evidence="KCU-02 KCU-10" data-evidence-trigger>KCU-02、10</button></p>
           </section>
 

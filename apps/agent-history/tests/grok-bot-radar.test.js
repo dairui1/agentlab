@@ -197,6 +197,12 @@ test("mechanism conclusions lead while the evidence ledger stays collapsed", () 
   assert.match(script, /evidenceSourceLinks/);
 });
 
+test("Grok entry states the model-switch consequence without losing reconstruction attribution", () => {
+  assert.match(data.thesis, /非官方重建.*作者新增.*另一份历史.*上游源码/);
+  assert.match(html, /聊天历史与凭据/);
+  assert.match(script, /请刷新页面重试/);
+});
+
 test("Grok Bot is a dedicated shared tab without hijacking the canonical Grok feed identity", () => {
   const navigation = require(path.join(publicRoot, "site-navigation.js"));
   assert.ok(navigation.items.some((item) => item.id === "grok" && item.href === "/grok-bot.html"));

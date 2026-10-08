@@ -2,7 +2,7 @@
   "id": "raft-collaboration",
   "title": "Raft：协作型 Agent 基础设施",
   "product": "Raft",
-  "subtitle": "消息可见性、任务认领、runtime 恢复与权限边界",
+  "subtitle": "两位 Agent 同时接活，工作做到一半又有了新要求",
   "description": "两个 Agent 接到了同一条修复请求，人类中途又说“只提交，不发布”。沿着这个例子，看 Raft 怎样分配工作、送来新要求，以及在旧 Thread 无法续接时找回工作记录。",
   "verifiedAt": "2026-09-25",
   "status": "active",

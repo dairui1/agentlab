@@ -1,6 +1,11 @@
 .oar-title { display: flex; align-items: flex-start; gap: 16px; }
 .oar-title img { flex: 0 0 56px; object-fit: contain; }
 .oar-title h1 { min-width: 0; }
+.oar-study .article-hero h1 { font-size: 32px; }
+.oar-study .article-lead { padding: 0; border: 0; }
+.oar-study .study-notes { border-top: 1px solid var(--border); margin: 22px 0; scroll-margin-top: 24px; }
+.oar-study .study-notes > summary { padding: 16px 0; cursor: pointer; font-size: 16px; font-weight: 650; line-height: 1.7; overflow-wrap: anywhere; }
+.oar-study .study-notes > p { font-size: 14px; }
 .oar-study .capability-reading { grid-template-columns: 216px minmax(0, 760px); gap: 48px; }
 .oar-study .capability-article { min-width: 0; }
 .oar-study .capability-article a,
@@ -24,6 +29,7 @@
   .oar-study .capability-reading { grid-template-columns: 180px minmax(0, 1fr); gap: 28px; }
 }
 @media (max-width: 860px) {
+  .oar-study .study-notes { scroll-margin-top: 70px; }
   .oar-study .capability-reading { display: block; }
   .oar-study .article-hero-inner { gap: 0; }
 }

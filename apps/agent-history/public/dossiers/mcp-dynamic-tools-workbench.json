@@ -1,7 +1,7 @@
 {
   "title": "MCP 与动态工具",
-  "subtitle": "把 configured、live、catalog、schema、authority 与 callable 拆成可核验的运行时状态。",
-  "description": "Claude Code、Codex 与 opencode 固定版本下的 MCP registration、discovery、invocation、refresh、recovery，以及 Codex dynamicTools 独立 host contract。",
+  "subtitle": "MCP 服务连上了，工具却仍不能调用？分别检查配置、连接、工具目录和调用权限。",
+  "description": "比较三个 Agent 固定版本如何连接、发现和调用 MCP 工具，以及 Codex dynamicTools 如何交给宿主执行。",
   "eyebrow": "MECHANISM / MCP & DYNAMIC TOOLS",
   "verifiedAt": "2026-08-10",
   "defaultView": "compare",
@@ -18,32 +18,32 @@
     "compare": {
       "label": "操作速查",
       "kicker": "MCP CONTROL REFERENCE",
-      "title": "从注册到调用终态的 16 个原子操作",
-      "description": "Immediate response 与 read-after-write verification 分开。"
+      "title": "从连接服务到收到工具结果",
+      "description": "即时回执和随后读回的实际状态分开核对。"
     },
     "flows": {
       "label": "实现链路",
       "kicker": "OBSERVABLE MCP LIFECYCLE",
-      "title": "十二条产品原生流程",
-      "description": "MCP、dynamic host、model path 与 direct path 不互相伪装。"
+      "title": "不同入口怎样走到真正执行",
+      "description": "模型调用、宿主直接调用和 dynamicTools 反向请求分别追踪，不能互相代替。"
     },
     "failures": {
       "label": "失败面",
       "kicker": "READINESS / AUTHORITY / RECOVERY",
-      "title": "42 个互不重复的危险边界",
-      "description": "按 readiness、identity、catalog、authority、isolation、recovery 与 result 分类。"
+      "title": "已连接、已发现，仍可能调用失败",
+      "description": "排查服务就绪、工具身份、目录变化、权限、隔离、恢复和结果处理。"
     },
     "resources": {
       "label": "隔离与限额",
       "kicker": "OWNER / ISOLATION / LIMITS",
-      "title": "Owner、环境、cache、timeout 与 host authority",
-      "description": "Permission allow 不等于 sandbox；cache 可见不等于 callable。"
+      "title": "谁持有连接，谁有权调用，等待能持续多久",
+      "description": "权限允许不会自动带来沙箱隔离；缓存里能看到工具，也不代表现在能调用。"
     },
     "changes": {
       "label": "版本变化",
       "kicker": "MCP CONTRACT CHANGES",
-      "title": "34 条会改变 harness 的版本节点",
-      "description": "Claude current-doc marker 与 immutable history 分层，Codex/OpenCode 使用 release/commit。"
+      "title": "哪些版本改变了连接、目录和调用方式",
+      "description": "Claude 的当前文档与固定历史分开标注；Codex 和 opencode 使用固定 release 或 commit。"
     }
   },
   "viewDefaults": {
@@ -69,10 +69,10 @@
     }
   },
   "resourceCopy": {
-    "primaryTitle": "Owner、process 与 authority isolation",
-    "primaryIntro": "Session、thread、directory、host client 与 remote server 是不同 authority domain。",
-    "secondaryTitle": "Cache、timeout、reconnect 与 result limits",
-    "secondaryIntro": "数字必须绑定 phase；cached/live/ready/callable 分开。"
+    "primaryTitle": "连接归属、进程与调用权限",
+    "primaryIntro": "Session、thread、目录实例、宿主客户端和远端服务分别持有不同权限，不能因共用一个工具名就合并。",
+    "secondaryTitle": "缓存、超时、重连和结果限制",
+    "secondaryIntro": "每个限额要注明对应阶段；工具被缓存、服务已连接、已就绪和允许调用是四种状态。"
   },
   "snapshots": [
     {
@@ -279,7 +279,7 @@
       "id": "OP02",
       "group": "registration",
       "label": "授权注册与信任",
-      "question": "Registration 是否需要 workspace trust、managed policy 或 host ACL？",
+      "question": "注册工具前，需要工作区信任、管理策略或宿主访问授权吗？",
       "icon": "shield-check",
       "cells": {
         "claude-code": {
@@ -363,7 +363,7 @@
       "id": "OP03",
       "group": "registration",
       "label": "建立传输连接",
-      "question": "使用哪种 transport、environment、cwd 与重试策略建连？",
+      "question": "怎样连接服务，使用哪个环境和工作目录，连接失败时如何重试？",
       "icon": "plug-zap",
       "cells": {
         "claude-code": {
@@ -454,7 +454,7 @@
       "id": "OP04",
       "group": "registration",
       "label": "认证远程服务",
-      "question": "Credential 从哪里来，refresh 后是否会重放调用？",
+      "question": "凭据从哪里读取，刷新认证后会不会重新执行那次工具调用？",
       "icon": "key-round",
       "cells": {
         "claude-code": {
@@ -539,7 +539,7 @@
       "id": "OP05",
       "group": "catalog",
       "label": "初始化与协商",
-      "question": "Transport live 后是否完成 initialize、protocol 与 capability negotiation？",
+      "question": "连接建立后，初始化和协议、能力协商是否也完成了？",
       "icon": "handshake",
       "cells": {
         "claude-code": {
@@ -625,7 +625,7 @@
       "id": "OP06",
       "group": "catalog",
       "label": "发现完整目录",
-      "question": "Catalog 是否完成分页、验证并原子发布？",
+      "question": "工具目录是否拉取了所有分页并通过校验，失败时会不会留下半份目录？",
       "icon": "list-tree",
       "cells": {
         "claude-code": {
@@ -717,7 +717,7 @@
       "id": "OP07",
       "group": "catalog",
       "label": "发布目录版本",
-      "question": "Raw schema、model schema、cache/live source 与 collision 如何收口？",
+      "question": "原始工具定义和模型收到的定义是否一致？目录来自缓存还是实时服务，撞名又怎样处理？",
       "icon": "book-copy",
       "cells": {
         "claude-code": {
@@ -806,8 +806,8 @@
     {
       "id": "OP08",
       "group": "catalog",
-      "label": "搜索与物化 Schema",
-      "question": "Deferred index 如何选中工具并把完整 schema 插入 provider step？",
+      "label": "搜索并加载工具定义",
+      "question": "延迟加载的工具怎样被搜索到，完整参数定义何时进入下一次模型请求？",
       "icon": "scan-search",
       "cells": {
         "claude-code": {
@@ -898,7 +898,7 @@
       "id": "OP09",
       "group": "invocation",
       "label": "授权一次调用",
-      "question": "Exact tool revision 与 arguments 通过哪个 permission、approval 或 human wait？",
+      "question": "这一个版本的工具和这份参数，经过哪种权限检查或人工审批？",
       "icon": "badge-check",
       "cells": {
         "claude-code": {
@@ -986,15 +986,15 @@
       "id": "OP10",
       "group": "invocation",
       "label": "模型路径调用 MCP",
-      "question": "模型看到的 schema 是否仍绑定 current callable authority？",
+      "question": "模型看到的工具定义，是否仍对应当前有权执行的那一个工具？",
       "icon": "bot",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "Assistant MCP tool path",
           "primitive": "model → permission/hooks → tools/call",
-          "contract": "Application error与protocol error分开；大结果可能投影成file reference。",
-          "edge": "Tool error不能标 connection failed；artifact不是普通 text。",
+          "contract": "工具返回的业务错误与通信协议错误分别处理。结果太大时，可能返回文件引用，而不是直接返回全文。",
+          "edge": "工具报错不代表连接失败；文件等产物也不能直接当普通文本解析。",
           "details": [
             {
               "label": "AUTHORITY",
@@ -1018,8 +1018,8 @@
           "status": "exposed",
           "surface": "McpBinding + model handler",
           "primitive": "wait current → prepare → approve → call",
-          "contract": "Model path等待current server、重备 exact call并通过 approval。",
-          "edge": "Catalog revision变化时PreparedMcpCall拒绝，不能调用新实现。",
+          "contract": "模型调用会等待当前服务就绪，重新准备这次准确调用，再经过审批。",
+          "edge": "工具目录版本变化时，PreparedMcpCall 会拒绝原请求，避免旧定义悄悄调用新实现。",
           "details": [
             {
               "label": "AUTHORITY",
@@ -1045,8 +1045,8 @@
           "status": "exposed",
           "surface": "Provider tool / Code Mode child",
           "primitive": "model tool call → permission → MCP",
-          "contract": "默认 direct tool与Code Mode child都经过调用 permission。",
-          "edge": "In-flight provider request使用自己的tool snapshot；next step才重解目录。",
+          "contract": "默认直接暴露的工具，以及 Code Mode 子任务中的工具调用，都经过调用权限检查。",
+          "edge": "已经发出的模型请求沿用当时的工具快照；下一步才重新解析当前目录。",
           "details": [
             {
               "label": "AUTHORITY",
@@ -1073,7 +1073,7 @@
       "id": "OP11",
       "group": "invocation",
       "label": "非模型 MCP 调用入口",
-      "question": "固定证据暴露了哪些非模型入口，它们分别经过什么 authority？",
+      "question": "不通过模型也能调用工具吗？这些直接入口由谁授权？",
       "icon": "terminal-square",
       "cells": {
         "claude-code": {
@@ -1156,7 +1156,7 @@
       "id": "OP12",
       "group": "invocation",
       "label": "注册 Codex dynamicTools",
-      "question": "Thread start host contract如何验证、持久化与暴露？",
+      "question": "thread/start 怎样校验和保存 dynamicTools，并把它们提供给模型？",
       "icon": "braces",
       "cells": {
         "claude-code": {
@@ -1241,8 +1241,8 @@
     {
       "id": "OP13",
       "group": "invocation",
-      "label": "路由 Dynamic Host Call",
-      "question": "Host subscriber 是否仍连接并能返回合法 result/media？",
+      "label": "交给宿主执行 dynamicTools",
+      "question": "接收调用的宿主是否仍连接，能否返回符合要求的结果和媒体？",
       "icon": "radio-tower",
       "cells": {
         "claude-code": {
@@ -1324,7 +1324,7 @@
       "id": "OP14",
       "group": "lifecycle",
       "label": "应用目录变化",
-      "question": "List-changed、refresh 或下一 provider step 如何形成新 revision？",
+      "question": "服务报告工具变化后，什么时候才真正换成新版目录？",
       "icon": "git-compare-arrows",
       "cells": {
         "claude-code": {
@@ -1409,7 +1409,7 @@
       "id": "OP15",
       "group": "lifecycle",
       "label": "Reload 或重连",
-      "question": "Config、plugin、auth 与 transport recovery 是否真的换 generation？",
+      "question": "配置或插件重载、认证刷新和断线恢复，是否真的换了连接或目录？",
       "icon": "refresh-ccw",
       "cells": {
         "claude-code": {
@@ -1498,7 +1498,7 @@
       "id": "OP16",
       "group": "lifecycle",
       "label": "禁用与关闭",
-      "question": "移除配置后 tools、client、child 与 shadow winner 是否收口？",
+      "question": "移除配置后，工具、连接和子进程是否都已关闭？被遮住的另一份配置会不会重新生效？",
       "icon": "power",
       "cells": {
         "claude-code": {

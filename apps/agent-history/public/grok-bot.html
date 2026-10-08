@@ -30,9 +30,9 @@
     <main id="grokRadar" class="grok-main" aria-busy="true">
       <header class="grok-product-header">
         <div class="grok-product-copy">
-          <span class="grok-kicker">RECONSTRUCTION RADAR · 0.18.0</span>
+          <span class="grok-kicker">非官方重建研究 · 0.18.0</span>
           <h1>Grok Bot</h1>
-          <p>把上游产品、重建 runtime 和作者扩展拆开，追踪完整 Agent 路径在哪里断开。</p>
+          <p>这份非官方重建恢复了什么？切换模型后，对话、工具和权限是否还能接得上？</p>
         </div>
         <dl class="grok-snapshot" aria-label="研究快照">
           <div><dt>源码</dt><dd id="sourceCommit">a9f633e09d49</dd></div>
@@ -48,8 +48,8 @@
           <p id="thesis">正在读取固定源码结论。</p>
           <div class="grok-hero-tags" aria-label="研究边界">
             <span><i data-lucide="git-commit-horizontal" aria-hidden="true"></i>固定提交</span>
-            <span><i data-lucide="layers-3" aria-hidden="true"></i>三层归因</span>
-            <span><i data-lucide="messages-square" aria-hidden="true"></i>X 讨论纠偏</span>
+            <span><i data-lucide="layers-3" aria-hidden="true"></i>官方、重建、作者扩展分开</span>
+            <span><i data-lucide="messages-square" aria-hidden="true"></i>核对 X 上的说法</span>
           </div>
         </div>
         <figure class="grok-hero-figure">
@@ -62,16 +62,16 @@
 
       <section class="grok-layer-band" aria-labelledby="layerTitle">
         <header class="grok-section-heading">
-          <div><span>ATTRIBUTION BEFORE INTERPRETATION</span><h2 id="layerTitle">先把三层事实拆开</h2></div>
-          <p>所有机制、风险和 X 讨论都先归层，再下结论。</p>
+          <div><span>先确认来源</span><h2 id="layerTitle">官方产品、重建代码和作者扩展不是一回事</h2></div>
+          <p>不能拿官方宣传替重建代码背书，也不能把作者新增功能当成上游原生能力。</p>
         </header>
         <div id="layerGrid" class="grok-layer-grid"></div>
       </section>
 
       <section class="grok-mechanism-section" aria-labelledby="mechanismTitle">
         <header class="grok-section-heading">
-          <div><span>MECHANISM INSPECTOR</span><h2 id="mechanismTitle">机制雷达</h2></div>
-          <p>从交付物一路追到 Router 断层、凭据边界与验证缺口。</p>
+          <div><span>逐项核对</span><h2 id="mechanismTitle">切换模型后，哪些东西跟着走了</h2></div>
+          <p>检查软件包、工具、聊天历史与凭据，再看本地复跑能确认到哪一步。</p>
         </header>
         <div class="grok-mechanism-layout">
           <aside class="grok-mechanism-rail" aria-label="机制列表">
@@ -97,8 +97,8 @@
 
       <section class="grok-deep-dive-section" aria-labelledby="deepDiveTitle">
         <header class="grok-section-heading">
-          <div><span>SOURCE ARCHAEOLOGY</span><h2 id="deepDiveTitle">源码考古室</h2></div>
-          <p>沿真实调用链拆开进程、Harness 原语、产品能力与隐藏实验；“有代码”不自动等于“线上已启用”。</p>
+          <div><span>实现细节</span><h2 id="deepDiveTitle">进程、工具与恢复怎样接起来</h2></div>
+          <p>沿源码调用链检查各组件，也区分实验开关、共享代码和未接入的路径；代码存在不代表线上已经启用。</p>
         </header>
         <div class="grok-deep-dive-shell">
           <div id="deepDiveTabs" class="grok-deep-dive-tabs" role="tablist" aria-label="源码考古视图"></div>

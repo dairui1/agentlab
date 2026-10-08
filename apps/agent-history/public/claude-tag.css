@@ -2,6 +2,11 @@
 .tag-study h1 { font-size: 30px; }
 .tag-study h3 { margin-top: 28px; }
 .tag-study .capability-article { min-width: 0; }
+.tag-study .capability-reading { grid-template-columns: 180px minmax(0, 760px); }
+.tag-study .article-lead { padding: 0; border: 0; }
+.tag-study .study-notes { border-top: 1px solid var(--border); margin: 22px 0; scroll-margin-top: 24px; }
+.tag-study .study-notes > summary { padding: 16px 0; cursor: pointer; font-size: 16px; font-weight: 650; line-height: 1.7; overflow-wrap: anywhere; }
+.tag-study .study-notes > p { font-size: 14px; }
 .tag-study .capability-article code { overflow-wrap: anywhere; }
 .tag-study .article-toc { max-height: calc(100vh - 100px); overflow-y: auto; }
 .tag-tool-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, .65fr); gap: 12px; margin-top: 24px; }
@@ -19,6 +24,8 @@
 .tag-walkthrough li { margin-bottom: 16px; padding-left: 4px; }
 .tag-source-links { overflow-wrap: anywhere; }
 @media (max-width: 860px) {
+  .tag-study .capability-reading { display: block; }
+  .tag-study .study-notes { scroll-margin-top: 70px; }
   .tag-study .article-hero-inner { gap: 0; }
   .tag-study .article-toc { max-height: none; overflow-x: auto; }
   .tag-study .article-scope-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

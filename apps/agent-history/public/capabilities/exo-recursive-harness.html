@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="拆解 Exo 如何让 Agent 改写自己的 Prompt、工具和 Harness，并核对 trusted substrate、回滚与递归自我改进的真实边界。">
+  <meta name="description" content="Exo 怎样修改自己的代码并重启，为什么构建通过仍不等于改进；检查历史、代码与沙箱的不同恢复方式，以及默认部署的信任边界。">
   <title>Exo 递归 Harness · 专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <script src="/site-theme.js"></script>
@@ -45,7 +45,7 @@
           <div><span>产品</span><strong>Exo</strong><small>long-running agent + harness</small></div>
           <div><span>源码</span><strong>7801005e6a1a</strong><small>固定公开提交</small></div>
           <div><span>版本</span><strong>0.1.0 dev snapshot</strong><small>无 tag / Release</small></div>
-          <div><span>结论</span><strong>RSM 平台</strong><small>尚非已验证闭环 RSI</small></div>
+          <div><span>结论</span><strong>递归自修改 / RSM 平台</strong><small>尚非已验证的递归自改进 RSI</small></div>
         </div>
       </section>
 
@@ -58,7 +58,7 @@
             <li><a href="#mutation-loop" data-index="03">自修改链：看、改、编译、重启</a></li>
             <li><a href="#three-states" data-index="04">三种状态：日志、Git 与沙箱不是同一个撤销键</a></li>
             <li><a href="#memory-tools" data-index="05">渐进变化：记忆、Skills 与 Tools</a></li>
-            <li><a href="#trust-boundary" data-index="06">关键问题：trusted substrate 真碰不到吗</a></li>
+            <li><a href="#trust-boundary" data-index="06">关键问题：历史与恢复层真的改不到吗</a></li>
             <li><a href="#clone-lineage" data-index="07">克隆与谱系：底层原语有了，整机复制还没有</a></li>
             <li><a href="#rsi-test" data-index="08">RSI 检验：能改自己不等于会变好</a></li>
             <li><a href="#worth-borrowing" data-index="09">值得借鉴：把恢复能力放在智能之外</a></li>
@@ -68,12 +68,14 @@
         </aside>
 
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">Exo 最有价值的想法，不是让模型拥有更大的 shell 权限，而是把“可变的 Agent”放在“应该保持稳定的历史和恢复层”之上。问题也恰好出在这里：架构图画出了这条边界，默认启动配置却还没有把它完全变成模型无法越过的墙。</p>
+          <div class="article-opening">
+            <p class="article-lead">Exo 最有价值的想法，不是让模型拥有更大的 shell 权限，而是把“可变的 Agent”放在“应该保持稳定的历史和恢复层”之上。问题也恰好出在这里：架构图画出了这条边界，默认启动配置却还没有把它完全变成模型无法越过的墙。</p>
 
+          </div>
           <section id="verdict" data-article-section>
             <span class="section-number">01 / 先说结论</span>
             <h2>先说结论：Exo 已经完成哪一半</h2>
-            <p>把 recursive self-improvement 拆成两半，Exo 已经完成了很少项目认真做的前半段：Agent 能读自己的源码和运行历史，能改 Prompt、记忆、工具与 Harness，能请求宿主重新编译和重启，还能从 Git 与沙箱快照退回。<button class="evidence-ref" type="button" data-evidence="EXO-02 EXO-03 EXO-05" data-evidence-trigger>EXO-02、03、05</button></p>
+            <p>先分清“能改自己”和“改完以后更好”。固定源码提供了前一件事所需的路径：Agent 能读自己的源码和运行历史，改 Prompt、记忆、工具与 Harness，请求宿主重新编译和重启，也有 Git 与沙箱快照等恢复入口。<button class="evidence-ref" type="button" data-evidence="EXO-02 EXO-03 EXO-05" data-evidence-trigger>自修改的入口</button></p>
             <p>后半段仍然空着：什么叫“更好”，怎样生成多个候选，在哪里隔离试跑，谁用盲测结果批准采用，退化如何自动回滚。当前 guardian 只保证代码能编译并重新拉起服务，不会替 Agent 做行为验收。<button class="evidence-ref" type="button" data-evidence="EXO-06 EXO-14" data-evidence-trigger>EXO-06、14</button></p>
             <blockquote class="article-pullquote">Exo 已经是一个认真设计的递归自修改系统，但还不是一个已经证明能递归产生净改进的系统。<small>本专题的核心判断</small></blockquote>
           </section>
@@ -81,7 +83,8 @@
           <section id="two-layers" data-article-section>
             <span class="section-number">02 / 两层架构</span>
             <h2>两层架构：底座保存事实，Executor 决定行为</h2>
-            <p><code>exoharness</code> 管 agent、conversation、turn、event、artifact、secret 和 sandbox lifecycle；executor 决定给模型看哪些 event、用哪个模型、暴露什么工具、怎样压缩以及何时结束。这个拆分非常干净：Prompt 或 turn loop 改坏时，历史不必跟着换一种格式。<button class="evidence-ref" type="button" data-evidence="EXO-01 EXO-07" data-evidence-trigger>EXO-01、07</button></p>
+            <p>Agent 修改自己的工作方式时，不能连唯一的历史也一起改掉。Exo 因此分成两层：底座 <code>exoharness</code> 管身份、对话、事件、版本化产物、秘密与沙箱生命周期；上层 <code>executor</code> 决定给模型看哪些记录、用哪个模型、开放什么工具，以及何时压缩或结束。<button class="evidence-ref" type="button" data-evidence="EXO-01 EXO-07" data-evidence-trigger>两层各自负责什么</button></p>
+            <p>这样，Prompt 或任务循环改坏时，历史格式不必跟着换。这里说的是职责分离；默认部署是否真的禁止模型写入底座，后面还要单独检查。</p>
             <figure class="article-figure">
               <div class="article-flow" style="--flow-count: 5">
                 <div><span>01</span><strong>Event log</strong><small>持久事实</small></div>
@@ -98,7 +101,8 @@
           <section id="mutation-loop" data-article-section>
             <span class="section-number">03 / 自修改链</span>
             <h2>自修改链：看、改、编译、重启</h2>
-            <p>canonical launcher 把 Exo 仓库挂进共享 agent sandbox。模型先从 <code>exo/SELF.md</code> 找到 Prompt、Harness、工具和 supervisor，再用 shell 修改同一份宿主工作树。修改完成后，<code>rebuild_and_restart_exo</code> 把固定的 <code>restart-all --build</code> 交给 detached guardian，当前 turn 先正常结束，新进程再接手。<button class="evidence-ref" type="button" data-evidence="EXO-04 EXO-05" data-evidence-trigger>EXO-04、05</button></p>
+            <p>默认启动脚本把 Exo 仓库以读写方式挂进 Agent 沙箱。模型从 <code>exo/SELF.md</code> 找到 Prompt、Harness、工具和管理进程的位置，再用 shell 修改这份宿主工作树。</p>
+            <p>改完以后，工具 <code>rebuild_and_restart_exo</code> 不直接杀死当前进程。它把固定的 <code>restart-all --build</code> 交给独立运行的管理进程 <code>guardian</code>；当前轮先结束，再由新进程接手。<button class="evidence-ref" type="button" data-evidence="EXO-04 EXO-05" data-evidence-trigger>修改怎样交给重启</button></p>
             <div class="article-table-wrap"><table class="article-table">
               <thead><tr><th>阶段</th><th>实现</th><th>当前保证</th><th>还没保证</th></tr></thead>
               <tbody>
@@ -136,8 +140,8 @@
 
           <section id="trust-boundary" data-article-section>
             <span class="section-number">06 / 关键问题</span>
-            <h2>关键问题：trusted substrate 真碰不到吗</h2>
-            <p>官方架构写得很明确：event log 和 secret 位于模型不可修改的 trusted substrate。可默认启动的另一段代码同样明确：整个 <code>ROOT_DIR</code> 以 <code>--rw</code> 挂载到模型拥有 shell 的沙箱，而持久状态就在宿主仓库下的 <code>.exo/</code>。<button class="evidence-ref" type="button" data-evidence="EXO-01 EXO-04 EXO-09" data-evidence-trigger>EXO-01、04、09</button></p>
+            <h2>关键问题：历史与恢复层真的改不到吗</h2>
+            <p>官方把保存历史与秘密的底座称为 <code>trusted substrate</code>，要求模型不能修改它。可默认启动脚本又把整个 <code>ROOT_DIR</code> 以 <code>--rw</code> 挂到模型能执行 shell 的沙箱；持久状态就在这个仓库下的 <code>.exo/</code>。职责上说不能改，文件权限上却未必挡住。<button class="evidence-ref" type="button" data-evidence="EXO-01 EXO-04 EXO-09" data-evidence-trigger>信任声明与默认挂载</button></p>
             <p>这意味着“append-only”目前主要是 API 语义。BasicObjectStore 为每个 event 写普通 JSON 文件，顺序由 latest head 与 write lock 维护，没有哈希链、签名或 WORM storage。正常 API 不会改旧事件，但拿到文件系统写权限的进程未必受这个合同约束。<button class="evidence-ref" type="button" data-evidence="EXO-08" data-evidence-trigger>EXO-08</button></p>
             <div class="article-callout"><strong>这不是说 Exo 完全没有安全设计</strong><p>secret 内容以 AES-256-GCM 加密，macOS 默认 master key 可放 Keychain；guardian 也只暴露固定 build/restart 动作。问题更具体：canonical repo mount 把信任层源码和本地状态放进了同一个读写树，部署方需要额外隔离才能兑现文档中的强边界。</p></div>
           </section>
@@ -146,13 +150,13 @@
             <span class="section-number">07 / 克隆与谱系</span>
             <h2>克隆与谱系：底层原语有了，整机复制还没有</h2>
             <p>CLI 可以 fork conversation，底层 trait 也有 sandbox fork / restore。但“完整 Exo”还包括 Git ref、agent 与 conversation artifacts、secret、scheduler、adapter pairing、sandbox snapshot 和外部身份。SELF-CONTROL 把完整 cloning and migration 明确标为 <em>not yet built</em>。<button class="evidence-ref" type="button" data-evidence="EXO-13" data-evidence-trigger>EXO-13</button></p>
-            <p>这条边界很重要。能从某个 event 分叉新对话，是状态树；能让两个后代在隔离环境中改不同 Harness、跑同一组试验、比较结果并选择一个接管外部身份，才是 RSI 所需的 lineage workflow。README 的“clone itself”更像目标与底层能力概括，不能直接理解成 canonical Agent 已有一键克隆。</p>
+            <p>从历史事件分叉对话，不等于复制出一个能独立试验的完整 Agent。后者还要带上代码、沙箱和必要身份，让两个版本跑同一组任务，再决定谁接管工作。README 的“clone itself”不能直接理解成默认 Agent 已经有一键克隆。</p>
           </section>
 
           <section id="rsi-test" data-article-section>
             <span class="section-number">08 / RSI 检验</span>
             <h2>RSI 检验：能改自己不等于会变好</h2>
-            <p>Exo 对 “recursive” 的定义很强：一个完整系统产生另一个带状态谱系的完整系统，而不只是用 AI 加速写代码。按这个标准，它的工程方向是对的。但“self modification”和“self improvement”之间还隔着一套实验科学。<button class="evidence-ref" type="button" data-evidence="EXO-14" data-evidence-trigger>EXO-14</button></p>
+            <p>递归自修改（RSM）只要求系统能改变自身；递归自改进（RSI）还要证明后续版本变得更好。Exo 对“递归”的定义包括产生带状态谱系的完整后代，不只是用 AI 加速写代码。它提供了一部分系统条件，但质量提升仍缺独立试验与验收。<button class="evidence-ref" type="button" data-evidence="EXO-14" data-evidence-trigger>自修改与自改进</button></p>
             <div class="article-table-wrap"><table class="article-table">
               <thead><tr><th>闭环环节</th><th>固定 main 中的状态</th><th>达到可证明 RSI 还需要什么</th></tr></thead>
               <tbody>
@@ -187,7 +191,7 @@
           <div class="article-margin-block"><span>一句话模型</span><strong>不可变历史在下，可变策略在上，guardian 负责换代。</strong><small>这是 Exo 最漂亮的设计。</small></div>
           <div class="article-margin-block"><span>当前判断</span><strong>递归自修改平台，不是已验证闭环 RSI。</strong><small>能改不等于会改好。</small></div>
           <div class="article-margin-block"><span>最大风险</span><strong>默认 RW root mount 削弱 trusted substrate。</strong><small>API append-only 不是文件系统不可篡改。</small></div>
-          <div class="article-margin-block"><span>最该补</span><strong>clone canary + independent verifier + adoption gate。</strong><small>让旧版本拥有最后的回滚权。</small></div>
+          <div class="article-margin-block"><span>最该补</span><strong>隔离试跑，再由外部验收决定采用。</strong><small>clone canary、独立验证与采用关卡；旧版本保留回滚权。</small></div>
         </aside>
       </div>
 

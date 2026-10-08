@@ -2,6 +2,11 @@
 .raven-title { display: flex; align-items: flex-start; gap: 16px; }
 .raven-title img { flex: 0 0 48px; object-fit: contain; }
 .raven-title h1 { min-width: 0; }
+.raven-study .article-hero h1 { font-size: 32px; }
+.raven-study .article-lead { padding: 0; border: 0; }
+.raven-study .study-notes { border-top: 1px solid var(--border); margin: 22px 0; scroll-margin-top: 24px; }
+.raven-study .study-notes > summary { padding: 16px 0; cursor: pointer; font-size: 16px; font-weight: 650; line-height: 1.7; overflow-wrap: anywhere; }
+.raven-study .study-notes > p { font-size: 14px; }
 .raven-study .capability-reading { grid-template-columns: 216px minmax(0, 760px); gap: 48px; }
 .raven-study .capability-article { min-width: 0; }
 .raven-study .capability-article a,
@@ -21,6 +26,7 @@
   .raven-study .capability-reading { grid-template-columns: 180px minmax(0, 1fr); gap: 28px; }
 }
 @media (max-width: 860px) {
+  .raven-study .study-notes { scroll-margin-top: 70px; }
   .raven-study .capability-reading { display: block; }
   .raven-study .article-hero-inner { gap: 0; }
 }

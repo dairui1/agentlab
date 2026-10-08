@@ -15,7 +15,7 @@
 }
 
 .token-budget-hero .article-hero-inner {
-  grid-template-columns: minmax(0, 1fr) minmax(360px, .78fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .token-budget-hero-visual {

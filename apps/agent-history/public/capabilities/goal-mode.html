@@ -66,13 +66,13 @@
             <li><a href="#overall-model" data-index="01">整体模型：同一句 /goal，两条控制回路</a></li>
             <li><a href="#product-entry" data-index="02">产品入口：一个保存目标，一个设置条件</a></li>
             <li><a href="#state-location" data-index="03">目标状态：系统到底记住了什么</a></li>
-            <li><a href="#codex-stack" data-index="04">Codex 控制面：一个 goal 横跨六层</a></li>
+            <li><a href="#codex-stack" data-index="04">Codex 控制面：状态不只写在提示里</a></li>
             <li><a href="#codex-continuation" data-index="05">Codex 续跑：thread 空闲以后，runtime 再开一轮</a></li>
             <li><a href="#lifecycle-budget" data-index="06">状态与预算：暂停、阻塞和没额度不是一回事</a></li>
             <li><a href="#claude-stop-hook" data-index="07">Claude 出口闸：先等后台，再问 evaluator</a></li>
             <li><a href="#evaluator-vision" data-index="08">评估视野：独立裁判也会看漏现场</a></li>
             <li><a href="#resume-semantics" data-index="09">恢复语义：续用一行状态，还是重建一枚钩子</a></li>
-            <li><a href="#control-loop-lab" data-index="10">控制回路实验：同一个岔路，两套系统怎么走</a></li>
+            <li><a href="#control-loop-lab" data-index="10">控制回路对照：同一个岔路，两套系统怎么走</a></li>
             <li><a href="#completion-authority" data-index="11">完成权限：自证与外审，各自会在哪里失手</a></li>
             <li><a href="#conclusion-boundary" data-index="12">结论与边界：Goal Mode 不是更长的 prompt</a></li>
           </ol>
@@ -80,13 +80,16 @@
         </aside>
 
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">假设任务是“把认证模块迁完，相关测试全绿，lint 干净，别碰无关文件”。普通 turn 结束时，模型很可能已经改了一部分，也可能刚跑完一轮失败测试。Goal Mode 真正要解决的，不是如何把这句话再念一遍，而是：现在该不该开下一轮，谁来决定，以及“完成”这个结论要凭什么成立。</p>
+          <div class="article-opening">
+            <p class="article-lead">假设任务是“把认证模块迁完，相关测试全绿，lint 干净，别碰无关文件”。一轮回答结束时，Agent 可能只改了一部分，或刚跑完失败测试。Goal Mode 要解决的是：现在该不该再开一轮，谁来决定，以及凭什么说完成。</p>
 
+          </div>
           <section id="overall-model" data-article-section>
             <span class="section-number">01 / 整体模型</span>
             <h2>整体模型：同一句 /goal，两条控制回路</h2>
             <p>表面上，两边的使用动作几乎一样：敲下 <code>/goal</code>，给一个可验证的终点，然后让 agent 自己往前走。可只要追到一轮结束的地方，分叉就出现了。</p>
-            <p>Codex 先在 thread 上保存一条 goal。每轮结束后，runtime 看这条记录是不是仍为 <code>active</code>；是，就给同一个 worker 塞进隐藏的目标上下文，再开一个正常 turn。最后还是这个 worker 调 <code>update_goal</code>，申报 <code>complete</code> 或真正的 <code>blocked</code>。Claude Code 则把 condition 挂在 session 的 Stop hook 上。worker 想结束一轮时，另一只小模型只看对话：<code>unmet</code> 就把理由带回下一轮，<code>met</code> 会清掉 goal；如果 evaluator 判断目标已经不可能完成，也会清掉 hook，但留下 <code>failed</code> 记录。<button class="evidence-ref" type="button" data-evidence="GM-05 GM-09 GM-10 GM-14" data-evidence-trigger>GM-05,09,10,14</button></p>
+            <p>Codex 先把目标保存到 Thread。每轮结束后，运行系统（runtime）检查目标是否仍为 <code>active</code>；是，就把目标再交给同一个执行 Agent（worker），开下一轮。最终也由 worker 调 <code>update_goal</code>，申报完成 <code>complete</code> 或真正阻塞 <code>blocked</code>。</p>
+            <p>Claude Code 把完成条件（condition）挂在会话的停止检查 <code>Stop hook</code> 上。worker 想结束一轮时，另一只评估模型（evaluator）读取对话：未满足 <code>unmet</code> 就带理由继续；满足 <code>met</code> 就清掉目标；判断已不可能完成 <code>impossible</code>，也会停止，但记为失败 <code>failed</code>。<button class="evidence-ref" type="button" data-evidence="GM-05 GM-09 GM-10 GM-14" data-evidence-trigger>续轮与完成权的区别</button></p>
             <figure class="article-figure">
               <div class="article-flow" style="--flow-count: 5">
                 <div><span>CODEX 01</span><strong>持久 goal</strong><small>thread 上的 runtime 状态</small></div>
@@ -131,8 +134,9 @@
 
           <section id="codex-stack" data-article-section>
             <span class="section-number">04 / Codex 控制面</span>
-            <h2>Codex 控制面：一个 goal 横跨六层</h2>
-            <p>Codex 这套实现不轻。<code>/goal</code> 只是露在水面上的开关，下面至少串了六层：TUI 解析用户动作，protocol 定义跨组件的数据，state DB 持久化一条 thread goal，模型工具约束 worker 能做什么，accounting 记录使用量，runtime 再处理续跑和停机。一个功能横跨这么多层，维护成本不小；换来的好处是，暂停、阻塞、用量限制和完成不会只剩 prompt 里的几个词。<button class="evidence-ref" type="button" data-evidence="GM-02 GM-03 GM-04 GM-05 GM-07 GM-08" data-evidence-trigger>GM-02–05,07–08</button></p>
+            <h2>Codex 控制面：状态不只写在提示里</h2>
+            <p>暂停不能只靠提示模型“先别干了”，预算也不能只靠一句“注意额度”。Codex 把它们变成运行系统会读取的状态：界面接收用户动作，协议传递字段，数据库保存目标，工具限制 worker 能改的状态，计量层累计用量，调度层决定是否续跑。<button class="evidence-ref" type="button" data-evidence="GM-02 GM-03 GM-04 GM-05 GM-07 GM-08" data-evidence-trigger>目标进入哪些系统层</button></p>
+            <p>这就是本文所说的“控制面”。维护这些组件有成本，但暂停、阻塞、额度耗尽和完成因此不会只停留在对话里的几个词。</p>
             <figure class="article-figure">
               <div class="article-flow" style="--flow-count: 6">
                 <div><span>01</span><strong>/goal</strong><small>用户创建或控制</small></div>
@@ -150,7 +154,7 @@
           <section id="codex-continuation" data-article-section>
             <span class="section-number">05 / Codex 续跑</span>
             <h2>Codex 续跑：thread 空闲以后，runtime 再开一轮</h2>
-            <p>普通 turn 收尾时，Codex 的 runtime 不会直接照着上一条回答再发一遍。它先拿一把 goal-state permit，读取 thread 上当前那条 goal，再确认状态仍为 <code>active</code>。只有这些条件都成立，才构造一条内部 continuation item，交给 <code>try_start_turn_if_idle</code>。这把锁解决的是一个很现实的竞态：用户刚按 pause，旧状态不能在同一瞬间又偷偷启动一轮。<button class="evidence-ref" type="button" data-evidence="GM-05" data-evidence-trigger>GM-05</button></p>
+            <p>用户刚按暂停，旧状态不能又启动一轮。Codex 在读目标状态到尝试续轮之间，持有同一把状态许可锁 <code>goal-state permit</code>。确认仍为 <code>active</code> 后，才构造内部接力输入，调用 <code>try_start_turn_if_idle</code>。它不是把上一条回答原样再发一次。<button class="evidence-ref" type="button" data-evidence="GM-05" data-evidence-trigger>暂停与续跑的竞争</button></p>
             <p>新 turn 收到的隐藏上下文会重新带上完整 objective、已用与剩余 token，并提醒 worker：当前 worktree 和外部状态才是事实；上一轮的记忆只能帮忙定位，不能替代检查。模板还把完成审计写得很重：目标里每一项明确要求、命令、产物和 gate，都要找到能证明它的当前证据；证据弱、缺失或只“看起来没问题”，就继续做，不许把成功定义缩到现有成果刚好够得着的位置。<button class="evidence-ref" type="button" data-evidence="GM-06" data-evidence-trigger>GM-06</button></p>
             <div class="article-code-block">thread becomes idle
   → read persisted goal
@@ -237,14 +241,14 @@
           </section>
 
           <section id="control-loop-lab" data-article-section>
-            <span class="section-number">10 / 控制回路实验</span>
-            <h2>控制回路实验：同一个岔路，两套系统怎么走</h2>
-            <p>下面不再看静态功能表。选一个长任务常见的岔路，再沿四个阶段往前走：目标设下以后，两边各自保存了什么；本轮结束时谁接手；来到边界怎样判断；最后是继续、停住，还是等人。每个结论都能从右下角打开对应证据。</p>
+            <span class="section-number">10 / 控制回路对照</span>
+            <h2>控制回路对照：同一个岔路，两套系统怎么走</h2>
+            <p>证据没贴全、预算刚到线、后台任务还没结束，这几种情况都可能出现在长任务里。下面按固定规则推演两套系统会怎样处理：设目标、结束本轮、检查停止条件，再决定下一步。它不是实际运行回放；真实三轮记录在<a href="/capabilities/goal-mode-real-run.html">另一个实验页</a>。</p>
 
             <div class="goal-mode-lab" data-goal-mode-lab aria-busy="true">
               <header class="goal-mode-lab-header">
                 <div>
-                  <span>CONTROL LOOP LAB</span>
+                  <span>规则推演</span>
                   <h3>一轮结束之后，谁握着开关？</h3>
                   <p data-goal-case-summary>正在装入两套 goal loop 的状态。</p>
                 </div>
@@ -255,7 +259,7 @@
               <p class="goal-mode-loading" data-goal-loading role="status">正在载入对照场景。</p>
             </div>
 
-            <p>实验里最值得来回切的是“证据缺失”“预算边界”和“后台仍在跑”。第一项把 workspace reality 与 transcript evidence 拆开；第二项把 Codex 的 goal budget、Claude 的 condition，以及外层 task budget / maxTurns 分清；第三项则展示一个很工程化的细节：不是每次主线程停下都该立刻验收。几种路径看起来都叫“继续”，开关实际落在不同层。</p>
+            <p>证据缺失时，测试真的通过与对话里能否看见结果，是两件事。预算到线时，Codex 的目标预算、Claude 的完成条件和外层 <code>task budget / maxTurns</code> 也不能混用。后台仍在跑时，主 worker 结束一轮还不足以下判决。这些情况都可能叫“继续”，原因却不同。</p>
           </section>
 
           <section id="completion-authority" data-article-section>

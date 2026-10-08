@@ -107,7 +107,7 @@ test("Claude resume contracts preserve resolver, runtime, replay, and terminal b
 });
 
 test("Codex resume contracts preserve identity, store, hydration, and rollback boundaries", () => {
-  assert.match(operation("capture-identity").cells.codex.contract, /threadId.*主键.*sessionId.*lineage/);
+  assert.match(operation("capture-identity").cells.codex.contract, /主键是 threadId.*sessionId.*lineage/);
   assert.match(operation("choose-persistence").cells.codex.edge, /path.*未 materialize.*remote\/custom/);
   assert.match(operation("resume-explicit").cells.codex.contract, /history > path > ID/);
   assert.match(operation("resume-explicit").cells.codex.edge, /hot resume.*override.*忽略/);

@@ -2,7 +2,7 @@
   "id": "mimoagent",
   "title": "MiMo Agent：黑盒接入与白盒训练",
   "product": "MiMo Agent",
-  "subtitle": "原版 CLI、mini-harness 与训练轨迹之间的区别",
+  "subtitle": "同一个模型，换成原版 Agent 以后还会修代码吗",
   "description": "沿一条代码修复任务，拆解小米如何复用真实 Coding Agent、重组白盒训练环境，以及日志距离 RL 样本还差什么。",
   "verifiedAt": "2026-09-28",
   "status": "active",

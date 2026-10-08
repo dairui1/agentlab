@@ -1,7 +1,7 @@
 {
   "title": "权限、审批与沙箱",
-  "subtitle": "Agent Harness 决策面 · 执行边界 · 恢复语义",
-  "description": "把 tool visibility、规则解析、人类审批、持久授权、OS sandbox 与最终执行结果拆成可实现的控制合同。",
+  "subtitle": "点了批准，命令为什么仍可能执行不了？分清工具权限、人类审批和系统沙箱各自管什么。",
+  "description": "比较三个 Agent 固定版本的工具权限、审批范围、系统沙箱与拒绝后的处理方式。",
   "eyebrow": "MECHANISM 003",
   "verifiedAt": "2026-08-10",
   "defaultView": "compare",
@@ -11,11 +11,11 @@
   "sharpEdgeTitle": "最容易写错的 7 个权限合同",
   "operationRailLabel": "Harness 要控制什么",
   "views": {
-    "compare": {"label": "操作速查", "kicker": "HARNESS PERMISSION REFERENCE", "title": "同一个批准按钮，背后不是同一种 authority", "description": "对齐工具可见性、规则来源、审批作用域、执行隔离、终态信号与重连合同。"},
-    "flows": {"label": "审批链路", "kicker": "DECISION TO EXECUTION", "title": "从模型提出动作到真实副作用", "description": "每条链路同时画 policy decision、human round trip、sandbox enforcement 与 terminal result。"},
-    "failures": {"label": "失败面", "kicker": "DENY / CANCEL / BYPASS / FAIL-OPEN", "title": "拒绝不是一种结果，批准也不是执行成功", "description": "把 policy deny、human reject、timeout、abort、sandbox failure 与未接 gate 分开处理。"},
-    "resources": {"label": "权限与隔离", "kicker": "AUTHORITY / SCOPE / ENFORCEMENT", "title": "谁能批准什么，批准能活多久，进程最终能碰哪里", "description": "规则、session overlay、instance grant、filesystem、network、child inheritance 与 OS backend 分栏。"},
-    "changes": {"label": "版本变化", "kicker": "SECURITY CONTRACT COMPATIBILITY", "title": "权限语义会随版本改变 blast radius", "description": "只列会改变 precedence、sandbox fail behavior、持久范围、subagent 继承或事件恢复的节点。"}
+    "compare": {"label": "操作速查", "kicker": "HARNESS PERMISSION REFERENCE", "title": "批准这一次，不代表获得同样的执行权限", "description": "对齐工具可见性、规则来源、审批作用域、执行隔离、终态信号与重连合同。"},
+    "flows": {"label": "审批链路", "kicker": "DECISION TO EXECUTION", "title": "从模型提出动作到真实副作用", "description": "分别追踪规则决策、人类审批、沙箱执行和最终结果。"},
+    "failures": {"label": "失败面", "kicker": "DENY / CANCEL / BYPASS / FAIL-OPEN", "title": "拒绝不是一种结果，批准也不是执行成功", "description": "规则拒绝、人类拒绝、超时、中断、沙箱失败和未接权限检查，会导向不同的恢复动作。"},
+    "resources": {"label": "权限与隔离", "kicker": "AUTHORITY / SCOPE / ENFORCEMENT", "title": "谁能批准什么，批准能活多久，进程最终能碰哪里", "description": "核对规则保存范围、文件与网络访问、子任务继承，以及系统真正提供的隔离。"},
+    "changes": {"label": "版本变化", "kicker": "SECURITY CONTRACT COMPATIBILITY", "title": "哪些版本改变了批准范围和隔离方式", "description": "关注规则优先级、沙箱失败处理、授权保存范围、子任务继承和事件恢复的变化。"}
   },
   "viewDefaults": {
     "compare": {"claim": "PERM-CX-01", "label": "操作速查 / approval 与 sandbox 正交"},
@@ -46,15 +46,15 @@
   ],
   "operations": [
     {
-      "id": "inspect-policy", "label": "读取有效权限", "question": "能否解释这次调用由哪一层、哪条规则、哪个 backend 决定？", "icon": "scan-search",
+      "id": "inspect-policy", "label": "读取有效权限", "question": "这次调用究竟由哪条权限规则决定，最后又受哪种执行隔离限制？", "icon": "scan-search",
       "cells": {
-        "claude-code": {"status": "partial", "surface": "Settings + SDK + hooks", "primitive": "tools · rules · permissionMode · sandbox settings", "contract": "可读取输入配置与 hook/telemetry 决策，但没有单个公共 API 返回完整 effective policy trace。", "edge": "bare allow、mode 与 sandbox auto-allow 都会 shadow callback；只看 canUseTool 日志会漏决策。", "details": [{"label": "NEED", "value": "tool surface + winning stage + rule source"}, {"label": "MODE", "value": "6 baselines"}, {"label": "ENFORCEMENT", "value": "Bash sandbox separately"}], "claims": ["PERM-CC-01", "PERM-CC-06"]},
-        "codex": {"status": "exposed", "surface": "App Server + permission profile", "primitive": "activePermissionProfile · approvalPolicy · sandboxPolicy", "contract": "thread/profile 与 settings notifications 可重建 live policy；approval 与 sandbox 必须保存为两条轴。", "edge": "legacy 三档 sandbox 不能表达 denied reads、managed network、environment roots 与 external sandbox。", "details": [{"label": "DECISION", "value": "approvalPolicy"}, {"label": "ENFORCEMENT", "value": "sandboxPolicy / permissions"}, {"label": "PROFILE", "value": "activePermissionProfile.id"}], "claims": ["PERM-CX-01", "PERM-CX-03"]},
-        "opencode": {"status": "partial", "surface": "Agent/session API + InstanceState", "primitive": "agent rules + session.permission + approved", "contract": "effective rules 按该顺序合成并 last-match；session overlay 可读，instance approvals 无公共 durable policy dump。", "edge": "runtime asked/replied 不携 winning rule；规则归并成 map 会破坏 order。", "details": [{"label": "ORDER", "value": "agent → session → approved"}, {"label": "WINNER", "value": "last matching rule"}, {"label": "DEFAULT", "value": "no match → ask"}], "claims": ["PERM-OC-01", "PERM-OC-11"]}
+        "claude-code": {"status": "partial", "surface": "Settings + SDK + hooks", "primitive": "tools · rules · permissionMode · sandbox settings", "contract": "可以读取配置和 hook、遥测中的权限决策；但没有一个公共 API 能完整解释所有规则如何共同生效。", "edge": "直接允许规则、权限模式或沙箱自动允许，可能提前做出决策，根本不调用 canUseTool。只看它的日志会漏掉这些调用。", "details": [{"label": "NEED", "value": "tool surface + winning stage + rule source"}, {"label": "MODE", "value": "6 baselines"}, {"label": "ENFORCEMENT", "value": "Bash sandbox separately"}], "claims": ["PERM-CC-01", "PERM-CC-06"]},
+        "codex": {"status": "exposed", "surface": "App Server + permission profile", "primitive": "activePermissionProfile · approvalPolicy · sandboxPolicy", "contract": "thread/profile 和设置通知能还原当前权限。审批策略与沙箱范围是两份不同配置，必须分别记录。", "edge": "旧版三档 sandbox 不足以表达禁止读取的路径、受管网络、环境目录和外部沙箱，不能只存一个档位。", "details": [{"label": "DECISION", "value": "approvalPolicy"}, {"label": "ENFORCEMENT", "value": "sandboxPolicy / permissions"}, {"label": "PROFILE", "value": "activePermissionProfile.id"}], "claims": ["PERM-CX-01", "PERM-CX-03"]},
+        "opencode": {"status": "partial", "surface": "Agent/session API + InstanceState", "primitive": "agent rules + session.permission + approved", "contract": "规则按顺序合并，最后匹配的一条生效。可读取 Session 的追加规则，但没有公共接口导出实例内存中的全部批准记录。", "edge": "asked/replied 事件不说明最终命中了哪条规则；把有序规则改存成 map，会改变决策结果。", "details": [{"label": "ORDER", "value": "agent → session → approved"}, {"label": "WINNER", "value": "last matching rule"}, {"label": "DEFAULT", "value": "no match → ask"}], "claims": ["PERM-OC-01", "PERM-OC-11"]}
       }
     },
     {
-      "id": "limit-tools", "label": "限制工具表面", "question": "是从模型 schema 移除工具，还是只在调用时拒绝？", "icon": "panel-top-close",
+      "id": "limit-tools", "label": "限制可用工具", "question": "是从模型 schema 移除工具，还是只在调用时拒绝？", "icon": "panel-top-close",
       "cells": {
         "claude-code": {"status": "exposed", "surface": "CLI / Agent definition", "primitive": "--tools · agent tools · bare disallowedTools", "contract": "--tools/agent tools 定义可见 capability；allowedTools 只是预批准，scoped deny 保留工具但拒绝匹配调用。", "edge": "allowedTools=[Read] 并不会隐藏 Bash；在 bypass 下其他可见工具仍自动运行。", "details": [{"label": "HIDE", "value": "--tools / agent tools"}, {"label": "PREAPPROVE", "value": "allowedTools"}, {"label": "GATE", "value": "scoped deny/ask"}], "claims": ["PERM-CC-02"]},
         "codex": {"status": "partial", "surface": "Tool registry + per-family policy", "primitive": "tool availability · MCP server/tool approval modes", "contract": "没有一个 approvalPolicy 字段同时定义所有 tool visibility；shell、MCP、web 与 collaboration surfaces 仍有各自注册/策略面。", "edge": "MCP readOnlyHint 不是能力或无副作用证明，不能把 annotation 当 execution allowlist。", "details": [{"label": "SHELL", "value": "approval + sandbox"}, {"label": "MCP", "value": "separate approval engine"}, {"label": "PROFILE", "value": "not a universal tool list"}], "claims": ["PERM-CX-03", "PERM-CX-12"]},
@@ -110,7 +110,7 @@
       }
     },
     {
-      "id": "network-escalate", "label": "开放网络或逃逸", "question": "网络批准、无沙箱重试与 filesystem grant 是否彼此独立？", "icon": "shield-alert",
+      "id": "network-escalate", "label": "网络访问与沙箱重试", "question": "网络批准、无沙箱重试与 filesystem grant 是否彼此独立？", "icon": "shield-alert",
       "cells": {
         "claude-code": {"status": "exposed", "surface": "Sandbox config + tool input", "primitive": "network allowlist · dangerouslyDisableSandbox", "contract": "sandbox network 经 hostname proxy；单次无沙箱重试回到 permission 流程，且可由 allowUnsandboxedCommands 禁止。", "edge": "sandbox setup failure 默认直接无沙箱运行，不会自动变成一次可见 escape approval。", "details": [{"label": "NETWORK", "value": "hostname allowlist proxy"}, {"label": "ESCAPE", "value": "per-call retry"}, {"label": "FAIL CLOSED", "value": "failIfUnavailable=true"}], "claims": ["PERM-CC-09", "PERM-CC-11"]},
         "codex": {"status": "exposed", "surface": "Network policy + shell escalation", "primitive": "networkApprovalContext · proposed amendments · require_escalated", "contract": "blocked host 可独立提议 network policy amendment；filesystem escalation 与 network grant 不互相蕴含。", "edge": "require_escalated 在存在 denied-read 时仍可能 sandboxed；web/MCP transport 还可能另有 policy。", "details": [{"label": "HOST", "value": "approval context"}, {"label": "AMEND", "value": "host chooses"}, {"label": "FILES", "value": "unchanged"}], "claims": ["PERM-CX-07", "PERM-CX-08"]},

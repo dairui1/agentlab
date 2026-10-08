@@ -4,7 +4,7 @@
   "title": "Computer Use",
   "product": "Computer-Using Agent",
   "subtitle": "后台执行、虚拟光标与可验证交互",
-  "description": "这份专题只追一个 CUA 问题：Agent 怎样在不移动用户物理鼠标、不暗中抢占焦点的前提下操作桌面，同时把虚拟轨迹、目标高亮、点击反馈和结果状态呈现出来。核心结构是执行平面与呈现平面解耦，再由 immutable stateId、resource epoch 和 successor receipt 把观察、动作与验证连接起来。Codex、Kimi、Pi、DSH 与 Cua Driver 只作为不同证据层的实现样本，不做产品功能巡礼。",
+  "description": "Agent 点击后台窗口的“保存”，既要不打扰用户，又要让动作可见，还要核对文件是否真的保存。本文把真正的输入、虚拟光标和结果检查分开，再解释它们怎样关联同一次观察。Codex、Kimi、Pi、DSH 与 Cua Driver 提供不同层的固定证据；本研究没有运行同任务成功率比较。",
   "verifiedAt": "2026-09-04",
   "scope": [
     {

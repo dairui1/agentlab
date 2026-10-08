@@ -3,8 +3,8 @@
   "number": "004",
   "title": "Codex TokenBudget",
   "product": "Codex 0.151.0",
-  "subtitle": "Compaction 还叫 compaction，但在这条路径里已经不再生成摘要",
-  "description": "TokenBudget 不是一次普通的压缩算法替换。它先让模型看见当前窗口和剩余预算，再允许模型主动换窗；随后把手动 /compact 与自动 compaction 也接到同一套硬切生命周期；最后用 notes 保存工作状态，用只读 history 按需找回旧窗口里的具体事实。代码已经随稳定版发布，但到 0.151.0 仍处于 UnderDevelopment 且默认关闭，因此不能把它写成所有 Codex 会话已经采用的新默认。",
+  "subtitle": "换一个消息窗口，靠进度笔记与原记录接着工作",
+  "description": "对话太长以后，TokenBudget 换掉模型当前看到的消息，不先生成旧对话摘要。模型用 notes 保存进度，需要核对原始要求或工具结果时，再查询只读 history。本文固定到 0.151.0：代码已随稳定版分发，但仍默认关闭，未证明长任务效果优于摘要路径。",
   "verifiedAt": "2026-08-31",
   "status": "active",
   "scope": [

@@ -27,49 +27,86 @@
       <header class="article-hero">
         <div class="article-hero-inner">
           <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Raven</span></nav>
-          <span class="article-series">固定源码研究 / Harness 改进</span>
-          <div class="raven-title"><img src="/agent-icons/raven.png" alt="Raven 标识" width="48" height="48"><h1>Raven：反馈怎样变成下一轮执行的 Harness</h1></div>
-          <p class="article-dek">一次交付不合格，下一轮究竟多了一句提醒，还是多了一道真正执行的检查？Raven 的价值在这条转换链上；它的证据缺口，也在这里。</p>
-          <div class="article-byline"><span>2026-09-30 核验</span><span>main · e6c0344c</span><span>19 条证据</span><span>未运行上游实验</span></div>
+          <div class="raven-title"><img src="/agent-icons/raven.png" alt="Raven 标识" width="48" height="48"><h1>Raven</h1></div>
+          <p class="article-dek">把一次不合格的交付，变成下一轮真正执行的检查。</p>
+          <div class="article-byline"><span>2026-09-30</span><span>固定源码与作者报告</span><span>未运行 Raven</span></div>
         </div>
       </header>
-      <section class="article-scope-band" aria-label="研究范围">
-        <div class="article-scope-grid">
-          <div><span>研究对象</span><strong>Host + Curator</strong><small>编排与持久 Harness 修订</small></div>
-          <div><span>固定源码</span><strong>e6c0344c · 09-28</strong><small>晚于软件发布 v0.2.3</small></div>
-          <div><span>证据层级</span><strong>源码 / 作者报告 / 远端 CI</strong><small>不是本地端到端复现</small></div>
-          <div><span>当前判断</span><strong>有改进机制，强 RSI 未证实</strong><small>不归为严格 Agentic RL</small></div>
-        </div>
-      </section>
       <div class="capability-reading">
         <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
           <span>从反馈到采用</span>
           <ol>
-            <li><a href="#verdict" data-index="01">先把三种主张分开</a></li>
-            <li><a href="#orchestration" data-index="02">Host 编排谁</a></li>
-            <li><a href="#curation" data-index="03">反馈改到哪里</a></li>
-            <li><a href="#validation" data-index="04">校验查了什么</a></li>
-            <li><a href="#activation" data-index="05">新版本怎样生效</a></li>
-            <li><a href="#evolver" data-index="06">晋级不等于显著提升</a></li>
-            <li><a href="#results" data-index="07">实验数字来自哪里</a></li>
-            <li><a href="#permissions" data-index="08">权限边界在哪里</a></li>
-            <li><a href="#engineering" data-index="09">值得带走的工程判断</a></li>
-            <li><a href="#sources" data-index="10">来源与待验证实验</a></li>
+            <li><a href="#verdict" data-index="01">从提醒变成检查</a></li>
+            <li><a href="#curation" data-index="02">反馈改到哪里</a></li>
+            <li><a href="#validation" data-index="03">校验够不够</a></li>
+            <li><a href="#activation" data-index="04">下一轮怎样用上</a></li>
+            <li><a href="#engineering" data-index="05">怎样判断改好了</a></li>
+            <li><a href="#sources" data-index="06">补充研究与来源</a></li>
           </ol>
-          <div class="article-toc-note"><strong>两条时间线</strong>本文固定研究 main 提交。<a href="/?feedAgent=raven">Raven 更新情报</a>另按正式软件 release 跟踪，不会把技术报告标签或主分支改动算成已发布版本。</div>
         </aside>
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">Raven 值得收录，不是因为它在 README 里写了 RSI，而是因为它把“哪里做错了”接到了可持久保存、可装配、可在下一轮执行的策略。接下来要问的更难：装上的东西真的让任务做得更好吗？</p>
+          <div class="article-opening">
+            <p class="article-lead">一份旅行需求单里，混进了给内部同事看的备注；酒店信息也没说明是否确认。对 Agent 说“下次认真一点”，下次仍可能犯同样的错。</p>
+            <p>Raven 想把这类反馈变成后续任务真的会执行的检查。作者记录的旅行社模拟中，它在写需求单前加了审核，又给制作 PPT 的子 Agent 加了自检工具；第三轮审核打回了四次。这个案例未由本研究复现，而且当时直接使用老板整理的要求，不是当前默认 Analyst 流程的完整验证。<button class="evidence-ref" type="button" data-evidence="RV-10" data-evidence-trigger>作者案例</button></p>
 
+          </div>
           <section id="verdict" data-article-section>
-            <h2>先把三种主张分开</h2>
-            <p><strong>能编排 Agent、能修改 Harness、能证明改进，分别是三件事。</strong>Raven 的 Host 可以组织内置和第三方 Agent；实验性的 Curator 可以根据反馈生成并安装策略；旧 Evolver 则有候选筛选和基准比较。它们有关联，但不能拿其中一套的成绩给另一套作验收。<button class="evidence-ref" type="button" data-evidence="RV-01 RV-03 RV-11" data-evidence-trigger>三个实现入口</button></p>
-            <p>本文把它归为<strong>多 Agent 编排与反馈驱动的持久 Harness 改进</strong>。修改的是模型周围的上下文、工具、规划和检查，不是已经展示了策略梯度更新的 Agentic RL。至于更强的 RSI，即改进器自身也持续变强，已读代码和报告没有建立这条证据链。</p>
-            <p>官方仍称项目为 pre-alpha。Curator 位于 <code>experimental/</code>，随源码而非安装包提供。安装 Raven、使用四个内置 Agent 和运行 Curator，是不同的准备工作；不能把它们压成一句“开箱即用的自我进化”。<button class="evidence-ref" type="button" data-evidence="RV-15" data-evidence-trigger>发布边界</button></p>
+            <h2>把“下次注意”改成一道会执行的检查</h2>
+            <p>Raven 本身可以组织多个 Agent 完成工作。本文关注的 Curator，是仓库里负责修订这些执行者的实验组件：根据反馈生成新策略，检查能否装起来，再安装到后续执行中。它改的是模型周围的上下文、工具和工作流程，不是在这里训练一套新的模型权重。<button class="evidence-ref" type="button" data-evidence="RV-01 RV-03" data-evidence-trigger>编排与修订的入口</button></p>
+            <p>需求单的问题因此可以落成一条具体要求：“写进交付文件前，检查是否含有内部备注。”这比往 Prompt 里加一句“更专业”容易验收。要回答的问题也随之变了：<strong>检查装上了吗？工作时触发了吗？最后真的少犯错了吗？</strong></p>
           </section>
 
-          <section id="orchestration" data-article-section>
-            <h2>Host 编排的是完整 Agent，不只是角色名</h2>
+          <section id="curation" data-article-section>
+            <h2>反馈先说清行为，再决定改哪个执行者</h2>
+            <p>当前默认流程把这两件事分开：Analyst 把任务反馈整理成可观察的要求；Curator 查看正在使用的配置、上一轮计划和执行记录，再决定实现这条要求。比如需求单需要写盘前审核，PPT 则需要自己的自检工具，不必把同一句提醒无差别塞给所有 Agent。<code>workflow.improve()</code> 是显式入口，不会把 worker 的每句话都自动当成修订请求。执行记录还带着产生它的 <code>artifact_id</code>，避免拿新版本解释旧结果。<button class="evidence-ref" type="button" data-evidence="RV-04 RV-05" data-evidence-trigger>反馈与版本归属</button></p>
+            <details class="study-notes"><summary>除了执行检查，Curator 还可以改什么？</summary>
+            <div class="article-table-wrap"><table class="article-table"><caption>Curator 的四个可修改面</caption><thead><tr><th>策略面</th><th>它改变什么</th><th>会留下什么产物</th></tr></thead><tbody>
+              <tr><td>Memory</td><td>每轮看见什么、留下什么</td><td>提示词、上下文策略、记忆后端</td></tr>
+              <tr><td>Planning</td><td>怎样拆任务、组织依赖</td><td>playbook DAG、技能、规划策略</td></tr>
+              <tr><td>Capability</td><td>能用什么、何时提供</td><td>工具、MCP / 插件配置、选择策略</td></tr>
+              <tr><td>Action</td><td>执行前后允许什么、怎样修正</td><td>审核、工具 gate、恢复策略</td></tr>
+            </tbody></table></div>
+            </details>
+            <p>这些产物落在 Raven 已有的配置、home 文件、插件与回调上，不需要每次给整个 runtime 打补丁。它们不只影响一句回复，而会在安装后的后续执行中继续生效。<button class="evidence-ref" type="button" data-evidence="RV-03 RV-06" data-evidence-trigger>策略装配</button></p>
+            <p>反馈、候选和执行都留有版本记录。否则一次旧需求单不合格，却拿新检查的代码解释它，就会误判检查没有生效。Raven 用 <code>artifact_id</code> 关联实际执行的版本；普通 worker 消息也不会自动变成修订授权。</p>
+          </section>
+
+          <section id="validation" data-article-section>
+            <h2>校验通过，可能只表示它能被装起来</h2>
+            <p>候选不是直接写入活动 worker。校验先做静态检查，再在复制的本地状态上装配真实 Raven runtime。组合候选还会读取子 Harness 是否就绪。这比只检查 JSON 合法多走了一步，但它仍没有自动回答“这次修改有没有帮助”。<button class="evidence-ref" type="button" data-evidence="RV-08" data-evidence-trigger>副本与装配</button></p>
+            <p>最容易误判的地方，是行为检查可以不提供。<code>run_probe()</code> 的缺省分支只记录 <code>not_supplied</code> 就返回。如果要检查新策略能否拦住内部备注，调用者必须准备相应的任务探针。<button class="evidence-ref" type="button" data-evidence="RV-07" data-evidence-trigger>可选 probe</button></p>
+            <details class="study-notes"><summary>查看没有提供行为探针时的源码</summary><pre class="raven-code"><code data-source-snippet="RV-07">    if probe is None:
+        bound.recorder.add("validation.probe", status="not_supplied")
+        return</code></pre></details>
+            <p>因此需要三份不同的回执：候选能启动；预期机制在任务中确实触发；在固定预算与保留任务上表现更好。前两份都重要，但不能替代第三份。没有 probe 也能经过当前校验路径，这是研究判断必须保留的条件。</p>
+            <p>Iteration 还做了一个克制的选择：最后一轮只保留评价，不再修订，因为没有下一轮能检验这次修改。这个选择值得借鉴；不过“下一轮会执行”仍不等于“独立保留集验收”。<button class="evidence-ref" type="button" data-evidence="RV-05" data-evidence-trigger>最后一轮</button></p>
+          </section>
+
+          <section id="activation" data-article-section>
+            <h2>新检查怎样进入下一轮工作</h2>
+            <p>候选通过装配检查后，还不能随时替换正在干活的执行者。组合部署先确认根 worker 空闲、子调用已完成，满足条件后才保存旧产物、文件内容和策略 checkpoint，再启动新组合并核对子 Harness 的版本指纹。启动或检查出错时，异常路径恢复旧内容和旧版本。这样可以避免根已经换成新流程、子却还执行旧规则。<button class="evidence-ref" type="button" data-evidence="RV-09" data-evidence-trigger>组合激活与回退</button></p>
+            <figure class="article-figure"><div class="article-flow" style="--flow-count:4">
+              <div><span>01 / 候选</span><strong>生成根与子修订</strong><small>先不影响活动版本</small></div>
+              <div><span>02 / 副本</span><strong>装配与显式检查</strong><small>probe 可以缺省</small></div>
+              <div><span>03 / 激活</span><strong>切换完整组合</strong><small>核对子版本指纹</small></div>
+              <div><span>04 / 观察</span><strong>下一轮真实工作</strong><small>留存版本与机制活动</small></div>
+            </div><figcaption>根据代码绘制的流程，不是本地执行轨迹。部署回退和任务效果验收是两种不同保证。</figcaption></figure>
+            <p>策略层的恢复范围更窄。<code>BoundStrategy</code> 在异常时恢复自己拥有的 JSON 状态，并记录调用和错误；已经发出去的消息、远端写入等外部副作用不会被撤销。本文没有注入进程崩溃或断电，也不把这段异常处理称为已经验证的崩溃一致性。<button class="evidence-ref" type="button" data-evidence="RV-06" data-evidence-trigger>状态恢复范围</button></p>
+          </section>
+
+          <section id="engineering" data-article-section>
+            <h2>装上了、拦住了、做得更好，分别验收</h2>
+            <p>回到需求单。看到审核记录，能确认某次写入被打回；确认新旧版本一起切换，能说明装配没有混用。可要说修改让 Agent 更好，还需要用没有参与修订的任务，比较原版、只加 Prompt 提醒和 Curator 修改后的结果，并记录相同预算下的失败与成本。</p>
+            <p>作者报告中确实有成绩，但七组 Harness 进化结果来自旧的 <strong>HarnessBank v2</strong>，不是今天这套 Curator 的效果验收。仓库里的旧 Evolver 也有自己的晋级规则，不能和当前 Curator 合并成一条已经证实的自我进化链。</p>
+            <p>Curator 仍在 <code>experimental/</code>，随源码而非安装包提供，项目自称 pre-alpha。真实试用还要核对第三方 Agent 的权限：Codex ACP 预设使用 <code>agent-full-access</code>；没有向 Raven 发起权限询问的动作，可能根本不到达宿主的检查。<button class="evidence-ref" type="button" data-evidence="RV-15 RV-19" data-evidence-trigger>实验与权限范围</button></p>
+            <p><strong>Raven 最有价值的，是把失败反馈接到可持续生效、可追踪版本的执行策略。</strong>本文不归为严格 Agentic RL；更强的 RSI，也就是改进器自身持续变强，在已读材料里没有建立证据。本研究没有安装或执行 Raven，也没有在本机执行上游测试、真实模型或基准。</p>
+          </section>
+
+          <section id="sources" data-article-section>
+            <h2>实现补充、作者成绩与来源</h2>
+            <p>主线只跟随一次反馈怎样变成下一轮的检查。下面分别补充组织结构、旧演化方法和作者实验，避免把不同系统的证据混在一起。</p>
+          <details id="orchestration" class="study-notes">
+            <summary>Host 编排谁，Curator 又能改到哪一层？</summary>
             <p>面对一项需要调研、写代码、制作交付物的请求，Host 生成 DAG，把每个节点交给对应的执行后端。调度器按依赖选择可运行节点；一个节点长时间没有动作时，watcher 会发停滞通知，而不是直接把它标成失败。慢模型和坏任务，不能只凭沉默时间作同一种处理。<button class="evidence-ref" type="button" data-evidence="RV-02" data-evidence-trigger>DAG 与停滞观察</button></p>
             <p>第三方接入也不是“模仿 Codex 的提示词”。固定版本的预设通过 ACP adapter 调用 Codex、Claude Code 等 Agent。要注意版本归属：部分 shim 自带 Agent binary 或 SDK 依赖，所以真正回答的未必是用户终端里那个可执行文件。<button class="evidence-ref" type="button" data-evidence="RV-01" data-evidence-trigger>适配器版本</button></p>
             <figure class="article-figure">
@@ -81,55 +118,19 @@
               <figcaption>源码结构示意，不是运行记录。Curator 的受管根、子组合只有两层；第三方接入能力不能直接等同于 Curator 的可修改范围。</figcaption>
             </figure>
             <p>“Harness of harnesses”在这里有两个具体含义：Host 组织多个完整执行者；Curator 又能分别修订受管根和子 Harness 的行为。后一层不是让子 Agent 无限向下分裂。设计明确规定受管子 Harness 不再继续委派。<button class="evidence-ref" type="button" data-evidence="RV-03" data-evidence-trigger>两层组合</button></p>
-          </section>
+          </details>
 
-          <section id="curation" data-article-section>
-            <h2>反馈不是直接塞进 Prompt，而是先变成行为要求</h2>
-            <p>普通任务执行后，评价者指出问题。Analyst 把反馈整理成可观察的要求；Curator 再读取真实装配、上一轮计划和执行记录，决定改哪里。<code>workflow.improve()</code> 是显式入口，不会把 worker 的每句话都自动当成修订请求。执行记录还带着产生它的 <code>artifact_id</code>，避免拿新版本解释旧结果。<button class="evidence-ref" type="button" data-evidence="RV-04 RV-05" data-evidence-trigger>反馈与版本归属</button></p>
-            <div class="article-table-wrap"><table class="article-table"><caption>Curator 的四个可修改面</caption><thead><tr><th>策略面</th><th>它改变什么</th><th>会留下什么产物</th></tr></thead><tbody>
-              <tr><td>Memory</td><td>每轮看见什么、留下什么</td><td>提示词、上下文策略、记忆后端</td></tr>
-              <tr><td>Planning</td><td>怎样拆任务、组织依赖</td><td>playbook DAG、技能、规划策略</td></tr>
-              <tr><td>Capability</td><td>能用什么、何时提供</td><td>工具、MCP / 插件配置、选择策略</td></tr>
-              <tr><td>Action</td><td>执行前后允许什么、怎样修正</td><td>审核、工具 gate、恢复策略</td></tr>
-            </tbody></table></div>
-            <p>这些产物落在 Raven 已有的配置、home 文件、插件与回调上，不需要每次给整个 runtime 打补丁。它们不只影响一句回复，而会在安装后的后续执行中继续生效。<button class="evidence-ref" type="button" data-evidence="RV-03 RV-06" data-evidence-trigger>策略装配</button></p>
-            <div class="article-callout"><strong>作者案例：把一句抱怨变成写盘前检查</strong><p>旅行社模拟中，交付物混入内部备注，酒店信息缺少确认标注。Curator 给写需求单的子 Harness 加了 <code>action.strategy</code>，不合格就打回重写，再给 PPT 子 Harness 增加自检工具。作者称第三轮审核实际打回四次。这展示的是约束怎样落到执行层，不是广泛泛化的证明。案例原先直接使用老板整理的要求，不能冒充当前 Analyst 默认流程的一次完整验证。<button class="evidence-ref" type="button" data-evidence="RV-10" data-evidence-trigger>案例原文</button></p></div>
-          </section>
-
-          <section id="validation" data-article-section>
-            <h2>校验通过，可能只表示它能被装起来</h2>
-            <p>候选不是直接写入活动 worker。校验先做静态检查，再在复制的本地状态上装配真实 Raven runtime。组合候选还会读取子 Harness 是否就绪。这比只检查 JSON 合法多走了一步，但它仍没有自动回答“这次修改有没有帮助”。<button class="evidence-ref" type="button" data-evidence="RV-08" data-evidence-trigger>副本与装配</button></p>
-            <p>决定性的细节在 <code>run_probe()</code>：行为探针由调用方提供，缺省时直接记录没有提供探针。下面是固定源码中的分支。<button class="evidence-ref" type="button" data-evidence="RV-07" data-evidence-trigger>可选 probe</button></p>
-            <pre class="raven-code"><code data-source-snippet="RV-07">    if probe is None:
-        bound.recorder.add("validation.probe", status="not_supplied")
-        return</code></pre>
-            <p>因此需要三份不同的回执：候选能启动；预期机制在任务中确实触发；在固定预算与保留任务上表现更好。前两份都重要，但不能替代第三份。没有 probe 也能经过当前校验路径，这是研究判断必须保留的条件。</p>
-            <p>Iteration 还做了一个克制的选择：最后一轮只保留评价，不再修订，因为没有下一轮能检验这次修改。这个选择值得借鉴；不过“下一轮会执行”仍不等于“独立保留集验收”。<button class="evidence-ref" type="button" data-evidence="RV-05" data-evidence-trigger>最后一轮</button></p>
-          </section>
-
-          <section id="activation" data-article-section>
-            <h2>根与子版本一起换，但外部世界不会一起倒回</h2>
-            <p>组合部署先要求根 worker 空闲、子调用完成，保存旧产物、文件内容和策略 checkpoint，再启动新组合并核对子 Harness 的版本指纹。启动或检查出错时，异常路径恢复旧内容和旧版本。这样可以避免根已经换成新流程、子却还执行旧规则。<button class="evidence-ref" type="button" data-evidence="RV-09" data-evidence-trigger>组合激活与回退</button></p>
-            <figure class="article-figure"><div class="article-flow" style="--flow-count:4">
-              <div><span>01 / 候选</span><strong>生成根与子修订</strong><small>先不影响活动版本</small></div>
-              <div><span>02 / 副本</span><strong>装配与显式检查</strong><small>probe 可以缺省</small></div>
-              <div><span>03 / 激活</span><strong>切换完整组合</strong><small>核对子版本指纹</small></div>
-              <div><span>04 / 观察</span><strong>下一轮真实工作</strong><small>留存版本与机制活动</small></div>
-            </div><figcaption>根据代码绘制的流程，不是本地执行轨迹。部署回退和任务效果验收是两种不同保证。</figcaption></figure>
-            <p>策略层的恢复范围更窄。<code>BoundStrategy</code> 在异常时恢复自己拥有的 JSON 状态，并记录调用和错误；已经发出去的消息、远端写入等外部副作用不会被撤销。本文没有注入进程崩溃或断电，也不把这段异常处理称为已经验证的崩溃一致性。<button class="evidence-ref" type="button" data-evidence="RV-06" data-evidence-trigger>状态恢复范围</button></p>
-          </section>
-
-          <section id="evolver" data-article-section>
-            <h2>旧 Evolver 的晋级规则，没有强制统计显著性</h2>
+          <details id="evolver" class="study-notes">
+            <summary>旧 Evolver 怎样保留候选，为什么晋级不代表显著提升？</summary>
             <p>仓库里还有 <code>evolver/</code>，它不是当前 Curator 的另一个名字。这条基准驱动路径比较候选与基线在同一批任务上的结果，保存候选和测量记录。其 <code>paired_lift()</code> 把采用条件与显著性分成两个字段：<button class="evidence-ref" type="button" data-evidence="RV-11" data-evidence-trigger>配对统计</button></p>
             <pre class="raven-code"><code data-source-snippet="RV-11">    promoted = candidate_mean &gt; control_mean  # navigator: banks on beating vanilla
     credited_2sigma = z &gt;= z_threshold</code></pre>
             <p>均值超过基线就可以晋级，即使没达到 2σ。把 <code>promoted</code> 翻译成“已证实显著改善”会直接改写实验含义。更合适的说法是“候选被保留”，再分别给出提升、方差、样本量和显著性标签。</p>
             <p>README 还注明这棵目录计划退役，真实全规模多轮运行与保留集流程存在未执行部分。它的 path guard 把 <code>evolver/</code> 自身列为不可改区。这里支持的是围绕固定任务模型改进 Harness，不能借此声称改进器本身已经递归进化。<button class="evidence-ref" type="button" data-evidence="RV-12 RV-13" data-evidence-trigger>修改范围与运行边界</button></p>
-          </section>
+          </details>
 
-          <section id="results" data-article-section>
-            <h2>报告里有成绩，但要先认清实验对象</h2>
+          <details id="results" class="study-notes">
+            <summary>MAOB 与 HarnessBank v2 的作者成绩，具体测了什么？</summary>
             <p>MAOB 使用 140 个请求和四类专家角色，在真正派工之前，把预测的 DAG 与参考图比较。它衡量选对哪些专家、依赖是否合理。这个设计能隔离规划问题，却不能回答整项工作是否交付成功。<button class="evidence-ref" type="button" data-evidence="RV-17" data-evidence-trigger>MAOB 测量对象</button></p>
             <p>报告的七组 Harness 进化成绩来自 <strong>HarnessBank v2</strong>，不是新 Curator 的实验。任务模型固定为 Qwen3.6-27B，每题三次尝试，在训练任务上选择 Harness，再做保留测试。下表只摘两项，用来说明成绩来源，不作为 Agent 排名。<button class="evidence-ref" type="button" data-evidence="RV-18" data-evidence-trigger>成绩与运行清单</button></p>
             <div class="article-table-wrap"><table class="article-table"><caption>作者引用的 Held-out Pass@1，未由本研究复现</caption><thead><tr><th>任务集</th><th>初始 Harness</th><th>演化后</th><th>变化</th></tr></thead><tbody>
@@ -138,25 +139,19 @@
             </tbody></table></div>
             <p>附录 B.4 也写明：这些结果缺少完整逐次运行 manifest，不能从报告重建每次筛选子集、候选顺序和全部参数。合理的结论是既有 Harness 搜索方法给出了正向结果；不合理的跳跃是说今天安装的 Curator 已经复现了这些提升。</p>
             <p>当前研究提交的远端 CI 有 16 个 job 通过，包含单元测试、打包和界面合同检查。但真实模型 smoke 需要主动设置 <code>CURATOR_TEST_CONFIG</code>，缺省会跳过。我们只读取了测试代码和远端结论，没有在本机执行这些上游测试。<button class="evidence-ref" type="button" data-evidence="RV-14" data-evidence-trigger>真实模型测试</button> <a href="https://github.com/EverMind-AI/Raven/actions/runs/36419741818">对应 CI 运行</a></p>
-          </section>
+          </details>
 
-          <section id="permissions" data-article-section>
-            <h2>无人值守运行，不等于权限已经统一隔离</h2>
+          <details id="permissions" class="study-notes">
+            <summary>第三方 Agent 与旧 Evolver，各自有哪些权限限制？</summary>
             <p>Codex ACP 预设选择 <code>agent-full-access</code>。宿主收到权限请求后通常自动批准，但会拒绝命中部分宿主 deny 规则的命令。关键限制是：第三方自己直接放行、没有向 Raven 发问的调用，不会到达这道检查。<button class="evidence-ref" type="button" data-evidence="RV-01 RV-19" data-evidence-trigger>预设与权限回调</button></p>
             <p>所以不能用一张“统一审批”架构图推断所有子 Agent 都受同一道墙约束。实际试用应先核对每个适配器使用的身份、工作目录、可写挂载、网络和凭据，而不是默认沿用宿主的安全感。</p>
             <p>旧 Evolver 把边界写得更直接：候选可能与评分器同进程，路径白名单主要阻止捷径，不是针对恶意代码的安全沙箱；设计步骤也没有文件系统和网络硬隔离。其建议是在容器或 VM 中使用受限凭据。不能将这条限制扩大成 Raven 的所有执行环境都没有隔离，也不能反过来忽略它。<button class="evidence-ref" type="button" data-evidence="RV-13" data-evidence-trigger>演化器威胁模型</button></p>
-          </section>
+          </details>
 
-          <section id="engineering" data-article-section>
-            <h2>最值得带走的，是修改与证据怎样相遇</h2>
-            <p><strong>先把失败写成可观察行为，再决定改哪里。</strong>“不够专业”很难验收；“交付物不出现内部备注”则能落成检查。把 Analyst 的要求和 Curator 的实现选择分开，也让反馈不必预先知道代码结构。</p>
-            <p><strong>每次评价都绑到真正运行的版本。</strong>保留 artifact identity、实际装配和机制活动，才能区分“计划加了一道检查”和“这道检查真的拦住了四次动作”。再把效果测试独立出来，就不会让实现者用能启动为自己证明进步。</p>
+            <details class="study-notes"><summary>研究提交还新增了哪些当轮工具行为？</summary>
             <p>日常 runtime 也有值得跟踪的小机制。研究提交修复了工具冻结的一处交互问题：后台刚连上的工具仍等下一轮，但本轮主动连接的插件可以在后续 step 立即使用，避免用户再发一句“继续”。它通过原地修改该轮捕获的工具字典跨过异步任务上下文边界，关闭和通道限制仍然有效。<strong>这是晚于 v0.2.3 的 main 改动，不是该发布包已包含的行为。</strong><button class="evidence-ref" type="button" data-evidence="RV-16" data-evidence-trigger>当轮工具可见性</button></p>
-            <p>这也解释了 Raven 对 AgentLab 的增量价值：它把现有 <a href="/capabilities/raft-collaboration.html">Raft 协作研究</a>关心的执行者组织，和 <a href="/capabilities/exo-recursive-harness.html">Exo 研究</a>关心的持久自修改接到了一起。不是增加一个排行榜条目，而是增加一套可以逐项检验的工程选择。</p>
-          </section>
+            </details>
 
-          <section id="sources" data-article-section>
-            <h2>来源与待验证实验</h2>
             <p>源码固定为 <a href="https://github.com/EverMind-AI/Raven/tree/e6c0344cb7ce00db25d554e4bb671ec1909a8f9f">EverMind-AI/Raven · e6c0344c</a>，提交时间 2026-09-28 12:06:49 UTC，根许可证 Apache-2.0。19 条证据中，17 条来自固定文件（含作者案例），2 条来自官方报告。每份文件保留 SHA-256 与位置。本文为原创研究，不是报告全文译文。</p>
             <p>报告为 <a href="https://github.com/EverMind-AI/Raven/releases/tag/tech-report-v1">tech-report-v1</a>，SHA-256：<code>14832f50de158ca431d63acf5dd06dfcad05c54a70a8607a50ecd79170fff831</code>。页面的产品标识来自同一固定提交的 <code>ui-web/src/assets/raven.png</code>，只用于身份标识。</p>
             <p><strong>本次没有安装或执行 Raven，没有运行上游测试、真实模型、GPU 训练或任务基准。</strong>本站的来源校验与页面测试只验证引用、数据和界面，不能升级成上游系统的动态复现。</p>
@@ -175,5 +170,6 @@
   </aside>
   <script src="/vendor/lucide/lucide.min.js"></script>
   <script src="/capability-article.js"></script>
+  <script src="/article-disclosures.js"></script>
 </body>
 </html>

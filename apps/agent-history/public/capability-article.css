@@ -1064,6 +1064,48 @@
   }
 }
 
+.article-opening {
+  margin-bottom: 38px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.article-opening .article-lead {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+details.article-disclosure {
+  margin: 24px 0;
+  border-block: 1px solid var(--border);
+  scroll-margin-top: 28px;
+}
+
+details.article-disclosure > summary {
+  padding: 16px 0;
+  cursor: pointer;
+  color: var(--article-ink);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.6;
+}
+
+details.article-disclosure[open] > summary {
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+details.article-disclosure > section:last-child {
+  margin-bottom: 24px;
+}
+
+@media (max-width: 860px) {
+  details.article-disclosure, details.article-disclosure [id] {
+    scroll-margin-top: 72px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .article-evidence {
     transition: none;

@@ -29,7 +29,7 @@
 
     <main id="contractApp" class="contract-app" aria-busy="true">
       <div id="contractStatus" class="contract-status" role="status" aria-live="polite">
-        <span class="loading-spinner" aria-hidden="true"></span><span>正在装载控制合同</span>
+        <span class="loading-spinner" aria-hidden="true"></span><span>正在读取比较数据</span>
       </div>
 
       <header id="contractHeader" class="contract-header" hidden>
@@ -81,10 +81,10 @@
             </div>
             <div class="contract-state-legend" aria-label="合同状态图例">
               <span class="contract-state-legend-label">状态图例</span>
-              <span data-state="exposed" title="该能力在公开合同中可直接调用">已暴露</span>
-              <span data-state="partial" title="可调用，但带有边界条件或受限作用域">有边界</span>
-              <span data-state="not-exposed" title="公开合同中不存在对应入口">未暴露</span>
-              <span data-state="unknown" title="现有证据不足以判定">未知</span>
+              <span data-state="exposed" title="固定版本的公开接口中有对应入口">有公开入口</span>
+              <span data-state="partial" title="只能在特定条件或范围内调用">有条件</span>
+              <span data-state="not-exposed" title="核对的公开接口中没有对应入口">无公开入口</span>
+              <span data-state="unknown" title="现有证据不足以判定">尚未确认</span>
             </div>
           </header>
           <div id="canvasContent" class="canvas-content"></div>

@@ -3,8 +3,8 @@
   "number": "006",
   "title": "Kimi Computer Use",
   "product": "Kimi Code",
-  "subtitle": "Plugin、MCP、后台服务与 macOS 输入怎样接成一项本地桌面能力",
-  "description": "研究锁定 Kimi Code 提交 b184b31497949ac019ac43d5a3dfe2ab87dbebc4，并静态检查 2026-09-04 从官方 CDN 获取的 KimiCU 0.5.8 Plugin、安装脚本与签名 macOS App。结论是：Kimi Code 本身负责 capability 生命周期和 MCP 接线，独立 KimiCU launchd/XPC 服务持有辅助功能与屏幕录制权限，并组合 AX、截图与定向输入完成后台操作。当前公开源码能完整解释安装和状态检测，无法完整审计专有原生服务内部、telemetry 字段与真实 App 成功率。",
+  "subtitle": "插件装好了，为什么桌面操作仍可能不可用",
+  "description": "工具入口、执行服务和系统权限要分别就绪。Kimi Code 负责安装与接入，KimiCU launchd/XPC 服务持有辅助功能与屏幕录制权限，尝试用后台输入减少对用户的打扰。本文依据 2026-09-04 固定的 0.5.8 样本，未安装运行；专有执行层、遥测行为和真实 App 成功率仍有证据缺口。",
   "verifiedAt": "2026-09-04",
   "status": "active",
   "scope": [

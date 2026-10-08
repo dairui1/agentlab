@@ -34,9 +34,11 @@ test("Claude Tag preserves schema-versus-description differences instead of fixi
 
 test("Claude Tag evidence anchors resolve and remain scoped to one snapshot", () => {
   const ids = new Set(study.evidence.map((e) => e.id));
+  const cited = new Set();
   for (const match of html.matchAll(/data-evidence="([^"]+)"/g)) {
-    for (const id of match[1].split(" ")) assert.ok(ids.has(id), id);
+    for (const id of match[1].split(" ")) { assert.ok(ids.has(id), id); cited.add(id); }
   }
+  assert.deepEqual(cited, ids);
   assert.equal(study.evidence.length, 18);
   assert.equal(study.unknowns.length, 5);
   for (const e of study.evidence) {
@@ -47,6 +49,21 @@ test("Claude Tag evidence anchors resolve and remain scoped to one snapshot", ()
   assert.match(html, /不是实际运行记录/);
   assert.match(html, /没有后端源码或真实 Slack 实验|未做真实 Slack 实验/);
   assert.match(html, /没有 claim database/);
+});
+
+test("Claude Tag follows a request before showing contract and tool references", () => {
+  const sections = [...html.matchAll(/<section id="([^"]+)" data-article-section/g)].map((m) => m[1]);
+  const links = [...html.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(sections, ["mental-model", "messages", "workers", "async", "delivery", "sources"]);
+  assert.deepEqual(links, sections);
+  for (const id of ["walkthrough", "prompt", "tool-design", "claims", "tensions", "tools"]) assert.match(html, new RegExp(`id="${id}"`));
+  assert.ok(html.indexOf('id="walkthrough"') < html.indexOf('id="mental-model"'));
+  assert.ok(html.indexOf('id="delivery"') < html.indexOf('id="tool-design"'));
+  for (const id of ["tagToolSearch", "tagToolFamily", "tagToolStatus", "tagToolList", "tagPanelPrompt", "tagPanelSchema", "tagPanelRuntime"]) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(html, /ts.*再把 checklist|拿到 ts/);
+  assert.match(html, /不能确认后端确实强制执行了全部规则/);
+  assert.match(html, /src="\/article-disclosures.js"/);
+  assert.doesNotMatch(html, /class="article-(scope-band|toc-note|margin)"|class="section-number"/);
 });
 
 test("tool extractor skips JSON examples and reads the final schema", async () => {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="沿 Codex 26.730.61639 发行包，纵向拆解 Browser Use 从 WebMCP、Playwright、DOM-CUA 到像素输入的执行栈、宿主桥、安全边界与标签页生命周期。">
+  <meta name="description" content="沿固定 Codex 发行包解释浏览器里的一次操作：先找对浏览器与登录态，再定位目标，最后核对结果；分别检查授权、恢复与证据边界。">
   <title>Browser Use：从 WebMCP 到像素点击 · 专题研究 · AgentLab</title>
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <script src="/site-theme.js"></script>
@@ -37,7 +37,7 @@
             </nav>
             <span class="article-series">固定构建实现研究</span>
             <h1>Browser Use</h1>
-            <p class="article-dek">从 WebMCP 到像素点击：一套表面像浏览器自动化、实则同时管理语义强度、宿主信任、标签页所有权与外部副作用的多后端执行栈。</p>
+            <p class="article-dek">Agent 在哪个浏览器里工作，怎样找到按钮，点完以后又凭什么判断成功？沿这三个问题看 Codex 的浏览器执行链。</p>
             <div class="article-byline">
               <span>研究构建 26.730.61639 (6234)</span>
               <span>首次核验 2026-08-10</span>
@@ -48,22 +48,13 @@
         </div>
       </header>
 
-      <section class="article-scope-band" aria-label="文章核验范围">
-        <div class="article-scope-grid">
-          <div><span>Product</span><strong>Codex for macOS</strong><small>arm64 · macOS</small></div>
-          <div><span>Plugin</span><strong>browser / chrome 26.730.61639</strong><small>同一 client，不同入口合同</small></div>
-          <div><span>Primary artifact</span><strong>browser-client.mjs</strong><small>1,140,632 bytes · emitted JS</small></div>
-          <div><span>Evidence grade</span><strong>Installed release</strong><small>事实、推断与未知分栏</small></div>
-        </div>
-      </section>
-
       <div class="capability-reading">
         <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
-          <span>实现链与证据边界</span>
+          <span>浏览器里的一次操作</span>
           <ol>
-            <li><a href="#thesis" data-index="01">整体模型：四层控制面如何逐级失去语义</a></li>
-            <li><a href="#backend-router" data-index="02">后端路由：IAB、Extension 与 CDP</a></li>
-            <li><a href="#execution-stack" data-index="03">动作接口：WebMCP、Playwright、DOM-CUA 与坐标 CUA</a></li>
+            <li><a href="#thesis" data-index="01">整体模型：先选浏览器，再决定怎样操作</a></li>
+            <li><a href="#backend-router" data-index="02">后端路由：登录态属于哪个浏览器</a></li>
+            <li><a href="#execution-stack" data-index="03">动作接口：按按钮名称，还是按截图坐标</a></li>
             <li><a href="#readonly-world" data-index="04">只读执行：evaluate 如何限制页面 JavaScript</a></li>
             <li><a href="#trusted-bridge" data-index="05">信任边界：模型代理、Security Gate 与本地协议</a></li>
             <li><a href="#iab-host" data-index="06">宿主结构：IAB 的可见 WebView 与隐藏 Host</a></li>
@@ -78,21 +69,26 @@
         </aside>
 
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">Browser Use 最容易被误解为“让模型点网页”。本机发行包呈现的是另一种东西：一个在可信 JavaScript 桥上运行的能力路由器，它先选择浏览器宿主，再按后端裁剪 API，最后把页面级语义、DOM 结构和坐标输入放进同一套可审计的命令协议。</p>
+          <div class="article-opening">
+            <p class="article-lead">你让 Agent 打开一个已经登录的网站，再找到“下载报表”。它首先要找对浏览器：换一个没有登录的窗口，后面的点击再准确也没用。找到页面以后，它还要决定按按钮名称定位，还是看截图点坐标。点完，最后才是检查报表有没有出现。</p>
+            <p>这三个决定把 Browser Use 拆成了不同的职责。本文依据固定发行包解释这些职责，不是一段真实下载任务的运行记录。</p>
 
+          </div>
           <section id="thesis" data-article-section>
             <span class="section-number">01 / 整体模型</span>
-            <h2>整体模型：四层控制面如何逐级失去语义</h2>
-            <p>插件合同把 Browser 定义为 in-app browser 的首选入口，同时把 Chrome 留给依赖用户现有登录态、Cookie、扩展和已开标签页的任务。二者携带不同的产品承诺，却装载字节完全相同的 `browser-client.mjs`。这意味着“Browser”和“Chrome”首先是入口与授权语境，随后才落到共享的执行内核。<button class="evidence-ref" type="button" data-evidence="BU-01 BU-02 BU-04 BU-05" data-evidence-trigger>BU-01–02,04–05</button></p>
-            <p>共享内核没有把浏览器压扁成一套万能工具。它暴露浏览器、标签页、Playwright、DOM-CUA、坐标 CUA、内容导出、剪贴板、开发者检查和动态 capability 等层次，再根据连接后端的类型和 capability advertisement 隐去不支持的方法。API 的“缺失”因此也是协议的一部分，不应被调用方当成偶发异常。<button class="evidence-ref" type="button" data-evidence="BU-03 BU-04 BU-06 BU-09" data-evidence-trigger>BU-03–04,06,09</button></p>
-            <blockquote class="article-pullquote">Browser Use 的核心不是点击能力，而是：在当前宿主、当前标签页和当前风险边界内，选择还能保留最多语义的那条执行路径。<small>基于已安装 26.730.61639 构建</small></blockquote>
-            <p>现有证据不支持把四种控制面画成一条自动 fallback 链。发行包能确认它们同时存在、受同一 transport 与 security gate 管理，也能确认模型合同要求优先使用语义更窄的接口；但一次具体任务会不会从 WebMCP 退到 Playwright、再退到坐标，静态文件没有回答。</p>
+            <h2>整体模型：先选浏览器，再决定怎样操作</h2>
+            <p>先分清两个问题。<strong>“在哪儿操作”决定登录态和标签页，“怎么操作”决定如何定位目标。</strong>内置浏览器 IAB、扩展连接和 CDP 是三种浏览器接入方式；页面工具、按名称找元素、按节点编号操作和坐标点击，则是四种动作接口。它们不是同一张分类表。</p>
+            <p>产品合同把 Browser 作为内置浏览器的首选入口；依赖用户现有登录态、Cookie、扩展或已开标签页时，才用 Chrome 入口。两个插件装载的 <code>browser-client.mjs</code> 逐字节相同：入口不同，客户端共享。<button class="evidence-ref" type="button" data-evidence="BU-01 BU-02 BU-04 BU-05" data-evidence-trigger>入口与共享客户端</button></p>
+            <p>共享客户端会根据已连接浏览器报告的能力，隐藏不支持的 API。因此，看不到某个方法不一定是故障；也可能是这个后端根本不提供它。标签页、内容导出、剪贴板和开发者检查等接口，同样受这层选择影响。<button class="evidence-ref" type="button" data-evidence="BU-03 BU-04 BU-06 BU-09" data-evidence-trigger>接口怎样随连接变化</button></p>
+            <blockquote class="article-pullquote">先保住正确的浏览器身份，再尽量用能说明目标的接口操作。<small>基于已安装 26.730.61639 构建</small></blockquote>
+            <p>这不意味着系统会自动从页面工具一路退到坐标点击。固定文件确认四种接口存在，也要求优先使用更明确的接口；真实任务怎样选择、失败后是否换路，还需要运行记录。</p>
           </section>
 
           <section id="backend-router" data-article-section>
             <span class="section-number">02 / 后端路由</span>
-            <h2>后端路由：IAB、Extension 与 CDP</h2>
-            <p>客户端把可发现实例分为 `iab`、`extension` 和 `cdp`。显式目标可直接交给 `get()`；默认或 URL 驱动的任务由 `getDefault()` / `getForUrl()` 在 runtime 内部发现并选择，`list()` 只该用于确实需要比较实例的场景，而不是每次调用的前置动作。标签页 binding 又是下一层状态：浏览器还活着，不代表先前拿到的 tab 仍属于当前 session。<button class="evidence-ref" type="button" data-evidence="BU-07 BU-08 BU-09" data-evidence-trigger>BU-07–09</button></p>
+            <h2>后端路由：登录态属于哪个浏览器</h2>
+            <p>需要网站上的已有登录态时，不能随便新开另一个浏览器。IAB 是 Codex 自己持有的 WebView；extension 连接用户已有的 Chrome 或 Edge；CDP 则通过调试协议连接受控实例。三者的页面和身份不应混用。<button class="evidence-ref" type="button" data-evidence="BU-07 BU-08 BU-09" data-evidence-trigger>三种接入方式</button></p>
+            <p>客户端提供直接选择 <code>get()</code>，以及按默认规则或 URL 选择的 <code>getDefault()</code>、<code>getForUrl()</code>。只有需要比较实例时才列出 <code>list()</code>，不必每次先做一次全量发现。选好浏览器之后，还要单独取得标签页的控制权；浏览器连接仍在，不代表旧标签页也仍由这次会话控制。</p>
 
             <div class="article-tabs" data-article-tabs style="--tab-count: 3">
               <div role="tablist" aria-label="Browser Use 后端比较">
@@ -117,13 +113,14 @@
               </section>
             </div>
 
-            <p>选择规则最值得警惕的是“显式意图优先”：用户点名 IAB 或 Chrome 时，系统合同要求精确匹配，而不是因为另一后端更容易连接就悄悄替换。这个约束看似只是 UX，实质上决定了允许继承哪一份浏览器身份与敏感状态。</p>
+            <p>用户点名 IAB 或 Chrome 时，合同要求按这个选择连接，不能因为另一个更容易用就悄悄替换。这不只是窗口偏好：换浏览器，可能连登录账号和敏感状态都换了。</p>
           </section>
 
           <section id="execution-stack" data-article-section>
             <span class="section-number">03 / 动作接口</span>
-            <h2>动作接口：WebMCP、Playwright、DOM-CUA 与坐标 CUA</h2>
-            <p>Browser client 同时包含四种主动作面。它们并不是四套互不相干的插件，而是同一标签页对象上的不同 interface。越靠前，调用者表达的越接近业务意图；越靠后，调用者必须承担越多定位、时序和可见性假设。<button class="evidence-ref" type="button" data-evidence="BU-06 BU-12 BU-13 BU-14 BU-15 BU-16" data-evidence-trigger>BU-06,12–16</button></p>
+            <h2>动作接口：按按钮名称，还是按截图坐标</h2>
+            <p>同样是下载报表，可以有不同的表达方式：调用页面声明的“下载”工具；找到名为“下载报表”的按钮；从可见节点里选一个编号；或在截图的某个位置点击。前两种保留更多目标含义，最后一种只告诉浏览器一个位置。页面移动以后，坐标不会替调用者认出原来的按钮。</p>
+            <p>固定客户端把这些方式放在同一个标签页对象上，名称分别是 WebMCP、Playwright、DOM-CUA 和坐标 CUA。下表解释它们各自依赖什么，不表示它们会按顺序自动尝试。<button class="evidence-ref" type="button" data-evidence="BU-06 BU-12 BU-13 BU-14 BU-15 BU-16" data-evidence-trigger>四种接口的依据</button></p>
 
             <div class="article-tabs" data-article-tabs style="--tab-count: 4">
               <div role="tablist" aria-label="四层执行表面">
@@ -154,13 +151,14 @@
               </section>
             </div>
 
-            <div class="article-callout"><strong>不要把“都有 click”误判为同一种能力</strong><p>Playwright locator click、DOM node click 与 coordinate click 的定位依据、失效方式和可验证回执不同。可靠 harness 应保留这种差异，而不是在上层统一成一个不透明的 `click(target)`。</p></div>
+            <div class="article-callout"><strong>都叫 click，失效方式却不同</strong><p>按名称定位，可能找不到按钮；按节点编号操作，可能拿着旧快照；坐标点击，可能落在布局变化后的另一个位置。上层需要保留这些差别，才能在失败时决定重新找元素，还是重新截图。</p></div>
           </section>
 
+          <details class="article-disclosure"><summary>实现细节：只读页面代码、受信客户端与内置宿主</summary>
           <section id="readonly-world" data-article-section>
             <span class="section-number">04 / 只读执行</span>
             <h2>只读执行：evaluate 如何限制页面 JavaScript</h2>
-            <p>最值得单独拆的一段不是点击，而是 `playwright.evaluate`。实现没有简单调用页面主 world 的 `eval`；它创建名为 `browser-use-readonly-js` 的 isolated world，注入只读 DOM proxy，冻结或替换一组 intrinsic，并对返回值实施深度、大小和类型约束。<button class="evidence-ref" type="button" data-evidence="BU-17 BU-18" data-evidence-trigger>BU-17–18</button></p>
+            <p>有时只需检查页面状态，不必点击。<code>playwright.evaluate</code> 为这种观察提供了一条受限的 JavaScript 路径：它不直接在页面主执行环境里 <code>eval</code>，而是创建单独的 <code>browser-use-readonly-js</code> 环境。DOM 对象经只读代理暴露，一组基础对象被固定或替换，返回值也有深度、大小和类型限制。<button class="evidence-ref" type="button" data-evidence="BU-17 BU-18" data-evidence-trigger>只读执行的限制</button></p>
             <pre class="article-code-block" aria-label="只读 evaluate 的概念边界">model function
     ↓ serialize + validate
 CDP isolated world: browser-use-readonly-js
@@ -169,13 +167,13 @@ page observation
     ↓ bounded serialization
 JSON-compatible result</pre>
             <p>这不是安全证明。编译后代码能显示防护策略、被代理的对象和拒绝路径，却不能替代逃逸测试。尤其要验证 getter、副作用 API、跨 realm prototype、iframe、导航中断和非 JSON 对象等边缘情形。把它称为“只读页面沙箱”比“任意页面 JS”准确，也比“绝对无副作用”诚实。</p>
-            <p>它的产品意义很大：如果只读 evaluate 成立，模型可以在不触发页面动作的前提下做高密度状态检查；如果边界有洞，原本被归为观察的调用就可能绕开动作时确认。因此它既是性能优化，也是权限模型的一部分。</p>
+            <p>为什么这件事值得单独核对？观察调用通常不需要像提交表单那样确认。若只读边界被绕过，原本只是“看看”的代码也可能产生动作。所以这里既关系到检查效率，也关系到授权。</p>
           </section>
 
           <section id="trusted-bridge" data-article-section>
             <span class="section-number">05 / 信任边界</span>
             <h2>信任边界：模型代理、Security Gate 与本地协议</h2>
-            <p>`setupBrowserRuntime()` 明确要求 privileged Node REPL capabilities。模型侧获得的 `agent.browsers` 是经过 manifest view 裁剪的代理；执行函数在可信 bundle 内把方法转换成 command，先跑 security check，再交给 backend transport。这个边界与 Computer Use 的 trusted package 思路相似，但连接的服务完全不同。<button class="evidence-ref" type="button" data-evidence="BU-05 BU-09 BU-10 BU-11 BU-25" data-evidence-trigger>BU-05,09–11,25</button></p>
+            <p>模型写下 JavaScript，并不等于它拿到了所有宿主权限。初始化函数 <code>setupBrowserRuntime()</code> 要求宿主提供受信的 Node REPL 桥。模型看到的 <code>agent.browsers</code> 是裁剪后的代理；真正执行时，受信客户端先把方法转换为命令，检查是否允许，再交给浏览器后端。<button class="evidence-ref" type="button" data-evidence="BU-05 BU-09 BU-10 BU-11 BU-25" data-evidence-trigger>模型与宿主之间的桥</button></p>
 
             <figure class="article-figure">
               <div class="article-flow" style="--flow-count: 5">
@@ -199,6 +197,8 @@ JSON-compatible result</pre>
             <p>隐藏宿主不等于“偷偷浏览”。静态产物只能确认它把一部分协议处理、生命周期或后台页面能力从可见视图拆开；具体哪些请求进入哪个 WebView，现有证据没有闭合。组件存在和运行路径是两回事。</p>
             <div class="article-callout"><strong>IAB 的权限边界不是 Chrome 的权限边界</strong><p>IAB 页面由 Codex 自己的 Electron/WebView 宿主持有，产品合同并不承诺复用用户默认浏览器的 profile、Cookie 或扩展。现有静态证据也没有闭合 WebView preload 与存储隔离，因此工程上不应假定状态会自动继承；实际边界仍需运行时验证。</p></div>
           </section>
+
+          </details>
 
           <section id="tab-ownership" data-article-section>
             <span class="section-number">07 / 标签页生命周期</span>
@@ -234,6 +234,7 @@ JSON-compatible result</pre>
             <p>另外，browserAuth 能力有独立 broker socket。它的目标是让凭据流在浏览器与受信 broker 之间完成，而不是把密码或 token 作为普通工具结果回传给模型。静态接口能证明通道和“不回传模型”的合同；具体凭据提供者、存储和远端交换仍需运行时证据。<button class="evidence-ref" type="button" data-evidence="BU-23 BU-24" data-evidence-trigger>BU-23–24</button></p>
           </section>
 
+          <details class="article-disclosure"><summary>实现细节：Chrome 扩展怎样连接本地服务</summary>
           <section id="chrome-chain" data-article-section>
             <span class="section-number">09 / Chrome 链路</span>
             <h2>Chrome 链路：扩展、Native Messaging 与 Profile 身份</h2>
@@ -250,6 +251,8 @@ JSON-compatible result</pre>
             </figure>
             <p>这也解释了 Chrome 故障为何常常不是“页面点不到”：扩展可能缺失或禁用、选错 profile、Native Messaging manifest 不完整、浏览器未运行、extension instance 已变、用户或扩展中断了控制。把它们全部重试成 Playwright 命令，只会掩盖真正的身份故障。</p>
           </section>
+
+          </details>
 
           <section id="observability" data-article-section>
             <span class="section-number">10 / 结果回传</span>
@@ -282,12 +285,22 @@ JSON-compatible result</pre>
             <p>把整条链收回来，Browser Use 不是一个统一的“浏览器点击工具”。同一份可信 client 先在 IAB、Extension 与 CDP 之间确定宿主，再按后端能力暴露 WebMCP、Playwright、DOM-CUA 或坐标 CUA。命令随后经过来源与安全策略检查，进入本地协议或扩展链；动作结束后，截图、标签页状态和 response metadata 才把结果带回模型。</p>
             <p>这套分层会直接改变使用和排错方式。IAB 可用，不代表它继承 Chrome 登录态；locator click 成功，不代表旧坐标仍可复用；后端接受命令，也不代表用户目标已经完成。浏览器身份、动作语义和结果验证必须分开判断。</p>
             <div class="article-callout"><strong>仍然不能确认的部分</strong><p>现有发行包还回答不了几件事：真实任务中的后端选择与退化顺序；只读 isolated world 对 getter、iframe 和 prototype 技巧的完整抵抗；跨域 OOPIF 中 DOM id 与截图几何如何同步；remote site-status fail-open 的实际范围；WebMCP 页面工具如何绑定 origin、schema 与用户授权。没有运行时 trace 或对应宿主源码，这些都不能写成既定事实。</p></div>
+            <details class="article-disclosure"><summary>固定样本与核验信息</summary>
+      <section class="article-scope-band" aria-label="文章核验范围">
+        <div class="article-scope-grid">
+          <div><span>Product</span><strong>Codex for macOS</strong><small>arm64 · macOS</small></div>
+          <div><span>Plugin</span><strong>browser / chrome 26.730.61639</strong><small>同一 client，不同入口合同</small></div>
+          <div><span>Primary artifact</span><strong>browser-client.mjs</strong><small>1,140,632 bytes · emitted JS</small></div>
+          <div><span>Evidence grade</span><strong>Installed release</strong><small>事实、推断与未知分栏</small></div>
+        </div>
+      </section>
+            </details>
           </section>
         </article>
 
         <aside class="article-margin" aria-label="文章侧注">
-          <div class="article-margin-block"><span>CORE DISTINCTION</span><strong>Browser CUA 作用于 tab viewport；Computer Use 作用于 macOS app window。</strong><small>同样叫 click，不共享坐标系、观察树或底层输入服务。</small></div>
-          <div class="article-margin-block"><span>STATIC ≠ RUNTIME</span><strong>接口存在不等于路径已命中。</strong><small>backend fallback、hidden host 路由与 site-status 决策都不能从静态文件直接推出。</small></div>
+          <div class="article-margin-block"><span>两种点击</span><strong>Browser CUA 操作网页视口，Computer Use 操作 macOS 应用窗口。</strong><small>两者的坐标、观察结果和输入接口不能直接互换。</small></div>
+          <div class="article-margin-block"><span>入口与实际连接</span><strong>发行包有接口，不代表这次会话已接通。</strong><small>静态文件说明有哪些路径；实际选择、降级和站点判断仍要看运行记录。</small></div>
           <div class="article-margin-block"><span>证据边界</span><strong>32 条文件证据，11 个明确未知。</strong><small>能直接读取的实现与需要运行时证据的结论分开记录。</small></div>
         </aside>
       </div>
@@ -310,5 +323,6 @@ JSON-compatible result</pre>
 
   <script src="/vendor/lucide/lucide.min.js"></script>
   <script src="/capability-article.js"></script>
+  <script src="/article-disclosures.js"></script>
 </body>
 </html>

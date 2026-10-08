@@ -1,7 +1,7 @@
 {
   "title": "Session 持久化、恢复与回放",
-  "subtitle": "Identity · Durable transcript · Runtime rejoin · Branch · Rewind · Replay",
-  "description": "把 conversation 身份、持久介质、live runtime、模型上下文、文件状态与 UI hydration 拆成可验证的 Harness 合同。",
+  "subtitle": "关掉 Agent 后再打开，怎样找回正确的会话？聊天记录、运行中的任务和文件改动不会一起自动恢复。",
+  "description": "比较三个 Agent 固定版本的会话 ID、历史保存、恢复、分叉、回退与重放，区分聊天记录和文件状态。",
   "eyebrow": "MECHANISM 004",
   "verifiedAt": "2026-08-10",
   "defaultView": "compare",
@@ -11,11 +11,11 @@
   "sharpEdgeTitle": "最容易写错的 8 个 Session 等号",
   "operationRailLabel": "Harness 要完成什么",
   "views": {
-    "compare": {"label": "操作速查", "kicker": "SESSION CONTROL REFERENCE", "title": "同一个“继续会话”，背后至少有六种状态", "description": "逐项对齐 identity、lookup、durability、runtime hydration、lineage 与 terminal receipt。"},
-    "flows": {"label": "恢复链路", "kicker": "CREATE TO REJOIN", "title": "从分配 ID 到重新接入 live tail", "description": "只画可观测状态，明确 snapshot、event tail、runtime rebuild 与 destructive commit point。"},
+    "compare": {"label": "操作速查", "kicker": "SESSION CONTROL REFERENCE", "title": "同一个“继续会话”，背后至少有六种状态", "description": "分别核对会话 ID、记录查找、历史保存、运行环境重建、分叉来源和结束回执。"},
+    "flows": {"label": "恢复链路", "kicker": "CREATE TO REJOIN", "title": "从创建会话到接回正在运行的任务", "description": "区分历史快照、新事件和重建的运行环境，并标出删除或回退何时真正提交。"},
     "failures": {"label": "失败面", "kicker": "STALE / LOSSY / PARTIAL / INDETERMINATE", "title": "找到记录不等于恢复成功，结束执行也不等于已经落盘", "description": "按错 session、丢 runtime、分叉失真、回退不完整、重放重复与部分删除分栏。"},
-    "resources": {"label": "状态分层", "kicker": "IDENTITY / STORAGE / RUNTIME / FILES", "title": "六种状态不能塞进一条 Session 时间线", "description": "对比 durable transcript、live status、model context、fork lineage、filesystem 与删除 receipt。"},
-    "changes": {"label": "版本变化", "kicker": "HISTORY COMPATIBILITY", "title": "Session 合同会在 lookup、fork、replay 与 migration 上漂移", "description": "只列会改变 Harness 寻址、恢复、回退、排序或兼容判断的版本节点。"}
+    "resources": {"label": "状态分层", "kicker": "IDENTITY / STORAGE / RUNTIME / FILES", "title": "六种状态不能塞进一条 Session 时间线", "description": "聊天历史、运行状态、模型上下文、分叉来源、文件和删除回执分别核对。"},
+    "changes": {"label": "版本变化", "kicker": "HISTORY COMPATIBILITY", "title": "哪些版本改变了查找、分叉、重放或迁移", "description": "只列会改变 Harness 寻址、恢复、回退、排序或兼容判断的版本节点。"}
   },
   "viewDefaults": {
     "compare": {"claim": "SES-CX-01", "label": "操作速查 / identity 分层"},
@@ -25,10 +25,10 @@
     "changes": {"claim": "SES-CC-14", "label": "版本变化 / best-effort resume"}
   },
   "resourceCopy": {
-    "primaryTitle": "State planes",
-    "primaryIntro": "Session ID 只寻址 conversation；runtime、权限、workspace、模型上下文和文件快照分别有自己的真相来源。",
-    "secondaryTitle": "Durability and destructive boundaries",
-    "secondaryIntro": "create、terminal、archive、rewind、delete 与 export 都要有独立 receipt，不能由单个 UI 状态推断。"
+    "primaryTitle": "不同状态保存在哪里",
+    "primaryIntro": "Session ID 只定位会话；进程、权限、工作区、模型上下文和文件快照要从各自记录中核对。",
+    "secondaryTitle": "落盘、回退与删除",
+    "secondaryIntro": "创建、结束、归档、回退、删除和导出分别需要回执。界面显示一个“完成”，不能替代所有核验。"
   },
   "snapshots": [
     {"agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "grade": "Pinned build · per-claim exact/docs labels"},
@@ -47,11 +47,11 @@
   ],
   "operations": [
     {
-      "id": "capture-identity", "label": "捕获机器身份", "question": "创建后拿到的究竟是 conversation、lineage、turn 还是展示标题？", "icon": "fingerprint",
+      "id": "capture-identity", "label": "保存会话 ID", "question": "下次恢复要用哪个 ID？会话标题、分支关系和单次执行编号不能混用。", "icon": "fingerprint",
       "cells": {
-        "claude-code": {"status": "exposed", "surface": "system/init · ResultMessage · hooks", "primitive": "UUID session_id", "contract": "先保存 session_id；name 可作人类 resume handle，自动标题不能作 foreign key。", "edge": "每个 result 都带 ID，但 transport 失败可能只有 init；picker title 也可能随版本改变。", "details": [{"label": "PRIMARY", "value": "session_id"}, {"label": "DISPLAY", "value": "name / generated title"}, {"label": "EARLY SIGNAL", "value": "system/init"}], "claims": ["SES-CC-01"]},
-        "codex": {"status": "exposed", "surface": "App Server thread protocol", "primitive": "thread.id · sessionId · turn.id · item.id", "contract": "threadId 才是 conversation API 主键；sessionId 表示 lineage/tree，turn/item 只标执行单元。", "edge": "forkedFromId 与 parentThreadId 分别是 branch 和 subagent；用 sessionId resume 会串错层。", "details": [{"label": "LOOKUP", "value": "thread.id"}, {"label": "LINEAGE", "value": "sessionId / forkedFromId"}, {"label": "EXECUTION", "value": "turn.id / item.id"}], "claims": ["SES-CX-01"]},
-        "opencode": {"status": "exposed", "surface": "Session API + SQLite V1", "primitive": "session.id · message.id · part.id", "contract": "sessionID 寻址 durable conversation；message/part 是 transcript 层，DB channel 仍决定 collection。", "edge": "parentID 只代表 subagent；fork source 不存进新 row，必须由 Harness 保存 receipt。", "details": [{"label": "PRIMARY", "value": "session.id"}, {"label": "CHILD", "value": "parentID"}, {"label": "TRANSCRIPT", "value": "message / part"}], "claims": ["SES-OC-01", "SES-OC-03", "SES-OC-06"]}
+        "claude-code": {"status": "exposed", "surface": "system/init · ResultMessage · hooks", "primitive": "UUID session_id", "contract": "保存 session_id 供程序恢复。name 可以让人按名称选择会话，自动标题却不能当稳定主键。", "edge": "每个 result 都带 ID，但连接失败时可能只收到 init；别等到最终结果才记 ID。选择器里的标题也可能随版本改变。", "details": [{"label": "PRIMARY", "value": "session_id"}, {"label": "DISPLAY", "value": "name / generated title"}, {"label": "EARLY SIGNAL", "value": "system/init"}], "claims": ["SES-CC-01"]},
+        "codex": {"status": "exposed", "surface": "App Server thread protocol", "primitive": "thread.id · sessionId · turn.id · item.id", "contract": "会话 API 的主键是 threadId。sessionId 记录会话谱系（lineage/tree），turn/item 则标识一次执行及其中的项目。", "edge": "forkedFromId 表示分叉来源，parentThreadId 表示子 Agent 的父会话；不要拿 sessionId 代替 threadId 去恢复。", "details": [{"label": "LOOKUP", "value": "thread.id"}, {"label": "LINEAGE", "value": "sessionId / forkedFromId"}, {"label": "EXECUTION", "value": "turn.id / item.id"}], "claims": ["SES-CX-01"]},
+        "opencode": {"status": "exposed", "surface": "Session API + SQLite V1", "primitive": "session.id · message.id · part.id", "contract": "用 sessionID 找回已保存的会话，message/part 只定位其中的消息片段。还要记录 DB channel，因为它决定查哪个会话集合（collection）。", "edge": "parentID 只记录子 Agent 关系，不记录分叉来源。分叉后的新记录没有 source 字段，接入方要另存来源回执。", "details": [{"label": "PRIMARY", "value": "session.id"}, {"label": "CHILD", "value": "parentID"}, {"label": "TRANSCRIPT", "value": "message / part"}], "claims": ["SES-OC-01", "SES-OC-03", "SES-OC-06"]}
       }
     },
     {

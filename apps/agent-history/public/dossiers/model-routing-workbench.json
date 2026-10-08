@@ -11,8 +11,8 @@
   "sharpEdgeTitle": "先拆开 5 个危险等号",
   "operationRailLabel": "Harness 要决定什么",
   "views": {
-    "compare": { "label": "操作速查", "kicker": "HARNESS ROUTING REFERENCE", "title": "同一个路由动作，三套不同合同", "description": "把请求值、实际值、作用域、修正策略和危险边界放在同一行。" },
-    "flows": { "label": "路由链路", "kicker": "OBSERVABLE ROUTING LIFECYCLE", "title": "从选择到终态，模型到底在哪里改变", "description": "只画可观测或固定源码可证的阶段；选择、重试、换模与换 transport 分开。" },
+    "compare": { "label": "操作速查", "kicker": "HARNESS ROUTING REFERENCE", "title": "同一种过载，为什么三个 Agent 走向不同", "description": "把请求值、实际值、作用域、修正策略和危险边界放在同一行。" },
+    "flows": { "label": "路由链路", "kicker": "OBSERVABLE ROUTING LIFECYCLE", "title": "从选择到终态，模型到底在哪里改变", "description": "沿公开信号或固定源码追踪调用；重新选模型、原模型重试、换模型和换连接方式分别记录。" },
     "failures": { "label": "失败面", "kicker": "FAILURE / RETRY / FALLBACK", "title": "重试预算、回退边界与副作用风险", "description": "先看无限等待、重复执行、静默降级和能力漂移。" },
     "resources": { "label": "能力与预算", "kicker": "CAPABILITY / COST / LIMITS", "title": "Capability、Reasoning 与账单口径", "description": "不做容量排名；每个数字保留作用层、分母和证据等级。" },
     "changes": { "label": "版本变化", "kicker": "ROUTING CONTRACT CHANGES", "title": "只保留会改变最终模型或失败语义的变化", "description": "Claude 展示 exact changelog；Codex 与 opencode 未核验的版本差异不制造记录。" }
@@ -124,9 +124,9 @@
     {
       "id": "handle-overload", "group": "recovery", "label": "处理过载", "question": "过载后重试同模型、进入模型链还是立即终止？", "icon": "server-crash",
       "cells": {
-        "claude-code": { "status": "partial", "surface": "fallbackModel + retry classifier", "primitive": "bounded retry → fallback chain", "contract": "Exact history 建立最多三跳的 fallbackModel，并区分可直接暴露的错误类型。", "edge": "2.1.226 完整 overload/error matrix 仍需 fault injection。", "details": [{ "label": "FALLBACK KIND", "value": "model" }, { "label": "MODEL CHANGED", "value": "yes" }, { "label": "BUDGET", "value": "up to 3 configured hops" }], "claims": ["MR-CC-15"], "unknown": "MR-KU-02" },
-        "codex": { "status": "exposed", "surface": "CodexErr::is_retryable", "primitive": "ServerOverloaded → terminal", "contract": "Core 把 ServerOverloaded 判为不可重试，不进入通用容量模型链。", "edge": "上游服务是否先做独立 reroute 未核验。", "details": [{ "label": "FALLBACK KIND", "value": "none in core" }, { "label": "MODEL CHANGED", "value": "no" }, { "label": "TERMINAL", "value": "ServerOverloaded" }], "claims": ["MR-CX-16"], "unknown": "MR-KU-06" },
-        "opencode": { "status": "partial", "surface": "SessionRetry.policy", "primitive": "overload → same-model schedule", "contract": "Overloaded/5xx/匹配文本进入无内建 max attempt 的 retry schedule，并继续 input.model。", "edge": "没有跨模型 capacity chain；外层必须提供 deadline 与 cost budget。", "details": [{ "label": "FALLBACK KIND", "value": "same-model retry" }, { "label": "MODEL CHANGED", "value": "no" }, { "label": "TERMINAL", "value": "cancel | non-retryable" }], "claims": ["MR-OC-12", "MR-OC-14", "MR-OC-15"] }
+        "claude-code": { "status": "partial", "surface": "fallbackModel + retry classifier", "primitive": "bounded retry → fallback chain", "contract": "固定版本记录显示 fallbackModel 最多可以回退三跳，并区分哪些错误会直接返回。", "edge": "2.1.226 在各种过载和错误下的完整表现，仍需要故障注入实验核验。", "details": [{ "label": "FALLBACK KIND", "value": "model" }, { "label": "MODEL CHANGED", "value": "yes" }, { "label": "BUDGET", "value": "up to 3 configured hops" }], "claims": ["MR-CC-15"], "unknown": "MR-KU-02" },
+        "codex": { "status": "exposed", "surface": "CodexErr::is_retryable", "primitive": "ServerOverloaded → terminal", "contract": "客户端 Core 把 ServerOverloaded 判为不可重试，不会因此依次尝试其他容量模型。", "edge": "上游服务收到请求后是否先自行改走其他模型，尚未核验。", "details": [{ "label": "FALLBACK KIND", "value": "none in core" }, { "label": "MODEL CHANGED", "value": "no" }, { "label": "TERMINAL", "value": "ServerOverloaded" }], "claims": ["MR-CX-16"], "unknown": "MR-KU-06" },
+        "opencode": { "status": "partial", "surface": "SessionRetry.policy", "primitive": "overload → same-model schedule", "contract": "Overloaded、5xx 或匹配的错误文本会触发重试，仍使用 input.model；内层没有最大尝试次数。", "edge": "不会自动换一串模型试容量。接入方要另设截止时间和费用预算，避免一直重试。", "details": [{ "label": "FALLBACK KIND", "value": "same-model retry" }, { "label": "MODEL CHANGED", "value": "no" }, { "label": "TERMINAL", "value": "cancel | non-retryable" }], "claims": ["MR-OC-12", "MR-OC-14", "MR-OC-15"] }
       }
     },
     {

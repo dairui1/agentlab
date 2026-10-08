@@ -2,8 +2,8 @@
   "id": "raven",
   "title": "Raven：反馈怎样变成下一轮执行的 Harness",
   "product": "Raven",
-  "subtitle": "多 Agent 编排、Curator 与效果验证之间的距离",
-  "description": "沿反馈、候选、校验和安装追踪 Raven 的持久 Harness 改进，区分机制实现、作者成绩和仍未验证的 RSI 主张。",
+  "subtitle": "交付里混进内部备注，下一轮怎样真正少犯错",
+  "description": "从作者的旅行需求单案例出发，看 Raven 怎样把反馈改成写盘前检查，再追问检查是否装上、是否触发、是否改善结果。固定源码研究，案例与成绩未独立复现。",
   "verifiedAt": "2026-09-30",
   "status": "active",
   "source": {

@@ -1,6 +1,6 @@
 {
   "title": "Sub-agent 编排",
-  "subtitle": "固定版本下可调用、可观测、可恢复的控制合同",
+  "subtitle": "把任务交给另一个 Agent 后，怎样补充信息、等它结束，并拿回真正的结果。",
   "verifiedAt": "2026-08-10",
   "defaultView": "compare",
   "defaultOperation": "create",
@@ -21,9 +21,9 @@
     {
       "id": "create", "label": "创建 Subagent", "question": "调用哪个入口，默认怎么运行？", "icon": "plus",
       "cells": {
-        "claude-code": { "status": "exposed", "surface": "Agent model tool", "primitive": "Agent(description, prompt, subagent_type?, model?, run_in_background?, isolation?)", "contract": "普通 Agent 建 fresh transcript；fork 是显式另一模式。", "edge": "2.1.226 默认 background；isolation=remote 是 gated 且强制 background。", "details": [{ "label": "REQUIRED", "value": "description · prompt" }, { "label": "DEFAULT", "value": "subagent_type=general-purpose · run_in_background=true" }, { "label": "OPTIONAL", "value": "subagent_type · model · run_in_background · isolation=worktree|remote" }, { "label": "CONSTRAINT", "value": "isolation=remote → run_in_background=true" }], "claims": ["CC-02", "CC-03"] },
-        "codex": { "status": "exposed", "surface": "collaboration tool", "primitive": "spawn_agent(task_name, message, fork_turns?, model?, reasoning_effort?)", "contract": "返回可递归寻址的 child 节点。", "edge": "fork_turns 默认 all；full-history fork 不能同时覆盖 model/reasoning。", "details": [{ "label": "REQUIRED", "value": "task_name · message" }, { "label": "DEFAULT", "value": "fork_turns=all" }, { "label": "RETURN", "value": "canonical child path" }], "claims": ["CX-01", "CX-02", "CX-03"] },
-        "opencode": { "status": "exposed", "surface": "TaskTool / captured", "primitive": "task(description, prompt, subagent_type, task_id?, command?)", "contract": "不带 task_id 时创建带 parentID 的 child Session。", "edge": "background 不在当前 captured schema；只能先做 capability detection。", "details": [{ "label": "REQUIRED", "value": "description · prompt · subagent_type" }, { "label": "OPTIONAL", "value": "task_id · command" }, { "label": "GATE", "value": "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS" }], "claims": ["OC-01", "OC-04"] }
+        "claude-code": { "status": "exposed", "surface": "Agent model tool", "primitive": "Agent(description, prompt, subagent_type?, model?, run_in_background?, isolation?)", "contract": "普通 Agent 从一份新的对话记录开始；继承父对话的 fork 是另一种显式模式。", "edge": "2.1.226 默认在后台运行。isolation=remote 受功能开关控制，且必须在后台运行。", "details": [{ "label": "REQUIRED", "value": "description · prompt" }, { "label": "DEFAULT", "value": "subagent_type=general-purpose · run_in_background=true" }, { "label": "OPTIONAL", "value": "subagent_type · model · run_in_background · isolation=worktree|remote" }, { "label": "CONSTRAINT", "value": "isolation=remote → run_in_background=true" }], "claims": ["CC-02", "CC-03"] },
+        "codex": { "status": "exposed", "surface": "collaboration tool", "primitive": "spawn_agent(task_name, message, fork_turns?, model?, reasoning_effort?)", "contract": "返回子 Agent 的路径；后续发消息、查状态或中断都用这个地址。路径也能标识更深层的子 Agent。", "edge": "fork_turns 默认 all，会继承完整历史；此时不能同时改 model 或 reasoning_effort。", "details": [{ "label": "REQUIRED", "value": "task_name · message" }, { "label": "DEFAULT", "value": "fork_turns=all" }, { "label": "RETURN", "value": "canonical child path" }], "claims": ["CX-01", "CX-02", "CX-03"] },
+        "opencode": { "status": "exposed", "surface": "TaskTool / captured", "primitive": "task(description, prompt, subagent_type, task_id?, command?)", "contract": "不带 task_id 时创建子 Session，并用 parentID 记录父子关系。", "edge": "当前捕获的参数定义没有 background；接入前要先确认这个版本是否支持后台子任务。", "details": [{ "label": "REQUIRED", "value": "description · prompt · subagent_type" }, { "label": "OPTIONAL", "value": "task_id · command" }, { "label": "GATE", "value": "OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS" }], "claims": ["OC-01", "OC-04"] }
       }
     },
     {
@@ -59,7 +59,7 @@
       }
     },
     {
-      "id": "join-all", "label": "汇合全部", "question": "有没有真正的 barrier / wait-all？", "icon": "combine",
+      "id": "join-all", "label": "汇合全部", "question": "能否等所有子任务结束后，再继续下一步？", "icon": "combine",
       "cells": {
         "claude-code": { "status": "exposed", "surface": "Workflow", "primitive": "parallel(thunks: Array<() => Promise<any>>)", "contract": "脚本拥有 barrier；按 thunk 输入位置解析结果。", "edge": "thunk failure 或 thunk 内 agent terminal/API error 可落 null；pipeline stage throw 属于另一条 Workflow path。", "details": [{ "label": "INPUT", "value": "async thunks, not values/items" }, { "label": "ORDER", "value": "thunk input position" }, { "label": "ITEM FAILURE", "value": "selected thunk/agent failures → null" }], "claims": ["CC-08"] },
         "codex": { "status": "not-exposed", "surface": "collaboration tool", "primitive": "no wait-all primitive", "contract": "当前 model-facing surface 没有 dependency graph 或 barrier。", "edge": "wait_agent 是 first-event wait，不是 wait-all。", "unknown": "KU-09", "claims": ["CX-08"] },
@@ -67,7 +67,7 @@
       }
     },
     {
-      "id": "result", "label": "读取结果", "question": "真正进入 parent 的内容是什么？", "icon": "package-open",
+      "id": "result", "label": "读取结果", "question": "父 Agent 最后会收到完整输出，还是一份摘要？", "icon": "package-open",
       "cells": {
         "claude-code": { "status": "exposed", "surface": "Agent + Workflow", "primitive": "tool result · notification", "contract": "Agent 前台返回 tool result，后台通知；Workflow 只给一次 completion。", "edge": "前后台 API error envelope 不同；不要共用一个 parser。", "details": [{ "label": "AGENT FG", "value": "tool result" }, { "label": "AGENT BG", "value": "completion / failed notification" }, { "label": "WORKFLOW", "value": "single completion notification" }], "claims": ["CC-03", "CC-09"] },
         "codex": { "status": "unknown", "surface": "captured surface", "primitive": "no pull-result primitive", "contract": "已核验的 wait_agent 只返回三类状态摘要，不包含 payload；最终结果 envelope 未在本次证据中核验。", "edge": "wait success 不能当 child output，也不要发明 result schema。", "unknown": "KU-11", "claims": ["CX-08"] },
@@ -83,7 +83,7 @@
       }
     },
     {
-      "id": "resume", "label": "恢复计算", "question": "句柄恢复的是 transcript、地址还是缓存？", "icon": "rotate-ccw",
+      "id": "resume", "label": "恢复计算", "question": "再次使用旧地址时，会接着旧对话运行，还是只复用部分缓存？", "icon": "rotate-ccw",
       "cells": {
         "claude-code": { "status": "exposed", "surface": "Agent + Workflow", "primitive": "SendMessage · resumeFromRunId", "contract": "一个续 Agent transcript；另一个复用最长未改完成前缀。", "edge": "Workflow 不是任意 DAG checkpoint，且只在同一 session 内恢复。", "details": [{ "label": "AGENT", "value": "SendMessage → same transcript" }, { "label": "WORKFLOW", "value": "run ID → longest unchanged completed prefix" }], "claims": ["CC-04"] },
         "codex": { "status": "partial", "surface": "conditional wake", "primitive": "followup_task(target, message)", "contract": "target idle 时启动新 turn；target running 时在 sampling/message boundary 或 pending tool call 后投递。", "edge": "不是无条件启动并发 turn；transcript durability 未完整公开。", "claims": ["CX-05", "CX-06"] },

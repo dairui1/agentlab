@@ -117,7 +117,7 @@
       node.rel = "noopener noreferrer";
     }
     const stateLabel = document.createElement("span");
-    stateLabel.textContent = stateValue === "available" ? "AVAILABLE" : "UNAVAILABLE";
+    stateLabel.textContent = stateValue === "available" ? "已收录" : "未收录";
     const title = document.createElement("strong");
     title.textContent = label;
     const copy = document.createElement("small");
@@ -186,17 +186,17 @@
     $("evidenceLedger").replaceChildren(
       evidenceItem("官方 Release", notes?.text ? "available" : "unavailable", notes?.text ? `${notes.originalBytes || 0} bytes · ${notes.sourceKind}` : "未收录正文", source?.url || ""),
       evidenceItem("代码比较", code ? "available" : "unavailable", code ? `${code.filesObserved} files · +${code.additionsObserved} / -${code.deletionsObserved}${code.truncated ? " · 截断" : ""}` : "无相邻 tag 比较", code?.sourceUrl || compareSource?.url || ""),
-      evidenceItem("Runtime Request", runtimeAvailable ? "available" : "unavailable", runtimeAvailable ? "Prompt 与 Tool Schema 捕获可用" : "没有公开运行时捕获"),
-      evidenceItem("Static Prompt", staticAvailable ? "available" : "unavailable", staticAvailable ? "静态资产比较可用" : "没有可比较静态资产"),
+      evidenceItem("运行时请求", runtimeAvailable ? "available" : "unavailable", runtimeAvailable ? "已捕获 Prompt 与工具参数定义" : "没有公开运行时捕获"),
+      evidenceItem("静态 Prompt", staticAvailable ? "available" : "unavailable", staticAvailable ? "有可比较的静态文件" : "没有可比较静态文件"),
     );
 
     const boundaries = [];
     const text = core.searchableText(entry);
-    if (/不兼容|incompatible/i.test(text)) boundaries.push(["DATA FORMAT", "官方说明标记存储格式不兼容；升级前必须验证迁移、回滚与旧 Session 读取。"]);
-    if (/非交互权限|non-interactive permission/i.test(text)) boundaries.push(["AUTHORITY", "Codex Subagent 新增非交互权限模式；权限决策不能沿用交互 Session 的默认假设。"]);
-    if (/持久 PowerShell|persistent PowerShell/i.test(text)) boundaries.push(["PROCESS STATE", "Windows PTY 开始跨命令保留 PowerShell 状态；取消、超时和资源回收需要按持久 Session 验证。"]);
-    if (/图片|image/i.test(text)) boundaries.push(["PAYLOAD", "图片尺寸与历史累计载荷已有失败修复；需要继续监测单次与多轮 Context 上限。"]);
-    if (!boundaries.length) boundaries.push(["EVIDENCE", "当前没有官方声明的破坏性边界；这不等于已验证向后兼容。"]);
+    if (/不兼容|incompatible/i.test(text)) boundaries.push(["存储格式", "官方说明标记了存储格式不兼容。升级前先验证迁移、回滚，以及旧 Session 能否读取。"]);
+    if (/非交互权限|non-interactive permission/i.test(text)) boundaries.push(["无人值守权限", "Codex Subagent 新增非交互权限模式。没有人工审批窗口时，不能照搬交互 Session 的权限假设。"]);
+    if (/持久 PowerShell|persistent PowerShell/i.test(text)) boundaries.push(["进程状态", "Windows PTY 开始在多条命令间保留 PowerShell 状态。取消、超时后是否仍有进程运行，要按持久 Session 核对。"]);
+    if (/图片|image/i.test(text)) boundaries.push(["图片与上下文", "已有针对图片尺寸和历史累计载荷的修复。单次输入及多轮累积仍要检查上下文上限。"]);
+    if (!boundaries.length) boundaries.push(["尚未验证兼容性", "现有官方说明没有标记破坏性变化，但这里没有独立验证向后兼容。"]);
     $("compatibilityList").replaceChildren(...boundaries.map(([label, copy]) => {
       const row = document.createElement("div");
       row.className = "dsh-boundary";
@@ -241,7 +241,7 @@
       });
     } catch (error) {
       $("selectedTitle").textContent = "DeepSeek Harness 数据暂不可用";
-      $("selectedSummary").textContent = error.message;
+      $("selectedSummary").textContent = `版本数据暂时未能载入。请刷新页面重试。错误：${error.message}`;
     }
     refreshIcons();
   }

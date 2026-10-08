@@ -2,8 +2,8 @@
   "id": "oar",
   "title": "OAR：统一 Agent 接口，不抹平运行时差异",
   "product": "OAR",
-  "subtitle": "输入回执、事实流、子 Agent 归属与恢复边界",
-  "description": "固定 v0.10.2 源码，追踪 OAR 怎样控制真实 Agent、保留原生记录并构建可重放会话，附离线测试与合成探针。",
+  "subtitle": "同一条消息发给不同 Agent，怎样确认它们收到了没有",
+  "description": "Agent 正在改代码，你补了一句“先别发布”。沿这条消息，看 OAR 怎样区分接手、排队和原生观察，让工作台的进度有记录可查。附固定源码、离线测试和合成探针，未运行真实 Agent 任务。",
   "verifiedAt": "2026-10-01",
   "status": "active",
   "source": {

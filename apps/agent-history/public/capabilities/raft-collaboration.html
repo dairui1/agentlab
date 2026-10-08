@@ -40,13 +40,14 @@
             <li><a href="#recovery" data-index="06">记忆与恢复</a></li>
             <li><a href="#permissions" data-index="07">权限边界</a></li>
             <li><a href="#tradeoffs" data-index="08">工程取舍</a></li>
-            <li><a href="#experiments" data-index="09">待验证实验</a></li>
-            <li><a href="#sources" data-index="10">来源与追踪</a></li>
+            <li><a href="#sources" data-index="09">研究范围与来源</a></li>
           </ol>
         </aside>
         <article class="capability-article" id="articleBody">
-          <p class="article-lead">人类在频道里发了一条修复请求。两个 Agent 都看见了，也都能改代码。到这一步，模型的能力并不是问题。缺的是一个共同的约定：这件事现在由谁做，后来补充的要求算不算数，做到一半断了又该从哪里继续。</p>
-          <p>上一篇<a href="/capabilities/raft-multi-agent.html">多 Agent 博客</a>讨论了发送前为什么需要再看一眼房间。这篇把视野放宽一点：消息之外，Raft 怎样把任务、执行进程和工作记录接在一起。</p>
+          <div class="article-opening">
+            <p class="article-lead">人类在频道里发了一条修复请求。两个 Agent 都看见了，也都能改代码。到这一步，模型的能力并不是问题。缺的是一个共同的约定：这件事现在由谁做，后来补充的要求算不算数，做到一半断了又该从哪里继续。</p>
+            <p>上一篇<a href="/capabilities/raft-multi-agent.html">多 Agent 博客</a>讨论了发送前为什么需要再看一眼房间。这篇把视野放宽一点：消息之外，Raft 怎样把任务、执行进程和工作记录接在一起。</p>
+          </div>
           <section id="architecture" data-article-section>
             <h2>模型引擎负责做事，Raft 负责把工作接起来</h2>
             <p>从一条频道消息往下追，先到的是 Raft Server。频道、任务和身份需要有一个大家认可的版本，不能由每台机器各记一份。真正运行 Agent 的工作则交给机器上的 daemon：它启动进程，递送输入，也替 Agent 转发带凭据的 Raft 请求。<button class="evidence-ref" type="button" data-evidence="RF-03 RF-04" data-evidence-trigger>RF-03、04</button></p>
@@ -84,6 +85,7 @@
           <section id="claim" data-article-section>
             <h2>数据库能仲裁任务，但不能替执行者锁住文件</h2>
             <p>再回到 A 和 B 同时接活的那一刻。只在 Prompt 里写“先认领再工作”还不够：两者可能同时读到任务无人认领，然后各自宣布接下了。Raft 把最后的决定放到数据库更新里。写入同一条 canonical task 时，既检查任务是否可认领，也检查 <code>revision</code> 是否仍是刚才读到的版本。A 写入成功，归属和版本随之更新；B 拿旧版本再写，就不能悄悄把 A 覆盖掉。<button class="evidence-ref" type="button" data-evidence="RF-10" data-evidence-trigger>RF-10</button></p>
+            <details class="study-notes"><summary>查看数据库怎样检查认领版本</summary>
             <p>下面的 <code>.where(...)</code> 就是这次写入的条件。版本没变、仍允许当前执行者认领，更新才会生效；<code>revision + 1</code> 则让下一位请求者能发现变化。</p>
 <figure class="source-code"><figcaption><span>taskService.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/server/src/services/taskService.ts#L2480-L2495" target="_blank" rel="noopener noreferrer">L2480-2495 ↗</a></figcaption><pre tabindex="0" aria-label="taskService.ts 源码"><code data-collaboration-snippet="claimExcerpt">    .set({
       status: nextStatus,
@@ -101,6 +103,7 @@
       canonicalClaimCasPredicate(claimedByType, claimedById),
     ))
     .returning();</code></pre></figure>
+            </details>
             <p>这个约束的范围很具体：<strong>同一条 task 记录</strong>。如果 A 和 B 分别建了两条“修复登录”的任务，数据库不会仅凭文字相似就认出它们是同一件事。B 即使认领失败，也可能直接去改共享目录。前者需要任务去重，后者需要执行规则或 worktree 隔离；靠这一次数据库更新解决不了。</p>
             <p>人类中途修改任务卡片，也有类似的旧版本问题。amend 路径会在事务里重新检查成员资格，再按 revision 做条件更新，并追加修订事件。这样，一份旧卡片不会无声地盖过新要求，消息里写着谁的名字也不会自动变成修改权限。这是该修订路径的做法，其他任务动作仍需看各自实现。<button class="evidence-ref" type="button" data-evidence="RF-11" data-evidence-trigger>RF-11</button></p>
           </section>
@@ -114,6 +117,7 @@
             <h2>旧 Thread 丢了，工作从哪里继续？</h2>
             <p>接下来，A 的旧 Thread 无法续接了。Raft 还剩下什么？至少，工作目录不必跟着这一次模型会话一起消失。初始化时会创建 <code>notes/</code>，并且只在 <code>MEMORY.md</code> 不存在时写入初始内容。常驻 Prompt 要求 Agent 把它维护成恢复索引。它不是对整段上下文的自动备份：A 没有记下来的判断，后来接手的执行者仍可能不知道。<button class="evidence-ref" type="button" data-evidence="RF-07 RF-05" data-evidence-trigger>RF-07、05</button></p>
             <p>driver 会先分辨为什么续接失败。找不到 rollout，或 Thread 已经有 active writer 时，可以走 <code>fallback_fresh_thread</code>，改用一个新 Thread；权限拒绝和未知错误则停下来报错，不会一律当成“重开就好”。新 Thread 收到的恢复通知也说得很直白：去 Raft 历史和本地记忆里找工作记录，不要假定旧 Codex 上下文已经加载。<button class="evidence-ref" type="button" data-evidence="RF-13" data-evidence-trigger>RF-13</button></p>
+            <details class="study-notes"><summary>查看 Codex 续接错误的分类源码</summary>
 <figure class="source-code"><figcaption><span>codex.ts</span><a href="https://github.com/botiverse/raft-source/blob/05f7d8fd77d2535f993d5d90b85118438bc18216/packages/daemon/src/drivers/codex.ts#L722-L742" target="_blank" rel="noopener noreferrer">L722-742 ↗</a></figcaption><pre tabindex="0" aria-label="codex.ts 源码"><code data-collaboration-snippet="recoveryExcerpt">export function classifyCodexResumeError(message: string, requestedSessionId?: string): CodexResumeErrorClassification {
   if (isCodexMissingRolloutError(message)) {
     return buildCodexResumeRecovery("missing_rollout", requestedSessionId);
@@ -135,6 +139,7 @@
     resumeErrorClass: "unknown",
   };
 }</code></pre></figure>
+            </details>
             <p>能继续读记录，是恢复的起点，不是终点。假如 A 在断开前已经提交了代码，新的执行者就应该先看提交；假如它已经调用了发布服务，就得去核对结果。尤其是 active writer 冲突：旧执行者可能仍在工作。新建一个 Thread 只解决“从哪里继续对话”，不会自动解决“两边是否在重复做事”。</p>
           </section>
           <section id="permissions" data-article-section>
@@ -156,8 +161,10 @@
             <p>复用现成引擎省去了重做工具和模型循环的工作，却把难题移到了接入处：新版本的协议还能否兼容，忙碌时输入如何递送，压缩后规则还在不在，哪些错误应该重试。driver 看起来只是一层适配，长期维护的分量并不轻。</p>
             <p>把这些放在一起，Raft 最值得借鉴的就不是“多几个 Agent”。它让工作在换人、换进程、换 Thread 之后仍有记录可查，也给冲突留出了明确的处理位置。至于这样能否更快完成任务，还要把模型、预算和验收标准固定下来比较，不能从架构图直接得出答案。</p>
           </section>
-          <section id="experiments" data-article-section>
-            <h2>下一步先验证失败路径</h2>
+          <section id="sources" data-article-section>
+            <h2>研究范围与来源</h2>
+          <details id="experiments" class="study-notes">
+            <summary>还缺哪些失败路径实验？</summary>
             <p>如果接着做实验，我会先让开头那次修复故意出错，而不是先追求一段顺利完成的演示。下面这些实验尚未执行：</p>
             <div class="article-table-wrap"><table class="article-table"><thead><tr><th>实验</th><th>注入条件</th><th>必须保存的证据</th></tr></thead><tbody>
               <tr><td>认领竞争</td><td>两个 Agent 处理同一 canonical task</td><td>认领回执、实际文件写入、是否出现第二执行者</td></tr>
@@ -167,9 +174,9 @@
               <tr><td>执行权限</td><td>低权限账号与受限文件、网络</td><td>拒绝发生在哪层，而非仅看 scope 标签</td></tr>
             </tbody></table></div>
             <p>例如认领竞争，不只看谁拿到了成功回执，还要看失败的一方有没有继续写文件；恢复实验，也不只看新 Thread 有没有启动，还要查旧执行者和外部服务。测试源码可以帮助挑选这些反例，但实际发生了什么，仍要靠执行记录回答。<button class="evidence-ref" type="button" data-evidence="RF-17" data-evidence-trigger>RF-17</button></p>
-          </section>
-          <section id="sources" data-article-section>
-            <h2>来源与版本</h2>
+          </details>
+
+
             <p>本文阅读的是 <code>v1.13.0-source.1</code>，固定提交为 <code>05f7d8fd77d2535f993d5d90b85118438bc18216</code>。仓库是官方发布镜像，每次发布导出一个 commit，不包含完整的私有开发历史。<button class="evidence-ref" type="button" data-evidence="RF-01" data-evidence-trigger>RF-01</button></p>
             <p>该快照采用 <code>FSL-1.1-ALv2</code>，不是当前无条件的 Apache 开源。具体用途应以仓库的许可证文本为准。<button class="evidence-ref" type="button" data-evidence="RF-02" data-evidence-trigger>RF-02</button></p>
             <p>本次未运行 Raft 或上游测试；文中的例子用于解释代码，实验仍待执行。来源索引保留固定链接、行号和文件哈希，便于回到同一版本核对。当前未接入自动版本日更或持续监控。</p>
@@ -187,5 +194,6 @@
   </aside>
   <script src="/vendor/lucide/lucide.min.js"></script>
   <script src="/capability-article.js"></script>
+  <script src="/article-disclosures.js"></script>
 </body>
 </html>

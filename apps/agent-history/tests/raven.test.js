@@ -40,9 +40,18 @@ test("all Raven citations are pinned, complete and used", () => {
 test("Raven article is usable without JS, and appears in shared research navigation", () => {
   const sections = [...html.matchAll(/<section id="([^"]+)" data-article-section/g)].map((m) => m[1]);
   const links = [...html.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
-  assert.equal(sections.length, 10);
+  assert.deepEqual(sections, ["verdict", "curation", "validation", "activation", "engineering", "sources"]);
   assert.deepEqual(links, sections);
-  assert.equal(new Set(sections).size, 10);
+  const supplements = [...html.matchAll(/<details id="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(supplements, ["orchestration", "evolver", "results", "permissions"]);
+  assert.equal(new Set([...sections, ...supplements]).size, 10);
+  assert.ok(html.indexOf("作者记录的旅行社模拟") < html.indexOf('id="curation"'));
+  assert.ok(html.indexOf('id="engineering"') < html.indexOf('id="evolver"'));
+  assert.match(html, /四次/);
+  assert.match(html, /没有参与修订的任务/);
+  assert.match(html, /不是今天这套 Curator 的效果验收/);
+  assert.match(html, /src="\/article-disclosures.js"/);
+  assert.doesNotMatch(html, /class="article-(scope-band|toc-note)"/);
   assert.match(html, /data-evidence-source="\/capabilities\/raven.json"/);
   assert.match(html, /role="dialog"[^>]+inert/);
   assert.match(html, /src="\/capability-article.js"/);

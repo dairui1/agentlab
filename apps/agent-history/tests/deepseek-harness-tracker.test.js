@@ -48,6 +48,13 @@ test("release facts lead while low-value coverage metrics stay collapsed", () =>
   assert.doesNotMatch(html, /<details[^>]*\sopen(?:\s|>)/);
 });
 
+test("tracker entry and failed load use concrete reader-facing copy", () => {
+  assert.match(html, /每次更新改了什么，升级前/);
+  assert.doesNotMatch(html, /涉及平面|演进平面/);
+  assert.match(tracker, /已收录.*未收录/);
+  assert.match(tracker, /请刷新页面重试/);
+});
+
 test("release classification keeps DSH cross-plane changes visible", () => {
   const entry = {
     title: "Profile Bundle and persistent PowerShell",

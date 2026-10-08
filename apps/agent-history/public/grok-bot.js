@@ -504,7 +504,8 @@
       render();
     } catch (error) {
       $("grokStatus").classList.add("is-error");
-      $("grokStatus").replaceChildren(icon("circle-alert"), el("span", "", error instanceof Error ? error.message : "研究数据读取失败"));
+      const detail = error instanceof Error ? `错误：${error.message}` : "";
+      $("grokStatus").replaceChildren(icon("circle-alert"), el("span", "", `研究数据暂时未能载入。请刷新页面重试。${detail}`));
       $("grokRadar").setAttribute("aria-busy", "false");
       refreshIcons();
     }

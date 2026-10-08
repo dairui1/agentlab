@@ -1,7 +1,7 @@
 {
   "title": "Tool 调用、结果与失败语义",
-  "subtitle": "Catalog · Identity · Validation · Execution · Outcome · Retry · Terminal",
-  "description": "把工具目录、调用身份、执行副作用、模型可见结果、终态、重试与后台工作拆成可实现、可排障的 Harness 合同。",
+  "subtitle": "工具返回了，不一定做成了。核对结果、文件改动和后台任务后，再决定是否重试。",
+  "description": "比较三个 Agent 固定版本的工具调用、结果字段、失败、后台任务与重试，避免把调用结束误当成任务成功。",
   "eyebrow": "MECHANISM 005",
   "verifiedAt": "2026-08-10",
   "defaultView": "compare",
@@ -18,14 +18,14 @@
     "compare": {
       "label": "操作速查",
       "kicker": "TOOL RECEIPT REFERENCE",
-      "title": "一个 Tool Call 至少横跨六个真值面",
-      "description": "逐项对齐 effective catalog、identity、validation、execution、native terminal 与 semantic outcome。"
+      "title": "工具调用结束后，怎样确认事情真的做成了",
+      "description": "分别核对可用工具、调用 ID、参数校验、实际执行、结束信号和业务结果。"
     },
     "flows": {
       "label": "生命周期",
       "kicker": "CALL TO RECONCILIATION",
       "title": "从模型发起调用到 transport、child 与副作用全部收口",
-      "description": "只画可观察阶段，不把 ACK、parent terminal 或 session idle 冒充完成。"
+      "description": "确认请求、父调用结束和 Session 空闲，都不能替代工具或后台任务的最终结果。"
     },
     "failures": {
       "label": "失败面",
@@ -37,13 +37,13 @@
       "label": "状态与限额",
       "kicker": "IDENTITY / PROJECTION / BUDGET",
       "title": "调用状态、输出通道与资源上限必须保留原生语义",
-      "description": "对比 catalog scope、schema budget、timeout、output retention、parallel admission 与 async terminals。"
+      "description": "核对工具目录范围、参数定义预算、超时、输出保留、并行条件与异步结束信号。"
     },
     "changes": {
       "label": "版本变化",
       "kicker": "TOOL CONTRACT COMPATIBILITY",
       "title": "Tool 合同会在 catalog、timeout、hook、retry 与 output 上漂移",
-      "description": "只列会改变 adapter 解码、执行恢复或 Harness 终态判断的版本节点。"
+      "description": "关注会改变结果解码、失败恢复和完成判断的版本。"
     }
   },
   "viewDefaults": {
@@ -196,16 +196,16 @@
   "operations": [
     {
       "id": "snapshot-catalog",
-      "label": "冻结 Effective Catalog",
-      "question": "这一轮真正可执行、可发现、可并行的工具集合是什么？",
+      "label": "保存本轮工具目录",
+      "question": "这一轮有哪些工具能调用、能搜索，哪些允许并行？",
       "icon": "list-tree",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "system/init.tools、最终 prompt、MCP/tool-search 状态",
           "primitive": "wire name + session",
-          "contract": "入口/平台/permission/subagent/MCP 可改集合；以 只冻结当前 query/session snapshot，不把 capture 的 28 blocks 当全集 作为该 surface 的收口条件。",
-          "edge": "只冻结当前 query/session snapshot，不把 capture 的 28 blocks 当全集；不要把初始 tool list 当全局能力表。",
+          "contract": "工具集合会随入口、平台、权限、子 Agent 和 MCP 改变。保存当前 query/session 的工具快照，才能解释这一次调用。",
+          "edge": "捕获到的 28 个 blocks 不是全部能力；初始工具列表也不代表以后每一轮的可用工具。",
           "details": [
             {
               "label": "SURFACE",
@@ -229,8 +229,8 @@
           "status": "partial",
           "surface": "step registry/spec plan/router",
           "primitive": "canonical namespace.name + step/turn",
-          "contract": "registered → direct/deferred/code-mode exposure → finalized router；以 本 step 的 executable router/spec list 作为该 surface 的收口条件。",
-          "edge": "本 step 的 executable router/spec list；不要把初始 tool list 当全局能力表。",
+          "contract": "工具注册后，经 direct/deferred/code-mode 暴露，再形成可执行路由。以本 step 最终的路由和参数定义列表为准。",
+          "edge": "初始列表还可能变化；不能用它替代当前 step 真正可执行的工具目录。",
           "details": [
             {
               "label": "SURFACE",
@@ -254,8 +254,8 @@
           "status": "partial",
           "surface": "SessionTools.resolve / LLMRequestPrep.prepare",
           "primitive": "tool key + request/model",
-          "contract": "built-in/custom/plugin/MCP → model/permission filter → hook/schema transform；以 实际送 provider 的 snapshot，ToolPart 本身不留 origin/schema version 作为该 surface 的收口条件。",
-          "edge": "实际送 provider 的 snapshot，ToolPart 本身不留 origin/schema version；不要把初始 tool list 当全局能力表。",
+          "contract": "内建、custom、plugin 和 MCP 工具先经过模型与权限筛选，再经 hook 和 schema 转换。保存实际发给 provider 的快照。",
+          "edge": "ToolPart 本身不留 origin/schema version。仅靠调用记录，无法还原当时的完整工具目录。",
           "details": [
             {
               "label": "SURFACE",
@@ -279,15 +279,15 @@
     {
       "id": "resolve-tool",
       "label": "解析名称与来源",
-      "question": "wire name、alias、namespace、MCP sanitize 与 collision 如何落到唯一 dispatch target？",
+      "question": "名称、别名和 MCP 工具撞名时，最后究竟调用哪一个实现？",
       "icon": "search",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "MCP mcp__server__tool、tool search、alwaysLoad",
           "primitive": "search call 的 tool_use_id + returned wire name",
-          "contract": "deferred/unloaded → loaded/available；以 当前 catalog 中可调用 spec，alias/display name 不能 dispatch 作为该 surface 的收口条件。",
-          "edge": "当前 catalog 中可调用 spec，alias/display name 不能 dispatch；display name 与 sanitized key 都不能替代 origin。",
+          "contract": "延迟或未加载的工具先变为可用工具，再按当前目录中的调用定义执行。",
+          "edge": "alias/display name 用于显示，不能拿来分派调用；还要保留工具的原始来源。",
           "details": [
             {
               "label": "SURFACE",
@@ -310,8 +310,8 @@
           "status": "partial",
           "surface": "tool_search + exposure planes",
           "primitive": "search call_id + returned spec",
-          "contract": "deferred wrapper → search output → step-bound load；collision 可 skip 或 strict fail；以 ToolSearchOutput.status=completed 只证明 discovery，实际 router 仍以 step snapshot 为准 作为该 surface 的收口条件。",
-          "edge": "ToolSearchOutput.status=completed 只证明 discovery，实际 router 仍以 step snapshot 为准；display name 与 sanitized key 都不能替代 origin。",
+          "contract": "延迟工具经搜索结果加载到当前 step；撞名时可以跳过，也可以严格报错。",
+          "edge": "ToolSearchOutput.status=completed 只代表发现完成；真正执行哪个工具，仍由当前 step 的路由快照决定。",
           "details": [
             {
               "label": "SURFACE",
@@ -334,8 +334,8 @@
           "status": "partial",
           "surface": "registry/MCP catalog assembly",
           "primitive": "exposed sanitized key + original (server,name)",
-          "contract": "普通 object assignment，custom/MCP collision 可覆盖；以 请求 catalog，无通用 deferred-search terminal 作为该 surface 的收口条件。",
-          "edge": "请求 catalog，无通用 deferred-search terminal；display name 与 sanitized key 都不能替代 origin。",
+          "contract": "工具以普通对象赋值进入目录；custom 或 MCP 名称冲突时可能覆盖旧项。",
+          "edge": "以请求实际使用的目录为准；这里没有通用的延迟搜索结束信号。改写过的名称也不能替代来源。",
           "details": [
             {
               "label": "SURFACE",
@@ -359,15 +359,15 @@
     {
       "id": "correlate-call",
       "label": "关联调用身份",
-      "question": "call、message、item、part、approval 与 task ID 怎样避免串线？",
+      "question": "同一轮有多次调用、审批和后台任务，怎样把结果对应回正确的一次调用？",
       "icon": "fingerprint",
       "cells": {
         "claude-code": {
           "status": "exposed",
           "surface": "complete ToolUseBlock",
           "primitive": "tool_use_id，另存 API message_id、transcript uuid、parent_tool_use_id",
-          "contract": "partial API delta → complete block → result/hook；以 matching ToolResultBlock.tool_use_id，task ID 只是附加轴 作为该 surface 的收口条件。",
-          "edge": "matching ToolResultBlock.tool_use_id，task ID 只是附加轴；correlation ID 不是 durable primary key 或 idempotency key。",
+          "contract": "输入从 API 片段组成完整 block 后，结果和 hook 用 ToolResultBlock.tool_use_id 对应原调用；task ID 另行记录。",
+          "edge": "调用 ID 用来关联结果，不是长期存储主键，也不保证相同请求只执行一次。",
           "details": [
             {
               "label": "SURFACE",
@@ -390,8 +390,8 @@
           "status": "exposed",
           "surface": "Responses function/custom item + app-server item",
           "primitive": "call_id，另存 response item id、item id、Code Mode runtime id",
-          "contract": "model item → invocation → item/started/delta/item/completed；以 scoped (thread,turn,call_id) terminal item 作为该 surface 的收口条件。",
-          "edge": "scoped (thread,turn,call_id) terminal item；correlation ID 不是 durable primary key 或 idempotency key。",
+          "contract": "模型项目进入执行后，依次产生 item/started、delta 和 item/completed；在 (thread,turn,call_id) 范围内关联结束项目。",
+          "edge": "不要只按裸 call_id 合并不同会话的记录，更不能把它当幂等键。",
           "details": [
             {
               "label": "SURFACE",
@@ -414,8 +414,8 @@
           "status": "exposed",
           "surface": "provider tool-input-* / tool-call 与 message.part.updated",
           "primitive": "持久主键 (sessionID,messageID,partID)，callID 仅 provider join",
-          "contract": "pending → running → completed/error；以 最新 persisted ToolPart 作为该 surface 的收口条件。",
-          "edge": "最新 persisted ToolPart；correlation ID 不是 durable primary key 或 idempotency key。",
+          "contract": "ToolPart 从 pending 到 running，最后写入 completed 或 error。读取最新保存的 ToolPart，判断这一次调用的状态。",
+          "edge": "关联编号不能代替长期存储主键；重发同一编号也没有天然的去重保证。",
           "details": [
             {
               "label": "SURFACE",
@@ -439,15 +439,15 @@
     {
       "id": "validate-input",
       "label": "校验与拒绝参数",
-      "question": "unknown、schema invalid 与业务字段错误在哪一层终结？",
+      "question": "工具名不存在、参数格式不对、业务字段不合法，分别会在哪里失败？",
       "icon": "scan-line",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "availability/schema/tool guards",
           "primitive": "tool_use_id",
-          "contract": "unknown/invalid 在 hooks 前终止，不触发 Pre/PostFailure；以 tool_use_error ToolResult，call terminal 但 agent loop 可继续 作为该 surface 的收口条件。",
-          "edge": "tool_use_error ToolResult，call terminal 但 agent loop 可继续；validation failure 可能没有 hooks 或 item started。",
+          "contract": "未知工具或无效参数在 hooks 前终止，不触发 Pre/PostFailure；返回 tool_use_error ToolResult，Agent 主循环仍可继续。",
+          "edge": "校验失败的调用可能没有 hook 记录，也没有“已经开始执行”的信号。",
           "details": [
             {
               "label": "SURFACE",
@@ -470,8 +470,8 @@
           "status": "partial",
           "surface": "router + handler-specific parser",
           "primitive": "call_id + raw JSON string",
-          "contract": "typed built-in、arbitrary dynamic、MCP server validation 各自处理；invalid MCP JSON 甚至可在 item started 前返回；以 RespondToModel output 或 Fatal turn error，不能假设统一 validator/item 作为该 surface 的收口条件。",
-          "edge": "RespondToModel output 或 Fatal turn error，不能假设统一 validator/item；validation failure 可能没有 hooks 或 item started。",
+          "contract": "内建工具的类型校验、dynamic 参数和 MCP 服务校验各自处理。无效 MCP JSON 甚至会在 item started 前返回。",
+          "edge": "错误可能成为 RespondToModel 输出，也可能成为 Fatal 回合错误；不能假定所有工具共用一种校验器或结束项目。",
           "details": [
             {
               "label": "SURFACE",
@@ -494,8 +494,8 @@
           "status": "partial",
           "surface": "AI SDK repair + hidden invalid tool + Effect Schema wrapper",
           "primitive": "callID/Part",
-          "contract": "lower-case repair → invalid completed，或真实 wrapper decode → ToolPart error；以 ToolPart state + actual tool name/error kind 作为该 surface 的收口条件。",
-          "edge": "ToolPart state + actual tool name/error kind；validation failure 可能没有 hooks 或 item started。",
+          "contract": "小写名称修复可能落入 invalid 工具并标为 completed；真实工具的参数解码失败则写 ToolPart error。",
+          "edge": "必须一起读取 ToolPart state、actual tool name 和错误类型，否则可能把 invalid 的 completed 当成正常执行。",
           "details": [
             {
               "label": "SURFACE",
@@ -520,15 +520,15 @@
     {
       "id": "decide-execution",
       "label": "处理审批与非执行",
-      "question": "allow、deny、reject、correct、defer 与 decline 怎样保留来源和 loop 语义？",
+      "question": "拒绝、修改、延后审批时，工具有没有执行，Agent 还会不会继续？",
       "icon": "shield-check",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "PreToolUse/permission/control",
           "primitive": "tool_use_id",
-          "contract": "allow/ask/deny/defer，deny 未执行；单-call -p defer 让 query terminal、tool pending；以 ToolResult + authoritative permission_denials，或 Result stop_reason=tool_deferred 作为该 surface 的收口条件。",
-          "edge": "ToolResult + authoritative permission_denials，或 Result stop_reason=tool_deferred；审批 ACK 与非执行 result 都不是执行 terminal。",
+          "contract": "allow/ask/deny/defer 分开处理，deny 不执行。单次调用的 -p defer 会结束 query，但工具仍待处理；核对 ToolResult、permission_denials 或 stop_reason=tool_deferred。",
+          "edge": "审批已确认，或收到“未执行”的结果，都不能记成工具已经执行完成。",
           "details": [
             {
               "label": "SURFACE",
@@ -552,8 +552,8 @@
           "status": "partial",
           "surface": "approval server request/response + orchestrator",
           "primitive": "approval request id 与 call_id 分离",
-          "contract": "request → resolved ACK → attempt(s) → item terminal；sandbox denial 可同 call context 再试一次；以 terminal item/turn，不是 approval ACK 作为该 surface 的收口条件。",
-          "edge": "terminal item/turn，不是 approval ACK；审批 ACK 与非执行 result 都不是执行 terminal。",
+          "contract": "审批请求先收到 resolved ACK，之后才尝试执行并产生结束项目；沙箱拒绝时，同一调用还可能再尝试一次。",
+          "edge": "判断执行结果要看 terminal item/turn；approval ACK 只确认审批响应，不确认执行。",
           "details": [
             {
               "label": "SURFACE",
@@ -578,8 +578,8 @@
           "status": "partial",
           "surface": "permission reply once / always / reject 与 rule deny",
           "primitive": "session + request/call",
-          "contract": "Denied/Rejected/Corrected 三条控制流，plain reject 可 fan-out sibling approvals；以 typed ToolPart error + loop blocker/continue 决策 作为该 surface 的收口条件。",
-          "edge": "typed ToolPart error + loop blocker/continue 决策；审批 ACK 与非执行 result 都不是执行 terminal。",
+          "contract": "Denied、Rejected、Corrected 走不同控制流；普通 reject 还可能拒绝同级待审批调用。结合 ToolPart 的错误类型判断循环阻断或继续。",
+          "edge": "不要把审批响应当成执行结果；一次拒绝还可能影响同 Session 的其他待审批工具。",
           "details": [
             {
               "label": "SURFACE",
@@ -603,15 +603,15 @@
     {
       "id": "execute-shell",
       "label": "解码 Shell 结果",
-      "question": "stdout/stderr、exit、timeout 与 status 如何组合成业务 outcome？",
+      "question": "命令有输出却返回失败，或超时后仍在运行，应该读哪些字段？",
       "icon": "square-terminal",
       "cells": {
         "claude-code": {
           "status": "exposed",
           "surface": "Bash structured output + ToolResult/hooks",
           "primitive": "tool_use_id",
-          "contract": "running → success/error 或 background transition；以 is_error + failure first-line exit evidence；stdout 是 command stdout/stderr combined，stderr 是 harness notices 作为该 surface 的收口条件。",
-          "edge": "is_error + failure first-line exit evidence；stdout 是 command stdout/stderr combined，stderr 是 harness notices；不要跨 Agent 伪造统一双流或 success boolean。",
+          "contract": "命令可能成功、报错，或转入后台。读取 is_error 和失败首行中的退出信息；stdout 合并命令的 stdout/stderr，stderr 则保存 Harness 提示。",
+          "edge": "这里不是两条原始命令输出流。不要把 stderr 中的 Harness 提示当成命令 stderr，也不要造一个通用成功布尔值。",
           "details": [
             {
               "label": "SURFACE",
@@ -636,8 +636,8 @@
           "status": "exposed",
           "surface": "core exec streams、app-server commandExecution",
           "primitive": "item id=call_id",
-          "contract": "started → approval/deltas → completed/failed/declined；以 public status + exitCode + aggregatedOutput + durationMs；core stdout/stderr 不能从 app projection复原 作为该 surface 的收口条件。",
-          "edge": "public status + exitCode + aggregatedOutput + durationMs；core stdout/stderr 不能从 app projection复原；不要跨 Agent 伪造统一双流或 success boolean。",
+          "contract": "命令经 started、审批或输出片段后结束为 completed/failed/declined。核对 status、exitCode、aggregatedOutput 和 durationMs。",
+          "edge": "公开结果是聚合输出，不能从 App 投影还原 Core 原始 stdout/stderr。status 与 exitCode 要一起看。",
           "details": [
             {
               "label": "SURFACE",
@@ -660,8 +660,8 @@
           "status": "exposed",
           "surface": "Shell ToolPart + running metadata",
           "primitive": "Part/callID",
-          "contract": "running preview → usually completed；以 state.metadata.exit + output markers，command stdout/stderr 已按 arrival 合并；nonzero 不转 ToolPart error 作为该 surface 的收口条件。",
-          "edge": "state.metadata.exit + output markers，command stdout/stderr 已按 arrival 合并；nonzero 不转 ToolPart error；不要跨 Agent 伪造统一双流或 success boolean。",
+          "contract": "运行中预览更新后，通常写为 completed。读取 state.metadata.exit 和输出标记；命令 stdout/stderr 已按到达顺序合并。",
+          "edge": "metadata.exit 为 nonzero 不会自动转成 ToolPart error，因此 completed 也可能是命令失败。",
           "details": [
             {
               "label": "SURFACE",
@@ -685,15 +685,15 @@
     {
       "id": "drive-long-process",
       "label": "驱动长进程",
-      "question": "launch、poll、retrieval timeout 与真正 process terminal 如何分层？",
+      "question": "启动请求返回、查询结果超时、进程真正退出，这三件事怎样区分？",
       "icon": "timer-reset",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "Bash/Agent launch、TaskOutput、task messages",
           "primitive": "original tool_use_id + task ID/output file",
-          "contract": "launch/foreground timeout → background_running → retrieval attempts → task completed/failed/stopped；以 task notification/status，不是 launch result 或 retrieval_status:timeout 作为该 surface 的收口条件。",
-          "edge": "task notification/status，不是 launch result 或 retrieval_status:timeout；父调用结束不代表进程或 task 结束。",
+          "contract": "启动或前台超时后可转成 background_running，再查询结果。进程结束要看 task notification/status 中的 completed/failed/stopped。",
+          "edge": "启动回执和 retrieval_status:timeout 都不表示任务结束；查询超时后进程可能还在运行。",
           "details": [
             {
               "label": "SURFACE",
@@ -717,8 +717,8 @@
           "status": "partial",
           "surface": "unified exec_command / write_stdin / terminal list",
           "primitive": "call id + process/session id + chunk id",
-          "contract": "tool response可无 exit code → repeated polls/input → exit/explicit terminate；以 exit item或 terminate/clean receipt；turn interrupt 不清理 background terminal 作为该 surface 的收口条件。",
-          "edge": "exit item或 terminate/clean receipt；turn interrupt 不清理 background terminal；父调用结束不代表进程或 task 结束。",
+          "contract": "首次工具结果可能还没有退出码；随后继续轮询或输入，直到出现退出项目，或明确终止并拿到清理回执。",
+          "edge": "中断回合不会清理后台终端。父调用已经返回时，后台进程仍要另行检查或终止。",
           "details": [
             {
               "label": "SURFACE",
@@ -742,8 +742,8 @@
           "status": "partial",
           "surface": "锁定报告未定义同构 generic exec poll；Shell 保持同一 running Part直到 wrapper settle，background Task 另见 OP-10",
           "primitive": "Part/callID",
-          "contract": "running metadata → completed/error；以 ToolPart + tool-specific metadata，不能发明 process-session terminal 作为该 surface 的收口条件。",
-          "edge": "ToolPart + tool-specific metadata，不能发明 process-session terminal；父调用结束不代表进程或 task 结束。",
+          "contract": "运行状态经 metadata 更新后落为 completed/error；结合 ToolPart 和该工具专有的 metadata 读取结果。",
+          "edge": "公开记录没有统一的 process-session 终态，不能凭父调用返回推断所有进程已经退出。",
           "details": [
             {
               "label": "SURFACE",
@@ -767,15 +767,15 @@
     {
       "id": "apply-file-change",
       "label": "验证文件副作用",
-      "question": "read precondition、patch delta、disk state 与 diagnostics 谁是提交凭据？",
+      "question": "工具说写入成功后，怎样核对文件内容，有没有部分写入或诊断错误？",
       "icon": "file-diff",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "Read/Edit/Write",
           "primitive": "tool_use_id + absolute path",
-          "contract": "conversation-held read precondition → tool validation/execution → structured result；以 per-call ToolResult，非 lock/transaction/fsync proof 作为该 surface 的收口条件。",
-          "edge": "per-call ToolResult，非 lock/transaction/fsync proof；file tool success 不是事务、锁或 durability proof。",
+          "contract": "依据对话中保存的读取前置条件校验并修改文件，再返回结构化 ToolResult。",
+          "edge": "一次文件工具成功，只说明该调用的结果；它不提供锁、事务或 fsync 落盘证明。",
           "details": [
             {
               "label": "SURFACE",
@@ -799,8 +799,8 @@
           "status": "partial",
           "surface": "apply_patch freeform stream + fileChange item/turn diff",
           "primitive": "call id + paths + attempt",
-          "contract": "patchUpdated proposed → parse/verify/approval → committed deltas；以 terminal fileChange + final diff，failed/denied 仍可有 committed prefix 作为该 surface 的收口条件。",
-          "edge": "terminal fileChange + final diff，failed/denied 仍可有 committed prefix；file tool success 不是事务、锁或 durability proof。",
+          "contract": "patchUpdated 先提出改动，经解析、核验和审批后提交变更。以最终 fileChange 项目和 diff 核对实际文件变化。",
+          "edge": "failed/denied 仍可能留下 committed prefix，即此前已提交的部分改动；不能直接按“失败”推断文件未变。",
           "details": [
             {
               "label": "SURFACE",
@@ -823,8 +823,8 @@
           "status": "partial",
           "surface": "Read/Edit/Write ToolPart + watcher/LSP",
           "primitive": "Part + resolved file path",
-          "contract": "permission → direct write/format/event/diagnostics → completed/error；以 disk/diff receipt + ToolPart；completed 可含 LSP errors，只有同-process Edit semaphore 作为该 surface 的收口条件。",
-          "edge": "disk/diff receipt + ToolPart；completed 可含 LSP errors，只有同-process Edit semaphore；file tool success 不是事务、锁或 durability proof。",
+          "contract": "权限检查后直接写入，再格式化、发送事件并做诊断。联合磁盘/diff 回执与 ToolPart 检查结果。",
+          "edge": "completed 可带 LSP 错误；Edit 只有同一进程内的信号量，不是跨进程锁或文件事务。",
           "details": [
             {
               "label": "SURFACE",
@@ -848,15 +848,15 @@
     {
       "id": "invoke-extension",
       "label": "调用 MCP 与扩展工具",
-      "question": "application error、transport error、plugin hook 与 provider execution 如何拆开？",
+      "question": "MCP 工具报业务错误、处理函数抛异常、连接失败，能否分别辨认？",
       "icon": "plug-zap",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "mcp__server__tool、SDK custom ToolResult",
           "primitive": "tool_use_id + server/tool",
-          "contract": "permission → handler → content normalization；exception / isError 成 model-visible error，loop通常继续；以 ToolResult + structured output/hook view，MCP hard timeout另算 作为该 surface 的收口条件。",
-          "edge": "ToolResult + structured output/hook view，MCP hard timeout另算；MCP isError、handler exception 与 transport failure 不可压平。",
+          "contract": "经过权限检查与 handler 后规范化返回内容；异常或 isError 会变成模型可见错误，主循环通常继续。核对 ToolResult、结构化输出和 hook 看到的结果。",
+          "edge": "MCP 硬超时另行处理；isError、handler 异常和通信失败不是同一种失败。",
           "details": [
             {
               "label": "SURFACE",
@@ -880,8 +880,8 @@
           "status": "partial",
           "surface": "MCP public item、dynamic client request、direct/Code Mode projections",
           "primitive": "call_id + server/raw tool 或 JSON-RPC request id",
-          "contract": "started → server/client response；以 MCP status + result.isError 或 error.message；dynamic status/success/contentItems，client ACK不是terminal 作为该 surface 的收口条件。",
-          "edge": "MCP status + result.isError 或 error.message；dynamic status/success/contentItems，client ACK不是terminal；MCP isError、handler exception 与 transport failure 不可压平。",
+          "contract": "开始后接收服务端或客户端响应。MCP 读取 status、result.isError 或 error.message；dynamic 读取 status、success、contentItems。",
+          "edge": "dynamic 客户端 ACK 不是终态。MCP 业务错误、处理异常和通信失败，也不能合并成一个错误标签。",
           "details": [
             {
               "label": "SURFACE",
@@ -905,8 +905,8 @@
           "status": "partial",
           "surface": "sanitized MCP key、plugin wrapper、providerExecuted ToolPart",
           "primitive": "Part/callID + original server/name/origin",
-          "contract": "local permission/hooks或 provider-side execution → normalization/truncation；以 ToolPart，MCP isError 被抛为 error；provider tool不保证local hook/permission同构 作为该 surface 的收口条件。",
-          "edge": "ToolPart，MCP isError 被抛为 error；provider tool不保证local hook/permission同构；MCP isError、handler exception 与 transport failure 不可压平。",
+          "contract": "本地权限与 hooks，或 provider 侧执行之后，会规范化和截断结果；MCP isError 会抛为 ToolPart error。",
+          "edge": "provider 侧工具不保证经过同一套本地 hook/permission；还要区分工具报错和连接失败。",
           "details": [
             {
               "label": "SURFACE",
@@ -933,15 +933,15 @@
     {
       "id": "track-delegated-work",
       "label": "追踪委派工作",
-      "question": "parent tool、message submit、child job 与 synthetic completion 各在何时 terminal？",
+      "question": "任务派出去以后，哪个结果只确认提交，哪个结果才说明子 Agent 已结束？",
       "icon": "network",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "Agent + task messages/files",
           "primitive": "Agent tool_use_id + task/agent ID",
-          "contract": "completed discriminant，或 async/remote launch → progress → notification；以 foreground completed status 或 background task terminal；partial prose不算完成 作为该 surface 的收口条件。",
-          "edge": "foreground completed status 或 background task terminal；partial prose不算完成；launch/submit/poll 的 success 不等于 child 完成。",
+          "contract": "前台任务看 completed 状态；异步或远程任务先启动、报告进度，再由后台任务结束通知确认完成。",
+          "edge": "partial prose 不算完成；启动、提交或轮询成功，也不能代替子任务终态。",
           "details": [
             {
               "label": "SURFACE",
@@ -964,8 +964,8 @@
           "status": "partial",
           "surface": "collaboration functions + collabToolCall + child thread/mailbox",
           "primitive": "call id + sender/receiver thread ids",
-          "contract": "spawn/message/wait submit → recipient activity → child turn/thread terminal；以 parent tool item只终结操作本身，message空结果/wait timed_out不证明child完成 作为该 surface 的收口条件。",
-          "edge": "parent tool item只终结操作本身，message空结果/wait timed_out不证明child完成；launch/submit/poll 的 success 不等于 child 完成。",
+          "contract": "spawn/message/wait 的父工具项目只终结本次控制操作；子 Agent 随后继续活动，要另看它的 turn/thread 终态。",
+          "edge": "message 的空结果、wait timed_out 都不证明 child 完成；必须读取子任务本身的状态或结果。",
           "details": [
             {
               "label": "SURFACE",
@@ -988,8 +988,8 @@
           "status": "partial",
           "surface": "Task ToolPart + child session/job + synthetic parent message",
           "primitive": "parent Part/callID + task/job/child session ID",
-          "contract": "background launch使父 Part completed且 XML state=running → child settle → synthetic <task state=...>；以 child job/session terminal，不改写原父 Part 作为该 surface 的收口条件。",
-          "edge": "child job/session terminal，不改写原父 Part；launch/submit/poll 的 success 不等于 child 完成。",
+          "contract": "后台启动会让父 Part 标为 completed，而 XML state 仍是 running；子任务结束后，另注入 <task state=...> 结果。",
+          "edge": "以 child job/session terminal 判断结束；原父 Part 不会因子任务完成而被改写。",
           "details": [
             {
               "label": "SURFACE",
@@ -1014,15 +1014,15 @@
     {
       "id": "preserve-projections",
       "label": "保留进度与结果投影",
-      "question": "raw execution、hook rewrite、public item、model view 与 artifact 如何并存？",
+      "question": "界面进度、原始执行结果、hook 改写和模型看到的内容，哪些应分别保留？",
       "icon": "activity",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "partial StreamEvent、complete messages、Pre/Post hooks、structured output、ToolResult",
           "primitive": "tool_use_id/parent_tool_use_id",
-          "contract": "partial UI → raw execution → post-hook rewrite → model-facing result；以 各 surface 分存，post rewrite不回滚side effect 作为该 surface 的收口条件。",
-          "edge": "各 surface 分存，post rewrite不回滚side effect；live delta 与 model-visible output 都不是原始账本。",
+          "contract": "界面先显示片段，再得到原始执行结果；post-hook 还能改写发给模型的内容。三份记录分别保存。",
+          "edge": "post-hook 改写不回滚副作用。实时片段和模型可见输出，也不等于原始执行记录。",
           "details": [
             {
               "label": "SURFACE",
@@ -1047,8 +1047,8 @@
           "status": "partial",
           "surface": "item deltas、patchUpdated、core output、app-server terminal item、model/Code Mode result",
           "primitive": "call/item id",
-          "contract": "optimistic delta/preview → terminal projection；以 terminal item/native result，delta拼接不能重建stream、status或所有terminal data 作为该 surface 的收口条件。",
-          "edge": "terminal item/native result，delta拼接不能重建stream、status或所有terminal data；live delta 与 model-visible output 都不是原始账本。",
+          "contract": "预览和增量输出先到，最终项目随后提供结束结果；以 terminal item/native result 核对完整状态。",
+          "edge": "把 delta 拼起来，也不能还原原始双流、status 或所有结束字段。",
           "details": [
             {
               "label": "SURFACE",
@@ -1072,8 +1072,8 @@
           "status": "partial",
           "surface": "ctx.metadata() + full-snapshot message.part.updated + before/after hooks + SSE",
           "primitive": "Part/callID",
-          "contract": "running snapshot → raw result → after-hook normalized result；以 persisted terminal Part；after-hook error可遮蔽已发生副作用 作为该 surface 的收口条件。",
-          "edge": "persisted terminal Part；after-hook error可遮蔽已发生副作用；live delta 与 model-visible output 都不是原始账本。",
+          "contract": "运行快照经过原始结果和 after-hook 规范化后，写入最终 Part。",
+          "edge": "after-hook error 可以遮住已经发生的副作用；看到最终错误时，仍需核对文件和外部状态。",
           "details": [
             {
               "label": "SURFACE",
@@ -1099,16 +1099,16 @@
     },
     {
       "id": "settle-outcome",
-      "label": "判定单次调用 Outcome",
-      "question": "native terminal 到达后，还要读哪些 tool-specific 字段才能标成功？",
+      "label": "确认调用是否成功",
+      "question": "收到“调用结束”后，还要读哪些结果字段，才能确认事情真的做成了？",
       "icon": "badge-check",
       "cells": {
         "claude-code": {
           "status": "exposed",
           "surface": "ToolResultBlock + success/failure hooks",
           "primitive": "tool_use_id",
-          "contract": "executed success/failure或未执行 rejection各自settle；以 content/is_error只描述call，query另判 作为该 surface 的收口条件。",
-          "edge": "content/is_error只描述call，query另判；completed、is_error 与 generic success 都只覆盖局部语义。",
+          "contract": "已执行成功、已执行失败和拒绝后未执行，都会结束这一次调用。读取 content/is_error 判断调用结果；query 是否成功要另判。",
+          "edge": "单次工具结果不能代表整个 Agent query 成功；尤其要把“未执行”与“执行后失败”分开。",
           "details": [
             {
               "label": "SURFACE",
@@ -1131,8 +1131,8 @@
           "status": "exposed",
           "surface": "app-server item + handler/model output",
           "primitive": "item/call id",
-          "contract": "started → zero+ delta → completed；以 item/completed authoritative；generic function wire无 success，MCP completed 仅在 isError != true 作为该 surface 的收口条件。",
-          "edge": "item/completed authoritative；generic function wire无 success，MCP completed 仅在 isError != true；completed、is_error 与 generic success 都只覆盖局部语义。",
+          "contract": "started 后可以有零个或多个 delta，最终以 item/completed 确认调用结束。MCP 还要检查 isError != true。",
+          "edge": "generic function 返回格式没有通用 success 字段。item/completed 是结束信号，不是所有工具的业务成功证明。",
           "details": [
             {
               "label": "SURFACE",
@@ -1156,8 +1156,8 @@
           "status": "exposed",
           "surface": "ToolPart state",
           "primitive": "Part/callID",
-          "contract": "pending → running → completed / error；以 terminal state是调用记录，但 semantic success还需exit/timeout/diagnostics/provider metadata decoder 作为该 surface 的收口条件。",
-          "edge": "terminal state是调用记录，但 semantic success还需exit/timeout/diagnostics/provider metadata decoder；completed、is_error 与 generic success 都只覆盖局部语义。",
+          "contract": "调用从 pending、running 落到 completed 或 error。再解码退出码、超时、诊断和 provider metadata，判断业务结果。",
+          "edge": "ToolPart completed 仅记录调用终态；要确认成功，还需该工具自己的 exit/timeout/diagnostics/provider metadata decoder。",
           "details": [
             {
               "label": "SURFACE",
@@ -1181,15 +1181,15 @@
     {
       "id": "coordinate-parallel",
       "label": "协调并行调用",
-      "question": "并行 admission、completion order、result writeback 与 batch barrier 如何观察？",
+      "question": "多次调用一起运行时，结果顺序、完成顺序和批次结束分别怎么看？",
       "icon": "split",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "同 assistant response 多 ToolUse + per-tool hooks/PostToolBatch",
           "primitive": "tool_use_id set",
-          "contract": "calls独立并发settle → all-resolved barrier → batch hook一次；以 逐call results，batch无rollback、无arrival order保证 作为该 surface 的收口条件。",
-          "edge": "逐call results，batch无rollback、无arrival order保证；parallel batch 不是串行事务，也不默认 fail-fast。",
+          "contract": "各调用独立并发结束，等全部得到结果后再运行一次 batch hook；逐个保存调用结果。",
+          "edge": "批次没有统一回滚，也不保证结果按到达顺序返回；不能把它当串行事务或默认失败即停止。",
           "details": [
             {
               "label": "SURFACE",
@@ -1213,8 +1213,8 @@
           "status": "partial",
           "surface": "step dispatcher/RwLock/live items/conversation",
           "primitive": "call set + model ordinal",
-          "contract": "supportsParallel admission或互斥 → real overlap → FuturesOrdered writeback；以 逐item completed + timestamps，记录顺序不等于完成顺序 作为该 surface 的收口条件。",
-          "edge": "逐item completed + timestamps，记录顺序不等于完成顺序；parallel batch 不是串行事务，也不默认 fail-fast。",
+          "contract": "supportsParallel 决定允许并行还是互斥，真实执行可以重叠；FuturesOrdered 按约定顺序写回结果。",
+          "edge": "核对各 item 的 completed 和时间戳。记录顺序不等于完成顺序，某次失败也不能代表其余调用没执行。",
           "details": [
             {
               "label": "SURFACE",
@@ -1238,8 +1238,8 @@
           "status": "partial",
           "surface": "同 assistant message多个 ToolParts/Fibers",
           "primitive": "message + callID set",
-          "contract": "独立settle，但 permission reject fan-out与cleanup session-scoped；以 逐Part terminal +共享因果链，无batch transaction 作为该 surface 的收口条件。",
-          "edge": "逐Part terminal +共享因果链，无batch transaction；parallel batch 不是串行事务，也不默认 fail-fast。",
+          "contract": "每个 Part 独立结束，但审批拒绝可能影响同级请求，清理也按 Session 进行；记录各 Part 及其共同原因。",
+          "edge": "没有批次事务。取消或拒绝某次调用时，要继续核对同 Session 的其他调用。",
           "details": [
             {
               "label": "SURFACE",
@@ -1263,15 +1263,15 @@
     {
       "id": "retry-safely",
       "label": "安全重试与重放",
-      "question": "model retry、provider retry、sandbox replay 与 host retry 怎样避免重复副作用？",
+      "question": "模型、服务商、沙箱和宿主都可能重试，怎样避免把同一副作用做两遍？",
       "icon": "refresh-cw",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "model loop、API retry frame、host policy",
           "primitive": "每个新 ToolUseBlock独立 tool_use_id + host idempotency key",
-          "contract": "error进模型后可重试/改参/换工具，API retry是另一层；以 每次call各自settle，绝不按相同name/input自动dedup 作为该 surface 的收口条件。",
-          "edge": "每次call各自settle，绝不按相同name/input自动dedup；call ID 与相同 name/input 都不是幂等键。",
+          "contract": "错误进入模型后，模型可以重试、改参数或换工具；API retry 是另一层。每次调用都要独立记结果。",
+          "edge": "相同 name/input 不会自动去重；call ID 和相同参数都不是幂等键。",
           "details": [
             {
               "label": "SURFACE",
@@ -1295,8 +1295,8 @@
           "status": "partial",
           "surface": "orchestrator attempts",
           "primitive": "同 call_id + attempt index + sandbox/approval",
-          "contract": "仅sandbox denial在条件满足时最多second attempt；以 terminal attempt + first-attempt delta/effects，call_id非幂等键 作为该 surface 的收口条件。",
-          "edge": "terminal attempt + first-attempt delta/effects，call_id非幂等键；call ID 与相同 name/input 都不是幂等键。",
+          "contract": "只有 sandbox denial 且满足条件时，最多进行第二次尝试；最终结果仍要连同第一次的输出片段和副作用一起核对。",
+          "edge": "call_id 不是幂等键。重试成功也不能抹掉 first-attempt delta/effects。",
           "details": [
             {
               "label": "SURFACE",
@@ -1320,8 +1320,8 @@
           "status": "partial",
           "surface": "tool loop、session.status:retry、compaction、doom-loop permission",
           "primitive": "step + provider attempt + Part/callID + input hash",
-          "contract": "provider exponential retry与model next-step分开；连续3个同tool/input触发approval而非自动终止；以 各ToolPart + provider status/effect receipts 作为该 surface 的收口条件。",
-          "edge": "各ToolPart + provider status/effect receipts；call ID 与相同 name/input 都不是幂等键。",
+          "contract": "provider 指数退避重试与模型下一步重新调用分开处理；连续 3 次相同工具和输入触发审批，而不是自动终止。",
+          "edge": "结合各 ToolPart、provider status 和 effect receipts 核对每次尝试；call ID 与相同输入不是幂等键。",
           "details": [
             {
               "label": "SURFACE",
@@ -1346,15 +1346,15 @@
     {
       "id": "cancel-and-teardown",
       "label": "取消与清理",
-      "question": "interrupt ACK、tool self-settle、processor cleanup 与副作用复验如何收口？",
+      "question": "取消请求已确认后，工具、后台任务和已经发生的改动还剩下什么？",
       "icon": "circle-stop",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "query/tool/task control + result/task notification",
           "primitive": "tool_use_id/task id",
-          "contract": "request → running tool自行收尾或cancel/interrupted result；以 call/task terminal；ACK不证明child退出，side effect不回滚 作为该 surface 的收口条件。",
-          "edge": "call/task terminal；ACK不证明child退出，side effect不回滚；cancel acknowledgement 不证明 kill 或 rollback。",
+          "contract": "取消请求后，运行工具可能自行收尾，也可能返回 cancel/interrupted 结果；等待 call/task 的结束状态。",
+          "edge": "ACK 不说明子进程已退出，取消也不回滚已经发生的副作用。",
           "details": [
             {
               "label": "SURFACE",
@@ -1377,8 +1377,8 @@
           "status": "partial",
           "surface": "turn/interrupt + dispatcher cancellation + background terminal controls",
           "primitive": "thread/turn + active call ids + process ids",
-          "contract": "ACK → runtime-specific teardown或abort → item terminals → turn/completed:interrupted；以 turn和每item terminal，background另行terminate 作为该 surface 的收口条件。",
-          "edge": "turn和每item terminal，background另行terminate；cancel acknowledgement 不证明 kill 或 rollback。",
+          "contract": "ACK 后由运行时清理或中止，产生各 item 的终态，最后以 turn/completed:interrupted 结束回合。",
+          "edge": "回合与每个 item 都要核对；后台终端必须另行 terminate。取消确认不能证明 kill 或 rollback。",
           "details": [
             {
               "label": "SURFACE",
@@ -1401,8 +1401,8 @@
           "status": "partial",
           "surface": "session abort + AbortSignal + processor cleanup",
           "primitive": "session + tracked callID/Part",
-          "contract": "tool可先complete；否则cleanup等最多250ms再写 interrupted error；以 最终Part，completed与interrupted error都可能有output/effects 作为该 surface 的收口条件。",
-          "edge": "最终Part，completed与interrupted error都可能有output/effects；cancel acknowledgement 不证明 kill 或 rollback。",
+          "contract": "工具可能在取消前已完成；否则清理最多等 250ms，再写 interrupted error。读取最终 Part。",
+          "edge": "completed 与 interrupted error 都可能有 output/effects；取消确认不说明进程已被杀死或改动已回滚。",
           "details": [
             {
               "label": "SURFACE",
@@ -1427,15 +1427,15 @@
     {
       "id": "reconcile-terminal",
       "label": "收敛终态与重连",
-      "question": "call、turn/query、transport、background 与 reconnect truth 怎样全部闭合？",
+      "question": "调用、回合、连接和后台工作各自结束了吗？断线后缺失的结果从哪里补齐？",
       "icon": "flag",
       "cells": {
         "claude-code": {
           "status": "partial",
           "surface": "ResultMessage → SDK iterator/stdout/process",
           "primitive": "session/query + background task ids",
-          "contract": "query terminal → trailing frames/possible SDK exception → EOF/process terminal；background可继续；以 Result记录query，EOF记录transport，task notification记录background 作为该 surface 的收口条件。",
-          "edge": "Result记录query，EOF记录transport，task notification记录background；先记 native terminal，再 drain 或 GET reconcile。",
+          "contract": "Result 结束 query 后仍可能有尾部帧或 SDK 异常，继续读取直到 EOF 或进程退出；后台任务可能还在运行。",
+          "edge": "Result 记录 query，EOF 记录 transport，task notification 记录 background；三种结束状态分别核对。",
           "details": [
             {
               "label": "SURFACE",
@@ -1459,8 +1459,8 @@
           "status": "partial",
           "surface": "item/completed、turn/completed、app-server transport、background terminals",
           "primitive": "thread/turn/item/process",
-          "contract": "各item terminal → turn terminal → client drain/reconnect；以 item truth不由turn fallback、ACK或delta替代，background terminal另算 作为该 surface 的收口条件。",
-          "edge": "item truth不由turn fallback、ACK或delta替代，background terminal另算；先记 native terminal，再 drain 或 GET reconcile。",
+          "contract": "各 item 先结束，再结束 turn；客户端还要读完事件，重连后核对状态。后台工作另算。",
+          "edge": "item 的真实结果不能由 turn fallback、ACK 或 delta 代替。记录原生终态后，继续读完连接或回读状态。",
           "details": [
             {
               "label": "SURFACE",
@@ -1484,8 +1484,8 @@
           "status": "partial",
           "surface": "SSE /event + GET messages/session status",
           "primitive": "session/message/part",
-          "contract": "GET snapshot → live full-part events → disconnect → GET reconcile；以 persisted ToolPart；SSE无Last-Event-ID replay，idle不表示background child结束 作为该 surface 的收口条件。",
-          "edge": "persisted ToolPart；SSE无Last-Event-ID replay，idle不表示background child结束；先记 native terminal，再 drain 或 GET reconcile。",
+          "contract": "先 GET 快照，再接收完整 Part 事件；断线后重新 GET，核对已保存的 ToolPart。",
+          "edge": "SSE 没有 Last-Event-ID replay；idle 也不表示后台 child 结束。不能只靠重新接上事件流补历史。",
           "details": [
             {
               "label": "SURFACE",

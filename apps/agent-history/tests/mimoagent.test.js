@@ -52,9 +52,13 @@ test("MiMo synthetic probe never claims production execution or complete traject
 test("MiMo article has semantic no-JS content, navigation, and bounded responsive layouts", () => {
   const sections = [...html.matchAll(/<section id="([^"]+)" data-article-section/g)].map((m) => m[1]);
   const links = [...html.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
-  assert.equal(sections.length, 12);
+  assert.equal(sections.length, 11);
   assert.deepEqual(links, sections);
   assert.equal(new Set(sections).size, sections.length);
+  assert.match(html, /<details id="lifecycle" class="study-notes">/);
+  assert.match(html, /没有机会|有没有机会改正/);
+  assert.match(html, /查看作者报告的 9B 实验完整分数/);
+  assert.match(html, /src="\/article-disclosures.js"/);
   assert.match(html, /data-evidence-source="\/capabilities\/mimoagent.json"/);
   assert.match(html, /role="dialog"[^>]+inert/);
   assert.match(html, /src="\/capability-article.js"/);

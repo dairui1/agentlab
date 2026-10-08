@@ -102,6 +102,23 @@ test("workbench data is operation-first and complete enough for harness lookup",
   }
 });
 
+test("comparison entry points describe a reader problem instead of a terminology chain", () => {
+  const filenames = [
+    "subagent", "context-compaction", "model-routing", "permission-sandbox",
+    "session-resume", "tool-contract", "mcp-dynamic-tools",
+  ];
+  for (const filename of filenames) {
+    const dossier = JSON.parse(read(`dossiers/${filename}-workbench.json`));
+    assert.match(dossier.subtitle, /[\u4e00-\u9fff]/, `${filename} has no Chinese entry explanation`);
+    assert.doesNotMatch(dossier.subtitle, /(?:[A-Za-z]+[^\u4e00-\u9fff]*[·、]){3}/, `${filename} leads with a terminology chain`);
+    assert.ok(dossier.operations.some((item) => item.id === dossier.defaultOperation));
+  }
+  for (const label of ["有公开入口", "有条件", "无公开入口", "尚未确认"]) {
+    assert.ok(html.includes(label) && script.includes(label), `legend and result label differ: ${label}`);
+  }
+  assert.match(script, /请刷新页面重试/);
+});
+
 test("all workbench facts and known-unknown references resolve", () => {
   const factRefs = new Set(collectRefs(workbench, "claims"));
   const unknownRefs = new Set(collectRefs(workbench, "unknown"));

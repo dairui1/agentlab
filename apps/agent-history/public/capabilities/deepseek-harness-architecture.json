@@ -3,8 +3,8 @@
   "number": "004",
   "title": "DeepSeek Harness 架构",
   "product": "DeepSeek Harness",
-  "subtitle": "Cordis 插件树、事件日志与可替换能力如何组成一个 Agent Harness",
-  "description": "这项研究锁定 DeepSeek Harness 提交 47f943859bef60e4160492346772ded9b24f765a，沿启动配置、核心服务、回合执行、持久日志、能力接缝、Agent 作用域和外部协议七条路径拆解架构。重点不是罗列 package，而是回答新行为应落在哪一层：需要持久化的事实进入 SessionEvent，运行中的拦截进入 typed event，需要替换的能力拆成 Definition、Provider 与 Consumer，每个 Agent 的差异则由 preset、scope 与 isolate 组合。文中所有结论来自固定提交的文档或源码；没有把静态可见的插件树写成某次部署实际加载的运行路径。",
+  "subtitle": "换执行环境，不先重写 Agent 的循环",
+  "description": "把文件放到远端，命令却留在本机，Agent 就会在两个不同环境里工作。DeepSeek Harness 怎样让这些实现一起替换，又不必重写循环？本文从这个问题解释插件装配、请求执行和事件日志，再说明扩展应放在哪一层。依据固定提交，未验证实际部署的插件组合或故障恢复。",
   "verifiedAt": "2026-08-13",
   "status": "active",
   "scope": [

@@ -509,7 +509,7 @@ test("Goal Mode headings keep the Codex and Claude Code comparison on one contro
     "Claude 出口闸",
     "评估视野",
     "恢复语义",
-    "控制回路实验",
+    "控制回路对照",
     "完成权限",
     "结论与边界",
   ]);
@@ -686,7 +686,7 @@ test("DeepSeek Harness architecture pins one public source revision and keeps in
     "回合执行",
     "持久状态",
     "扩展协议",
-    "能力接缝",
+    "能力替换",
     "Agent 作用域",
     "执行世界",
     "外部接口",
@@ -731,7 +731,9 @@ test("Kimi Computer Use separates the open capability wiring from the proprietar
   assert.match(study.description, /launchd\/XPC 服务持有辅助功能与屏幕录制权限/);
   assert.match(study.boundary, /未运行二进制/);
   assert.match(study.evidence.find((claim) => claim.id === "KCU-11").statement, /Proprietary/);
-  assert.match(articles[study.id], /Plugin、MCP、launchd 服务和 macOS 原生输入链/);
+  for (const layer of ["Plugin", "MCP", "launchd", "XPC", "macOS"]) {
+    assert.ok(articles[study.id].includes(layer), `Kimi article lost ${layer}`);
+  }
   assert.match(articles[study.id], /没有安装/);
   assert.equal(fs.existsSync(path.join(publicRoot, "agent-icons/kimi-computer-use.png")), true);
 });

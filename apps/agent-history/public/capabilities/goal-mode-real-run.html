@@ -51,7 +51,7 @@
         <div class="run-width run-brief">
           <div>
             <span class="run-kicker">THE TASK</span>
-            <h2 id="runBriefTitle">一个小仓库，但不能一口气糊过去</h2>
+            <h2 id="runBriefTitle">修复签名 token，并保住原有接口</h2>
             <p>初始实现把 JSON 做成单段 base64url token，<code>secret</code> 根本没有参与签名，过期边界也写成了 <code>&lt;</code>。目标是迁移到两段式 HMAC-SHA256，同时守住 API、依赖和改动范围。</p>
           </div>
           <div class="run-fit-check">
@@ -81,7 +81,7 @@
           <header class="run-section-heading">
             <div>
               <span class="run-kicker">FOUR KEYFRAMES</span>
-              <h2 id="runExplorerTitle">先看四个关键帧，不把整条 trajectory 砸到脸上</h2>
+              <h2 id="runExplorerTitle">Agent 停下后，系统怎样让它继续？</h2>
               <p data-stage-question>正在装入真实事件。</p>
             </div>
             <a href="#full-trajectory">直接看完整事件<i data-lucide="arrow-down" aria-hidden="true"></i></a>
@@ -98,7 +98,7 @@
           <header class="run-section-heading">
             <div>
               <span class="run-kicker">WHAT THIS RUN SHOWS</span>
-              <h2 id="runFindingsTitle">这个单样本，能回答什么</h2>
+              <h2 id="runFindingsTitle">这次运行说明了什么</h2>
             </div>
           </header>
           <div class="run-findings" data-run-findings></div>
@@ -110,8 +110,8 @@
           <header class="run-section-heading">
             <div>
               <span class="run-kicker">TASK-RELEVANT TRAJECTORY</span>
-              <h2 id="runTraceTitle">想追细节，就从这里一路展开</h2>
-              <p>默认折叠。每个阶段保留命令、退出码、文件动作、worker 原话和续轮判定；个人插件、启动清单与无关 hook 不进入公开数据。</p>
+              <h2 id="runTraceTitle">完整运行记录</h2>
+              <p>各阶段保留命令、退出码、文件动作、worker 原话和续轮判定；个人插件、启动清单与无关 hook 不进入公开数据。</p>
             </div>
             <div class="run-trace-tabs" role="tablist" aria-label="选择要查看的产品轨迹" data-trace-tabs></div>
           </header>
@@ -125,7 +125,7 @@
           <header class="run-section-heading">
             <div>
               <span class="run-kicker">EVIDENCE RECEIPT</span>
-              <h2 id="runEvidenceTitle">怎么确认这不是一段编出来的演示</h2>
+              <h2 id="runEvidenceTitle">运行记录与外部验收</h2>
             </div>
           </header>
           <dl class="run-receipt" data-run-receipt></dl>

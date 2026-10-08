@@ -46,9 +46,18 @@ test("all OAR source citations are pinned, located and used", () => {
 test("OAR article works without JS and integrates with shared research navigation", () => {
   const sections = [...html.matchAll(/<section id="([^"]+)" data-article-section/g)].map((m) => m[1]);
   const links = [...html.matchAll(/href="#([^"]+)"/g)].map((m) => m[1]);
-  assert.equal(sections.length, 10);
+  assert.deepEqual(sections, ["verdict", "delivery", "records", "attribution", "permissions", "sources"]);
   assert.deepEqual(links, sections);
-  assert.equal(new Set(sections).size, 10);
+  const supplements = [...html.matchAll(/<details id="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(supplements, ["adapters", "continuation", "liveness", "validation"]);
+  assert.equal(new Set([...sections, ...supplements]).size, 10);
+  assert.ok(html.indexOf('id="delivery"') < html.indexOf('id="records"'));
+  assert.ok(html.indexOf('id="records"') < html.indexOf('id="adapters"'));
+  assert.match(html, /先别发布/);
+  assert.match(html, /接手|排队/);
+  assert.match(html, /超时发出 abort 后/);
+  assert.match(html, /src="\/article-disclosures.js"/);
+  assert.doesNotMatch(html, /class="article-(scope-band|toc-note)"/);
   assert.match(html, /data-evidence-source="\/capabilities\/oar.json"/);
   assert.match(html, /role="dialog"[^>]+inert/);
   const entry = JSON.parse(read("research-index.json")).studies.find((s) => s.id === "oar");

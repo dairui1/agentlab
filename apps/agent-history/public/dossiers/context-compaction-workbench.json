@@ -1,7 +1,7 @@
 {
   "title": "上下文压缩",
-  "subtitle": "预算触发、历史替换、持久状态与失败恢复",
-  "description": "Claude Code、Codex 与 opencode 固定版本下的上下文压缩 Harness 合同。",
+  "subtitle": "对话太长时，Agent 何时压缩历史、留下什么，以及压缩失败后能否继续。",
+  "description": "比较 Claude Code、Codex 与 opencode 固定版本的上下文压缩：触发条件、下一次模型请求、历史保存与失败恢复。",
   "eyebrow": "MECHANISM / CONTEXT COMPACTION",
   "verifiedAt": "2026-08-10",
   "defaultView": "compare",
@@ -9,12 +9,12 @@
   "defaultClaim": "CMP-CX-01",
   "minimums": { "operations": 10, "flows": 5, "hazards": 12 },
   "sharpEdgeTitle": "先排除 5 个危险等号",
-  "operationRailLabel": "Harness 要控制什么",
+  "operationRailLabel": "要核对的操作",
   "views": {
-    "compare": { "label": "操作速查", "kicker": "HARNESS CONTROL REFERENCE", "title": "同一个动作，三套不同合同", "description": "入口、触发时点、完成信号、保留内容与危险边界放在同一行。" },
-    "flows": { "label": "压缩链路", "kicker": "OBSERVABLE COMPACTION LIFECYCLE", "title": "从触发到下一次模型请求", "description": "只画 Harness 可观测或固定版本源码可证的阶段，不把 summary 成功当语义正确。" },
+    "compare": { "label": "操作速查", "kicker": "HARNESS CONTROL REFERENCE", "title": "同一次压缩，三个 Agent 分别怎样处理", "description": "入口、触发时点、完成信号、保留内容与危险边界放在同一行。" },
+    "flows": { "label": "压缩链路", "kicker": "OBSERVABLE COMPACTION LIFECYCLE", "title": "从触发到下一次模型请求", "description": "沿公开信号或固定源码追踪压缩阶段；生成了摘要，不代表重要约束都被保留。" },
     "failures": { "label": "失败面", "kicker": "FAILURE / LOSS / RECOVERY", "title": "技术成功、语义成功与恢复不是一回事", "description": "按触发误判、异步收口、信息损失、部分提交和恢复失效排序。" },
-    "resources": { "label": "预算与持久化", "kicker": "ACTIVE CONTEXT / DURABLE STATE", "title": "模型现在能看见什么，磁盘上还留着什么", "description": "ACTIVE 与 DURABLE 分开陈述；百分比保留分母，历史保留具体投影规则。" },
+    "resources": { "label": "预算与持久化", "kicker": "ACTIVE CONTEXT / DURABLE STATE", "title": "模型现在能看见什么，磁盘上还留着什么", "description": "区分下一次模型会收到的内容与磁盘保留的历史，并注明各阈值采用的窗口和计算口径。" },
     "changes": { "label": "版本变化", "kicker": "CONTRACT COMPATIBILITY", "title": "只把固定版本行为写成当前合同", "description": "只保留会改变触发、保留、事件、hook、重试或恢复语义的节点。" }
   },
   "viewDefaults": {
@@ -25,10 +25,10 @@
     "changes": { "claim": "CMP-CC-03", "label": "版本变化 / PreCompact blocking" }
   },
   "resourceCopy": {
-    "primaryTitle": "Active context vs durable transcript",
+    "primaryTitle": "模型上下文与磁盘历史",
     "primaryIntro": "同一条旧记录可以仍在磁盘上，却已经不在下一次模型请求里。",
     "secondaryTitle": "预算、事件与恢复口径",
-    "secondaryIntro": "没有统一的百分比、统一的 completion envelope，也没有统一的 retention 算法。"
+    "secondaryIntro": "三个 Agent 的阈值计算、完成事件和历史保留规则不同，不能套用同一套判断。"
   },
   "snapshots": [
     { "agent": "claude-code", "label": "Claude Code", "version": "2.1.226", "grade": "Exact build + public SDK/docs" },
@@ -74,22 +74,22 @@
       "cells": {
         "claude-code": {
           "status": "partial", "surface": "Runtime + hooks", "primitive": "effective auto-compact window · trigger=auto",
-          "contract": "自动压缩围绕有效窗口运行；2.1.226 可识别 env/setting 窗口来源。",
-          "edge": "不要硬编码 200K 或完整模型窗口的 95%；精确触发算法没有 fixed-tag 公共公式。",
+          "contract": "自动压缩依据实际生效的上下文窗口；2.1.226 能区分窗口来自环境变量还是设置。",
+          "edge": "不能固定按 200K 或完整模型窗口的 95% 触发。该固定版本没有公开精确算法。",
           "details": [{ "label": "WINDOW", "value": "min(configured, model max)" }, { "label": "TRIGGER", "value": "auto" }, { "label": "PERCENT OVERRIDE", "value": "docs-forward, tag 未核验" }],
           "claims": ["CMP-CC-01"]
         },
         "codex": {
           "status": "exposed", "surface": "Core turn lifecycle", "primitive": "pre-turn · mid-turn · model compatibility",
-          "contract": "默认阈值是 resolved window 的 90%，硬可用上限默认 95%；终态越线会推迟到下一 turn。",
-          "edge": "新 user input 在 pre-turn compact 之后才写入 history；大输入仍可能把随后请求推过上限。",
+          "contract": "自动压缩默认在实际窗口的 90% 触发，硬可用上限默认 95%；回合结束时才越过阈值，会等下一回合再压缩。",
+          "edge": "回合前压缩完成后，才写入新用户输入。因此，一条很大的新输入仍可能让随后请求超过上限。",
           "details": [{ "label": "LIMIT", "value": "auto=90% cap · hard=95% default" }, { "label": "PHASE", "value": "pre-turn | mid-turn" }, { "label": "OTHER REASON", "value": "comp_hash change · downshift" }],
           "claims": ["CMP-CX-01", "CMP-CX-02", "CMP-CX-10"]
         },
         "opencode": {
           "status": "exposed", "surface": "Session prompt loop", "primitive": "Overflow.isOverflow(lastAssistant)",
-          "contract": "正常路径在 assistant 完成并写入 usage 后判断；provider 先溢出时另走 recovery marker。",
-          "edge": "这不是 next-request preflight；打开 auto 也不能保证当前请求不被 provider 拒绝。",
+          "contract": "正常情况下，等模型回复完成并记录用量后才检查阈值；服务商先报上下文溢出时，另走恢复标记路径。",
+          "edge": "它不是发送请求前的预检。即使开启自动压缩，当前请求仍可能因超长被服务商拒绝。",
           "details": [{ "label": "NORMAL", "value": "post-response threshold" }, { "label": "OVERFLOW", "value": "separate recovery path" }, { "label": "AUTO FALSE", "value": "both paths disabled" }],
           "claims": ["CMP-OC-01", "CMP-OC-08"]
         }
