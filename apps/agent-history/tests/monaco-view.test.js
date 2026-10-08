@@ -113,7 +113,8 @@ test("browser and build use staged local Monaco assets", () => {
   assert.match(html, /结构导航/);
   assert.match(html, /\/app-core\.js/);
   assert.match(app, /selectRangeEntries/);
-  assert.doesNotMatch(`${html}\n${app}\n${styles}`, /timeline/i);
+  assert.doesNotMatch(`${html}\n${app}`, /timeline/i);
+  assert.doesNotMatch(styles, /\.[\w-]*timeline[\w-]*\b/i);
   assert.doesNotMatch(`${html}\n${app}`, /整版提示词|data\/messages/);
   assert.doesNotMatch(`${html}\n${app}`, /(?:unpkg|jsdelivr).*monaco/i);
   assert.match(packageJson.scripts.build, /stage:monaco/);

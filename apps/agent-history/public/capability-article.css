@@ -677,6 +677,8 @@
   z-index: 130;
   width: min(430px, calc(100vw - 20px));
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   background: var(--surface);

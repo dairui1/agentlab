@@ -513,6 +513,8 @@
   height: auto;
   max-height: 100vh;
   overflow-y: auto;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .rail-heading {
@@ -1507,6 +1509,17 @@
   height: auto;
   max-height: 100vh;
   overflow-y: auto;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* A short desktop reader must still let wheel input scroll the document. */
+@supports (animation-timeline: scroll(self block)) {
+  .operation-rail,
+  .evidence-inspector {
+    animation: agentlab-reader-boundary linear both;
+    animation-timeline: scroll(self block);
+  }
 }
 
 .evidence-inspector::after {
@@ -1772,6 +1785,8 @@
     max-height: none;
     display: none;
     overflow-y: auto;
+    animation: none;
+    overscroll-behavior-y: contain;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-m);
     box-shadow: var(--shadow);
@@ -1871,6 +1886,9 @@
   .operation-rail {
     display: block;
     overflow-x: auto;
+    animation: none;
+    overscroll-behavior-y: auto;
+    scrollbar-gutter: auto;
     position: static;
     height: auto;
     border-right: 0;

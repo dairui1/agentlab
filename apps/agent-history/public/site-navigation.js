@@ -104,6 +104,7 @@
         menu.className = "mode-switch-menu-panel";
         menu.setAttribute("role", "menu");
         menu.hidden = true;
+        if (typeof menu.showPopover === "function") menu.setAttribute("popover", "manual");
         for (const item of researchItems) {
           const link = root.document.createElement("a");
           link.href = item.href;
@@ -115,15 +116,22 @@
         }
 
         const closeMenu = () => {
+          if (typeof menu.hidePopover === "function" && menu.matches(":popover-open")) menu.hidePopover();
           menu.hidden = true;
           menuButton.setAttribute("aria-expanded", "false");
         };
         const openMenu = () => {
           menu.hidden = false;
+          if (typeof menu.showPopover === "function" && !menu.matches(":popover-open")) menu.showPopover({ source: menuButton });
           menuButton.setAttribute("aria-expanded", "true");
         };
         menuButton.addEventListener("click", () => menu.hidden ? openMenu() : closeMenu());
         menuButton.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !menu.hidden) {
+            event.preventDefault();
+            closeMenu();
+            return;
+          }
           if (event.key !== "ArrowDown") return;
           event.preventDefault();
           openMenu();

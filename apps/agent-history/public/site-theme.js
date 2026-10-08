@@ -159,6 +159,7 @@
       panel.id = "siteThemePanel";
       panel.className = "site-theme-panel";
       panel.hidden = true;
+      if (typeof panel.showPopover === "function") panel.setAttribute("popover", "manual");
       panel.setAttribute("role", "group");
       panel.setAttribute("aria-label", "主题设置");
 
@@ -208,11 +209,13 @@
       ]);
 
       function close() {
+        if (typeof panel.hidePopover === "function" && panel.matches(":popover-open")) panel.hidePopover();
         panel.hidden = true;
         trigger.setAttribute("aria-expanded", "false");
       }
       function open() {
         panel.hidden = false;
+        if (typeof panel.showPopover === "function" && !panel.matches(":popover-open")) panel.showPopover({ source: trigger });
         trigger.setAttribute("aria-expanded", "true");
       }
       trigger.addEventListener("click", () => panel.hidden ? open() : close());

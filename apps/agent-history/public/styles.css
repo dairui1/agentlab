@@ -81,6 +81,15 @@
   display: none !important;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
+/* An inactive scroll timeline leaves nonoverflowing reading rails uncontained. */
+@keyframes agentlab-reader-boundary {
+  from, to { overscroll-behavior-y: contain; }
+}
+
 html,
 body {
   min-height: 100%;
@@ -345,6 +354,11 @@ ul {
   right: 0;
   display: grid;
   width: 220px;
+  max-height: min(680px, calc(100vh - 140px));
+  max-height: min(680px, calc(100dvh - 140px));
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
   padding: 5px;
   border: 1px solid var(--border);
   border-radius: var(--radius-l);
@@ -358,9 +372,44 @@ ul {
 
 .segmented .mode-switch-menu-panel a {
   width: 100%;
-  height: 38px;
+  min-height: 38px;
+  height: auto;
   justify-content: flex-start;
-  padding: 0 10px;
+  padding: 10px;
+  white-space: normal;
+}
+
+@supports selector(:popover-open) {
+  .mode-switch-menu-panel[popover] {
+    position: fixed;
+    inset: 16px;
+    margin: auto;
+    max-height: min(680px, calc(100dvh - 32px));
+  }
+
+  @media (min-height: 640px) {
+    @supports (position-area: block-end) {
+      .mode-switch-menu-trigger { anchor-name: --research-menu; }
+      .mode-switch-menu-panel[popover] {
+        position-anchor: --research-menu;
+        position-area: block-end span-inline-start;
+        position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+        inset: auto;
+        margin: 8px 0 0;
+        max-height: min(680px, calc(100dvh - 140px));
+      }
+    }
+  }
+}
+
+@media (max-height: 639px) {
+  .mode-switch-menu-panel {
+    position: fixed;
+    inset: 16px;
+    margin: auto;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+  }
 }
 
 .icon-button {

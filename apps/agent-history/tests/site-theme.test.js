@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { initialize, normalizeSettings, STORAGE_KEY, PRESETS, MODES } = require("../public/site-theme.js");
 
-function fixture({ saved = null, dark = false, loading = false, storageFails = false, headerLinks = true, legacyMedia = false } = {}) {
+function fixture({ saved = null, dark = false, loading = false, storageFails = false, headerLinks = true, legacyMedia = false, nativePopover = false } = {}) {
   const documentListeners = new Map();
   const rootListeners = new Map();
   const mediaListeners = new Set();
@@ -30,12 +30,17 @@ function fixture({ saved = null, dark = false, loading = false, storageFails = f
       this.style = {};
       this.listeners = new Map();
       this.className = "";
+      if (nativePopover) {
+        this.showPopover = () => { this.popoverOpen = true; };
+        this.hidePopover = () => { this.popoverOpen = false; };
+      }
     }
     append(...children) { this.children.push(...children); }
     setAttribute(key, value) { this.attributes.set(key, value); }
     getAttribute(key) { return this.attributes.get(key); }
     addEventListener(type, handler) { this.listeners.set(type, handler); }
     matches(selector) {
+      if (selector === ":popover-open") return !!this.popoverOpen;
       if (selector.startsWith(".")) return this.className.split(" ").includes(selector.slice(1));
       if (selector.startsWith("#")) return this.id === selector.slice(1);
       return this.tag === selector;
@@ -279,6 +284,18 @@ test("outside clicks and focus leaving dismiss the panel without stealing focus"
   trigger.dispatch("click");
   f.holder().dispatch("focusout", { relatedTarget: null });
   assert.equal(f.panel().hidden, true);
+});
+
+test("theme panel keeps native top-layer state in sync with hidden and keyboard dismissal", () => {
+  const f = fixture({ nativePopover: true });
+  assert.equal(f.panel().getAttribute("popover"), "manual");
+  f.trigger().dispatch("keydown", { key: "ArrowDown" });
+  assert.equal(f.panel().matches(":popover-open"), true);
+  assert.equal(f.panel().hidden, false);
+  f.holder().dispatch("keydown", { key: "Escape" });
+  assert.equal(f.panel().matches(":popover-open"), false);
+  assert.equal(f.panel().hidden, true);
+  assert.equal(f.document.activeElement, f.trigger());
 });
 
 test("every preset defines a complete OINK light and dark palette without changing diff semantics", () => {

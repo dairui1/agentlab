@@ -252,7 +252,8 @@ async function dialogs(page, result, output, slug) {
     if (!dialog) return false;
     const box = dialog.getBoundingClientRect();
     return box.width > 0 && box.x >= -1 && box.x + box.width <= innerWidth + 1
-      && !dialog.getAnimations().some((animation) => animation.playState === "running" || animation.pending);
+      && !dialog.getAnimations().some((animation) => animation.animationName !== "agentlab-reader-boundary"
+        && (animation.playState === "running" || animation.pending));
   }, scope);
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   result.samples.push(await scan(page, "dialog", scope));

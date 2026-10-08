@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { define, researchItems } = require("../public/site-navigation.js");
 
-function mount(current = "auto", search = "") {
+function mount(current = "auto", search = "", nativePopover = false) {
   const documentListeners = new Map();
   const document = {
     activeElement: null,
@@ -19,12 +19,17 @@ function mount(current = "auto", search = "") {
       this.attributes = new Map();
       this.dataset = {};
       this.listeners = new Map();
+      if (nativePopover) {
+        this.showPopover = () => { this.popoverOpen = true; };
+        this.hidePopover = () => { this.popoverOpen = false; };
+      }
     }
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
     setAttribute(key, value) { this.attributes.set(key, value); }
     getAttribute(key) { return this.attributes.get(key); }
     hasAttribute(key) { return this.attributes.has(key); }
+    matches(selector) { return selector === ":popover-open" && !!this.popoverOpen; }
     addEventListener(type, handler) { this.listeners.set(type, handler); }
     querySelectorAll(tag) {
       return this.children.flatMap((child) => [
@@ -91,4 +96,15 @@ test("research menu closes on outside click or focus leaving, and cleans up list
   assert.equal(menu.hidden, true);
   navigation.disconnectedCallback();
   assert.equal(documentListeners.size, 0);
+});
+
+test("research menu synchronizes native top-layer state and Escape from its trigger", () => {
+  const { trigger, menu } = mount("auto", "", true);
+  assert.equal(menu.getAttribute("popover"), "manual");
+  trigger.dispatch("click");
+  assert.equal(menu.matches(":popover-open"), true);
+  assert.equal(trigger.dispatch("keydown", { key: "Escape" }).defaultPrevented, true);
+  assert.equal(menu.matches(":popover-open"), false);
+  assert.equal(menu.hidden, true);
+  assert.equal(trigger.getAttribute("aria-expanded"), "false");
 });
