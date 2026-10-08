@@ -584,11 +584,14 @@ ul {
 }
 
 .feed-multiselect-panel {
+  display: flex;
+  flex-direction: column;
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   width: min(340px, calc(100vw - 32px));
-  max-height: min(430px, calc(100vh - 150px));
+  max-height: min(430px, calc(100vh - 32px));
+  max-height: min(430px, calc(100dvh - 32px));
   padding: 8px;
   overflow: hidden;
   border: 1px solid var(--border-strong);
@@ -602,6 +605,7 @@ ul {
 }
 
 .feed-filter-panel-header {
+  flex: none;
   min-height: 32px;
   display: flex;
   align-items: center;
@@ -612,11 +616,13 @@ ul {
 }
 
 .feed-filter-panel-header strong {
+  flex: 1;
   font-size: 11px;
   font-weight: 680;
 }
 
-.feed-filter-panel-clear {
+.feed-filter-panel-clear,
+.feed-filter-panel-close {
   width: 28px;
   height: 28px;
   flex: 0 0 28px;
@@ -628,17 +634,20 @@ ul {
   color: var(--muted);
 }
 
-.feed-filter-panel-clear:hover:not(:disabled) {
+.feed-filter-panel-clear:hover:not(:disabled),
+.feed-filter-panel-close:hover {
   background: var(--surface-muted);
   color: var(--text);
 }
 
-.feed-filter-panel-clear svg {
+.feed-filter-panel-clear svg,
+.feed-filter-panel-close svg {
   width: 14px;
   height: 14px;
 }
 
 .feed-filter-search {
+  flex: none;
   height: 34px;
   display: grid;
   grid-template-columns: 15px minmax(0, 1fr);
@@ -653,8 +662,8 @@ ul {
 }
 
 .feed-filter-search:focus-within {
-  border-color: var(--focus);
-  box-shadow: 0 0 0 1px var(--focus);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .feed-filter-search svg {
@@ -669,16 +678,66 @@ ul {
   padding: 0;
   border: 0;
   border-radius: 0;
-  outline: 0;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
   background: transparent;
   font-size: 11px;
 }
 
+.feed-filter-search input:focus-visible {
+  outline-color: transparent;
+}
+
+@media (forced-colors: active) {
+  .feed-filter-search:focus-within {
+    outline-color: Highlight;
+  }
+}
+
 .feed-filter-options {
-  max-height: min(314px, calc(100vh - 260px));
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 314px;
   padding: 4px 0 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* Native popovers stay in the viewport; older browsers keep the inline menu. */
+@supports selector(:popover-open) {
+  .feed-multiselect-panel[popover],
+  .signal-filter .feed-multiselect-panel[popover] {
+    position: fixed;
+    inset: 16px;
+    margin: auto;
+  }
+
+  @media (min-height: 640px) {
+    @supports (position-area: block-end) {
+      #feedAgentFilter { anchor-name: --feed-agent; }
+      #feedSignalFilter { anchor-name: --feed-signal; }
+      #feedAgentFilterPanel { position-anchor: --feed-agent; }
+      #feedSignalFilterPanel { position-anchor: --feed-signal; }
+
+      .feed-multiselect-panel[popover],
+      .signal-filter .feed-multiselect-panel[popover] {
+        inset: auto;
+        margin: 6px 0 0;
+        position-area: block-end span-inline-end;
+        position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+      }
+    }
+  }
+}
+
+@media (max-height: 639px) {
+  .feed-multiselect-panel,
+  .signal-filter .feed-multiselect-panel {
+    position: fixed;
+    inset: 16px;
+    margin: auto;
+  }
 }
 
 .feed-filter-option {
@@ -1192,7 +1251,7 @@ ul {
 .compare-toolbar {
   min-height: 86px;
   display: grid;
-  grid-template-columns: minmax(180px, 0.8fr) minmax(190px, 1fr) 36px minmax(190px, 1fr) minmax(250px, 0.9fr);
+  grid-template-columns: minmax(180px, 0.8fr) minmax(190px, 1fr) var(--compare-swap-size, 36px) minmax(190px, 1fr) minmax(250px, 0.9fr);
   align-items: end;
   gap: 12px;
   padding: 13px 0;
@@ -2721,7 +2780,7 @@ a.source-layer:hover {
 
   .feed-controls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--feed-reset-size, 40px);
     align-items: center;
     gap: 10px 8px;
     margin-top: 12px;
@@ -2741,7 +2800,6 @@ a.source-layer:hover {
   .feed-multiselect-panel,
   .signal-filter .feed-multiselect-panel {
     width: calc(100vw - 40px);
-    max-height: min(430px, calc(100vh - 170px));
   }
 
   .signal-filter .feed-multiselect-panel { left: auto; right: 0; }
@@ -2816,7 +2874,7 @@ a.source-layer:hover {
   }
 
   .compare-toolbar {
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) var(--compare-swap-size, 34px) minmax(0, 1fr);
     gap: 9px;
     padding: 11px 0;
   }
@@ -3140,5 +3198,77 @@ a.source-layer:hover {
   .mechanism-evidence-list a > svg {
     grid-column: 2;
     grid-row: 1 / 3;
+  }
+}
+
+@media (any-pointer: coarse) {
+  .feed-filter-search {
+    height: 44px;
+  }
+
+  .feed-filter-search input,
+  .compare-view select,
+  .search-field input {
+    font-size: max(16px, 1rem);
+  }
+
+  .feed-filter-search input {
+    height: 40px;
+  }
+
+  .feed-filter-option {
+    min-height: 44px;
+  }
+
+  .feed-filter-option-label,
+  .feed-filter-panel-header strong {
+    font-size: 13px;
+  }
+
+  .feed-filter-panel-clear,
+  .feed-filter-panel-close {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .feed-filter-reset {
+    width: 44px;
+    height: 44px;
+  }
+
+  .feed-controls {
+    --feed-reset-size: 44px;
+  }
+
+  .compare-view select {
+    min-height: 44px;
+  }
+
+  .search-field input {
+    height: 44px;
+  }
+
+  .search-field svg {
+    top: 15px;
+  }
+
+  .compare-toolbar {
+    --compare-swap-size: 44px;
+  }
+
+  .compare-view .swap-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .header-links .icon-button {
+    position: relative;
+  }
+
+  .header-links .icon-button::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
   }
 }

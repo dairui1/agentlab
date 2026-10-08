@@ -580,8 +580,19 @@
     ["agent", "signal"].forEach((filterKind) => {
       const definition = feedFilterDefinition(filterKind);
       const open = filterKind === kind;
+      if (typeof definition.panel.showPopover !== "function") definition.panel.removeAttribute("popover");
       definition.trigger.setAttribute("aria-expanded", String(open));
-      definition.panel.hidden = !open;
+      if (open) {
+        definition.panel.hidden = false;
+        if (typeof definition.panel.showPopover === "function" && !definition.panel.matches(":popover-open")) {
+          definition.panel.showPopover({ source: definition.trigger });
+        }
+      } else {
+        if (typeof definition.panel.hidePopover === "function" && definition.panel.matches(":popover-open")) {
+          definition.panel.hidePopover();
+        }
+        definition.panel.hidden = true;
+      }
       definition.trigger.closest("[data-feed-filter-picker]").dataset.open = String(open);
     });
     if (focus && kind) {
@@ -1991,6 +2002,10 @@
   });
 
   elements.feedAgentFilterSearch.addEventListener("input", filterAgentOptions);
+
+  document.querySelectorAll("[data-feed-filter-close]").forEach((button) => {
+    button.addEventListener("click", () => setFeedFilterMenu(null, { returnFocus: true }));
+  });
 
   document.addEventListener("click", (event) => {
     if (!state.openFeedFilter) return;

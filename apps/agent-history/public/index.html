@@ -54,10 +54,13 @@
               <span id="feedAgentFilterCount" class="feed-filter-trigger-count" hidden></span>
               <i class="feed-filter-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
             </button>
-            <div id="feedAgentFilterPanel" class="feed-multiselect-panel" role="dialog" aria-labelledby="feedAgentFilterTitle" hidden>
+            <div id="feedAgentFilterPanel" class="feed-multiselect-panel" popover="manual" role="dialog" aria-labelledby="feedAgentFilterTitle" hidden>
               <div class="feed-filter-panel-header">
                 <strong id="feedAgentFilterTitle">选择 Agent</strong>
                 <button class="feed-filter-panel-clear" type="button" data-feed-filter-clear="agent" aria-label="清除 Agent 筛选" title="清除 Agent 筛选">
+                  <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+                </button>
+                <button class="feed-filter-panel-close" type="button" data-feed-filter-close aria-label="关闭 Agent 筛选" title="关闭 Agent 筛选">
                   <i data-lucide="x" aria-hidden="true"></i>
                 </button>
               </div>
@@ -80,10 +83,13 @@
               <span id="feedSignalFilterCount" class="feed-filter-trigger-count" hidden></span>
               <i class="feed-filter-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
             </button>
-            <div id="feedSignalFilterPanel" class="feed-multiselect-panel" role="dialog" aria-labelledby="feedSignalFilterTitle" hidden>
+            <div id="feedSignalFilterPanel" class="feed-multiselect-panel" popover="manual" role="dialog" aria-labelledby="feedSignalFilterTitle" hidden>
               <div class="feed-filter-panel-header">
                 <strong id="feedSignalFilterTitle">选择信号</strong>
                 <button class="feed-filter-panel-clear" type="button" data-feed-filter-clear="signal" aria-label="清除信号筛选" title="清除信号筛选">
+                  <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+                </button>
+                <button class="feed-filter-panel-close" type="button" data-feed-filter-close aria-label="关闭信号筛选" title="关闭信号筛选">
                   <i data-lucide="x" aria-hidden="true"></i>
                 </button>
               </div>

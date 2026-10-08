@@ -787,8 +787,8 @@
 }
 
 .collection-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 14%, transparent);
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .collection-search svg {
@@ -802,10 +802,13 @@
   width: 100%;
   min-width: 0;
   border: 0;
-  outline: 0;
   background: transparent;
   color: var(--text);
   font: 12px/1.3 var(--sans);
+}
+
+.collection-search input:focus-visible {
+  outline: 2px solid transparent;
 }
 
 .collection-search input::placeholder {
@@ -2245,5 +2248,27 @@
   .inspect-evidence,
   .inspector-link {
     scroll-behavior: auto;
+  }
+}
+
+@media (any-pointer: coarse) {
+  .collection-search {
+    min-height: 44px;
+  }
+
+  .collection-search input {
+    height: 42px;
+    font-size: max(16px, 1rem);
+  }
+
+  .collection-facet button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (forced-colors: active) {
+  .collection-search:focus-within {
+    outline-color: Highlight;
   }
 }

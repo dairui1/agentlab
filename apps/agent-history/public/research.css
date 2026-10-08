@@ -368,6 +368,11 @@
   background: var(--surface);
 }
 
+.research-search:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .research-search svg {
   width: 14px;
   height: 14px;
@@ -384,7 +389,10 @@
   border-radius: 0;
   background: transparent;
   font-size: 12px;
-  outline: 0;
+}
+
+.research-search input:focus-visible {
+  outline: 2px solid transparent;
 }
 
 .research-controls > .icon-button,
@@ -1307,4 +1315,30 @@
     margin: 0;
   }
 
+}
+
+@media (any-pointer: coarse) {
+  .research-search,
+  .research-select-field select {
+    min-height: 44px;
+    height: 44px;
+  }
+
+  .research-search input,
+  .research-select-field select {
+    font-size: max(16px, 1rem);
+  }
+
+  .research-controls > .icon-button,
+  .research-detail-controls > .icon-button {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+}
+
+@media (forced-colors: active) {
+  .research-search:focus-within {
+    outline-color: Highlight;
+  }
 }

@@ -31,6 +31,31 @@ test("feed filters use custom multi-select popovers instead of native selects", 
   assert.match(app, /searchParams\.append\(key, value\)/);
 });
 
+test("feed filters use viewport-bounded native popovers with an inline fallback", () => {
+  const styles = fs.readFileSync(path.join(publicRoot, "styles.css"), "utf8");
+  assert.equal((html.match(/popover="manual"/g) || []).length, 2);
+  assert.equal((html.match(/data-feed-filter-close\b/g) || []).length, 2);
+  assert.match(app, /typeof definition\.panel\.showPopover === "function"/);
+  assert.match(app, /showPopover\(\{ source: definition\.trigger \}\)/);
+  assert.match(app, /definition\.panel\.hidePopover\(\)/);
+  assert.match(app, /definition\.panel\.hidden = true/);
+  assert.match(app, /definition\.panel\.removeAttribute\("popover"\)/);
+  assert.match(styles, /@supports selector\(:popover-open\)/);
+  assert.match(styles, /#feedAgentFilter\s*\{ anchor-name: --feed-agent;/);
+  assert.match(styles, /#feedAgentFilterPanel\s*\{ position-anchor: --feed-agent;/);
+  assert.match(styles, /\.feed-filter-options\s*\{[^}]*min-height: 0;[^}]*overflow-y: auto;[^}]*overscroll-behavior: contain/);
+  assert.doesNotMatch(styles, /max-height: min\(314px, calc\(100vh - 260px\)\)/);
+});
+
+test("touch filtering keeps editable text readable and separate 44px targets", () => {
+  const styles = fs.readFileSync(path.join(publicRoot, "styles.css"), "utf8");
+  const touch = styles.slice(styles.lastIndexOf("@media (any-pointer: coarse)"));
+  assert.match(touch, /\.feed-filter-search input,[\s\S]*?\.compare-view select,[\s\S]*?font-size: max\(16px, 1rem\)/);
+  assert.match(touch, /\.feed-filter-option\s*\{[^}]*min-height: 44px/);
+  assert.match(touch, /\.feed-filter-panel-close\s*\{[^}]*width: 44px;[^}]*height: 44px/);
+  assert.doesNotMatch(html, /user-scalable=no|maximum-scale=1/);
+});
+
 test("feed paging observes a window-rooted sentinel and retains a click fallback", () => {
   assert.match(app, /new window\.IntersectionObserver/);
   assert.match(app, /rootMargin: "700px 0px"/);
