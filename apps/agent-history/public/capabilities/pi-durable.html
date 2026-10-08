@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="沿 Pi Durable 固定源码与离线合同测试，研究持久任务、崩溃恢复、工具重放、子任务所有权和存储边界。">
+  <title>Pi Durable：Agent 中断以后，从哪里继续 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <script src="/site-theme.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-navigation.js"></script>
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/pi-durable.css">
+  <link rel="stylesheet" href="/site-theme.css">
+  <link rel="stylesheet" href="/site-theme-compat.css">
+</head>
+<body class="article-page pi-durable-study" data-evidence-source="/capabilities/pi-durable.json">
+  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="pi-durable" compare-agent="pi"></agentlab-navigation>
+      <div class="header-links"><a class="icon-button" href="https://github.com/earendil-works/pi/tree/1cedd32724abfcb0915f76cc61b6827e2c16dbad/packages/durable" target="_blank" rel="noopener noreferrer" aria-label="打开 Pi Durable 固定源码" title="Pi Durable 源码"><i data-lucide="github" aria-hidden="true"></i></a></div>
+    </header>
+    <main>
+      <header class="article-hero"><div class="article-hero-inner">
+        <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Pi Durable</span></nav>
+        <span class="article-series">固定源码研究 / 持久 Agent Runtime</span>
+        <div class="pi-durable-title"><img src="/agent-icons/pi.png" alt="Pi 标识" width="44" height="44"><h1>Pi Durable</h1></div>
+        <p class="article-dek">Agent 中断以后，从哪里继续？保存对话只是起点。真正难的是：请求是否已经发出，工具是否已经动手，重启后哪一步可以再跑。</p>
+        <div class="article-byline"><span>2026-10-08 核验</span><span>main · 1cedd327</span><span>实验性 API</span><span>源码与离线合同测试</span></div>
+      </div></header>
+      <section class="article-scope-band" aria-label="研究范围"><div class="article-scope-grid">
+        <div><span>研究对象</span><strong>@earendil-works/pi-durable</strong><small>独立应用 Runtime，不是 Pi CLI 的续聊开关</small></div>
+        <div><span>固定源码</span><strong>1cedd327 · 2026-10-08</strong><small>包版本 1.1.0；以提交为准</small></div>
+        <div><span>验证方式</span><strong>实现 / 合同测试 / 恢复测试</strong><small>不调用真实模型，不做生产压测</small></div>
+        <div><span>核心边界</span><strong>检查点恢复 ≠ 副作用只发生一次</strong><small>幂等、隔离、服务重启仍由应用负责</small></div>
+      </div></section>
+      <div class="capability-reading">
+        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
+          <span>从中断到恢复</span><ol>
+            <li><a href="#position" data-index="01">它究竟持久化什么</a></li>
+            <li><a href="#commit" data-index="02">先保存，再让外界看见</a></li>
+            <li><a href="#recovery" data-index="03">重启怎样找到下一步</a></li>
+            <li><a href="#tools" data-index="04">工具到底能不能重跑</a></li>
+            <li><a href="#generation" data-index="05">模型重试不是接续生成</a></li>
+            <li><a href="#inbox" data-index="06">消息接收和模型看见</a></li>
+            <li><a href="#ownership" data-index="07">子任务与取消的归属</a></li>
+            <li><a href="#documents" data-index="08">应用状态与会话分支</a></li>
+            <li><a href="#extensions" data-index="09">恢复时用哪一版代码</a></li>
+            <li><a href="#compaction" data-index="10">长会话怎样接着走</a></li>
+            <li><a href="#deployment" data-index="11">存储与执行环境边界</a></li>
+            <li><a href="#verification" data-index="12">验证结果与工程判断</a></li>
+          </ol>
+          <div class="article-toc-note"><strong>恢复有三层</strong>保存事实、恢复任务、核对外部动作。Pi Durable 主要接住前两层，第三层需要应用和外部服务一起完成。</div>
+        </aside>
+        <article class="capability-article" id="articleBody">
+          <p class="article-lead">假设 Agent 正在发布一个版本：测试已经通过，上传请求已经发出，进程却在写回结果之前退出。重新读一遍聊天记录，并不能回答“再上传一次会不会重复”。Pi Durable 值得研究的地方，是它把这类中断拆成了可保存、可恢复、也能明确拒绝盲目重试的状态。</p>
+
+          <section id="position" data-article-section>
+            <h2>持久化的不只是对话，还有正在做的事</h2>
+            <p>Pi Durable 是 Earendil 在 Pi 仓库中提供的实验性库，用来构建长期运行的 Agent 应用。它通过 <code>pi-ai</code> 访问模型，通过 <code>chord</code> 管理文档状态，采用 MIT 许可，包声明 Node ≥ 22.19.0。终端里的 Pi Coding Agent 仍是另一套产品；安装 Durable，不会自动把原有 CLI 会话升级成后台服务。本文固定包版本为 1.1.0 的源码，而不是把发布时的介绍当成今天的接口。<button class="evidence-ref" type="button" data-evidence="PD-01 PD-18" data-evidence-trigger>项目身份与版本</button></p>
+            <p>一个 Harness 打开一份存储，运行其中的多个 Conversation。对话由不可变的 Entry 组成，应用状态放在可更新的 Document 里；一次模型请求、一次工具调用、一次压缩，则各自是持久 Task。Task 不是聊天里的一句“下一步去上传”，而是带阶段、检查点、等待条件和所有者的状态机。</p>
+            <div class="article-table-wrap"><table class="article-table"><caption>三种“继续工作”并不相同</caption><thead><tr><th>办法</th><th>留下什么</th><th>进程已死以后</th></tr></thead><tbody>
+              <tr><td>对话记录 / 进度文件</td><td>已写下的消息与业务进度</td><td>由人或新 Agent 重新判断下一步</td></tr>
+              <tr><td>tmux / 常驻进程</td><td>仍在运行的进程</td><td>进程本身退出后仍需别的恢复办法</td></tr>
+              <tr><td>Pi Durable</td><td>消息、排队输入、任务检查点与文档</td><td>应用重启并重新打开存储，再调度未完成工作</td></tr>
+            </tbody></table></div>
+            <p>这个定位适合由消息触发、需要等待审批或跨进程接续的应用。不必为了让一个有人照看的终端会话“更高级”，就把它改成持久工作流。要获得恢复能力，也得接受状态模型、迁移和副作用核对带来的成本。</p>
+          </section>
+
+          <section id="commit" data-article-section>
+            <h2>先保存，再让界面与调度器看见</h2>
+            <p>Session 把所有修改排在同一条串行提交线上。提交回调可以一起追加消息、修改文档、创建任务；内核先准备这批写入，等待 Storage 提交成功，再接纳新的文档状态并发布变更。界面和调度器因此观察到的是已提交事实，而不是刚在内存里发生、随时可能消失的动作。<button class="evidence-ref" type="button" data-evidence="PD-02" data-evidence-trigger>提交与发布顺序</button></p>
+            <p>例如工具把“发布完成”的结果和业务文档里的版本号写在同一批提交里，可以避免一处更新、另一处没更新。但这个原子范围只到这份 Storage。上传文件到远端仓库，不会因为写在 <code>commit()</code> 回调里，就突然与本地数据库成为一笔事务。</p>
+            <p>源码还区分了“确定没写进去”和“无法确认写入结果”。只有 <code>StorageRejected</code> 表示整批没有生效；其他存储异常会把 Session 标成不可继续使用，要求重新打开。若存储已经提交，内存接纳却失败，也走这条路径。这里没有假装所有报错都能原地回滚。调用方取消等待，也不会打断已经获准进入存储的提交。</p>
+          </section>
+
+          <section id="recovery" data-article-section>
+            <h2>恢复的是最后一个检查点，不是旧进程</h2>
+            <p>重新打开 Harness 时，调度器加载非终态任务，把上次留下的 <code>running</code> 改回 <code>pending</code>。它没有复活旧的 JavaScript 调用栈。应用调用 <code>resume()</code>，或提交、等待工作时，调度器才开始按保存的阶段继续执行。只打开存储和真正恢复调度，是两步。<button class="evidence-ref" type="button" data-evidence="PD-03" data-evidence-trigger>重开与启动调度</button></p>
+            <figure class="article-figure"><div class="durable-trace">
+              <div><span>01 / 已保存</span><strong>调用意图与阶段</strong><small>参数、任务 ID、检查点进入存储</small></div>
+              <div class="durable-uncertain"><span>02 / 可能中断</span><strong>外部动作发生</strong><small>动作已完成，结果却可能还没提交</small></div>
+              <div><span>03 / 新进程</span><strong>加载未完成任务</strong><small>running → pending，再解析任务定义</small></div>
+              <div><span>04 / 作出选择</span><strong>安全重放或报告中断</strong><small>能否重跑取决于工具合同和应用幂等</small></div>
+            </div><figcaption>源码机制示意，不是一次真实崩溃的运行轨迹。第二步与结果提交之间的窗口，是外部副作用最需要核对的地方。</figcaption></figure>
+            <p>自定义 Task 每次用 <code>runtime.commit()</code> 保存下一阶段，或者保存要等待的子任务和计时条件。进程在一次阶段处理函数中途退出，下次可能重新进入同一阶段。因此“每个阶段有检查点”不等于“阶段内每条语句各执行一次”。发送消息、扣款、部署等动作仍要用稳定任务 ID 派生幂等键，并在外部系统确认。</p>
+            <p><code>close()</code> 与 <code>abort()</code> 也不同。Close 封闭提交和调度，发信号并等待正在执行的代码，但不写持久取消结果，留下检查点供重开恢复；Abort 先保存取消标记，再安排清理。过期调用不能继续提交 Session，但忽略取消信号的自定义代码，仍可能让 Close 等很久。<button class="evidence-ref" type="button" data-evidence="PD-23" data-evidence-trigger>晚提交与协作取消</button></p>
+          </section>
+
+          <section id="tools" data-article-section>
+            <h2>工具默认不盲目重跑，safe 也不是认证</h2>
+            <p>工具先保存执行意图，再进入 <code>execute()</code>。重启后，如果意图里保存的 replay 策略和当前工具定义<strong>同时</strong>是 <code>safe</code>，才允许重新执行；否则返回 <code>interrupted</code> 错误结果，带上已经提交的部分输出。这个保守默认值很重要：系统宁可告诉模型“这一步被打断”，也不替应用猜远端动作没发生。<button class="evidence-ref" type="button" data-evidence="PD-04" data-evidence-trigger>工具恢复分支</button></p>
+            <div class="article-table-wrap"><table class="article-table"><caption>以“上传版本后进程退出”为例，以下是场景推演</caption><thead><tr><th>恢复条件</th><th>Harness 怎么做</th><th>应用还要知道什么</th></tr></thead><tbody>
+              <tr><td>未声明 safe</td><td>记录 interrupted，不自动重跑 execute</td><td>远端是否已经接受上传</td></tr>
+              <tr><td>声明 safe，但只是普通上传</td><td>允许重跑同一工具任务</td><td>可能重复上传；safe 标签本身没有消除副作用</td></tr>
+              <tr><td>safe + 远端幂等键</td><td>重新请求，以稳定键寻找或复用结果</td><td>服务的去重范围、有效期与请求一致性</td></tr>
+            </tbody></table></div>
+            <p>固定版本的内置 <code>read</code>、<code>bash</code>、<code>write</code>、<code>edit</code> 都没有声明 replay，因此默认按 unsafe 处理。不要因为工具名叫 read，就假定恢复时会自动重跑。应用可以提供显式 safe 的读取工具，但重新读取可能看见新内容；“可重跑”不是“结果与第一次相同”。<button class="evidence-ref" type="button" data-evidence="PD-24" data-evidence-trigger>内置 read 的声明</button></p>
+            <p>本地恢复测试使用带幂等账本的假服务，检查的是调用两次、业务动作一次。去重由假服务提供，不是 Pi 完成了跨系统原子提交。unsafe 工具返回 interrupted 后，模型仍可能继续回答，最终 Submission 也能是 done；done 不是所有工具成功。<button class="evidence-ref" type="button" data-evidence="PD-17 PD-04" data-evidence-trigger>假服务恢复与工具中断</button></p>
+            <p>取消也不能被理解成撤销。任务可以执行应用提供的 abort 清理函数，外部服务是否支持补偿、补偿能否再试、失败后谁核对，仍需要专门设计。</p>
+          </section>
+
+          <section id="generation" data-article-section>
+            <h2>中断的流式请求会重发，不会从半个词接着生成</h2>
+            <p>Generation 保存准备请求时的模型、thinking、stream options 和上下文截止位置。恢复时从这个 committed cutoff 重建上下文，再发起请求；已经持久保存的半截回复，会留下带中断状态的 Entry，而不是伪装成完整答案，也不是继续旧连接上的 token 流。<button class="evidence-ref" type="button" data-evidence="PD-05" data-evidence-trigger>请求检查点与部分回复</button></p>
+            <p>这里要谨慎使用“同一个请求”。<code>beforeRequest</code> hook 位于实际请求阶段内，恢复后会再跑；模型服务也未必是确定性的。能确认的是保存的截止位置与部分选项被复用，不能据此断言线上请求字节完全一致、答案完全相同，或不会重复计费。</p>
+            <p>已经取得并保存 provider handle 的 deferred 请求是另一条路径：任务保存 handle 和 <code>pollAt</code>，重开以后继续 <code>fetchDeferred</code>，不是重新创建请求。Retry 的 backoff 也保存绝对等待时间。能恢复轮询，不代表提供商一定保留了结果；取消远端任务也只能尽力请求，不能只凭本地取消状态认定已经停止。<button class="evidence-ref" type="button" data-evidence="PD-22" data-evidence-trigger>Deferred 与 backoff 的恢复</button></p>
+            <p>每个 Conversation 另存一个 <code>pi.provider</code> UUID，传给模型层作 session identity。重开、压缩和模型切换保留它；子会话或 fork 获得新的身份。它服务于缓存与会话亲和性，不是提供商承诺的 exactly-once 请求键，更不是恢复权重、KV cache 或旧流的凭证。<button class="evidence-ref" type="button" data-evidence="PD-06" data-evidence-trigger>持久 provider identity</button></p>
+            <p>部分回复和运行中工具输出按配置周期提交，默认间隔为 100 ms。这意味着最近尚未提交的片段可以丢失；也意味着存储越慢，进度提交和恢复窗口的取舍越重要。不要把默认周期写成断电时绝对不会丢失更多数据的上限。<button class="evidence-ref" type="button" data-evidence="PD-19" data-evidence-trigger>进度提交周期</button></p>
+          </section>
+
+          <section id="inbox" data-article-section>
+            <h2>输入被接收，不代表模型已经读到</h2>
+            <p><code>submit()</code> 在一次提交中接收输入并返回 Submission；忙碌会话把它放进持久 <code>pi.inbox</code>。<code>requestId</code> 可让同一 Conversation 的重试返回已有 Submission，避免重复接收。它比较的是身份和输入类型，不会逐字比较新旧内容：同一个键若被拿来发送另一句话，也可能只拿回旧记录。所以应让键表示一次真实请求，而不是一个可随意覆盖的槽位。<button class="evidence-ref" type="button" data-evidence="PD-07" data-evidence-trigger>接收与去重范围</button></p>
+            <p>队列不只保存“待发消息”。<code>steer</code> 可以在工具轮结束的边界进入当前 run；<code>followUp</code> 在最终边界接续；普通 <code>write</code> 是被动写 Entry。它们按模式在边界挑选、写入消息并更新 Submission 状态。当前正在执行的工具不会因为一句 steer，自动停止或把已经做的事撤销。<button class="evidence-ref" type="button" data-evidence="PD-08" data-evidence-trigger>消息放入上下文的边界</button></p>
+            <p>要显示“用户纠正已生效”，应用应区分 queued、placed 和最后的 done / unanswered，再追踪后续请求。取消 <code>wait()</code> 只是停止这次等待，不会取消后台工作；撤回已 placed 的输入，也不能假定能从模型或外部世界收回。</p>
+          </section>
+
+          <section id="ownership" data-article-section>
+            <h2>子 Agent 是被任务拥有的会话，取消沿归属树走</h2>
+            <p>工具可以创建一个 Conversation，把 owner 指向自己的 task ID，再给它配置模型、工具和指令。这样子 Agent 与普通会话共用持久化机制，不必另造一套临时 Promise 管理器。重放安全的子 Agent 工具还要先按 owner 查询已有孩子，并用稳定 requestId 复用提交，否则一次恢复仍可能生出两个子 Agent。<button class="evidence-ref" type="button" data-evidence="PD-09" data-evidence-trigger>所有权与子 Agent 复用</button></p>
+            <p>任务完成并不总是立刻进入 terminal。如果它拥有的工作还没收尾，结果会暂存在 <code>completing</code>。取消标记沿归属树向下传播，abort 清理则从叶子向上执行：等孩子的普通 owned work 收尾，再调用父任务的 abort。父子关系因此不仅是界面上的缩进，还影响何时能宣布结束。</p>
+            <p>后台任务则是明确的例外：它属于 Conversation，却不阻止当前会话进入 idle，普通 Conversation abort 也会留下它及其孩子。要停下后台工作，必须直接取消那个任务，或显式包含 background。界面显示“当前回答结束”，不能被当成“这个会话再也没有活动任务”。<button class="evidence-ref" type="button" data-evidence="PD-10" data-evidence-trigger>前台与后台的取消范围</button></p>
+          </section>
+
+          <section id="documents" data-article-section>
+            <h2>业务状态跟着提交走，文件系统不会跟着 fork</h2>
+            <p>待办列表、计划、工单、执行环境的地址，都可以定义成 typed JSON Document，与消息和任务一同提交。文档声明自己的 scope、history 和 fork 策略：<code>asOf</code> 复制分叉位置的历史值，<code>current</code> 取父会话当前值，<code>initial</code> 从初始状态开始。不同业务状态不应被迫采用同一种复制办法。<button class="evidence-ref" type="button" data-evidence="PD-11" data-evidence-trigger>文档分叉策略</button></p>
+            <p>Conversation fork 看得见父对话截至指定 Entry 的消息，再独立追加。保存“sandbox 的路径”不等于复制 sandbox：如果两个分支都指向同一个目录，它们仍会改同一份文件。分叉实验要同时检查消息范围、文档值和真实执行环境，而不能只看两个不同的 Conversation ID。</p>
+            <p>官方 per-conversation sandbox 示例用 <code>fork: "initial"</code> 避免自动继承旧目录，再由应用分配新的环境。示例中的“sandbox”只是目录；用目录区分用户，不会自动得到容器、网络限制或操作系统隔离。<button class="evidence-ref" type="button" data-evidence="PD-16" data-evidence-trigger>环境示例的实际范围</button></p>
+          </section>
+
+          <section id="extensions" data-article-section>
+            <h2>状态可以保存，运行它的代码仍要重新安装</h2>
+            <p>Registry 在进程里安装 extensions、tools、hooks 和任务定义；Conversation 保存的是选择的名字，不是这些函数的源码。新进程需要重新提供定义，旧任务才能继续。缺少定义、任务记录比代码版本新或迁移失败，会让任务阻塞；不是丢掉旧状态以后随便从头来。<button class="evidence-ref" type="button" data-evidence="PD-12" data-evidence-trigger>版本解析与迁移阻塞</button></p>
+            <p>恢复还不保证用回上次完全相同的环境。工具 intent 的 safe 策略被固定，但重新 execute 时可以解析到当前 agent、extension 和 cwd。源码测试就覆盖了重开前后目录从 <code>/one</code> 变成 <code>/two</code> 的情况。因此生产应用应记录运行定义与环境版本，审慎决定升级中的旧任务是否继续，而不只固定 npm 包版本。</p>
+            <p>Hooks 可以拦截或改写调用，也可能在恢复中再次运行。<code>memo</code> 提供“第一次写入生效”的持久值，适合保存已作出的决定；可如果请求审批的消息已经发出、memo 还没保存，仍有重复询问的窗口。memo 能留住结果，但不会把外部审批平台纳入本地事务。<button class="evidence-ref" type="button" data-evidence="PD-20" data-evidence-trigger>memo 与当前环境</button></p>
+          </section>
+
+          <section id="compaction" data-article-section>
+            <h2>压缩本身也是任务，旧消息仍然留着</h2>
+            <p>为了让长会话继续工作，Compaction 在上下文接近阈值时后台总结旧消息，到后续边界才采用摘要。下一次请求真的放不下时，才必须等；提供商若仍报告 context overflow，生成流程会压缩并重试一次。它不是无限重试模型请求，也不是在当前生成一半时悄悄改掉上下文。<button class="evidence-ref" type="button" data-evidence="PD-13" data-evidence-trigger>后台压缩与 overflow 路径</button></p>
+            <p>压缩改变的是后续模型看见的 active range，旧 Entry 没被删除。Reset / handoff 同样建立新的上下文起点，历史仍可由工具查询。这给长期工作的 Agent 留出了重新出发的办法，但“历史可查”不等于模型会主动查对，更不保证摘要保留了所有关键约束。摘要质量、恢复后的任务质量，都需要另外评测。</p>
+            <p>这属于推理时的运行基础设施。本文没有发现据此建立的奖励驱动训练实验，也不把长任务、子 Agent 或自我 handoff 归为严格 Agentic RL / RSI。</p>
+          </section>
+
+          <section id="deployment" data-article-section>
+            <h2>进程崩溃、主机断电、多个进程抢同一份存储，是三种问题</h2>
+            <p>Quick Start 中的 <code>MemoryStorage</code> 只保存在内存，不能跨进程恢复；要持久化，需要选择 SQLite、JSONL 或宿主存储。Node SQLite adapter 使用 WAL 和 <code>synchronous = NORMAL</code>。官方合同把进程崩溃与主机故障分开：前者可以恢复已提交内容，后者可能丢失最新提交。JSONL 默认不启用 fsync；启用后，先 flush sidecar 再追加 commit marker，但源码没有在每次提交返回前无条件 flush 主日志。不要把选项名直接升级成“断电零丢失”。<button class="evidence-ref" type="button" data-evidence="PD-14 PD-15 PD-25" data-evidence-trigger>SQLite 与 JSONL 的写入边界</button></p>
+            <p>同一份存储只允许一个进程拥有，库不提供跨进程的 Harness 所有权锁。SQLite 的文件锁与 busy timeout 保护数据库操作，不替多个调度器仲裁谁执行同一个任务。进程管理器应负责重启，部署层应负责唯一持有者、备份和故障切换；存储 API 返回成功，也不是整项业务已经验收。<button class="evidence-ref" type="button" data-evidence="PD-25" data-evidence-trigger>存储的单进程合同</button></p>
+            <p>固定版本已提供 Cloudflare Durable Object SQLite adapter，不能再沿用发布初期“只有 Node adapter”的描述。但一个存储 adapter 不等于已经验证了完整的 Workers 托管 Agent 服务：网络请求、唤醒、alarm、权限和部署仍需要宿主接入与运行证据。<button class="evidence-ref" type="button" data-evidence="PD-21" data-evidence-trigger>Cloudflare adapter 的范围</button></p>
+            <p><code>ExecutionEnv</code> 把文件和进程操作交给宿主，支持按 Conversation 配置环境。Node 实现本质上使用本地文件系统和进程权限，cwd 只是路径解析起点，不是沙箱根。无环境时内置工具报错；有本地环境时，持久化不会替你补出权限隔离。</p>
+          </section>
+
+          <section id="verification" data-article-section>
+            <h2>现在能确认什么，还要怎么验证</h2>
+            <p>本研究固定 <code>earendil-works/pi</code> 的 <code>1cedd32724abfcb0915f76cc61b6827e2c16dbad</code>，对引用文件保留 SHA-256 与行区间。本文没有运行真实模型、支付或部署服务；上面的发布场景是解释机制的推演，不是线上恢复成绩。</p>
+            <div class="durable-verification"><strong>47 个文件通过，977 项通过，2 项平台相关跳过</strong><p id="durableTestResult">显式枚举 Durable 的非 e2e 测试，在清空凭据、隔离 HOME 的 macOS arm64 环境运行。Node 25.6.1 / Vitest 4.1.11；跳过的是 Windows detached-stdio 和真实 PowerShell，两个真实模型 cache e2e 完全排除，没有调用模型 API。</p><p>首轮直接使用 package config，因 pi-ai 的 source alias 缺失而出现 31 个文件收集失败；外置配置合并上游已有 workspace aliases 后，47 个文件全部通过。没有改上游源码，也没有构建发布包。恢复测试主要使用受控 Close / Reopen 和假模型、假服务。</p></div>
+            <p>对应固定提交的<a href="https://github.com/earendil-works/pi/actions/runs/37695875413">官方 CI</a>整体失败，失败步骤是 Test；匿名日志不可读，尚不能确认具体失败包。这里报告本地 Durable 合同通过，不把它写成整仓 CI 已通过。正式 <a href="https://github.com/earendil-works/pi/releases/tag/v1.1.0">v1.1.0 release</a> 在台北时间 2026-10-08 06:26 发布；本文的 main 比 tag 多两个提交，Durable 的 src、test 和 package.json 未变化，但测试版本仍明确固定为 main。</p>
+            <p>这些合同测试最有价值的部分，是把容易混淆的边界分别检查：提交失败是否发布状态、恢复是否复用已有孩子、unsafe 工具是否拒绝重跑、取消是否等孩子清理、消息是否在正确边界进入上下文。它们可以验证实现中的约定，不能替代真实进程被强制杀死、主机断电、外部请求回执丢失或数月数据增长的试验。</p>
+            <div class="article-table-wrap"><table class="article-table"><caption>下一步值得做的故障实验，均尚未由本研究执行</caption><thead><tr><th>故障位置</th><th>验收什么</th></tr></thead><tbody>
+              <tr><td>工具动作完成、结果提交之前 SIGKILL</td><td>unsafe 不重复执行；safe 使用幂等键核对外部动作和费用</td></tr>
+              <tr><td>模型已返回部分 token、进度提交之前</td><td>记录中断与重发，测真实丢失窗口和重复计费</td></tr>
+              <tr><td>更新 extension / cwd 后恢复旧任务</td><td>运行定义、授权和实际环境仍符合原任务合同</td></tr>
+              <tr><td>两个服务实例同时打开同一份存储</td><td>由部署层阻止双持有，不靠数据库锁推断任务唯一执行</td></tr>
+              <tr><td>断电、长历史、慢远端存储</td><td>持久化损失、备份恢复、队列延迟与存储增长</td></tr>
+            </tbody></table></div>
+            <p><strong>值得带走的判断是：把恢复单位变成可记录的任务，把不能确定的外部动作留成显式不确定性。</strong>Pi Durable 已经有具体的提交、调度和恢复机制，不只是给会话日志换个名字；但它仍是实验性 API。应用开发者可以借用这套结构，不能把宿主重启、幂等服务、安全隔离和业务验收一并外包给“durable”这个词。</p>
+            <p class="article-related"><a href="https://earendil.com/posts/pi-durable">官方发布文章</a><a href="https://github.com/earendil-works/pi/tree/1cedd32724abfcb0915f76cc61b6827e2c16dbad/packages/durable">固定源码与测试</a><a href="/capabilities.html?study=pi-durable">本专题证据索引</a><a href="/capabilities/oar.html">相关：OAR 接收与观察合同</a><a href="/capabilities/code-mode.html">相关：Code Mode 状态与副作用</a></p>
+          </section>
+        </article>
+      </div>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">实现依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="/vendor/lucide/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+</body>
+</html>

@@ -12,6 +12,7 @@
 
   const researchItems = [
     { id: "research", label: "全部专题", icon: "library", href: "/capabilities.html" },
+    { id: "pi-durable", label: "Pi Durable", icon: "database", href: "/capabilities/pi-durable.html" },
     { id: "code-mode", label: "Code Mode", icon: "code", href: "/capabilities/code-mode.html" },
     { id: "oar", label: "OAR Agent 接口", icon: "cable", href: "/capabilities/oar.html" },
     { id: "raven", label: "Raven Harness 改进", icon: "workflow", href: "/capabilities/raven.html" },

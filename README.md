@@ -96,6 +96,14 @@ ZCode 的本地图标复制自[官方仓库固定提交](https://github.com/zai-
 
 生成的 `public/`、`dist/` 和 `analysis/` 可从已同步的数据重建；`.cache/official-sources/` 还保存有界代码比较的历史账本，应像发布状态一样备份，不能在普通更新前删除。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。
 
+## Pi Durable 持久执行研究
+
+[Pi Durable 专题](https://agentlab.dairui1.com/capabilities/pi-durable) 固定官方 main 提交 `1cedd32724abfcb0915f76cc61b6827e2c16dbad`，从提交、任务检查点、工具 replay、模型重发与 deferred polling，追到消息队列、子任务取消、文档 fork 和存储故障边界。25 条文件证据与 6 项待验证问题，分别保留 API experimental、外部副作用幂等、单进程持有和目录非沙箱的限制。
+
+在清空凭据、隔离 HOME 的环境中，显式枚举 Durable 非 e2e 测试：47 个文件通过，977 项通过、2 项平台相关跳过；两个真实模型 cache e2e 完全排除。首轮 source 解析失败后，仅用外置配置合并上游既有 aliases，未改源码或构建发布包。未做真实模型、SIGKILL、断电或生产压测；固定提交的远端整仓 CI Test 步骤失败，具体失败包未确认。
+
+在 `apps/agent-history` 执行 `node scripts/verify_pi_durable_sources.mjs --source-root /path/to/pinned/pi`，复核 checkout HEAD、文件 SHA-256、行号、固定链接与正文证据引用；也可用 `--fetch` 从固定提交读取。核验脚本不执行 Pi，也不将文件匹配视为运行能力复现。本文只是固定研究，没有为 Pi Durable 新增日更、提醒或持续监控。
+
 ## Raven Harness 改进研究
 
 [Raven 专题](https://agentlab.dairui1.com/capabilities/raven) 沿反馈、候选、校验和安装追踪 Curator，固定官方提交 `e6c0344cb7ce00db25d554e4bb671ec1909a8f9f`。19 条证据区分静态源码、作者案例、技术报告与远端 CI；未运行上游测试、真实模型或基准，不把可选 probe 的装配检查写成效果验收，也不把 HarnessBank v2 的成绩归给当前 Curator。

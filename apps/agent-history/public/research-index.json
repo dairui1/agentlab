@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "pi-durable",
+      "readingLabel": "阅读全文：中断后怎样继续",
+      "title": "Pi Durable：Agent 中断以后，从哪里继续",
+      "question": "请求已经发出、工具可能已经动手，重启后哪一步可以再跑？",
+      "implication": "把对话、业务文档与任务检查点一起保存；对外部动作设计幂等核对，不用 safe 标签、数据库事务或 done 状态替代业务验收。",
+      "boundary": "固定 2026-10-08 main / 包 1.1.0；977 项离线合同通过，2 项平台跳过。未跑真实模型、SIGKILL、断电或生产负载；远端整仓 CI Test 失败，归属未确认。",
+      "editorialRank": 23,
+      "verifiedAt": "2026-10-08",
+      "kind": "fixed-build",
+      "kindLabel": "源码与离线合同测试",
+      "topic": "可靠性与恢复",
+      "products": [{"id": "pi", "label": "Pi Durable", "version": "1.1.0 / main 1cedd327"}],
+      "fact": "Pi Durable 以持久状态机重开未完成任务，工具只有保存时与当前定义均为 safe 才重放；普通流式模型请求按已提交上下文重发，deferred 请求恢复轮询。",
+      "sourceKinds": ["固定官方源码", "官方运行合同", "本地离线恢复测试", "远端 CI 记录"],
+      "headlineEvidence": ["PD-02", "PD-03", "PD-04", "PD-17", "PD-25"],
+      "evidenceCount": 25,
+      "unknownCount": 6,
+      "data": "/capabilities/pi-durable.json",
+      "legacyHref": "/capabilities/pi-durable.html"
+    },
+    {
       "id": "code-mode",
       "readingLabel": "从一次调用认识 Code Mode",
       "title": "Code Mode：用程序连接工具",
