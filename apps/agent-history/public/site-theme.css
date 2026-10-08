@@ -242,6 +242,7 @@
   --delete-soft: var(--theme-delete-soft);
   --pending: var(--theme-pending);
   --pending-soft: var(--theme-pending-soft);
+  --on-accent: var(--theme-on-accent);
   --radius-s: var(--theme-radius-s);
   --radius-m: var(--theme-radius-m);
   --radius-l: var(--theme-radius-l);
@@ -253,21 +254,23 @@
 
 :root[data-color-scheme="light"] {
   color-scheme: light;
+  --theme-on-accent: #ffffff;
   --theme-left: #2767a6;
   --theme-left-soft: #e7f0fa;
-  --theme-right: #936219;
+  --theme-right: #8f5e18;
   --theme-right-soft: #f7eedc;
-  --theme-add: #16815c;
+  --theme-add: #137751;
   --theme-add-soft: #e1f3eb;
-  --theme-delete: #b64943;
+  --theme-delete: #ad433d;
   --theme-delete-soft: #fae8e6;
-  --theme-pending: #8b671e;
+  --theme-pending: #86621b;
   --theme-pending-soft: #f7efdc;
   --theme-shadow: 0 6px 20px rgb(20 24 32 / 7%);
 }
 
 :root[data-color-scheme="dark"] {
   color-scheme: dark;
+  --theme-on-accent: var(--theme-page);
   --theme-left: #74ace3;
   --theme-left-soft: #1c344a;
   --theme-right: #e0ad5e;
@@ -334,4 +337,41 @@
 
 @media (max-width: 640px) {
   .site-theme-panel { padding: 12px; }
+}
+
+/* Screen preference must not override the studies' paper-friendly print view. */
+@media print {
+  :root[data-theme][data-color-scheme] {
+    color-scheme: light !important;
+    --theme-page: #ffffff;
+    --theme-surface: #ffffff;
+    --theme-surface-raised: #ffffff;
+    --theme-surface-muted: #f4f4f4;
+    --theme-text: #141414;
+    --theme-text-soft: #474747;
+    --theme-muted: #636363;
+    --theme-border: rgba(20, 20, 20, 0.24);
+    --theme-border-strong: rgba(20, 20, 20, 0.55);
+    --theme-accent: #141414;
+    --theme-accent-soft: #f4f4f4;
+    --theme-focus: #141414;
+    --theme-link: #141414;
+    --theme-link-hover: #141414;
+    --theme-code: #141414;
+    --theme-code-bg: #f4f4f4;
+    --theme-pre-bg: #ffffff;
+    --theme-shadow: none;
+    --theme-on-accent: #ffffff;
+    --theme-left: #2767a6;
+    --theme-left-soft: #e7f0fa;
+    --theme-right: #8f5e18;
+    --theme-right-soft: #f7eedc;
+    --theme-add: #137751;
+    --theme-add-soft: #e1f3eb;
+    --theme-delete: #ad433d;
+    --theme-delete-soft: #fae8e6;
+    --theme-pending: #86621b;
+    --theme-pending-soft: #f7efdc;
+  }
+  :root[data-theme] .site-theme { display: none !important; }
 }

@@ -43,7 +43,7 @@
   <div class="original-column"><div class="original-copy">
 <p data-original="paragraph">我们来玩个游戏。</p>
           <p data-original="paragraph">让一屋子的 Agent 从小到大依次报数，每个 Agent 报一个数字，不能重复。在大多数工作区里，这个游戏几乎立刻就会乱套。三个 Agent 在同一秒发出“1”，另外两个又发出“2”。等房间里数到“4”时，已经有三个 Agent 报过这个数了。出问题的不是 Agent，而是房间。</p>
-          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room-markdown.png" alt="普通共享房间中的报数游戏" width="1200" height="420" loading="lazy" decoding="async"></a></figure>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room-markdown.png" target="_blank" rel="noopener noreferrer"><img src="/assets/source-media/raft/counting-game-typical-room-markdown.png" alt="普通共享房间中的报数游戏" width="1200" height="420" loading="lazy" decoding="async"></a></figure>
           <p data-original="paragraph">真正工作时，情况也一样。人们把 Agent 带进已有的群聊，让它们和同事待在实际开展工作的同一个房间里，期待它们跨越时区和项目，以合适的节奏参与协作。许多团队会加一些规则来维持秩序，比如只有被 <strong>@提及</strong>时，Agent 才能回复。房间看起来井井有条，但 Agent 也不再留意那些原本能够发现的问题：一条发错对象的指令、一个错误的假设，或是一段正在偏离方向、它本可以帮上忙的讨论。另一些团队不设这些规则，让 Agent<strong>自由发言</strong>。于是，重复的提醒迅速淹没房间，快得让人来不及思考。人类正在认真输入一条指令，还没打完，三个 Agent 就已经回复了，其中两个答案相同，还有一个已经领走了工单。共享工作区变成了谁也不想待的吵闹房间。</p>
           <p data-original="paragraph"><strong>问题不在 Agent 本身。</strong>只要得到恰当的上下文，Agent 就能判断该不该回复、是否已经有人说过同样的观点，以及这条指令究竟是不是给自己的。真正的故障发生在 Agent 作出判断之后、在房间里付诸行动之前：糟糕的可选动作把它困住了。</p>
   </div></div>
@@ -78,7 +78,7 @@ const attestedBoundarySeq = Math.min(
 <h2 data-original="heading">为什么会这样</h2>
           <p data-original="paragraph">人类能在共享空间里自然地协调行动，是因为我们拥有<strong>持续的感知能力</strong>。不用刻意读完每条消息，我们也能感受到对话的节奏；我们能察觉插话前的停顿；我们知道某件事刚刚被说过，因为此前已经在半留意地听着。这些能力不需要专门设计。持续在场，就是这个意思。</p>
           <p data-original="paragraph">Agent 并不像人类那样置身于房间中。它们的交互是<strong>回合制的</strong>：每次被调用时，Agent 读取房间的一个快照，进行推理，提交一个动作，然后等待下一次调用。两次调用之间，没有东西在持续运行。现有工作区把房间里的并行活动压成一个供模型读取的 Thread，最终动作则在稍后一次性提交。Agent 组织回复时，并不能同时看到新消息到来。如果从推理到提交之间，房间已经发生变化，它仍可能依据一个不复存在的状态行动，除非工作区明确地把这个边界呈现出来。</p>
-          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png" alt="共享房间中的协作间隙" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>Agent 还在推理，房间里的事情却已经继续向前。</em></figcaption></figure>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="/assets/source-media/raft/shared-room-gap-animation-markdown.png" alt="共享房间中的协作间隙" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>Agent 还在推理，房间里的事情却已经继续向前。</em></figcaption></figure>
           <p data-original="paragraph">共享房间里的每一种故障模式都来自这道间隙：工作区是为能够持续在场的参与者设计的，却没有为回合制的参与者提供相应的交互界面。这就是我们正在打造 <strong>Raft 的原因：一个为人类与 Agent 共同工作而设计的 Agent 原生工作区</strong>。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-02">
@@ -174,7 +174,7 @@ if (unconsumedMessages.length === 0) {
 <h2 data-original="heading">Agent 收件箱</h2>
           <p data-original="paragraph">在传统消息平台上，Agent 加入一个频道后，通常会被推送这个频道里的<strong>每一条</strong>消息。接下来的选择都不太理想：要么全部处理，看着工作上下文被与当前任务毫不相干的闲聊填满；要么严格过滤，又错过真正重要的消息。无论哪一种，掌控 Agent 注意力的都是房间，而不是 Agent 自己。</p>
           <p data-original="paragraph">Raft 用<strong>收件箱</strong>把这件事倒了过来。提及、Thread 更新和其他通知会成为可查询的条目，等 Agent 有余力时主动拉取，而不是直接被推入工作上下文。Agent 查看有哪些新情况，判断哪些与当前任务有关，再吸收值得吸收的内容。没有拉取的信号不会进入工作上下文；它们仍然可以查询，留待之后需要时再取用。</p>
-          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png" alt="Agent 收件箱界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>到来的信号变成可查询的条目，Agent 有余力时再主动拉取。</em></figcaption></figure>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="/assets/source-media/raft/agent-inbox-animation-markdown.png" alt="Agent 收件箱界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>到来的信号变成可查询的条目，Agent 有余力时再主动拉取。</em></figcaption></figure>
           <p data-original="paragraph"><strong>由 Agent 决定什么值得进入自己的上下文</strong>，而不是由房间替它决定。每个被拉入工作 Prompt 的信号，都会挤占其他内容的位置，无论是任务状态、指令还是中间推理。因此，把这个决定交给 Agent，而不是交给恰好发出下一条消息的人，才能让注意力留在工作上。</p>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-04">
@@ -215,7 +215,7 @@ const result = await drainInbox(
           <p data-original="paragraph">组织一条回复<strong>需要时间</strong>。等 Agent 读完对话、决定说什么并写出草稿，房间里可能已经有了新进展：别人已经回复，它原本要回应的事项已有定论，或者话题已经转向。在大多数工作区里，这条消息依然会发出去，常常显得答非所问。Agent 没有机会检查。</p>
           <p data-original="paragraph"><strong>暂缓草稿这个交互界面，补上了这次检查。</strong>每次发送都带着一个标记，说明草稿是依据房间的哪个版本写成的。消息到达房间时，服务端会把这个标记与当前状态作比较：</p>
           <ul data-original="list"><li>如果没有变化，消息就会提交。</li><li>如果房间已经发生变化，消息会被暂缓，并连同一段简短说明一起交还 Agent，告知写作期间又来了什么内容。草稿作为一种正式状态保留下来，而不是被当作发送失败。</li></ul>
-          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png" alt="暂缓草稿界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>依据旧房间状态写出的草稿，可以暂缓、修改、原样发送，或放弃。</em></figcaption></figure>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png" target="_blank" rel="noopener noreferrer"><img src="/assets/source-media/raft/held-draft-animation-markdown.png" alt="暂缓草稿界面" width="1200" height="675" loading="lazy" decoding="async"></a><figcaption data-original="caption"><em>依据旧房间状态写出的草稿，可以暂缓、修改、原样发送，或放弃。</em></figcaption></figure>
   </div></div>
   <aside class="research-note" data-annotation aria-labelledby="note-05">
     <header class="research-heading"><h3 id="note-05">回复写好了，房间却已经往前走了一步</h3></header>
@@ -395,7 +395,7 @@ assert.deepEqual(acknowledged, [
   <div class="original-column"><div class="original-copy">
 <h2 data-original="heading">在实践中设计 AX</h2>
           <p data-original="paragraph">再回到开头的报数游戏。在 Raft 里，同样的练习可以顺畅地数过二十，没有总调度者，也没有人告诉 Agent 该轮到谁。同样的 Agent，不同的房间。</p>
-          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-raft-room-markdown.png" target="_blank" rel="noopener noreferrer"><img src="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-raft-room-markdown.png" alt="Raft 共享房间中的报数游戏" width="1200" height="420" loading="lazy" decoding="async"></a></figure>
+          <figure data-original="image"><a href="https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-raft-room-markdown.png" target="_blank" rel="noopener noreferrer"><img src="/assets/source-media/raft/counting-game-raft-room-markdown.png" alt="Raft 共享房间中的报数游戏" width="1200" height="420" loading="lazy" decoding="async"></a></figure>
           <p data-original="paragraph">让我们走到这一步的，是两个设计动作。</p>
           <h3 data-original="heading">站在 Agent 的位置理解感知</h3>
           <p data-original="paragraph">坐到 Agent 的位置上，环顾这个房间。它在行动的那一刻，究竟能看到什么？有哪些信息正涌向它，多得让任何试图一次接收全部内容的人都应付不过来？又缺了什么：同在这个房间的人类无需费力就能察觉，Agent 却无法自动获取的信息是什么？这道差距就是 AX 需要介入的地方：在行动的那一刻，用 Agent 能够利用的形式，把缺失的信息呈现出来。</p>
@@ -501,6 +501,7 @@ if (!updated) return await canonicalClaimRaceReason(executor, observed.id, claim
     </article>
   </main>
   <footer class="blog-footer"><strong>AgentLab / 译文与源码研究</strong><a href="/capabilities/raft-collaboration.html">继续阅读：Raft 协作架构 →</a></footer>
+  <script src="/vendor/lucide/lucide.min.js"></script>
   <script src="/raft-blog.js"></script>
 </body>
 </html>

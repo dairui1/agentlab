@@ -117,6 +117,46 @@ test("theme settings accept only independent preset and mode values", () => {
   assert.deepEqual(normalizeSettings({ preset: "paper", mode: "dark", unsafe: "ignored" }), { preset: "paper", mode: "dark" });
 });
 
+test("Monaco uses resolved preset colors, diff semantics, and the local code font", () => {
+  const f = fixture({ dark: true });
+  const palette = {
+    "pre-bg": "#111111", text: "#ededed", "text-soft": "#b5b5b5", muted: "#8f8f8f",
+    surface: "#161616", accent: "#ff5c4d", "left-soft": "#1c344a", add: "#5fc59f",
+    "add-soft": "#173a2f", delete: "#ee8b84", "delete-soft": "#472725", pending: "#e0b661",
+    "code-font": '"IBM Plex Mono", monospace',
+  };
+  f.root.getComputedStyle = () => ({ getPropertyValue: (key) => palette[key.replace("--theme-", "")] || "" });
+  let definition, selected;
+  const monaco = { editor: {
+    defineTheme: (name, data) => { definition = { name, data }; },
+    setTheme: (name) => { selected = name; },
+  } };
+  assert.deepEqual(f.api.applyEditorTheme(monaco), { name: "agentlab-ink-dark", fontFamily: '"IBM Plex Mono", monospace' });
+  assert.equal(selected, definition.name);
+  assert.equal(definition.data.base, "vs-dark");
+  assert.equal(definition.data.colors["editor.background"], palette["pre-bg"]);
+  assert.equal(definition.data.colors["diffEditor.insertedTextBackground"], `${palette.add}35`);
+  assert.equal(definition.data.colors["diffEditor.removedTextBackground"], `${palette.delete}35`);
+  assert.equal(definition.data.colors["diffEditor.insertedLineBackground"], palette["add-soft"]);
+  assert.notEqual(definition.data.colors["diffEditor.insertedTextBackground"], definition.data.colors["diffEditor.insertedLineBackground"]);
+  assert.equal(definition.data.rules.find((rule) => rule.token === "keyword").foreground, "ff5c4d");
+  for (let level = 1; level <= 6; level += 1) {
+    assert.equal(definition.data.colors[`editorBracketHighlight.foreground${level}`], palette.text);
+  }
+  f.api.setSettings({ preset: "paper", mode: "light" });
+  assert.equal(f.api.applyEditorTheme(monaco).name, "agentlab-paper-light");
+  assert.equal(definition.data.base, "vs");
+});
+
+test("Monaco theme falls back before CSS is ready or when the editor is unavailable", () => {
+  const f = fixture();
+  assert.equal(f.api.applyEditorTheme(), null);
+  const monaco = { editor: { defineTheme: () => { throw new Error("not ready"); } } };
+  assert.equal(f.api.applyEditorTheme(monaco), null);
+  f.root.getComputedStyle = () => ({ getPropertyValue: () => "" });
+  assert.equal(f.api.applyEditorTheme(monaco), null);
+});
+
 test("saved theme applies synchronously before DOM ready and mounts once", () => {
   const f = fixture({ saved: JSON.stringify({ preset: "terminal", mode: "light" }), dark: true, loading: true });
   assert.deepEqual(f.api.getSettings(), { preset: "terminal", mode: "light" });

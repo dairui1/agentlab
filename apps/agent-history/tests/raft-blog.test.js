@@ -83,7 +83,14 @@ test("translated blocks preserve official Markdown order, emphasis, lists and fi
     "agent-inbox-animation-markdown.png", "held-draft-animation-markdown.png",
     "counting-game-raft-room-markdown.png",
   ]);
-  assert.ok(images.every((url) => url.startsWith("https://raft.build/resources/blog/")));
+  assert.ok(images.every((url) => url.startsWith("/assets/source-media/raft/")));
+  const snapshots = JSON.parse(read("assets/source-media/SOURCES.json")).images;
+  for (const image of images) {
+    const snapshot = snapshots.find((item) => `/assets/source-media/${item.file}` === image);
+    assert.ok(snapshot, image);
+    assert.ok(snapshot.source.startsWith("https://raft.build/resources/blog/"));
+    assert.ok(html.includes(`href="${snapshot.source}"`), "the original image link remains available");
+  }
   assert.equal([...html.matchAll(/class="research-note" data-annotation/g)].length, 9);
   assert.doesNotMatch(html, /Let's play a game|Ask a room full of agents|不是原文翻译/);
 });
@@ -133,10 +140,15 @@ test("no JavaScript still exposes translation, annotations and every source", ()
 test("paired translation changes only the approved Agent, Prompt and Thread terminology", () => {
   const originals = html.match(/<(h[1-3]|p|ul|figure) data-original="[^"]+">[\s\S]*?<\/\1>|<hr data-original="separator">/g);
   assert.equal(originals.length, 42);
-  assert.equal(createHash("sha256").update(originals.join("\n")).digest("hex"),
+  // Hosting original bytes locally must not change the protected translation hash.
+  let canonicalOriginals = originals.join("\n");
+  for (const image of JSON.parse(read("assets/source-media/SOURCES.json")).images) {
+    canonicalOriginals = canonicalOriginals.replaceAll(`src="/assets/source-media/${image.file}"`, `src="${image.source}"`);
+  }
+  assert.equal(createHash("sha256").update(canonicalOriginals).digest("hex"),
     "d30bbcb173815c70a20ad9aae584ccc69cd7cb021e7fdf32f2859b3a1c4881aa");
   // Reverse approved terms, their local grammar and CJK spacing to check all other content.
-  const previousWording = originals.join("\n")
+  const previousWording = canonicalOriginals
     .replaceAll("某个 Thread 中的问题", "讨论中的问题")
     .replaceAll("一个供模型读取的 Thread", "一条供模型读取的消息流")
     .replaceAll("工作 Prompt 的", "工作提示的")

@@ -1,10 +1,10 @@
 /* Keep older studies' domain colors in step with the selected mode, not the OS. */
 :root[data-theme] {
-  --theme-coral: #b64943;
+  --theme-coral: #ad433d;
   --theme-coral-soft: #fae8e6;
   --theme-teal: #17685e;
   --theme-teal-soft: #eaf4f1;
-  --theme-gold: #8b671e;
+  --theme-gold: #86621b;
   --theme-gold-soft: #f7efdc;
   --theme-pink: #8c2550;
   --theme-pink-soft: #fce7ec;
@@ -66,23 +66,78 @@
   --trace-unknown: var(--pending);
   --trace-next: var(--left);
 }
-:root[data-theme] .grok-layer:hover,
-:root[data-theme] .grok-x-card:hover,
-:root[data-theme] .grok-evidence-item:hover,
-:root[data-theme] .grok-mechanism-button[aria-selected="true"],
 :root[data-theme] .grok-architecture-node,
 :root[data-theme] .grok-architecture-node:not(:last-child)::after,
 :root[data-theme] .grok-flow li,
 :root[data-theme] .grok-flow li:not(:last-child)::after { background: var(--surface); }
+:root[data-theme] .grok-layer:hover,
+:root[data-theme] .grok-x-card:hover,
+:root[data-theme] .grok-evidence-item:hover,
+:root[data-theme] .grok-mechanism-button[aria-selected="true"] { background: color-mix(in srgb, var(--text) 5%, var(--surface)); }
+:root[data-theme] .grok-hero-figure figcaption { border-color: var(--border); }
 :root[data-theme] .grok-unknown { background: var(--pending-soft); }
+:root[data-theme] .dsh-domain,
+:root[data-theme] .dsh-plugin-capability,
+:root[data-theme] .dsh-official-group,
+:root[data-theme] .dsh-evidence-item,
+:root[data-theme] .dsh-release-button[aria-current="true"] { background: var(--surface); }
 :root[data-theme] .dsh-plugin-capability p,
 :root[data-theme] .dsh-official-group li,
 :root[data-theme] .dsh-analysis-highlights li,
 :root[data-theme] .dsh-boundary span { color: var(--text-soft); }
 :root[data-theme] .cua-desktop { background: var(--surface-muted); }
 :root[data-theme] .cua-screen-badge { border-color: var(--border-strong); }
-:root[data-theme] .aar-cover-art { background: var(--accent-soft); }
+/* This transparent source illustration needs its original light backing. */
+:root[data-theme] .aar-cover-art { background: #7e8d61; }
 :root[data-theme] .aar-note { border-color: var(--border-strong); }
 :root[data-theme] .aar-nav .mode-switch a,
 :root[data-theme] .aar-nav .mode-switch button { color: var(--text); }
 :root[data-theme] .aar-nav .mode-switch [aria-current] { background: var(--accent-soft); color: var(--text); }
+
+/* Status meanings stay green, gold and blue across presets and effective modes. */
+:root[data-theme] .change-provenance[data-type="current-docs"] {
+  color: var(--add);
+  border-color: color-mix(in srgb, var(--add) 45%, var(--border));
+  background: var(--add-soft);
+}
+:root[data-theme] .inspector-type[data-type="exact-history"] {
+  color: var(--right);
+  border-color: color-mix(in srgb, var(--right) 45%, var(--border));
+  background: var(--right-soft);
+}
+:root[data-theme] .inspector-type[data-type="protocol"] {
+  color: var(--left);
+  border-color: color-mix(in srgb, var(--left) 45%, var(--border));
+  background: var(--left-soft);
+}
+:root[data-theme] .feed-filter-option input:checked + .feed-filter-check { color: var(--on-accent); }
+:root[data-theme] .feed-filter-toggle[aria-pressed="true"] .feed-toggle-switch::after { background: var(--on-accent); }
+:root[data-theme] .source-layer[data-state="missing"],
+:root[data-theme] .source-layer[data-state="unchanged"] {
+  opacity: 1;
+  color: var(--muted);
+}
+:root[data-theme] .contract-state-legend > span[data-state="exposed"] { color: var(--add); }
+:root[data-theme] .contract-state-legend > span[data-state="partial"] { color: var(--pending); }
+:root[data-theme] .contract-state-legend > span[data-state="not-exposed"] { color: var(--delete); }
+:root[data-theme] .contract-state-legend > span[data-state="unknown"] { color: var(--muted); }
+:root[data-theme] .inspector-type[data-type="pinned-evidence"],
+:root[data-theme] .inspector-related button[aria-pressed="true"] { color: var(--text); }
+
+@media (max-width: 540px) {
+  :root[data-theme] .mimo-nav agentlab-navigation { order: 3; }
+  :root[data-theme] .mimo-nav .header-links { margin-left: auto; }
+}
+
+@media print {
+  :root[data-theme][data-color-scheme] {
+    --theme-coral: #ad433d;
+    --theme-coral-soft: #fae8e6;
+    --theme-teal: #17685e;
+    --theme-teal-soft: #eaf4f1;
+    --theme-gold: #86621b;
+    --theme-gold-soft: #f7efdc;
+    --theme-pink: #8c2550;
+    --theme-pink-soft: #fce7ec;
+  }
+}

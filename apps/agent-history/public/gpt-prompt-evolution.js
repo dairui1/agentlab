@@ -136,7 +136,8 @@
       try {
         const monaco = await loadMonaco();
         if (record.epoch !== epoch || !record.host.isConnected) return;
-        monaco.editor.setTheme(editorTheme());
+        const theme = root.AgentLabTheme?.applyEditorTheme(monaco);
+        if (!theme) monaco.editor.setTheme(editorTheme());
         record.host.replaceChildren();
         const editor = monaco.editor.createDiffEditor(record.host, {
           automaticLayout: true, readOnly: true, originalEditable: false,
@@ -144,7 +145,7 @@
           enableSplitViewResizing: false, renderIndicators: true,
           renderMarginRevertIcon: false, renderOverviewRuler: false,
           diffAlgorithm: "advanced", ignoreTrimWhitespace: false,
-          fontFamily: "SFMono-Regular, Consolas, Liberation Mono, monospace",
+          fontFamily: theme?.fontFamily || "SFMono-Regular, Consolas, Liberation Mono, monospace",
           fontSize: 12, lineHeight: 19, letterSpacing: 0,
           minimap: { enabled: false }, overviewRulerLanes: 0,
           lineNumbersMinChars: 3, glyphMargin: false, folding: false,
@@ -318,7 +319,12 @@
       persist();
       records.forEach((record) => record.editor?.updateOptions(options()));
     });
-    const updateEditorTheme = () => root.monaco?.editor?.setTheme(editorTheme());
+    const updateEditorTheme = () => {
+      if (!root.monaco?.editor) return;
+      const theme = root.AgentLabTheme?.applyEditorTheme(root.monaco);
+      if (theme) records.forEach((record) => record.editor?.updateOptions({ fontFamily: theme.fontFamily }));
+      else root.monaco.editor.setTheme(editorTheme());
+    };
     dark.addEventListener("change", updateEditorTheme);
     root.addEventListener("agentlab:themechange", updateEditorTheme);
     root.addEventListener("scroll", updateActiveSection, { passive: true });

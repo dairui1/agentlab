@@ -1,0 +1,49 @@
+{
+  "capturedOn": "2026-10-08",
+  "purpose": "Byte-preserving local snapshots of images already displayed in AgentLab; original source links and credits remain in the articles.",
+  "rights": "No additional license is asserted for these source images.",
+  "images": [
+    {
+      "file": "autoresearch-cover.svg",
+      "source": "https://www-cdn.anthropic.com/images/4zrzovbb/website/ddad92700787ec1bf1d80359c0c5e6ca305682b0-1000x1000.svg",
+      "sourcePage": "https://www.anthropic.com/research/automated-researchers-mitigate-alignment-failures",
+      "bytes": 12845,
+      "sha256": "b3641cfc88a266d2257eebe5170a70aa21ff5a12266f52e67e0f8337fedae8fe"
+    },
+    {
+      "file": "raft/counting-game-typical-room-markdown.png",
+      "source": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-typical-room-markdown.png",
+      "sourcePage": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
+      "bytes": 23591,
+      "sha256": "8885ada425856f9bfe5d79e4b17ab1970b6f517c2a8d48b5467f1ca2f81411c8"
+    },
+    {
+      "file": "raft/shared-room-gap-animation-markdown.png",
+      "source": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/shared-room-gap-animation-markdown.png",
+      "sourcePage": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
+      "bytes": 21804,
+      "sha256": "cddfcfe4496d6131b2cffeb0d129513403f2d729ca88052685b135b86eab0d92"
+    },
+    {
+      "file": "raft/agent-inbox-animation-markdown.png",
+      "source": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/agent-inbox-animation-markdown.png",
+      "sourcePage": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
+      "bytes": 27237,
+      "sha256": "3176c3b2cf43e47f7ab234337923653334ba48f4e9209da488b45cc8def7bd88"
+    },
+    {
+      "file": "raft/held-draft-animation-markdown.png",
+      "source": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/held-draft-animation-markdown.png",
+      "sourcePage": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
+      "bytes": 10695,
+      "sha256": "8b39ae4cce2d969ae6c3a8caee43b2e734dd4840e729078eb378652914a7d5bc"
+    },
+    {
+      "file": "raft/counting-game-raft-room-markdown.png",
+      "source": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/counting-game-raft-room-markdown.png",
+      "sourcePage": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/",
+      "bytes": 19567,
+      "sha256": "09969d194355c223c71fe561c63111202e6da2f7874133beb8e3501a5b6587ff"
+    }
+  ]
+}

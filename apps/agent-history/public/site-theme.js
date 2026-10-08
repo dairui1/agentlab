@@ -36,6 +36,50 @@
     function getSettings() { return { ...settings }; }
     function getColorScheme() { return colorScheme; }
 
+    function applyEditorTheme(monaco) {
+      if (!monaco?.editor?.defineTheme || !root.getComputedStyle) return null;
+      const styles = root.getComputedStyle(document.documentElement);
+      const color = (token) => styles.getPropertyValue(`--theme-${token}`).trim();
+      const tokens = ["pre-bg", "text", "text-soft", "muted", "surface", "accent", "left-soft", "add", "add-soft", "delete", "delete-soft", "pending"];
+      const palette = Object.fromEntries(tokens.map((token) => [token, color(token)]));
+      if (Object.values(palette).some((value) => !/^#[0-9a-f]{6}$/i.test(value))) return null;
+      const name = `agentlab-${settings.preset}-${colorScheme}`;
+      monaco.editor.defineTheme(name, {
+        base: colorScheme === "dark" ? "vs-dark" : "vs",
+        inherit: true,
+        rules: [
+          { token: "comment", foreground: palette.muted.slice(1) },
+          { token: "string", foreground: palette.add.slice(1) },
+          { token: "number", foreground: palette.pending.slice(1) },
+          { token: "keyword", foreground: palette.accent.slice(1) },
+        ],
+        colors: {
+          "editor.background": palette["pre-bg"],
+          "editor.foreground": palette.text,
+          "editorGutter.background": palette["pre-bg"],
+          "editorLineNumber.foreground": palette.muted,
+          "editorLineNumber.activeForeground": palette["text-soft"],
+          "editor.selectionBackground": palette["left-soft"],
+          "editor.inactiveSelectionBackground": palette["left-soft"],
+          "editorCursor.foreground": palette.text,
+          ...Object.fromEntries([1, 2, 3, 4, 5, 6].map((level) => [`editorBracketHighlight.foreground${level}`, palette.text])),
+          "editorWidget.background": palette.surface,
+          "editorWidget.foreground": palette.text,
+          "diffEditor.insertedTextBackground": `${palette.add}35`,
+          "diffEditor.removedTextBackground": `${palette.delete}35`,
+          "diffEditor.insertedLineBackground": palette["add-soft"],
+          "diffEditor.removedLineBackground": palette["delete-soft"],
+          "diffEditorGutter.insertedLineBackground": palette["add-soft"],
+          "diffEditorGutter.removedLineBackground": palette["delete-soft"],
+          "scrollbarSlider.background": `${palette.muted}40`,
+          "scrollbarSlider.hoverBackground": `${palette.muted}70`,
+          "scrollbarSlider.activeBackground": `${palette.muted}90`,
+        },
+      });
+      monaco.editor.setTheme(name);
+      return { name, fontFamily: styles.getPropertyValue("--theme-code-font").trim() };
+    }
+
     function syncControls() {
       for (const { input, label, setting, value } of controls) {
         const selected = settings[setting] === value;
@@ -207,8 +251,9 @@
     if (document) {
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount, { once: true });
       else mount();
+      document.fonts?.addEventListener?.("loadingdone", () => root.monaco?.editor?.remeasureFonts());
     }
-    return { getSettings, setSettings, getColorScheme };
+    return { getSettings, setSettings, getColorScheme, applyEditorTheme };
   }
 
   return { initialize, normalizeSettings, STORAGE_KEY, PRESETS, MODES };

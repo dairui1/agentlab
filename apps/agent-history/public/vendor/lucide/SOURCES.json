@@ -1,0 +1,9 @@
+{
+  "package": "lucide",
+  "version": "0.468.0",
+  "repository": "https://github.com/lucide-icons/lucide",
+  "source": "https://registry.npmjs.org/lucide/-/lucide-0.468.0.tgz",
+  "packageIntegrity": "sha512-UFbgwji/ZnAV7iTTE4jujyTV7J95AILKyATDUrqOJrMcUGfXvGjw3c1mcuHZUX2oJfkrAGU9KoxkrLQk2jjtiA==",
+  "file": "lucide.min.js",
+  "sha256": "3411692820cb8d47543f69496aa25fd603a358f4498046f41c508a5a3342210e"
+}

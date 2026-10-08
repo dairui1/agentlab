@@ -1629,7 +1629,8 @@
 
   function ensureEditor(monaco) {
     if (state.editor) return state.editor;
-    monaco.editor.setTheme(editorTheme());
+    const theme = window.AgentLabTheme?.applyEditorTheme(monaco);
+    if (!theme) monaco.editor.setTheme(editorTheme());
     state.editor = monaco.editor.createDiffEditor(elements.diffEditor, {
       automaticLayout: true,
       readOnly: true,
@@ -1644,7 +1645,7 @@
       diffWordWrap: "inherit",
       scrollBeyondLastLine: false,
       smoothScrolling: true,
-      fontFamily: "SFMono-Regular, Consolas, Liberation Mono, monospace",
+      fontFamily: theme?.fontFamily || "SFMono-Regular, Consolas, Liberation Mono, monospace",
       fontSize: 12,
       lineHeight: 19,
       letterSpacing: 0,
@@ -2100,7 +2101,12 @@
     return scheme === "dark" ? "vs-dark" : "vs";
   }
 
-  const updateEditorTheme = () => window.monaco?.editor?.setTheme(editorTheme());
+  const updateEditorTheme = () => {
+    if (!window.monaco?.editor) return;
+    const theme = window.AgentLabTheme?.applyEditorTheme(window.monaco);
+    if (theme) state.editor?.updateOptions({ fontFamily: theme.fontFamily });
+    else window.monaco.editor.setTheme(editorTheme());
+  };
   state.darkScheme.addEventListener?.("change", updateEditorTheme);
   window.addEventListener("agentlab:themechange", updateEditorTheme);
 
