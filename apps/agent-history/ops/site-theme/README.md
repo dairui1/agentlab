@@ -108,11 +108,40 @@ Explicitly accessibility-hidden decorative separators are logged as exempt; this
 does not exempt ordinary text inside an accessibility-hidden simulation.
 Text over images or gradients is retained in `samples[].uncertain` for visual
 review: a solid-color DOM estimate does not establish its actual contrast.
-External resource failures are reported rather than hidden, and any reported
-issue fails the run. `results.json` preserves each case and its diagnostics.
+External resource failures are reported rather than hidden. A pure
+`ERR_CONNECTION_CLOSED` navigation/resource case may retry at most three attempts;
+failed attempt diagnostics, source hashes, and distinct screenshots remain in the
+receipt as network warnings. HTTP failures, runtime errors, contrast, and layout
+failures never qualify for this retry. Any unrecovered issue fails the run.
+`results.json` preserves each case and its diagnostics.
+
+Evidence checks wait for JSON-bound controls and a semantically open, non-inert
+drawer with settled in-viewport bounds. CSS visibility alone is not sufficient:
+the closed drawer can retain a nonzero offscreen box while evidence is loading.
 
 Focused reruns accept comma-separated `SITE_THEME_ROUTES`,
 `SITE_THEME_PRESETS`, `SITE_THEME_MODES`, and `SITE_THEME_WIDTHS`. Automated
 editor checks can be omitted during a layout-only probe with `SITE_THEME_EDITORS=0`.
 Explicit route filters also enable the requested routes at 390px. Automated
 coverage remains Chromium-only and does not establish research-claim correctness.
+
+## Production Checks
+
+The published runtime is commit `81ef5cc81078891c1cd56fb88b167552b5df3e73`,
+Cloudflare version `9a77e303-85e9-47c1-a40c-d0005520a2bf`.
+The final focused production run at `https://agentlab.dairui1.com` passed 64/64
+mobile page cases and 4/4 native editor cases, including 4,461 text samples and
+462 image decodes. Its receipt is
+`/private/tmp/agentlab-site-theme-production-verified/results.json`.
+The final unchanged theme-control run passed 36/36 cases, cross-tab synchronization,
+blocked storage, and all six no-JS fallbacks. Its receipt is
+`/private/tmp/agentlab-theme-controls-production-retry-2/results.json`.
+
+Both completed production receipts have no runtime, asset, contrast, or layout
+errors. Earlier attempts retain five document-level `ERR_CONNECTION_CLOSED`
+failures; this is not a claim of zero errors across every attempt. Five premature
+closed-drawer measurements were corrected in the verifier by waiting for evidence
+bindings and semantic open state, not by changing runtime CSS or lowering bounds.
+The production QA changes are ops-only; the published runtime artifacts remain
+unchanged. Production stills also confirm real icons/fonts, readable evidence,
+the original cover backing, and computed diff rendering.

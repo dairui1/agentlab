@@ -235,9 +235,25 @@ async function dialogs(page, result, output, slug) {
     scope = "#evidenceInspector";
   }
   if (!trigger || !(await trigger.count())) return;
+  if (scope === "#articleEvidence") {
+    await page.waitForFunction((element) => element.getAttribute("aria-controls") === "articleEvidence" && !element.disabled, await trigger.elementHandle());
+  }
   await trigger.click();
   const panel = page.locator(scope);
   await panel.waitFor({ state: "visible" });
+  if (scope === "#articleEvidence") {
+    await page.waitForFunction((selector) => {
+      const dialog = document.querySelector(selector);
+      return dialog && dialog.getAttribute("aria-hidden") !== "true" && !dialog.inert && dialog.classList.contains("is-open");
+    }, scope);
+  }
+  await page.waitForFunction((selector) => {
+    const dialog = document.querySelector(selector);
+    if (!dialog) return false;
+    const box = dialog.getBoundingClientRect();
+    return box.width > 0 && box.x >= -1 && box.x + box.width <= innerWidth + 1
+      && !dialog.getAnimations().some((animation) => animation.playState === "running" || animation.pending);
+  }, scope);
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   result.samples.push(await scan(page, "dialog", scope));
   const size = await panel.boundingBox();
@@ -249,10 +265,10 @@ async function dialogs(page, result, output, slug) {
   result.dialog = scope;
 }
 
-async function verifyCase(browser, base, output, route, preset, mode, width) {
+async function verifyCase(browser, base, output, route, preset, mode, width, attempt = 1) {
   const settings = { preset, mode };
-  const result = { route, preset, mode, width, os: opposite(mode), issues: [], samples: [] };
-  const slug = `${width}-${preset}-${mode}-${route === "/" ? "main" : route.replace(/^\//, "").replace(/\.html$/, "").replaceAll("/", "-")}`;
+  const result = { route, preset, mode, width, attempt, os: opposite(mode), issues: [], samples: [] };
+  const slug = `${width}-${preset}-${mode}-${route === "/" ? "main" : route.replace(/^\//, "").replace(/\.html$/, "").replaceAll("/", "-")}${attempt > 1 ? `-attempt-${attempt}` : ""}`;
   const context = await browser.newContext({ viewport: { width, height: SIZES[width] }, colorScheme: opposite(mode), reducedMotion: "reduce" });
   await context.addInitScript((settings) => {
     try { localStorage.setItem("agentlab.theme.v1", JSON.stringify(settings)); }
@@ -286,6 +302,29 @@ async function verifyCase(browser, base, output, route, preset, mode, width) {
   result.checkedText = result.samples.reduce((count, sample) => count + sample.checked, 0);
   result.status = result.issues.length ? "failed" : "passed";
   return result;
+}
+
+function onlyConnectionClosed(result) {
+  const closed = result.issues.filter((issue) => ["local-resource", "external-resource"].includes(issue.kind)
+    && issue.message === "net::ERR_CONNECTION_CLOSED");
+  if (!closed.length) return false;
+  return result.issues.every((issue) => closed.includes(issue)
+    || (issue.kind === "verification" && /page\.goto: net::ERR_CONNECTION_CLOSED/.test(issue.message))
+    || (issue.kind === "image" && closed.some((failure) => failure.url === issue.src)));
+}
+
+async function verifyCaseWithRetries(browser, base, output, route, preset, mode, width, sources) {
+  const failedAttempts = [];
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const result = await verifyCase(browser, base, output, route, preset, mode, width, attempt);
+    if (onlyConnectionClosed(result) && attempt < 3) {
+      failedAttempts.push({ ...result, sourceHashes: sources });
+      console.log(`network retry ${attempt}/2: ${width} ${preset}/${mode} ${route}`);
+      continue;
+    }
+    if (failedAttempts.length) result.failedNetworkAttempts = failedAttempts;
+    return result;
+  }
 }
 
 async function nativeSettings(page, settings) {
@@ -395,7 +434,7 @@ async function main() {
         for (const mode of modes) {
           for (const route of routeFilter) {
             if (width === 390 && !REPRESENTATIVE.has(route) && !process.env.SITE_THEME_ROUTES) continue;
-            const result = await verifyCase(browser, base, output, route, preset, mode, width);
+            const result = await verifyCaseWithRetries(browser, base, output, route, preset, mode, width, report.sourcesBefore);
             report.cases.push(result);
             const uniqueKinds = [...new Set(result.issues.map((issue) => issue.kind))];
             console.log(`${result.status}: ${width} ${preset}/${mode} ${route}${uniqueKinds.length ? ` (${uniqueKinds.join(", ")})` : ""}`);
@@ -412,6 +451,9 @@ async function main() {
       failed: report.cases.filter((item) => item.status === "failed").length,
       editorCases: report.editors?.length || 0, editorFailures: (report.editors || []).filter((item) => item.issues.length).length,
       checkedText: report.cases.reduce((sum, item) => sum + item.checkedText, 0),
+      networkRetriedCases: report.cases.filter((item) => item.failedNetworkAttempts?.length).length,
+      failedNetworkAttempts: report.cases.reduce((sum, item) => sum + (item.failedNetworkAttempts?.length || 0), 0),
+      priorAttemptIssueCounts: report.cases.flatMap((item) => item.failedNetworkAttempts || []).flatMap((item) => item.issues).reduce((counts, issue) => ({ ...counts, [issue.kind]: (counts[issue.kind] || 0) + 1 }), {}),
       issueCounts: [...report.cases.flatMap((item) => item.issues), ...editorIssues].reduce((counts, issue) => ({ ...counts, [issue.kind]: (counts[issue.kind] || 0) + 1 }), {}),
       stableSources: JSON.stringify(report.sourcesBefore) === JSON.stringify(report.sourcesAfter),
     };
@@ -421,4 +463,5 @@ async function main() {
   } finally { await browser.close(); }
 }
 
-main().catch((error) => { console.error(error); process.exitCode = 1; });
+module.exports = { onlyConnectionClosed };
+if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1; });
