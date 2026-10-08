@@ -3,10 +3,10 @@
   "studies": [
     {
       "id": "pi-durable",
-      "readingLabel": "阅读全文：中断后怎样继续",
+      "readingLabel": "阅读全文：从一次中断理解 Pi Durable",
       "title": "Pi Durable：Agent 中断以后，从哪里继续",
-      "question": "请求已经发出、工具可能已经动手，重启后哪一步可以再跑？",
-      "implication": "把对话、业务文档与任务检查点一起保存；对外部动作设计幂等核对，不用 safe 标签、数据库事务或 done 状态替代业务验收。",
+      "question": "Agent 做到一半退出了，怎样接着做，而不是再来一遍？",
+      "implication": "保存完成结果，也记录正在做哪一步。发出的请求没有结果时，先核对远端，再决定是否重试。",
       "boundary": "固定 2026-10-08 main / 包 1.1.0；977 项离线合同通过，2 项平台跳过。未跑真实模型、SIGKILL、断电或生产负载；远端整仓 CI Test 失败，归属未确认。",
       "editorialRank": 23,
       "verifiedAt": "2026-10-08",
@@ -14,7 +14,7 @@
       "kindLabel": "源码与离线合同测试",
       "topic": "可靠性与恢复",
       "products": [{"id": "pi", "label": "Pi Durable", "version": "1.1.0 / main 1cedd327"}],
-      "fact": "Pi Durable 以持久状态机重开未完成任务，工具只有保存时与当前定义均为 safe 才重放；普通流式模型请求按已提交上下文重发，deferred 请求恢复轮询。",
+      "fact": "Pi Durable 把正在执行的任务存下来。重开后接续未完成的步骤；如果工具可能已经动手，却没有留下结果，默认会报告中断，而不是盲目再做一次。",
       "sourceKinds": ["固定官方源码", "官方运行合同", "本地离线恢复测试", "远端 CI 记录"],
       "headlineEvidence": ["PD-02", "PD-03", "PD-04", "PD-17", "PD-25"],
       "evidenceCount": 25,

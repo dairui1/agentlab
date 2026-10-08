@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const { createHash } = require("node:crypto");
 const { test } = require("node:test");
 const root = path.join(__dirname, "../public");
@@ -65,6 +66,154 @@ test("Pi Durable has static article anchors and shared evidence navigation", () 
   assert.equal(entry.unknownCount, study.unknowns.length);
   assert.equal(require("../public/site-navigation.js").researchItems.find((item) => item.id === study.id).href, entry.legacyHref);
   for (const id of entry.headlineEvidence) assert.ok(study.evidence.some((item) => item.id === id), id);
+});
+
+test("Pi Durable keeps six narrative sections above closed, reachable technical notes", () => {
+  const html = read("capabilities/pi-durable.html");
+  const attribute = (tag, name) => tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
+  const mainIds = ["position", "commit", "recovery", "tools", "fit", "verification"];
+  const sections = [...html.matchAll(/<section\b[^>]*\bdata-article-section\b[^>]*>/g)].map(([tag]) => attribute(tag, "id"));
+  assert.deepEqual(sections, mainIds);
+  const toc = html.match(/<aside\b[^>]*\bdata-article-toc\b[^>]*>([\s\S]*?)<\/aside>/)?.[1];
+  assert.ok(toc);
+  assert.deepEqual([...toc.matchAll(/href="#([^"]+)"/g)].map(([, id]) => id), mainIds);
+
+  const stack = [];
+  const notes = [];
+  const cited = new Set();
+  let ownershipNote;
+  for (const [tag] of html.matchAll(/<\/?(?:section|details|summary|button|p)\b[^>]*>/g)) {
+    const name = tag.match(/^<\/?(\w+)/)[1];
+    const closing = tag.startsWith("</");
+    if (name === "button") {
+      if (closing || !/\bdata-evidence=/.test(tag)) continue;
+      assert.equal(attribute(tag, "type"), "button");
+      assert.match(tag, /\bdata-evidence-trigger(?:\s|>)/);
+      const enclosing = stack.filter((node) => node.name === "details");
+      for (const node of enclosing) node.note.citations += 1;
+      for (const id of attribute(tag, "data-evidence").split(/\s+/)) cited.add(id);
+      continue;
+    }
+    if (name === "p") {
+      if (!closing && attribute(tag, "id") === "ownership") {
+        ownershipNote = stack.findLast((node) => node.name === "details")?.id;
+      }
+      continue;
+    }
+    if (closing) {
+      assert.equal(stack.pop()?.name, name, `unbalanced ${name}`);
+      continue;
+    }
+    const id = attribute(tag, "id");
+    const node = { name, id };
+    if (name === "details") {
+      assert.doesNotMatch(tag, /\bopen(?:\s|=|>)/, `${id} is open by default`);
+      assert.deepEqual(stack.filter((entry) => entry.name === "section").map((entry) => entry.id), ["verification"], id);
+      node.note = { id, summaries: 0, citations: 0 };
+      notes.push(node.note);
+    }
+    if (name === "summary") {
+      const detail = stack.at(-1);
+      assert.equal(detail?.name, "details", "native summary is a direct child of details");
+      detail.note.summaries += 1;
+    }
+    stack.push(node);
+  }
+  assert.equal(stack.length, 0);
+  assert.deepEqual(notes.map((note) => note.id), ["generation", "inbox", "documents", "extensions", "compaction", "deployment", "test-scope"]);
+  assert.ok(notes.every((note) => note.summaries === 1 && note.citations > 0));
+  assert.equal(ownershipNote, "inbox");
+  assert.deepEqual(cited, new Set(loadStudy().evidence.map((item) => item.id)));
+  assert.match(html, /src="\/pi-durable.js"/);
+  assert.ok(html.indexOf('src="/capability-article.js"') < html.indexOf('src="/pi-durable.js"'));
+});
+
+function hashNavigation(hash = "") {
+  class Element {
+    constructor(id, parentElement = null) {
+      this.id = id;
+      this.parentElement = parentElement;
+      this.scrolls = [];
+    }
+    scrollIntoView(options) { this.scrolls.push(options.block); }
+  }
+  class DetailsElement extends Element {
+    constructor(id, parentElement = null) { super(id, parentElement); this.open = false; }
+  }
+  const verification = new Element("verification");
+  const notes = new Element("notes", verification);
+  const generation = new DetailsElement("generation", notes);
+  const deployment = new DetailsElement("deployment", notes);
+  const inbox = new DetailsElement("inbox", notes);
+  const ownership = new Element("ownership", new Element("paragraph", inbox));
+  const fit = new Element("fit");
+  const targets = new Map([generation, deployment, inbox, ownership, fit].map((node) => [node.id, node]));
+  const listeners = new Map();
+  const frames = [];
+  const lookups = [];
+  const location = { hash };
+  const context = vm.createContext({
+    location,
+    HTMLDetailsElement: DetailsElement,
+    document: { getElementById: (id) => { lookups.push(id); return targets.get(id); } },
+    window: { addEventListener: (event, handler) => { assert.ok(!listeners.has(event)); listeners.set(event, handler); } },
+    requestAnimationFrame: (callback) => frames.push(callback),
+  });
+  vm.runInContext(read("pi-durable.js"), context);
+  return { generation, deployment, inbox, ownership, fit, targets, frames, lookups,
+    flush: () => { while (frames.length) frames.shift()(); },
+    change: (next) => { location.hash = next; listeners.get("hashchange")(); } };
+}
+
+test("Pi Durable opens and scrolls the initial decoded technical hash", () => {
+  const page = hashNavigation("#%67eneration");
+  assert.equal(page.generation.open, true);
+  assert.equal(page.deployment.open, false);
+  assert.equal(page.inbox.open, false);
+  assert.deepEqual(page.lookups, ["generation"]);
+  assert.equal(page.frames.length, 1);
+  assert.deepEqual(page.generation.scrolls, []);
+  page.flush();
+  assert.deepEqual(page.generation.scrolls, ["start"]);
+});
+
+test("Pi Durable hashchange reaches details and the nested ownership paragraph", () => {
+  const page = hashNavigation();
+  page.change("#deployment");
+  assert.equal(page.deployment.open, true);
+  assert.equal(page.inbox.open, false);
+  page.flush();
+  assert.deepEqual(page.deployment.scrolls, ["start"]);
+  page.change("#ownership");
+  assert.equal(page.inbox.open, true);
+  assert.equal(page.generation.open, false);
+  page.flush();
+  assert.deepEqual(page.ownership.scrolls, ["start"]);
+});
+
+test("Pi Durable hash navigation opens every enclosing details element", () => {
+  const page = hashNavigation();
+  page.inbox.parentElement = page.generation;
+  page.change("#ownership");
+  assert.equal(page.inbox.open, true);
+  assert.equal(page.generation.open, true);
+  assert.equal(page.deployment.open, false);
+  page.flush();
+  assert.deepEqual(page.ownership.scrolls, ["start"]);
+});
+
+test("Pi Durable ignores malformed, absent and nontechnical hash targets", () => {
+  const page = hashNavigation("#%E0%A4%A");
+  assert.deepEqual(page.lookups, []);
+  assert.doesNotThrow(() => page.change("#%"));
+  assert.deepEqual(page.lookups, []);
+  assert.doesNotThrow(() => page.change("#missing"));
+  assert.deepEqual(page.lookups, ["missing"]);
+  page.change("#fit");
+  page.change("");
+  assert.equal(page.frames.length, 0);
+  assert.deepEqual(page.fit.scrolls, []);
+  assert.ok([page.generation, page.deployment, page.inbox].every((node) => node.open === false));
 });
 
 test("Pi Durable verifier caches artifacts and rejects source, locator and citation drift", async () => {

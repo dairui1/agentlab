@@ -2,8 +2,8 @@
   "id": "pi-durable",
   "title": "Pi Durable：Agent 中断以后，从哪里继续",
   "product": "Pi Durable",
-  "subtitle": "持久任务、恢复执行与外部副作用",
-  "description": "从一次上传后的中断，沿固定源码追踪提交、检查点、工具重放、模型重试、消息队列和子任务取消。",
+  "subtitle": "从一次发布中断，理解工作怎样继续",
+  "description": "测试通过、安装包构建好了，Agent 却在上传时退出。从这一个任务理解 Pi Durable 怎样保存进度、继续工作，以及为什么有些动作不能直接再做一次。",
   "verifiedAt": "2026-10-08",
   "status": "active",
   "source": {
