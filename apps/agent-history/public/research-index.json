@@ -13,39 +13,33 @@
       "kind": "interactive-guide",
       "kindLabel": "交互指南 · 中文译文",
       "topic": "可靠性与恢复",
-      "products": [{"id": "pi", "label": "Pi Durable", "version": "原作 1.0.2 / Pi Pocket d01f763b"}],
+      "products": [
+        {
+          "id": "pi",
+          "label": "Pi Durable",
+          "version": "原作 1.0.2 / Pi Pocket d01f763b"
+        }
+      ],
       "fact": "12 节交互指南让读者观察提交、恢复、输入排队、任务归属、文档分叉、扩展更新、压缩和客户端视图。模型可以操作，原作版本与实际运行验证另行区分。",
-      "sourceKinds": ["第三方指南完整译文", "固定原页源码", "教学交互模型", "MIT 许可证"],
-      "headlineEvidence": ["PG-01", "PG-02", "PG-03"],
+      "sourceKinds": [
+        "第三方指南完整译文",
+        "固定原页源码",
+        "教学交互模型",
+        "MIT 许可证"
+      ],
+      "headlineEvidence": [
+        "PG-01",
+        "PG-02",
+        "PG-03"
+      ],
       "evidenceCount": 3,
       "unknownCount": 1,
       "data": "/capabilities/pi-durable-guide.json",
       "legacyHref": "/capabilities/pi-durable-guide.html"
     },
     {
-      "id": "pi-durable",
-      "readingLabel": "阅读全文：从一次中断理解 Pi Durable",
-      "title": "Pi Durable：Agent 中断以后，从哪里继续",
-      "question": "Agent 做到一半退出了，怎样接着做，而不是再来一遍？",
-      "implication": "保存完成结果，也记录正在做哪一步。发出的请求没有结果时，先核对远端，再决定是否重试。",
-      "boundary": "固定 2026-10-08 main / 包 1.1.0；977 项离线合同通过，2 项平台跳过。未跑真实模型、SIGKILL、断电或生产负载；远端整仓 CI Test 失败，归属未确认。",
-      "editorialRank": 23,
-      "verifiedAt": "2026-10-08",
-      "kind": "fixed-build",
-      "kindLabel": "源码与离线合同测试",
-      "topic": "可靠性与恢复",
-      "products": [{"id": "pi", "label": "Pi Durable", "version": "1.1.0 / main 1cedd327"}],
-      "fact": "Pi Durable 把正在执行的任务存下来。重开后接续未完成的步骤；如果工具可能已经动手，却没有留下结果，默认会报告中断，而不是盲目再做一次。",
-      "sourceKinds": ["固定官方源码", "官方运行合同", "本地离线恢复测试", "远端 CI 记录"],
-      "headlineEvidence": ["PD-02", "PD-03", "PD-04", "PD-17", "PD-25"],
-      "evidenceCount": 25,
-      "unknownCount": 6,
-      "data": "/capabilities/pi-durable.json",
-      "legacyHref": "/capabilities/pi-durable.html"
-    },
-    {
       "id": "code-mode",
-      "readingLabel": "从一次调用认识 Code Mode",
+      "readingLabel": "打开交互专题：Code Mode：用程序连接工具",
       "title": "Code Mode：用程序连接工具",
       "question": "为什么让模型写程序来用工具？这段程序又是怎么跑起来的？",
       "implication": "把查询、循环和筛选交给程序后，模型可以少读中间数据。但程序仍要通过宿主执行工具，权限、错误和已经发生的动作不会随之消失。",
@@ -55,18 +49,40 @@
       "kind": "fixed-build",
       "kindLabel": "概念与源码研究",
       "topic": "架构与扩展",
-      "products": [{"id": "pi", "label": "Pi", "version": "592fb57b / main"}, {"id": "codex", "label": "Codex", "version": "b17c74cf / main"}],
+      "products": [
+        {
+          "id": "pi",
+          "label": "Pi",
+          "version": "592fb57b / main"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "b17c74cf / main"
+        }
+      ],
       "fact": "Code Mode 让模型写一段程序，把几次工具调用连起来，最后只交回需要的结果。从这个过程出发，就能理解 Pi 与 Codex 的实现，也能接着追问代码在哪里运行、谁来授权、失败后怎样继续。",
-      "sourceKinds": ["固定官方源码", "官方使用说明", "第三方迁移配置"],
-      "headlineEvidence": ["CM-01", "CM-03", "CM-05", "CM-06"],
+      "sourceKinds": [
+        "固定官方源码",
+        "官方使用说明",
+        "第三方迁移配置"
+      ],
+      "headlineEvidence": [
+        "CM-01",
+        "CM-03",
+        "CM-05",
+        "CM-06"
+      ],
       "evidenceCount": 12,
       "unknownCount": 3,
       "data": "/capabilities/code-mode.json",
-      "legacyHref": "/capabilities/code-mode.html"
+      "legacyHref": "/guides/code-mode.html",
+      "archiveHref": "/capabilities/code-mode.html",
+      "guideData": "/research-guides/code-mode.json"
     },
     {
       "id": "oar",
-      "readingLabel": "阅读全文：统一接口与原生语义",
+      "readingLabel": "打开交互专题：OAR：统一 Agent 接口，不抹平运行时差异",
       "title": "OAR：统一 Agent 接口，不抹平运行时差异",
       "question": "Agent 正在改代码，我补一句“先别发布”，工作台怎样知道它是否收到？",
       "implication": "收到请求、排进队列、模型读到和任务完成，需要分别记录。换一个 Agent 后，也要继续核对这些状态，不能只看统一接口返回成功。",
@@ -76,18 +92,37 @@
       "kind": "fixed-build",
       "kindLabel": "源码与合同测试",
       "topic": "架构与扩展",
-      "products": [{"id": "oar", "label": "OAR", "version": "v0.10.2 / ef893acc"}],
+      "products": [
+        {
+          "id": "oar",
+          "label": "OAR",
+          "version": "v0.10.2 / ef893acc"
+        }
+      ],
       "fact": "OAR 把请求、回执和原生 Agent 的活动分开记录，供工作台展示进度。请求排队不表示模型已经读到；默认权限和超时收尾仍要由宿主处理。",
-      "sourceKinds": ["固定官方源码", "本地离线合同测试", "本地合成探针", "远端 CI 记录"],
-      "headlineEvidence": ["OA-02", "OA-04", "OA-05", "OA-15", "OA-23"],
+      "sourceKinds": [
+        "固定官方源码",
+        "本地离线合同测试",
+        "本地合成探针",
+        "远端 CI 记录"
+      ],
+      "headlineEvidence": [
+        "OA-02",
+        "OA-04",
+        "OA-05",
+        "OA-15",
+        "OA-23"
+      ],
       "evidenceCount": 24,
       "unknownCount": 5,
       "data": "/capabilities/oar.json",
-      "legacyHref": "/capabilities/oar.html"
+      "legacyHref": "/guides/oar.html",
+      "archiveHref": "/capabilities/oar.html",
+      "guideData": "/research-guides/oar.json"
     },
     {
       "id": "raven",
-      "readingLabel": "阅读全文：反馈如何落到执行层",
+      "readingLabel": "打开交互专题：Raven：反馈怎样变成下一轮执行的 Harness",
       "title": "Raven：反馈怎样变成下一轮执行的 Harness",
       "question": "一次交付不合格，下一轮多了一句提醒，还是多了一道真正执行的检查？",
       "implication": "从一次交付问题追到具体检查，再核对检查是否触发、结果是否改善。新版本能安装，只回答了它能否运行。",
@@ -97,18 +132,37 @@
       "kind": "fixed-build",
       "kindLabel": "源码与报告",
       "topic": "架构与扩展",
-      "products": [{"id": "raven", "label": "Raven", "version": "main / e6c0344c"}],
+      "products": [
+        {
+          "id": "raven",
+          "label": "Raven",
+          "version": "main / e6c0344c"
+        }
+      ],
       "fact": "Curator 可以把交付反馈改成后续执行的检查，生成候选后在副本装配、成组安装。行为探针可以不提供，所以安装成功仍不是效果提升。",
-      "sourceKinds": ["固定官方源码", "作者技术报告", "作者案例", "远端 CI 记录"],
-      "headlineEvidence": ["RV-03", "RV-07", "RV-09", "RV-11", "RV-18"],
+      "sourceKinds": [
+        "固定官方源码",
+        "作者技术报告",
+        "作者案例",
+        "远端 CI 记录"
+      ],
+      "headlineEvidence": [
+        "RV-03",
+        "RV-07",
+        "RV-09",
+        "RV-11",
+        "RV-18"
+      ],
       "evidenceCount": 19,
       "unknownCount": 5,
       "data": "/capabilities/raven.json",
-      "legacyHref": "/capabilities/raven.html"
+      "legacyHref": "/guides/raven.html",
+      "archiveHref": "/capabilities/raven.html",
+      "guideData": "/research-guides/raven.json"
     },
     {
       "id": "mimoagent",
-      "readingLabel": "阅读全文：黑盒接入与白盒训练",
+      "readingLabel": "打开交互专题：MiMo Agent：黑盒接入与白盒训练",
       "title": "MiMo Agent：黑盒接入与白盒训练",
       "question": "怎样训练模型，让它换一个 Agent 框架后仍能工作？",
       "implication": "在可控实现里研究工具和上下文的影响，再用原版 Agent 检查迁移。事件日志有助于排障，但不能直接当成可训练的 token 轨迹。",
@@ -118,18 +172,37 @@
       "kind": "fixed-build",
       "kindLabel": "源码与实验",
       "topic": "训练与泛化",
-      "products": [{ "id": "mimoagent", "label": "MiMo Agent", "version": "467f0a19" }],
+      "products": [
+        {
+          "id": "mimoagent",
+          "label": "MiMo Agent",
+          "version": "467f0a19"
+        }
+      ],
       "fact": "项目一条路径直接接入原版 CLI，另一条路径提供可控的工具和上下文实现。论文用简化框架训练，再在保留框架上测试迁移；黑盒的中间事件与统一任务记录分开保存。",
-      "sourceKinds": ["固定官方源码", "官方技术报告", "本地离线合同测试", "合成事件探针"],
-      "headlineEvidence": ["MI-01", "MI-04", "MI-08", "MI-13", "MI-23"],
+      "sourceKinds": [
+        "固定官方源码",
+        "官方技术报告",
+        "本地离线合同测试",
+        "合成事件探针"
+      ],
+      "headlineEvidence": [
+        "MI-01",
+        "MI-04",
+        "MI-08",
+        "MI-13",
+        "MI-23"
+      ],
       "evidenceCount": 26,
       "unknownCount": 5,
       "data": "/capabilities/mimoagent.json",
-      "legacyHref": "/capabilities/mimoagent.html"
+      "legacyHref": "/guides/mimoagent.html",
+      "archiveHref": "/capabilities/mimoagent.html",
+      "guideData": "/research-guides/mimoagent.json"
     },
     {
       "id": "autoresearch",
-      "readingLabel": "对照阅读：自动对齐研究的完整正文译文与批注",
+      "readingLabel": "打开交互专题：Autoresearch：自动对齐研究的原文与批注",
       "title": "Autoresearch：自动对齐研究的原文与批注",
       "question": "Agent 可以连续提出方法、训练和评测，谁来判断它真的有进展？",
       "implication": "把实验前方案、代码、模型和分数绑定到同一次运行；共享研究记录，但把最终检验留在优化循环之外。",
@@ -139,18 +212,37 @@
       "kind": "paper-study",
       "kindLabel": "论文与实现",
       "topic": "自动研究",
-      "products": [{ "id": "anthropic-aar", "label": "Anthropic AAR", "version": "2608.28945v3 / 02dbe9d2" }],
+      "products": [
+        {
+          "id": "anthropic-aar",
+          "label": "Anthropic AAR",
+          "version": "2608.28945v3 / 02dbe9d2"
+        }
+      ],
       "fact": "五个研究 Agent 反复提出方法、训练模型，并从个人记忆和同伴结果继续研究。模型交给独立评测，方案与分数绑定到同一次实验；保留集结果不返回研究侧。",
-      "sourceKinds": ["论文全文", "固定公开源码", "静态 prompt", "作者报告的实验"],
-      "headlineEvidence": ["AR-02", "AR-03", "AR-05", "AR-12", "AR-13"],
+      "sourceKinds": [
+        "论文全文",
+        "固定公开源码",
+        "静态 prompt",
+        "作者报告的实验"
+      ],
+      "headlineEvidence": [
+        "AR-02",
+        "AR-03",
+        "AR-05",
+        "AR-12",
+        "AR-13"
+      ],
       "evidenceCount": 16,
       "unknownCount": 4,
       "data": "/capabilities/autoresearch.json",
-      "legacyHref": "/capabilities/autoresearch.html"
+      "legacyHref": "/guides/autoresearch.html",
+      "archiveHref": "/capabilities/autoresearch.html",
+      "guideData": "/research-guides/autoresearch.json"
     },
     {
       "id": "raft-multi-agent",
-      "readingLabel": "对照阅读：Raft 原文与九则源码研究",
+      "readingLabel": "打开交互专题：Raft 多 Agent：原文与源码对照",
       "title": "Raft 多 Agent：原文与源码对照",
       "question": "两个 Agent 都没算错，为什么还是报重了？Raft 怎样给它们一次改变主意的机会？",
       "implication": "从报数走到共同做事：Agent 怎样知道房间变了，草稿停下后有哪些选择，任务归属又怎样得到确认。",
@@ -183,11 +275,13 @@
       "evidenceCount": 15,
       "unknownCount": 3,
       "data": "/capabilities/raft-multi-agent.json",
-      "legacyHref": "/capabilities/raft-multi-agent.html"
+      "legacyHref": "/guides/raft-multi-agent.html",
+      "archiveHref": "/capabilities/raft-multi-agent.html",
+      "guideData": "/research-guides/raft-multi-agent.json"
     },
     {
       "id": "raft-collaboration",
-      "readingLabel": "阅读全文：协作型 Agent 基础设施",
+      "readingLabel": "打开交互专题：Raft：协作型 Agent 基础设施",
       "title": "Raft：协作型 Agent 基础设施",
       "question": "多个 Agent 同时接活、漏看新消息或丢失旧线程时，协作系统能保证什么？",
       "implication": "消息送到、模型读到、任务被谁认领和实际动作发生，是不同的事。协作和恢复应分别核对，凭据代理也不能代替主机隔离。",
@@ -197,18 +291,36 @@
       "kind": "fixed-build",
       "kindLabel": "固定源码",
       "topic": "控制与协作",
-      "products": [{ "id": "raft", "label": "Raft", "version": "v1.13.0-source.1 / 05f7d8fd" }],
+      "products": [
+        {
+          "id": "raft",
+          "label": "Raft",
+          "version": "v1.13.0-source.1 / 05f7d8fd"
+        }
+      ],
       "fact": "Raft 接入多个 Coding Agent，在部分协作动作前检查未读消息，并按任务记录的版本处理认领。Codex 遇到特定续接错误时可以另起线程；凭据代理与主机执行权限仍要分开看。",
-      "sourceKinds": ["固定官方源码", "静态 Prompt", "上游测试源码（未运行）"],
-      "headlineEvidence": ["RF-08", "RF-10", "RF-13", "RF-14", "RF-15"],
+      "sourceKinds": [
+        "固定官方源码",
+        "静态 Prompt",
+        "上游测试源码（未运行）"
+      ],
+      "headlineEvidence": [
+        "RF-08",
+        "RF-10",
+        "RF-13",
+        "RF-14",
+        "RF-15"
+      ],
       "evidenceCount": 18,
       "unknownCount": 6,
       "data": "/capabilities/raft-collaboration.json",
-      "legacyHref": "/capabilities/raft-collaboration.html"
+      "legacyHref": "/guides/raft-collaboration.html",
+      "archiveHref": "/capabilities/raft-collaboration.html",
+      "guideData": "/research-guides/raft-collaboration.json"
     },
     {
       "id": "claude-tag",
-      "readingLabel": "阅读全文：提示词与工具设计",
+      "readingLabel": "打开交互专题：Claude Tag：提示词与工具设计",
       "title": "Claude Tag：提示词与工具设计",
       "question": "Slack 中的一条请求，怎样变成有归属、可续接、可交付的 Agent 工作？",
       "implication": "先确认谁在发指令，再确定谁执行、谁核对交付。Prompt 中要求认领任务，并不说明服务端已经用锁保证唯一执行。",
@@ -218,14 +330,31 @@
       "kind": "fixed-build",
       "kindLabel": "运行时快照",
       "topic": "控制与协作",
-      "products": [{ "id": "claude-slack", "label": "Claude Tag", "version": "2026-09-22 / default" }],
+      "products": [
+        {
+          "id": "claude-slack",
+          "label": "Claude Tag",
+          "version": "2026-09-22 / default"
+        }
+      ],
       "fact": "这份 Prompt 要求主 Session 判断请求、派 worker 执行，在后续唤醒时检查结果，再用工具确认答复送达。捕获的 85 项主工具没有直接写文件入口；claim 是协调约定，不是服务端锁。",
-      "sourceKinds": ["脱敏 Runtime Prompt", "Tool Schema"],
-      "headlineEvidence": ["CT-02", "CT-03", "CT-04", "CT-08", "CT-10"],
+      "sourceKinds": [
+        "脱敏 Runtime Prompt",
+        "Tool Schema"
+      ],
+      "headlineEvidence": [
+        "CT-02",
+        "CT-03",
+        "CT-04",
+        "CT-08",
+        "CT-10"
+      ],
       "evidenceCount": 18,
       "unknownCount": 5,
       "data": "/capabilities/claude-tag.json",
-      "legacyHref": "/capabilities/claude-tag.html"
+      "legacyHref": "/guides/claude-tag.html",
+      "archiveHref": "/capabilities/claude-tag.html",
+      "guideData": "/research-guides/claude-tag.json"
     },
     {
       "id": "goal-mode",
@@ -236,24 +365,58 @@
       "editorialRank": 2,
       "featured": true,
       "leadPaths": [
-        { "label": "Codex", "steps": ["持久 goal", "worker 申报", "runtime 续轮"] },
-        { "label": "Claude Code", "steps": ["session condition", "worker 停止", "evaluator 判定"] }
+        {
+          "label": "Codex",
+          "steps": [
+            "持久 goal",
+            "worker 申报",
+            "runtime 续轮"
+          ]
+        },
+        {
+          "label": "Claude Code",
+          "steps": [
+            "session condition",
+            "worker 停止",
+            "evaluator 判定"
+          ]
+        }
       ],
       "verifiedAt": "2026-08-11",
       "kind": "comparison",
       "kindLabel": "跨产品对比",
       "topic": "控制与协作",
       "products": [
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.227" }
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.227"
+        }
       ],
       "fact": "Codex 在线程中保存目标，由运行时判断是否接着做。Claude Code 在回答将结束时调用独立评价者，根据对话记录决定放行还是继续。",
-      "sourceKinds": ["固定版本源码", "产品合同"],
-      "headlineEvidence": ["GM-02", "GM-04", "GM-05", "GM-09", "GM-10"],
+      "sourceKinds": [
+        "固定版本源码",
+        "产品合同"
+      ],
+      "headlineEvidence": [
+        "GM-02",
+        "GM-04",
+        "GM-05",
+        "GM-09",
+        "GM-10"
+      ],
       "evidenceCount": 16,
       "unknownCount": 5,
       "data": "/capabilities/goal-mode.json",
-      "legacyHref": "/capabilities/goal-mode.html"
+      "legacyHref": "/guides/goal-mode.html",
+      "archiveHref": "/capabilities/goal-mode.html",
+      "readingLabel": "打开交互专题：Goal Mode",
+      "guideData": "/research-guides/goal-mode.json"
     },
     {
       "id": "gpt-prompt-evolution",
@@ -267,15 +430,31 @@
       "kindLabel": "Prompt 版本对比",
       "topic": "模型与上下文",
       "products": [
-        { "id": "codex", "label": "Codex", "version": "GPT-5.5 / GPT-5.6 / GPT-6 Astra" }
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "GPT-5.5 / GPT-5.6 / GPT-6 Astra"
+        }
       ],
       "fact": "5.5 偏编码规范，5.6 明确请求分类，GPT-6 把已有授权、完整交付和压缩后的原目标前置；官方 Astra 模板的异步提问段与收集版仍有差异。",
-      "sourceKinds": ["固定 Prompt 文本", "官方源码交叉核验"],
-      "headlineEvidence": ["GP-04", "GP-05", "GP-08", "GP-21", "GP-22"],
+      "sourceKinds": [
+        "固定 Prompt 文本",
+        "官方源码交叉核验"
+      ],
+      "headlineEvidence": [
+        "GP-04",
+        "GP-05",
+        "GP-08",
+        "GP-21",
+        "GP-22"
+      ],
       "evidenceCount": 22,
       "unknownCount": 6,
       "data": "/capabilities/gpt-prompt-evolution.json",
-      "legacyHref": "/capabilities/gpt-prompt-evolution.html"
+      "legacyHref": "/guides/gpt-prompt-evolution.html",
+      "archiveHref": "/capabilities/gpt-prompt-evolution.html",
+      "readingLabel": "打开交互专题：GPT-5.5 → 5.6 → 6：Codex Prompt 演进",
+      "guideData": "/research-guides/gpt-prompt-evolution.json"
     },
     {
       "id": "exo-recursive-harness",
@@ -289,15 +468,32 @@
       "kindLabel": "固定源码",
       "topic": "架构与扩展",
       "products": [
-        { "id": "exo", "label": "Exo", "version": "commit 7801005" }
+        {
+          "id": "exo",
+          "label": "Exo",
+          "version": "commit 7801005"
+        }
       ],
       "fact": "Exo 把状态保存与执行代码分成不同职责。Agent 可以请求重建自己的代码；默认整个仓库仍可写，连存储层代码和历史文件也要额外保护。",
-      "sourceKinds": ["固定版本源码", "官方架构文档", "启动配置"],
-      "headlineEvidence": ["EXO-01", "EXO-04", "EXO-06", "EXO-09", "EXO-14"],
+      "sourceKinds": [
+        "固定版本源码",
+        "官方架构文档",
+        "启动配置"
+      ],
+      "headlineEvidence": [
+        "EXO-01",
+        "EXO-04",
+        "EXO-06",
+        "EXO-09",
+        "EXO-14"
+      ],
       "evidenceCount": 14,
       "unknownCount": 6,
       "data": "/capabilities/exo-recursive-harness.json",
-      "legacyHref": "/capabilities/exo-recursive-harness.html"
+      "legacyHref": "/guides/exo-recursive-harness.html",
+      "archiveHref": "/capabilities/exo-recursive-harness.html",
+      "readingLabel": "打开交互专题：Exo 递归 Harness",
+      "guideData": "/research-guides/exo-recursive-harness.json"
     },
     {
       "id": "deepseek-harness-architecture",
@@ -311,15 +507,32 @@
       "kindLabel": "固定源码",
       "topic": "架构与扩展",
       "products": [
-        { "id": "deepseek-harness", "label": "DeepSeek Harness", "version": "commit 47f9438" }
+        {
+          "id": "deepseek-harness",
+          "label": "DeepSeek Harness",
+          "version": "commit 47f9438"
+        }
       ],
       "fact": "DeepSeek Harness 把模型、工具、会话记录和执行环境拆成可替换服务，由配置装配。给模型的历史从事件日志重建，新增能力不必都通过修改主循环实现。",
-      "sourceKinds": ["固定版本源码", "架构文档", "接口合同"],
-      "headlineEvidence": ["DSH-02", "DSH-04", "DSH-06", "DSH-09", "DSH-11"],
+      "sourceKinds": [
+        "固定版本源码",
+        "架构文档",
+        "接口合同"
+      ],
+      "headlineEvidence": [
+        "DSH-02",
+        "DSH-04",
+        "DSH-06",
+        "DSH-09",
+        "DSH-11"
+      ],
       "evidenceCount": 14,
       "unknownCount": 4,
       "data": "/capabilities/deepseek-harness-architecture.json",
-      "legacyHref": "/capabilities/deepseek-harness-architecture.html"
+      "legacyHref": "/guides/deepseek-harness-architecture.html",
+      "archiveHref": "/capabilities/deepseek-harness-architecture.html",
+      "readingLabel": "打开交互专题：DeepSeek Harness 架构",
+      "guideData": "/research-guides/deepseek-harness-architecture.json"
     },
     {
       "id": "subagent-orchestration",
@@ -333,18 +546,43 @@
       "kindLabel": "跨产品对比",
       "topic": "控制与协作",
       "products": [
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.226" },
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "opencode", "label": "opencode", "version": "1.18.15" }
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.226"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "opencode",
+          "label": "opencode",
+          "version": "1.18.15"
+        }
       ],
       "fact": "三者都能派出子 Agent，但通信和续跑方式不同：Claude Code 提供模型、脚本与团队入口，Codex 有可寻址的 Agent 树，opencode 用子会话接续任务。",
-      "sourceKinds": ["运行时 Prompt", "固定版本源码", "官方文档"],
-      "headlineEvidence": ["CC-02", "CC-06", "CX-03", "CX-04", "OC-01"],
+      "sourceKinds": [
+        "运行时 Prompt",
+        "固定版本源码",
+        "官方文档"
+      ],
+      "headlineEvidence": [
+        "CC-02",
+        "CC-06",
+        "CX-03",
+        "CX-04",
+        "OC-01"
+      ],
       "evidenceCount": 23,
       "unknownCount": 11,
       "evidence": "/dossiers/subagent-evidence.json",
       "summary": "/dossiers/subagent-orchestration.json",
-      "legacyHref": "/mechanisms.html"
+      "legacyHref": "/guides/subagent-orchestration.html",
+      "archiveHref": "/mechanisms.html",
+      "readingLabel": "打开交互专题：Sub-agent 编排",
+      "guideData": "/research-guides/subagent-orchestration.json"
     },
     {
       "id": "session-resume",
@@ -358,18 +596,42 @@
       "kindLabel": "跨产品对比",
       "topic": "控制与协作",
       "products": [
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.226" },
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "opencode", "label": "opencode", "version": "1.18.15" }
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.226"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "opencode",
+          "label": "opencode",
+          "version": "1.18.15"
+        }
       ],
       "fact": "找回会话 ID 和对话记录，不代表旧进程、文件和权限也一起恢复。继续对话、恢复会话、回退和界面回放各自找回不同的内容，需要分别检查。",
-      "sourceKinds": ["固定版本源码", "产品合同"],
-      "headlineEvidence": ["SES-CC-05", "SES-CC-09", "SES-CX-11", "SES-OC-04", "SES-OC-12"],
+      "sourceKinds": [
+        "固定版本源码",
+        "产品合同"
+      ],
+      "headlineEvidence": [
+        "SES-CC-05",
+        "SES-CC-09",
+        "SES-CX-11",
+        "SES-OC-04",
+        "SES-OC-12"
+      ],
       "evidenceCount": 48,
       "unknownCount": 18,
       "evidence": "/dossiers/session-resume-evidence.json",
       "summary": "/dossiers/session-resume-summary.json",
-      "legacyHref": "/mechanisms.html?mechanism=session-resume"
+      "legacyHref": "/guides/session-resume.html",
+      "archiveHref": "/mechanisms.html?mechanism=session-resume",
+      "readingLabel": "打开交互专题：Session 持久化、恢复与回放",
+      "guideData": "/research-guides/session-resume.json"
     },
     {
       "id": "context-compaction",
@@ -383,18 +645,43 @@
       "kindLabel": "跨产品对比",
       "topic": "模型与上下文",
       "products": [
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.226" },
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "opencode", "label": "opencode", "version": "1.18.15" }
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.226"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "opencode",
+          "label": "opencode",
+          "version": "1.18.15"
+        }
       ],
       "fact": "三者都通过替换当前上下文延长任务，但摘要、近期消息和续跑状态的保存方式不同。模型眼前的简短记录，不能代替完整历史或真实文件。",
-      "sourceKinds": ["固定版本源码", "运行时 Prompt", "官方文档"],
-      "headlineEvidence": ["CMP-CC-06", "CMP-CX-05", "CMP-CX-08", "CMP-OC-04", "CMP-OC-06"],
+      "sourceKinds": [
+        "固定版本源码",
+        "运行时 Prompt",
+        "官方文档"
+      ],
+      "headlineEvidence": [
+        "CMP-CC-06",
+        "CMP-CX-05",
+        "CMP-CX-08",
+        "CMP-OC-04",
+        "CMP-OC-06"
+      ],
       "evidenceCount": 28,
       "unknownCount": 10,
       "evidence": "/dossiers/context-compaction-evidence.json",
       "summary": "/dossiers/context-compaction-summary.json",
-      "legacyHref": "/mechanisms.html?mechanism=context-compaction"
+      "legacyHref": "/guides/context-compaction.html",
+      "archiveHref": "/mechanisms.html?mechanism=context-compaction",
+      "readingLabel": "打开交互专题：上下文压缩",
+      "guideData": "/research-guides/context-compaction.json"
     },
     {
       "id": "token-budget-context",
@@ -408,15 +695,31 @@
       "kindLabel": "单产品实现",
       "topic": "模型与上下文",
       "products": [
-        { "id": "codex", "label": "Codex", "version": "0.151.0" }
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.151.0"
+        }
       ],
       "fact": "TokenBudget 另起上下文窗口，用工作笔记和可查询历史接续任务。在研究固定的 0.151.0 版本中，这条路径仍默认关闭，常规摘要压缩继续存在。",
-      "sourceKinds": ["固定版本源码", "GitHub PR", "本机运行时"],
-      "headlineEvidence": ["TB-01", "TB-03", "TB-05", "TB-08"],
+      "sourceKinds": [
+        "固定版本源码",
+        "GitHub PR",
+        "本机运行时"
+      ],
+      "headlineEvidence": [
+        "TB-01",
+        "TB-03",
+        "TB-05",
+        "TB-08"
+      ],
       "evidenceCount": 10,
       "unknownCount": 4,
       "data": "/capabilities/token-budget-context.json",
-      "legacyHref": "/capabilities/token-budget-context.html"
+      "legacyHref": "/guides/token-budget-context.html",
+      "archiveHref": "/capabilities/token-budget-context.html",
+      "readingLabel": "打开交互专题：Codex TokenBudget 上下文切换",
+      "guideData": "/research-guides/token-budget-context.json"
     },
     {
       "id": "model-routing",
@@ -430,18 +733,43 @@
       "kindLabel": "跨产品对比",
       "topic": "模型与上下文",
       "products": [
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.226" },
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "opencode", "label": "opencode", "version": "1.18.15" }
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.226"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "opencode",
+          "label": "opencode",
+          "version": "1.18.15"
+        }
       ],
       "fact": "选中的名称可能是模型别名，组织规则、推理档位和故障回退又会影响实际调用。配置里的选择，不一定就是最后执行和计费的模型。",
-      "sourceKinds": ["固定版本源码", "版本记录", "官方文档"],
-      "headlineEvidence": ["MR-CC-04", "MR-CC-11", "MR-CX-17", "MR-OC-15", "MR-INF-05"],
+      "sourceKinds": [
+        "固定版本源码",
+        "版本记录",
+        "官方文档"
+      ],
+      "headlineEvidence": [
+        "MR-CC-04",
+        "MR-CC-11",
+        "MR-CX-17",
+        "MR-OC-15",
+        "MR-INF-05"
+      ],
       "evidenceCount": 60,
       "unknownCount": 19,
       "evidence": "/dossiers/model-routing-evidence.json",
       "summary": "/dossiers/model-routing-summary.json",
-      "legacyHref": "/mechanisms.html?mechanism=model-routing"
+      "legacyHref": "/guides/model-routing.html",
+      "archiveHref": "/mechanisms.html?mechanism=model-routing",
+      "readingLabel": "打开交互专题：模型路由、Reasoning 与回退",
+      "guideData": "/research-guides/model-routing.json"
     },
     {
       "id": "permission-sandbox",
@@ -455,18 +783,42 @@
       "kindLabel": "跨产品对比",
       "topic": "工具与安全",
       "products": [
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.226" },
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "opencode", "label": "opencode", "version": "1.18.15" }
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.226"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "opencode",
+          "label": "opencode",
+          "version": "1.18.15"
+        }
       ],
       "fact": "批准请求，只完成了其中一道检查。工具是否可用、策略是否放行、操作系统权限和沙箱限制，都可能影响执行；成功与否仍要看实际结果。",
-      "sourceKinds": ["固定版本源码", "产品合同"],
-      "headlineEvidence": ["PERM-CC-06", "PERM-CC-09", "PERM-CX-01", "PERM-CX-10", "PERM-OC-04"],
+      "sourceKinds": [
+        "固定版本源码",
+        "产品合同"
+      ],
+      "headlineEvidence": [
+        "PERM-CC-06",
+        "PERM-CC-09",
+        "PERM-CX-01",
+        "PERM-CX-10",
+        "PERM-OC-04"
+      ],
       "evidenceCount": 41,
       "unknownCount": 10,
       "evidence": "/dossiers/permission-sandbox-evidence.json",
       "summary": "/dossiers/permission-sandbox-summary.json",
-      "legacyHref": "/mechanisms.html?mechanism=permission-sandbox"
+      "legacyHref": "/guides/permission-sandbox.html",
+      "archiveHref": "/mechanisms.html?mechanism=permission-sandbox",
+      "readingLabel": "打开交互专题：权限、审批与沙箱",
+      "guideData": "/research-guides/permission-sandbox.json"
     },
     {
       "id": "tool-contract",
@@ -480,18 +832,42 @@
       "kindLabel": "跨产品对比",
       "topic": "工具与安全",
       "products": [
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.226" },
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "opencode", "label": "opencode", "version": "1.18.15" }
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.226"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "opencode",
+          "label": "opencode",
+          "version": "1.18.15"
+        }
       ],
       "fact": "调用结束不代表业务成功；超时后，动作也可能已经发生。调用编号不能自动阻止重复，重新请求之前需要核对目标系统的结果。",
-      "sourceKinds": ["固定版本源码", "运行时合同"],
-      "headlineEvidence": ["TOOL-CC-07", "TOOL-CC-15", "TOOL-CX-16", "TOOL-OC-14", "TOOL-OC-16"],
+      "sourceKinds": [
+        "固定版本源码",
+        "运行时合同"
+      ],
+      "headlineEvidence": [
+        "TOOL-CC-07",
+        "TOOL-CC-15",
+        "TOOL-CX-16",
+        "TOOL-OC-14",
+        "TOOL-OC-16"
+      ],
       "evidenceCount": 51,
       "unknownCount": 17,
       "evidence": "/dossiers/tool-contract-evidence.json",
       "summary": "/dossiers/tool-contract-summary.json",
-      "legacyHref": "/mechanisms.html?mechanism=tool-contract"
+      "legacyHref": "/guides/tool-contract.html",
+      "archiveHref": "/mechanisms.html?mechanism=tool-contract",
+      "readingLabel": "打开交互专题：Tool 调用、结果与失败语义",
+      "guideData": "/research-guides/tool-contract.json"
     },
     {
       "id": "mcp-dynamic-tools",
@@ -505,18 +881,43 @@
       "kindLabel": "跨产品对比",
       "topic": "工具与安全",
       "products": [
-        { "id": "claude-code", "label": "Claude Code", "version": "2.1.226" },
-        { "id": "codex", "label": "Codex", "version": "0.147.0" },
-        { "id": "opencode", "label": "opencode", "version": "1.18.15" }
+        {
+          "id": "claude-code",
+          "label": "Claude Code",
+          "version": "2.1.226"
+        },
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "0.147.0"
+        },
+        {
+          "id": "opencode",
+          "label": "opencode",
+          "version": "1.18.15"
+        }
       ],
       "fact": "配置里有服务、连接就绪、模型拿到工具说明和获准调用，是不同状态。缓存中的工具可见，也不代表当前能执行；Codex 的动态工具另由宿主处理，不是 MCP 服务调用。",
-      "sourceKinds": ["固定版本源码", "协议", "官方文档"],
-      "headlineEvidence": ["MCP-CC-03", "MCP-CC-11", "MCP-CX-10", "MCP-CX-15", "MCP-OC-18"],
+      "sourceKinds": [
+        "固定版本源码",
+        "协议",
+        "官方文档"
+      ],
+      "headlineEvidence": [
+        "MCP-CC-03",
+        "MCP-CC-11",
+        "MCP-CX-10",
+        "MCP-CX-15",
+        "MCP-OC-18"
+      ],
       "evidenceCount": 76,
       "unknownCount": 26,
       "evidence": "/dossiers/mcp-dynamic-tools-evidence.json",
       "summary": "/dossiers/mcp-dynamic-tools-summary.json",
-      "legacyHref": "/mechanisms.html?mechanism=mcp-dynamic-tools"
+      "legacyHref": "/guides/mcp-dynamic-tools.html",
+      "archiveHref": "/mechanisms.html?mechanism=mcp-dynamic-tools",
+      "readingLabel": "打开交互专题：MCP 与动态工具",
+      "guideData": "/research-guides/mcp-dynamic-tools.json"
     },
     {
       "id": "browser-use",
@@ -530,15 +931,32 @@
       "kindLabel": "固定构建",
       "topic": "界面自动化",
       "products": [
-        { "id": "codex", "label": "Codex Desktop", "version": "build 6234" }
+        {
+          "id": "codex",
+          "label": "Codex Desktop",
+          "version": "build 6234"
+        }
       ],
       "fact": "工具可以接入内置浏览器、Chrome 扩展或 CDP，实际绑定决定它在哪里工作。发行包里有这些入口，不能说明某次会话已经接通。",
-      "sourceKinds": ["发行包", "固定文件摘要", "产品合同"],
-      "headlineEvidence": ["BU-04", "BU-07", "BU-08", "BU-19", "BU-20"],
+      "sourceKinds": [
+        "发行包",
+        "固定文件摘要",
+        "产品合同"
+      ],
+      "headlineEvidence": [
+        "BU-04",
+        "BU-07",
+        "BU-08",
+        "BU-19",
+        "BU-20"
+      ],
       "evidenceCount": 32,
       "unknownCount": 11,
       "data": "/capabilities/browser-use.json",
-      "legacyHref": "/capabilities/browser-use.html"
+      "legacyHref": "/guides/browser-use.html",
+      "archiveHref": "/capabilities/browser-use.html",
+      "readingLabel": "打开交互专题：Browser Use",
+      "guideData": "/research-guides/browser-use.json"
     },
     {
       "id": "computer-use",
@@ -552,19 +970,53 @@
       "kindLabel": "机制专题",
       "topic": "界面自动化",
       "products": [
-        { "id": "codex", "label": "Codex", "version": "build 6234" },
-        { "id": "kimi-code", "label": "Kimi Code", "version": "KimiCU 0.5.8" },
-        { "id": "pi", "label": "Pi", "version": "pi-computer-use 0.5.1" },
-        { "id": "qwen-code", "label": "Qwen/Cua", "version": "CUA Driver 0.20.3" },
-        { "id": "deepseek-harness", "label": "DSH", "version": "a572908" }
+        {
+          "id": "codex",
+          "label": "Codex",
+          "version": "build 6234"
+        },
+        {
+          "id": "kimi-code",
+          "label": "Kimi Code",
+          "version": "KimiCU 0.5.8"
+        },
+        {
+          "id": "pi",
+          "label": "Pi",
+          "version": "pi-computer-use 0.5.1"
+        },
+        {
+          "id": "qwen-code",
+          "label": "Qwen/Cua",
+          "version": "CUA Driver 0.20.3"
+        },
+        {
+          "id": "deepseek-harness",
+          "label": "DSH",
+          "version": "a572908"
+        }
       ],
       "fact": "虚拟光标显示操作过程，实际点击交给执行层；设计上，两者应对应同一次界面观察。是否真的保存成功，要看动作后的界面或独立检查，而不是动画是否播完。",
-      "sourceKinds": ["固定发行包", "签名二进制", "固定版本源码", "协议合同"],
-      "headlineEvidence": ["CU-09", "CU-19", "CU-32", "CU-36", "CU-37"],
+      "sourceKinds": [
+        "固定发行包",
+        "签名二进制",
+        "固定版本源码",
+        "协议合同"
+      ],
+      "headlineEvidence": [
+        "CU-09",
+        "CU-19",
+        "CU-32",
+        "CU-36",
+        "CU-37"
+      ],
       "evidenceCount": 38,
       "unknownCount": 13,
       "data": "/capabilities/computer-use.json",
-      "legacyHref": "/capabilities/computer-use.html"
+      "legacyHref": "/guides/computer-use.html",
+      "archiveHref": "/capabilities/computer-use.html",
+      "readingLabel": "打开交互专题：CUA 后台执行与可视化",
+      "guideData": "/research-guides/computer-use.json"
     }
   ]
 }

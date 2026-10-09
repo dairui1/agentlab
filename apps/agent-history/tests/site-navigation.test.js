@@ -65,7 +65,9 @@ test("research navigation retains all destinations and marks the catalog current
   assert.equal(links[0].getAttribute("aria-current"), "page");
   assert.deepEqual(links.map((link) => link.href), researchItems.map((item) => item.href));
   const goal = mount("auto", "?study=goal-mode");
-  assert.equal(goal.links.find((link) => link.href.includes("?study=goal-mode")).getAttribute("aria-current"), "page");
+  assert.equal(goal.links.find((link) => link.href === "/guides/goal-mode.html").getAttribute("aria-current"), "page");
+  assert.equal(links.filter((link) => link.href.includes("pi-durable")).length, 1);
+  assert.equal(links.find((link) => link.href.includes("pi-durable")).href, "/capabilities/pi-durable-guide.html");
 });
 
 test("research menu supports arrow navigation, wraparound, Home, End, and Escape", () => {

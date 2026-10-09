@@ -159,9 +159,12 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Pi Durable", "Pi Durable 交互译文", "Code Mode", "OAR Agent 接口", "Raven Harness 改进", "MiMo Agent", "Autoresearch", "Raft 多 Agent 博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
-  assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
-  assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Pi Durable", "Code Mode", "OAR Agent 接口", "Raven Harness 改进", "MiMo Agent", "Autoresearch", "Raft 多 Agent 博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
+  assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/guides/goal-mode.html");
+  assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/guides/token-budget-context.html");
+  assert.deepEqual(siteNavigation.researchItems.filter((item) => item.label.includes("Pi Durable")), [
+    { id: "pi-durable-guide", label: "Pi Durable", icon: "database", href: "/capabilities/pi-durable-guide.html" },
+  ]);
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : "research"/);
   assert.match(siteNavigationSource, /aria-haspopup", "menu"/);
   assert.match(siteNavigationSource, /event\.key !== "ArrowDown"/);
@@ -213,6 +216,9 @@ test("the research landing puts questions and engineering decisions before the e
   assert.doesNotMatch(capabilitiesHtml, /CAPABILITY TEARDOWNS|THE COLLECTION|阅读时间|article-number|article-status|capability-library/);
 
   assert.ok(researchIndex.studies.length > 0);
+  assert.equal(researchIndex.studies.length, 23);
+  assert.equal(researchIndex.studies.filter((study) => study.guideData).length, 22);
+  assert.ok(!researchIndex.studies.some((study) => study.id === "pi-durable"));
   assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, researchIndex.studies.length);
   assert.deepEqual(new Set(researchIndex.studies.map((study) => study.kind)), new Set(["comparison", "fixed-build", "paper-study", "interactive-guide"]));
   assert.ok(researchIndex.studies.some((study) => study.evidence));
@@ -231,6 +237,14 @@ test("the research landing puts questions and engineering decisions before the e
     assert.equal(new Set(study.headlineEvidence).size, study.headlineEvidence.length);
     assert.ok(study.evidenceCount > 0 && study.unknownCount > 0);
     assert.ok(study.legacyHref.startsWith("/"));
+    if (study.id !== "pi-durable-guide") {
+      assert.equal(study.legacyHref, `/guides/${study.id}.html`);
+      assert.equal(study.guideData, `/research-guides/${study.id}.json`);
+      assert.ok(study.archiveHref.startsWith("/") && study.archiveHref !== study.legacyHref);
+      const sourceUrl = new URL(study.archiveHref, "https://agentlab.test");
+      assert.match(read(sourceUrl.pathname.slice(1)), /src="\/research-reading\.js"/);
+      assert.ok(fs.existsSync(path.join(publicRoot, study.legacyHref)), `${study.id} guide missing`);
+    }
   }
 
   assert.match(researchScript, /study\.question/);
@@ -240,7 +254,9 @@ test("the research landing puts questions and engineering decisions before the e
   assert.match(researchScript, /observation: "观察"/);
   assert.match(researchScript, /document\.getElementById\("researchArchive"\)\.open = true/);
   assert.match(researchScript, /ResearchNavigation\.detailRequest/);
-  assert.match(researchScript, /link\.href = researchHref\(study\)/);
+  assert.match(researchScript, /link\.href = readingHref\(study\)/);
+  assert.match(researchScript, /new URL\(study\.legacyHref, location\.href\)/);
+  assert.match(researchScript, /url\.searchParams\.set\("from", researchHref\(study\)\)/);
   assert.match(researchScript, /type: "unknown"/);
   assert.match(researchScript, /record\.boundary/);
   assert.match(researchScript, /claim\.artifact/);

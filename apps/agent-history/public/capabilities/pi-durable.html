@@ -3,154 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Agent 发布版本时突然退出，重新打开后应该从哪里继续？从一个任务理解 Pi Durable 怎样保存进度、恢复工作，以及为什么有些动作不能直接再做一次。">
-  <title>Pi Durable：Agent 中断以后，从哪里继续 · AgentLab</title>
+  <meta http-equiv="refresh" content="0;url=/capabilities/pi-durable-guide.html">
+  <title>Pi Durable · AgentLab</title>
+  <link rel="canonical" href="https://agentlab.dairui1.com/capabilities/pi-durable-guide">
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
   <script src="/site-theme.js"></script>
-  <link rel="stylesheet" href="/styles.css">
   <script src="/site-navigation.js"></script>
-  <link rel="stylesheet" href="/capability-article.css?v=3">
-  <link rel="stylesheet" href="/pi-durable.css">
+  <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/site-theme.css">
   <link rel="stylesheet" href="/site-theme-compat.css">
 </head>
-<body class="article-page pi-durable-study" data-evidence-source="/capabilities/pi-durable.json">
-  <div id="articleProgress" class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
-  <div class="app-shell article-shell">
-    <header class="topbar">
-      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
-      <agentlab-navigation current="pi-durable" compare-agent="pi"></agentlab-navigation>
-      <div class="header-links"><a class="icon-button" href="https://github.com/earendil-works/pi/tree/1cedd32724abfcb0915f76cc61b6827e2c16dbad/packages/durable" target="_blank" rel="noopener noreferrer" aria-label="打开 Pi Durable 固定源码" title="Pi Durable 源码"><i data-lucide="github" aria-hidden="true"></i></a></div>
-    </header>
-    <main>
-      <header class="article-hero"><div class="article-hero-inner">
-        <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Pi Durable</span></nav>
-        <div class="pi-durable-title"><img src="/agent-icons/pi.png" alt="Pi 标识" width="44" height="44"><h1>Pi Durable</h1></div>
-        <p class="article-dek">一个让 Agent 应用保存进度、在进程重启后继续工作的库。</p>
-        <div class="article-byline"><time datetime="2026-10-08">2026-10-08</time><span>源码阅读与离线测试</span><a href="#verification">研究范围</a></div>
-      </div></header>
-      <div class="capability-reading">
-        <aside class="article-toc" id="articleToc" data-article-toc aria-label="文章目录">
-          <span>中断以后怎么办</span><ol>
-            <li><a href="#position" data-index="01">聊天记录为什么不够</a></li>
-            <li><a href="#commit" data-index="02">任务怎样留下进度</a></li>
-            <li><a href="#recovery" data-index="03">重启后怎样继续</a></li>
-            <li><a href="#tools" data-index="04">哪一步不能直接重做</a></li>
-            <li><a href="#fit" data-index="05">什么时候值得用</a></li>
-            <li><a href="#verification" data-index="06">技术细节与研究范围</a></li>
-          </ol>
-        </aside>
-        <article class="capability-article" id="articleBody">
-          <div class="durable-opening">
-          <p class="article-lead">你让 Agent 发布一个版本。它已经跑完测试，也构建了安装包。就在上传时，进程退出了。</p>
-          <p>现在重新打开它，应该从哪一步继续？从头来一遍，测试和构建会白做；可上传如果已经成功，只是结果没记下来，再传一次又可能重复。</p>
-          <p>Pi Durable 想解决的，就是这种<strong>工作做到一半以后，怎样接着做</strong>的问题。下面沿着这次发布看它的办法。这个例子是机制推演，不是实际发布记录。</p>
-          </div>
-
-          <section id="position" data-article-section>
-            <h2>聊天记录里有进度，为什么还不够？</h2>
-            <p>从对话里，大致能看出测试已经通过。但一句“开始上传”，并不能告诉新进程上传有没有成功。人或新 Agent 还得检查文件、查询远端，再决定哪些步骤要重做。</p>
-            <p>Pi Durable 换了一个办法：<strong>把正在执行的工作直接保存成任务记录。</strong>除了对话，它还记着当前阶段、执行参数，以及正在等什么。新进程打开同一份存储，就能找到尚未完成的任务。</p>
-            <p>库自带模型请求、工具调用的执行记录。要让整个发布流程准确停在“测试完成，等待上传”，开发者还需要把这些业务步骤设计成可保存的阶段。这个例子按这样的应用设计展开。</p>
-            <p>例如，上传前保存“接下来上传这个安装包”，收到结果后再保存“这一步已经完成”。源码把这类可保存、可接续的工作叫作 <code>Task</code>。</p>
-            <p>这是供开发者接入应用的库。终端里的 Pi Coding Agent 仍是另一套产品，已有会话不会因为安装 Durable 就自动获得这套恢复流程。<button class="evidence-ref" type="button" data-evidence="PD-01 PD-18" data-evidence-trigger>项目定位</button></p>
-          </section>
-
-          <section id="commit" data-article-section>
-            <h2>正常运行时，先保存，再动手</h2>
-            <p>先把没有中断的一次上传看完整。</p>
-            <figure class="article-figure"><div class="durable-trace">
-              <div><span>01 / 记下要做什么</span><strong>保存调用意图</strong><small>要上传哪个包，用哪些参数</small></div>
-              <div><span>02 / 真正执行</span><strong>发出上传请求</strong><small>工具开始与远端服务交互</small></div>
-              <div><span>03 / 记下结果</span><strong>保存完成记录</strong><small>工具结果与任务状态一起提交</small></div>
-              <div><span>04 / 告诉外界</span><strong>显示上传结果</strong><small>界面观察到已经保存的状态</small></div>
-            </div><figcaption>提交顺序示意。这里解释的是上传工具的一次调用，不是全部业务流程的运行日志。</figcaption></figure>
-            <p>为什么不先上传，回头再记进度？因为进程如果在中间退出，存储里甚至不会留下“尝试过这次上传”的记录。Pi Durable 的工具执行流程会先保存调用意图，然后才让工具动手。<button class="evidence-ref" type="button" data-evidence="PD-04" data-evidence-trigger>调用前的保存</button></p>
-            <p>结果也一样，要先存下来，再让界面和其他任务看见。内置工具流程把调用结果和任务状态一起保存，随后才发布变更。否则界面已经显示“上传完成”，新进程却找不到这份结果，恢复就会失去依据。源码中的 <code>commit()</code> 负责这种成组保存。<button class="evidence-ref" type="button" data-evidence="PD-02" data-evidence-trigger>保存后才发布变更</button></p>
-            <p>到这里，它建立了一条很有用的规则：<strong>后续工作依据已保存的进度继续，而不是依据旧进程碰巧还记得什么。</strong></p>
-          </section>
-
-          <section id="recovery" data-article-section>
-            <h2>进程重启，工作从保存的阶段继续</h2>
-            <p>回到那次中断。新进程不可能接住旧进程的函数调用、网络连接和内存，它能读到的是存储里的记录。</p>
-            <p>Pi Durable 打开存储后，会找出未完成的任务，把上次标为“正在运行”的任务重新排进待运行队列。应用启动调度后，任务按保存的阶段继续。<button class="evidence-ref" type="button" data-evidence="PD-03" data-evidence-trigger>重开与恢复调度</button></p>
-            <p>在这套按阶段保存的发布流程里，测试和构建已经提交完成结果，就可以继续后续工作，不必靠模型重新回忆。上传的结果也已经提交，就往下一步走；如果只留下“准备上传”，却没有结果，这一步便需要单独处理。</p>
-            <p>还有一件实际的事：<strong>库不会替你把退出的服务重新启动。</strong>应用或进程管理器要先启动新进程，再打开这份存储、接续任务。</p>
-          </section>
-
-          <section id="tools" data-article-section>
-            <h2>上传成功了，却没来得及保存结果</h2>
-            <p>最难处理的中断，发生在第二步和第三步之间：远端已经收到了安装包，本地却还没保存结果。</p>
-            <p>新进程看到的只有“准备上传”。它无法仅凭这份记录，分清请求还没发出、发出了但失败，还是已经成功。<strong>这时再做一次，可能真的多做一次。</strong></p>
-            <p>Pi Durable 默认不会替应用猜。工具执行被打断后，它会给模型一个 <code>interrupted</code> 结果，说明这一步可能已部分执行，留下已经保存的输出。应用还需要安排一次远端查询，确认上传是否完成，再决定是否重试。<button class="evidence-ref" type="button" data-evidence="PD-04" data-evidence-trigger>中断后的默认处理</button></p>
-            <p>开发者也可以明确声明一个工具能安全重跑，源码里的选项叫 <code>replay: "safe"</code>。但让上传变得可重跑，需要上传服务一起配合。例如，每次请求都带同一个任务编号，服务发现这个编号已经处理过，就返回原来的结果，而不是再创建一个版本。</p>
-            <p>这种“再试一遍不会多做一次”的约定，叫<strong>幂等</strong>。Pi Durable 能保存编号和执行进度；真正防止远端重复动作的，是服务对这个编号的处理。恢复测试里也能看到这个分工：假服务被调用两次，但凭同一个编号，只应用了一次业务操作。<button class="evidence-ref" type="button" data-evidence="PD-17" data-evidence-trigger>恢复测试中的两次调用</button></p>
-          </section>
-
-          <section id="fit" data-article-section>
-            <h2>什么应用值得承担这套复杂度？</h2>
-            <p>如果一个 Agent 由你一直看着，任务短，失败后很容易核对、重新执行，普通会话记录往往已经够用。Pi Durable 的收益，更容易出现在<strong>任务还没结束，服务却可能重启</strong>的地方：重开后接着处理工单，等待人的审批后继续，或几个步骤要分开保存和接续。</p>
-            <p>它把模型请求、工具调用和开发者自己的任务放进同一套保存与恢复流程里。应用因此可以围绕“哪些工作还没结束”组织界面和调度，而不必把所有进度塞进一段长对话。</p>
-            <p>代价是，开发者要把重要阶段设计清楚，选择真正持久的存储，并为上传、发消息等外部动作准备核对和重试规则。当前 API 仍是实验性的，升级时也要考虑旧任务能否继续运行。</p>
-            <p><strong>Pi Durable 让继续工作有了明确起点。至于那一步该不该再做，它把判断所需的记录留下来，而不是替外部世界作保证。</strong></p>
-          </section>
-
-          <section id="verification" data-article-section>
-            <h2>技术细节与研究范围</h2>
-            <p>本文依据 2026-10-08 固定的源码与本地离线测试。下面补充正文没有展开的实现，完整文件、行号和哈希保留在<a href="/capabilities.html?study=pi-durable">证据索引</a>中。</p>
-            <div class="durable-notes">
-              <details id="generation">
-                <summary>模型生成到一半时，具体保存了什么？</summary>
-                <p>普通流式请求会保存模型、部分请求选项和上下文截止位置。重开后从这个位置重建上下文，再请求模型；已保存的半截回复标为中断。请求前的 hook 会再运行，模型输出和费用也可能与第一次不同。<button class="evidence-ref" type="button" data-evidence="PD-05 PD-19" data-evidence-trigger>请求与流式进度</button></p>
-                <p>如果提供商已经返回后台请求的 handle，并被保存下来，则走另一条路径：重开后继续轮询已有请求。等待重试的时间也会保存，而不是每次重启都从头计时。每个会话另存 provider session UUID，用于缓存和会话身份，不是提供商的请求去重承诺。<button class="evidence-ref" type="button" data-evidence="PD-06 PD-22" data-evidence-trigger>后台请求与会话身份</button></p>
-              </details>
-              <details id="inbox">
-                <summary>新消息、子 Agent 和取消，怎样接续？</summary>
-                <p>会话忙碌时，新输入先进入持久队列。纠正当前工作的 steer 在工具轮结束后放入上下文，下一项 followUp 等当前回答结束后接续。同会话的 requestId 可找回已有输入，但不会比较两次正文是否相同；不要用同一个编号发送另一项请求。<button class="evidence-ref" type="button" data-evidence="PD-07 PD-08" data-evidence-trigger>消息队列与输入去重</button></p>
-                <p id="ownership">子 Agent 是由工具任务拥有的会话。恢复时，工具应先查找自己已经创建的孩子，再复用之前的输入，避免多创建一个。取消标记向孩子传播，清理则等孩子收尾后再到父任务；后台任务不会被普通会话取消顺带停止。<button class="evidence-ref" type="button" data-evidence="PD-09 PD-10" data-evidence-trigger>子 Agent 与取消范围</button></p>
-                <p>关闭 Harness 与取消任务也不同：关闭保留未完成检查点，供以后接续；取消先保存取消标记，再安排清理。过期任务不能继续写入 Session，但忽略取消信号的自定义代码仍可能让关闭一直等待。<button class="evidence-ref" type="button" data-evidence="PD-23" data-evidence-trigger>关闭与晚到的提交</button></p>
-              </details>
-              <details id="documents">
-                <summary>会话分叉，会连文件一起复制吗？</summary>
-                <p>应用的计划、工单等 JSON 状态可以与对话一起保存，具体哪些记录一起提交，由应用安排。分叉时，文档可选择复制分叉位置的旧值、父会话当前值，或从初始值开始。复制的是这些数据，不是它们指向的目录或容器；两个分支指向同一路径，仍会改同一份文件。<button class="evidence-ref" type="button" data-evidence="PD-11" data-evidence-trigger>文档分叉策略</button></p>
-                <p>本地执行环境的 cwd 只是路径解析起点。官方“每会话一个 sandbox”的例子实际分配的是目录，容器、文件权限与网络限制要由宿主另行提供。<button class="evidence-ref" type="button" data-evidence="PD-16" data-evidence-trigger>执行环境的实际范围</button></p>
-              </details>
-              <details id="extensions">
-                <summary>重启后，还会用原来的代码吗？</summary>
-                <p>存储保存任务状态和所选工具的名字，不保存函数源码。新进程需要重新安装相应定义；缺少定义、代码版本太旧或迁移失败，旧任务会等待处理。重跑工具时也可能使用当前的代码和工作目录，因此升级应用时要考虑已有任务。<button class="evidence-ref" type="button" data-evidence="PD-12" data-evidence-trigger>定义与迁移</button></p>
-                <p>memo 可以为正在运行的任务保存第一次作出的决定，适合避免恢复后重新作出同一判断。但外部审批消息发出后、memo 写入前，仍有中断窗口。内置 read、bash、write、edit 都没有声明 safe；能否重跑，需要工具作者明确选择，保存时与当前定义也都要允许。<button class="evidence-ref" type="button" data-evidence="PD-20 PD-24 PD-04" data-evidence-trigger>决定保存与重跑策略</button></p>
-              </details>
-              <details id="compaction">
-                <summary>聊得太长时，旧内容怎么办？</summary>
-                <p>压缩也是可恢复任务：接近上下文阈值时后台总结旧消息，后续边界再采用摘要；到更靠近上限的阻塞阈值时，会先等压缩完成，再请求模型。提供商仍报告上下文超限时，可以压缩并再试一次。旧消息保留在存储里，可供查询。摘要是否遗漏重要约束，需要另行评测。<button class="evidence-ref" type="button" data-evidence="PD-13" data-evidence-trigger>压缩任务与采用时机</button></p>
-              </details>
-              <details id="deployment">
-                <summary>存储能承受什么故障？</summary>
-                <p>MemoryStorage 只在内存里，不提供跨进程恢复。Node SQLite 使用 WAL 和 synchronous=NORMAL，官方区分进程崩溃与主机故障：主机故障可能丢失最新提交。JSONL 默认不启用 fsync；启用后先刷 sidecar，再追加主日志提交标记，但主流程没有在每次返回前无条件刷主日志。<button class="evidence-ref" type="button" data-evidence="PD-14 PD-15" data-evidence-trigger>SQLite 与 JSONL</button></p>
-                <p>同一份存储只允许一个进程拥有，库没有跨进程的任务执行锁。多实例部署要防止两个调度器同时执行同一项工作。固定版本已有 Cloudflare Durable Object SQLite adapter，本研究没有部署它来验证完整托管服务。<button class="evidence-ref" type="button" data-evidence="PD-21 PD-25" data-evidence-trigger>持有者与 Cloudflare adapter</button></p>
-              </details>
-              <details id="test-scope">
-                <summary>本次验证做了什么，还有哪些问题？</summary>
-                <p>源码固定为 earendil-works/pi 的 <code>1cedd32724abfcb0915f76cc61b6827e2c16dbad</code>，包版本 1.1.0、MIT 许可、Node ≥ 22.19.0。固定 main 比 v1.1.0 tag 多两个提交，Durable 的 src、test、package.json 未变化；研究和测试仍明确以 main 为准。<button class="evidence-ref" type="button" data-evidence="PD-18" data-evidence-trigger>固定包信息</button></p>
-                <p id="durableTestResult">47 个非 e2e 测试文件通过，977 项通过、2 项平台相关跳过。运行环境为 macOS arm64、Node 25.6.1、Vitest 4.1.11，清空凭据并隔离 HOME。首轮模块解析失败后，只用外置配置合并上游已有 source aliases，未修改源码或构建发布包。</p>
-                <p>恢复测试主要使用受控关闭与重开、假模型和假服务。两个真实模型 cache e2e 没有运行，也没有做 SIGKILL、断电、真实外部服务或生产负载实验。对应固定提交的<a href="https://github.com/earendil-works/pi/actions/runs/37695875413">上游 CI</a>在 Test 步骤失败，具体失败包未确认，不能以本地 Durable 合同通过替代整仓结果。</p>
-                <p>后续最值得验证的是正文中的那个窗口：外部动作完成、结果尚未保存时强制杀进程，再同时核对本地记录与远端动作。真实模型重发的费用、长期存储增长、升级与多实例部署，也都还需要运行证据。</p>
-              </details>
-            </div>
-            <p class="article-related"><a href="https://earendil.com/posts/pi-durable">官方发布文章</a><a href="https://github.com/earendil-works/pi/tree/1cedd32724abfcb0915f76cc61b6827e2c16dbad/packages/durable">固定源码与测试</a><a href="/capabilities.html?study=pi-durable">证据索引</a><a href="/capabilities/oar.html">OAR 接收与观察合同</a><a href="/capabilities/code-mode.html">Code Mode</a></p>
-          </section>
-        </article>
-      </div>
-    </main>
-  </div>
-  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
-  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
-    <header><div><span id="articleEvidenceKicker">实现依据</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关掉证据抽屉" title="关掉"><i data-lucide="x" aria-hidden="true"></i></button></header>
-    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
-  </aside>
+<body>
+  <header class="topbar"><a class="brand" href="/" aria-label="AgentLab 首页"><img src="/assets/agentlab-mark.png" alt="" width="28" height="28"><strong>AgentLab</strong></a><agentlab-navigation current="pi-durable-guide"></agentlab-navigation></header>
+  <main class="app-shell"><h1>Pi Durable</h1><p><a href="/capabilities/pi-durable-guide.html">打开交互指南</a></p></main>
   <script src="/vendor/lucide/lucide.min.js"></script>
-  <script src="/capability-article.js"></script>
-  <script src="/pi-durable.js"></script>
+  <script src="/pi-study-redirect.js"></script>
 </body>
 </html>

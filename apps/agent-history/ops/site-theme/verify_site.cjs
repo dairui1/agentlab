@@ -2,7 +2,6 @@ const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const path = require("node:path");
-const { chromium } = require("playwright");
 
 const PRESETS = ["paper", "slate", "ink", "terminal"];
 const MODES = ["light", "dark"];
@@ -17,6 +16,8 @@ const REPRESENTATIVE = new Set([
   "/", "/capabilities.html", "/mechanisms.html", "/grok-bot.html", "/deepseek-harness.html",
   "/capabilities/code-mode.html", "/capabilities/autoresearch.html", "/capabilities/raft-multi-agent.html",
   "/capabilities/computer-use.html", "/capabilities/gpt-prompt-evolution.html",
+  "/guides/code-mode.html", "/guides/oar.html", "/guides/raven.html", "/guides/mimoagent.html",
+  "/guides/computer-use.html", "/guides/gpt-prompt-evolution.html", "/guides/goal-mode.html",
 ]);
 
 const opposite = (mode) => mode === "light" ? "dark" : "light";
@@ -26,17 +27,24 @@ const selected = (name, fallback) => process.env[name] ? process.env[name].split
 async function routes() {
   const root = path.join(__dirname, "../../public");
   const list = [];
-  for (const folder of ["", "capabilities"]) {
+  for (const folder of ["", "capabilities", "guides"]) {
     for (const name of (await fs.readdir(path.join(root, folder))).filter((name) => name.endsWith(".html"))) {
       list.push(name === "index.html" ? "/" : `/${folder ? `${folder}/` : ""}${name}`);
     }
+  }
+  const index = JSON.parse(await fs.readFile(path.join(root, "research-index.json"), "utf8"));
+  for (const study of index.studies.filter((study) => study.archiveHref)) {
+    const archive = new URL(study.archiveHref, "https://agentlab.invalid");
+    archive.searchParams.set("source", "1");
+    list.push(`${archive.pathname}${archive.search}`);
   }
   return list.sort((a, b) => Number(REPRESENTATIVE.has(b)) - Number(REPRESENTATIVE.has(a)) || a.localeCompare(b));
 }
 
 async function sourceHashes(allRoutes) {
   const root = path.join(__dirname, "../../public");
-  const files = [...allRoutes.map((route) => route === "/" ? "index.html" : route.slice(1)), "site-theme.js", "site-theme.css", "site-theme-compat.css", "styles.css", "app.js", "gpt-prompt-evolution.js", "vendor/lucide/lucide.min.js"];
+  const index = JSON.parse(await fs.readFile(path.join(root, "research-index.json"), "utf8"));
+  const files = [...new Set([...allRoutes.map((route) => new URL(route, "https://agentlab.invalid").pathname).map((route) => route === "/" ? "index.html" : route.slice(1)), ...index.studies.flatMap((study) => study.guideData ? [study.guideData.slice(1)] : []), "research-guide.js", "research-guide.css", "research-reading.js", "site-theme.js", "site-theme.css", "site-theme-compat.css", "styles.css", "app.js", "gpt-prompt-evolution.js", "vendor/lucide/lucide.min.js"])];
   return Object.fromEntries(await Promise.all(files.map(async (file) => {
     try { return [file, crypto.createHash("sha256").update(await fs.readFile(path.join(root, file))).digest("hex")]; }
     catch (error) { if (error.code === "ENOENT") return [file, null]; throw error; }
@@ -416,6 +424,7 @@ async function verifyEditors(browser, base, output, presets, modes, widths) {
 }
 
 async function main() {
+  const { chromium } = require("playwright");
   const base = (process.argv[2] || "http://127.0.0.1:8766").replace(/\/$/, "");
   const output = process.argv[3] || "/private/tmp/agentlab-site-theme-ui";
   const allRoutes = await routes();
@@ -464,5 +473,5 @@ async function main() {
   } finally { await browser.close(); }
 }
 
-module.exports = { onlyConnectionClosed };
+module.exports = { onlyConnectionClosed, routes };
 if (require.main === module) main().catch((error) => { console.error(error); process.exitCode = 1; });

@@ -1,0 +1,634 @@
+{
+  "id": "session-resume",
+  "title": "Session 持久化与恢复",
+  "subtitle": "昨晚的对话还在，昨晚的进程和文件却未必还在。",
+  "intro": [
+    "你完成一段任务，保存了会话身份和记录。第二天按这个身份打开，它读回历史，建立新的运行实例，让模型沿之前的工作继续。",
+    "先看一次保存与续接。再比较‘最近会话’与‘指定会话’，最后拆开执行完成和持久记录的回执。"
+  ],
+  "versionNote": "固定资料：Claude Code 2.1.226、Codex 0.147.0、opencode V1 1.18.15，核验日 2026-08-10。Claude 的 live-doc、exact-history 与 exact-build 证据强度沿用原标注。",
+  "source": {
+    "label": "固定版本 Session 证据",
+    "href": "/dossiers/session-resume-evidence.json",
+    "boundary": "以下会话和故障是教学场景；没有读取私人会话、启动真实 Agent 或做断电恢复实验。"
+  },
+  "chapters": [
+    {
+      "id": "process",
+      "title": "保存一次，下一次怎样接上？",
+      "lead": "Codex 冷恢复先读保存记录，再建立新的 live instance。",
+      "body": [
+        "正常分支假定记录已写入且可读。沿保存、旧进程退出、新进程续接走一遍，再切换成仅内存的 ephemeral thread。"
+      ],
+      "model": {
+        "id": "process-model",
+        "kind": "timeline",
+        "title": "Codex：保存与跨进程续接",
+        "controls": [
+          {
+            "id": "storage",
+            "label": "记录方式",
+            "type": "select",
+            "default": "durable",
+            "options": [
+              {
+                "value": "durable",
+                "label": "持久记录已写入且可读"
+              },
+              {
+                "value": "ephemeral",
+                "label": "仅内存 ephemeral"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "storage": "durable"
+            },
+            "label": "记录可以重建模型历史",
+            "explanation": "冷恢复从记录创建新的 live instance，不是让旧进程复活。",
+            "frames": [
+              {
+                "caption": "记录已保存",
+                "diagram": [
+                  {
+                    "label": "旧进程",
+                    "status": "active"
+                  },
+                  {
+                    "label": "持久记录",
+                    "status": "done"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "记录",
+                    "items": [
+                      {
+                        "label": "历史",
+                        "value": "已写入且可读",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "进程",
+                    "items": [
+                      {
+                        "label": "旧 instance",
+                        "value": "运行中",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "这是场景前提，不把非空 path 当落盘回执。"
+                ]
+              },
+              {
+                "caption": "旧进程退出",
+                "diagram": [
+                  {
+                    "label": "旧进程",
+                    "status": "blocked"
+                  },
+                  {
+                    "label": "持久记录",
+                    "status": "done"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "记录",
+                    "items": [
+                      {
+                        "label": "历史",
+                        "value": "仍在持久介质",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "进程",
+                    "items": [
+                      {
+                        "label": "旧 instance",
+                        "value": "不存在",
+                        "state": "blocked"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "live instance 与记录分离。"
+                ]
+              },
+              {
+                "caption": "按 threadId 冷恢复",
+                "diagram": [
+                  {
+                    "label": "持久记录",
+                    "status": "done"
+                  },
+                  {
+                    "label": "新 live instance",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "记录",
+                    "items": [
+                      {
+                        "label": "模型历史",
+                        "value": "从记录重建",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "进程",
+                    "items": [
+                      {
+                        "label": "instance",
+                        "value": "新的运行实例",
+                        "state": "active"
+                      },
+                      {
+                        "label": "旧后台工作",
+                        "value": "不能由此认定复活",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "resume 取得 live append ownership；不是完整通知 replay。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "旧进程退出，内存记录也没了",
+            "explanation": "ephemeral 没有冷恢复、跨进程发现、archive 或 rollback 的持久介质。",
+            "frames": [
+              {
+                "caption": "只有内存",
+                "diagram": [
+                  {
+                    "label": "旧进程",
+                    "status": "active"
+                  },
+                  {
+                    "label": "内存 thread",
+                    "status": "active"
+                  },
+                  {
+                    "label": "持久介质",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "记录",
+                    "items": [
+                      {
+                        "label": "path",
+                        "value": "null",
+                        "state": "idle"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "进程",
+                    "items": [
+                      {
+                        "label": "loaded list",
+                        "value": "可以看见当前内存对象",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "当前可见，不等于重启后可发现。"
+                ]
+              },
+              {
+                "caption": "旧进程退出",
+                "diagram": [
+                  {
+                    "label": "旧进程",
+                    "status": "blocked"
+                  },
+                  {
+                    "label": "内存 thread",
+                    "status": "blocked"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "记录",
+                    "items": [
+                      {
+                        "label": "冷恢复介质",
+                        "value": "没有",
+                        "state": "blocked"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "进程",
+                    "items": [
+                      {
+                        "label": "loaded object",
+                        "value": "随进程消失",
+                        "state": "blocked"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "没有存储可供新进程读取。"
+                ]
+              },
+              {
+                "caption": "新进程尝试冷恢复",
+                "diagram": [
+                  {
+                    "label": "新进程",
+                    "status": "active"
+                  },
+                  {
+                    "label": "旧 thread 恢复",
+                    "status": "blocked"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "记录",
+                    "items": [
+                      {
+                        "label": "旧历史",
+                        "value": "无法从此路径冷恢复",
+                        "state": "blocked"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "进程",
+                    "items": [
+                      {
+                        "label": "下一步",
+                        "value": "新会话与显式交接，不冒充旧会话"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "thread ID 不会凭空产生保存的内容。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "SES-CX-02",
+          "SES-CX-03",
+          "SES-CX-08",
+          "SES-CX-11"
+        ]
+      },
+      "takeaway": "内存里可见和重启后可读，要分别验证。"
+    },
+    {
+      "id": "scene",
+      "title": "先说清楚，你想把什么找回来",
+      "lead": "恢复对话，不等于把昨晚那台运行中的机器按原样搬回来。",
+      "body": [
+        "对话记录可以保存，但 background process、MCP socket、启动参数和文件状态各有自己的生命周期。读到旧历史后，宿主仍要重建运行环境。",
+        "文件回退也是单独的能力。回退对话中的一句话，不会撤销 Bash 已经发出的邮件、改动的外部文件或提交的数据库事务。"
+      ],
+      "takeaway": "‘还记得’和‘还在运行’不是同一件事。"
+    },
+    {
+      "id": "identity",
+      "title": "输入‘继续’，它选中了谁？",
+      "lead": "下面假定同一目录中有会话 A 和更新的会话 B，而你想继续 A。",
+      "body": [
+        "Claude 的 continue 是当前 working directory 的最近会话选择器；resume 按显式身份查找。最近的不一定是你这次想找的。",
+        "标题便于人看，UUID 才适合当稳定关联键。场景里的 A、B 只是示意名字。"
+      ],
+      "model": {
+        "id": "identity-model",
+        "kind": "compare",
+        "title": "Claude：最近会话与指定会话",
+        "controls": [
+          {
+            "id": "method",
+            "label": "恢复方式",
+            "type": "select",
+            "default": "continue",
+            "options": [
+              {
+                "value": "continue",
+                "label": "继续当前目录最近会话"
+              },
+              {
+                "value": "resume",
+                "label": "按保存的 A 的 ID 恢复"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "method": "continue"
+            },
+            "label": "选中较新的 B",
+            "explanation": "选择器按 cwd-latest 工作；它没有读取你的任务意图来选择 A。",
+            "frames": [
+              {
+                "caption": "目录选择器命中 B",
+                "diagram": [
+                  {
+                    "label": "当前目录",
+                    "status": "done"
+                  },
+                  {
+                    "label": "会话 A",
+                    "status": "idle"
+                  },
+                  {
+                    "label": "最近会话 B",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "身份",
+                    "items": [
+                      {
+                        "label": "期望",
+                        "value": "会话 A"
+                      },
+                      {
+                        "label": "实际",
+                        "value": "会话 B",
+                        "state": "active"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行环境",
+                    "items": [
+                      {
+                        "label": "后台进程",
+                        "value": "不由 transcript 自动恢复",
+                        "state": "unknown"
+                      },
+                      {
+                        "label": "文件",
+                        "value": "当前工作区，不是昨晚快照"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "continue 不是任务 ID。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "按 ID 找到 A",
+            "explanation": "场景假定 A 的持久记录存在且可读。返回后仍需核对 session_id 与有效启动配置。",
+            "frames": [
+              {
+                "caption": "身份查找命中 A",
+                "diagram": [
+                  {
+                    "label": "保存的 UUID",
+                    "status": "done"
+                  },
+                  {
+                    "label": "会话 A",
+                    "status": "active"
+                  },
+                  {
+                    "label": "会话 B",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "身份",
+                    "items": [
+                      {
+                        "label": "期望",
+                        "value": "会话 A"
+                      },
+                      {
+                        "label": "实际",
+                        "value": "会话 A",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行环境",
+                    "items": [
+                      {
+                        "label": "后台进程",
+                        "value": "仍需重建和核对",
+                        "state": "unknown"
+                      },
+                      {
+                        "label": "文件",
+                        "value": "仍是当前工作区"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "身份正确，不代表运行环境已经等价。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "SES-CC-01",
+          "SES-CC-04",
+          "SES-CC-05"
+        ]
+      },
+      "takeaway": "保存显式 ID，恢复后再核对返回身份。"
+    },
+    {
+      "id": "receipt",
+      "title": "看到‘完成’，为什么仍要检查保存结果？",
+      "lead": "Codex 的 turn/completed 是 live 终态，不是通用落盘回执。",
+      "body": [
+        "在固定实现中，persistence append 出错可以只留下日志，随后 turn/completed 仍可发出。成功的对话气泡不能替磁盘或自定义 store 作证。"
+      ],
+      "model": {
+        "id": "receipt-model",
+        "kind": "compare",
+        "title": "Codex：执行完成与记录回读",
+        "controls": [
+          {
+            "id": "append",
+            "label": "场景中的持久化结果",
+            "type": "select",
+            "default": "confirmed",
+            "options": [
+              {
+                "value": "confirmed",
+                "label": "记录写入后回读一致"
+              },
+              {
+                "value": "failed",
+                "label": "append 失败，仅日志告警"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "append": "confirmed"
+            },
+            "label": "两份证据都在",
+            "explanation": "这次既观察到 live terminal，又取得记录回读；两项证据不能合并成一个字段。",
+            "frames": [
+              {
+                "caption": "执行与保存分别确认",
+                "diagram": [
+                  {
+                    "label": "turn/completed",
+                    "status": "done"
+                  },
+                  {
+                    "label": "记录回读",
+                    "status": "done"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "执行",
+                    "items": [
+                      {
+                        "label": "live turn",
+                        "value": "completed",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "保存",
+                    "items": [
+                      {
+                        "label": "回读",
+                        "value": "场景中一致",
+                        "state": "done"
+                      },
+                      {
+                        "label": "这轮历史",
+                        "value": "本场景已用独立回读确认",
+                        "state": "done"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "回读是一份独立证据。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "完成事件在，保存结果未知",
+            "explanation": "不能因 turn/completed 推断失败的 append 已被自动修复，也不能推断冷恢复一定包含这一轮。",
+            "frames": [
+              {
+                "caption": "live 与 durable 分开",
+                "diagram": [
+                  {
+                    "label": "turn/completed",
+                    "status": "done"
+                  },
+                  {
+                    "label": "append",
+                    "status": "blocked"
+                  },
+                  {
+                    "label": "冷恢复内容",
+                    "status": "unknown"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "执行",
+                    "items": [
+                      {
+                        "label": "live turn",
+                        "value": "completed 仍可能出现",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "保存",
+                    "items": [
+                      {
+                        "label": "append",
+                        "value": "失败日志",
+                        "state": "blocked"
+                      },
+                      {
+                        "label": "这轮可否冷恢复",
+                        "value": "unknown：必须回读核对",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "不要用 UI 终态代替 durability receipt。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "SES-CX-04",
+          "SES-CX-05",
+          "SES-CX-07"
+        ]
+      },
+      "takeaway": "任务完成、历史保存、工作区正确，分别收口。"
+    },
+    {
+      "id": "handoff",
+      "title": "恢复之后，先对一下现场",
+      "lead": "对话回来只是第一步。",
+      "body": [
+        "核对会话 ID、当前目录、代码 revision、模型、权限和连接状态。权限恢复在 Claude 固定构建与 live docs 间有路径相关冲突，安全接入应显式传入期望 mode 并核验。",
+        "需要回退文件时，先看 snapshot 覆盖。conversation rewind、file rewind 与外部副作用是不同合同；成功提示不能覆盖没有被记录的改动。"
+      ],
+      "takeaway": "先确认恢复了谁，再确认它现在能做什么。"
+    }
+  ],
+  "closing": [
+    "Session 是可继续的对话身份，不是整个运行环境的时间机器。",
+    "实际接入时，把身份、执行终态、持久记录和文件回读放在不同字段，缺哪份就明说哪份未知。"
+  ]
+}

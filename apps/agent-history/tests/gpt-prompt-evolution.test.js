@@ -18,7 +18,11 @@ const index = JSON.parse(read("research-index.json")).studies.find((entry) => en
 test("the prompt diff is reachable through the catalog and shared navigation", () => {
   assert.equal(index.title, study.title);
   assert.equal(index.data, `/capabilities/${study.id}.json`);
-  assert.equal(index.legacyHref, `/capabilities/${study.id}.html`);
+  assert.equal(index.legacyHref, `/guides/${study.id}.html`);
+  assert.equal(index.archiveHref, `/capabilities/${study.id}.html`);
+  assert.equal(index.guideData, `/research-guides/${study.id}.json`);
+  assert.match(read(index.legacyHref.slice(1)), /\/capabilities\/gpt-prompt-evolution\.html\?source=1/);
+  assert.match(html, /src="\/research-reading\.js"/);
   assert.ok(researchItems.some((entry) => entry.href === index.legacyHref));
   assert.equal(index.evidenceCount, study.evidence.length);
   assert.equal(index.unknownCount, study.unknowns.length);

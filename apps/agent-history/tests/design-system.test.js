@@ -8,21 +8,34 @@ const publicRoot = path.resolve(__dirname, "../public");
 const read = (name) => fs.readFileSync(path.join(publicRoot, name), "utf8");
 const htmlFiles = fs.readdirSync(publicRoot, { recursive: true }).filter((name) => name.endsWith(".html"));
 
-test("the UI audit enumerates every HTML, research detail, and mechanism entry", () => {
+test("the UI audit enumerates every HTML, research guide, source detail, and mechanism entry", async () => {
   const rows = JSON.parse(execFileSync(process.execPath, [path.resolve(__dirname, "../scripts/ui_audit_routes.mjs")], { encoding: "utf8" }));
   const routes = new Set(rows.map((row) => row.route));
   assert.equal(routes.size, rows.length);
+  assert.equal(htmlFiles.length, 46);
+  assert.equal(htmlFiles.filter((file) => file.startsWith("guides/")).length, 22);
   for (const file of htmlFiles) {
     const route = `/${file}`.replace(/\/index\.html$/, "/").replace(/\.html$/, "");
     assert.ok(routes.has(route), `missing HTML route: ${route}`);
   }
   for (const study of JSON.parse(read("research-index.json")).studies) {
     assert.ok(routes.has(`/capabilities?study=${encodeURIComponent(study.id)}`), `missing study: ${study.id}`);
+    if (study.guideData) {
+      assert.ok(routes.has(study.legacyHref.replace(/\.html$/, "")), `missing guide: ${study.id}`);
+      const source = new URL(study.archiveHref, "https://agentlab.test");
+      source.pathname = source.pathname.replace(/\.html$/, "");
+      source.searchParams.set("source", "1");
+      assert.ok(routes.has(`${source.pathname}${source.search}`), `missing source archive: ${study.id}`);
+    }
   }
   for (const [, href] of read("mechanisms.js").matchAll(/href: "(\/mechanisms[^\"]*)"/g)) {
     assert.ok(routes.has(href), `missing mechanism route: ${href}`);
   }
   assert.ok(routes.has("/?mode=compare"));
+  const themeAudit = require("../ops/site-theme/verify_site.cjs");
+  const themeRoutes = await themeAudit.routes();
+  assert.equal(themeRoutes.filter((route) => route.startsWith("/guides/")).length, 22);
+  for (const file of htmlFiles) assert.ok(themeRoutes.includes(file === "index.html" ? "/" : `/${file}`), `missing theme audit HTML: ${file}`);
 });
 
 test("all public pages share navigation, base styling, and an explicit current context", () => {

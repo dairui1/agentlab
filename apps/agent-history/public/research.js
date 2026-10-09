@@ -132,11 +132,17 @@
     });
   }
 
+  function readingHref(study) {
+    const url = new URL(study.legacyHref, location.href);
+    url.searchParams.set("from", researchHref(study));
+    return `${url.pathname}${url.search}`;
+  }
+
   function makeStudyItem(study) {
     const article = el("article", "research-item");
     article.dataset.kind = study.kind;
     const link = el("a", "research-item-link");
-    link.href = researchHref(study);
+    link.href = readingHref(study);
     link.setAttribute("aria-label", `查看专题：${study.question}`);
     const content = el("div", "research-item-copy");
     const meta = el("span", "research-item-meta");
@@ -149,7 +155,7 @@
     const fact = el("span", "research-item-fact", study.fact);
     content.append(meta, title, fact);
     const decision = el("div", "research-item-decision");
-    decision.append(el("span", "", "工程判断"), el("p", "", study.implication));
+    decision.append(el("span", "", "阅读问题"), el("p", "", study.implication));
     const open = el("span", "research-item-open");
     open.append(icon("arrow-right"));
     link.append(content, decision, open);
@@ -167,7 +173,7 @@
 
   function makeLeadStudy(study) {
     const link = el("a", "research-lead-link");
-    link.href = researchHref(study);
+    link.href = readingHref(study);
     link.setAttribute("aria-label", `阅读本期焦点：${study.question}`);
     const copy = el("div", "research-lead-copy");
     const meta = el("div", "research-lead-meta");
@@ -639,6 +645,13 @@
   }
 
   async function init() {
+    const requestUrl = new URL(location.href);
+    if (requestUrl.searchParams.get("study") === "pi-durable") {
+      const evidence = requestUrl.searchParams.get("evidence");
+      const hash = /^PD-\d+$/.test(evidence || "") ? `implementation-${evidence}` : "implementation-source";
+      location.replace(`/capabilities/pi-durable-guide.html#${hash}`);
+      return;
+    }
     state.manifest = validateManifest(await fetchJson("/research-index.json", "专题索引"));
     const requested = new URL(location.href).searchParams.get("study");
     const study = state.manifest.studies.find((item) => item.id === requested);

@@ -1,0 +1,71 @@
+{
+  "id": "oar", "title": "OAR", "subtitle": "“先别发布”发出以后，怎样知道它到了哪里？",
+  "intro": ["Agent 正在改代码，你补了一句“先别发布”。发送按钮变灰了，这句话是进入当前轮，还是只排到了下一轮？", "OAR 让工作台用同一套接口接入多种 Agent，同时保留每个后端的投递、队列和子任务差异。下面跟着这句话看记录，不凭按钮状态猜模型是否已经读到。"],
+  "versionNote": "botiverse/oar v0.10.2 · 固定提交 ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2 · Node.js 24+、ESM。",
+  "source": {"label": "OAR v0.10.2 固定源码", "href": "https://github.com/botiverse/oar/tree/ef893acc0d341b4fa7a1ce41d2be7cafed3c63a2", "boundary": "教学模型依照固定源码及已记录的本地离线合同测试，不连接真实 Agent；没有模型任务基准或真实 CLI 恢复实验。"},
+  "chapters": [
+    {
+      "id": "one-input-two-attempts", "title": "这句补充，怎样进入运行中的任务？",
+      "lead": "保持同一句“先别发布”，切换 steer 的回执。输入身份、投递尝试和原生观察会一起变化。",
+      "body": ["steer 尝试送进当前轮，queue 留给之后。如果 steer 被拒而后端支持 queue，steerOrQueue 可以用同一个 inputId 再排队。", "一个逻辑输入可以有多次 request 和 response。排队被接受还不是模型已读，原生观察也要和回执分开保存。"],
+      "model": {
+        "id": "oar-delivery-attempts", "kind": "timeline", "title": "一个输入的投递记录",
+        "controls": [{"id": "reply", "label": "steer 回执", "type": "select", "default": "accepted", "options": [{"value": "accepted", "label": "接受 steer"}, {"value": "rejected", "label": "拒绝，允许转 queue"}]}],
+        "cases": [
+          {"when": {"reply": "rejected"}, "label": "拒绝之后排队", "explanation": "本场景设定后端支持 queue；两次尝试关联同一个 inputId。", "frames": [
+            {"caption": "发送 steer 请求", "diagram": [{"label": "输入 A", "status": "active"}, {"label": "请求 R1", "status": "active"}, {"label": "后端", "status": "idle"}], "panels": [{"title": "工作台消息", "items": [{"label": "输入", "value": "A：先别发布"}, {"label": "模型是否读到", "value": "没有证据", "state": "unknown"}]}, {"title": "底层记录", "items": [{"label": "请求", "value": "R1 · steer · inputId=A", "state": "active"}]}], "log": ["prompt request 投影出的 turn_started 不能充当后端接受凭证。"]},
+            {"caption": "设定 steer 被后端拒绝", "diagram": [{"label": "输入 A", "status": "active"}, {"label": "请求 R1", "status": "blocked"}, {"label": "queue", "status": "idle"}], "panels": [{"title": "工作台消息", "items": [{"label": "输入", "value": "仍是 A，不新增同文消息"}, {"label": "模型是否读到", "value": "拒绝回执没有证明消费", "state": "unknown"}]}, {"title": "底层记录", "items": [{"label": "尝试 R1", "value": "steer → rejected", "state": "blocked"}, {"label": "原生观察", "value": "另行记录，不按同文猜关联"}]}], "log": ["拒绝记录保留，不能从历史里抹掉。"]},
+            {"caption": "同一输入改为 queue", "diagram": [{"label": "输入 A", "status": "active"}, {"label": "请求 R1", "status": "blocked"}, {"label": "请求 R2", "status": "done"}], "panels": [{"title": "工作台消息", "items": [{"label": "输入", "value": "一个逻辑输入 A"}, {"label": "当前状态", "value": "queued，不是本轮已读", "state": "active"}]}, {"title": "底层记录", "items": [{"label": "尝试 R1", "value": "steer → rejected"}, {"label": "尝试 R2", "value": "queue → queued · 同一 inputId=A", "state": "done"}]}], "log": ["同一 inputId 关联尝试，不承诺原生服务 exactly-once 执行。"]}
+          ]},
+          {"when": {}, "label": "steer 被接受", "explanation": "本场景设定后端接收投递，随后发来带输入身份的原生观察；两份记录分别保留。", "frames": [
+            {"caption": "发送 steer 请求", "diagram": [{"label": "输入 A", "status": "active"}, {"label": "请求 R1", "status": "active"}], "panels": [{"title": "工作台消息", "items": [{"label": "输入", "value": "A：先别发布"}]}, {"title": "底层记录", "items": [{"label": "请求", "value": "R1 · steer · inputId=A"}]}], "log": ["先保留控制请求。"]},
+            {"caption": "设定收到 accepted 回执", "diagram": [{"label": "输入 A", "status": "active"}, {"label": "请求 R1", "status": "done"}, {"label": "消费观察", "status": "unknown"}], "panels": [{"title": "工作台消息", "items": [{"label": "投递", "value": "accepted", "state": "done"}, {"label": "语义效果", "value": "还没有通用已消费状态", "state": "unknown"}]}, {"title": "底层记录", "items": [{"label": "尝试 R1", "value": "steer → accepted"}, {"label": "queue", "value": "此路径没有 fallback"}]}], "log": ["accepted 的具体含义随适配器不同。"]},
+            {"caption": "设定收到带输入 A 身份的原生观察", "diagram": [{"label": "请求 R1", "status": "done"}, {"label": "原生 frame", "status": "done"}, {"label": "界面投影", "status": "active"}], "panels": [{"title": "工作台消息", "items": [{"label": "已知", "value": "投递被接受，原生观察关联到同一输入 A", "state": "done"}, {"label": "语义效果", "value": "是否采纳“先别发布”仍不是回显保证", "state": "unknown"}]}, {"title": "底层记录", "items": [{"label": "回执", "value": "R1 → accepted"}, {"label": "原生观察", "value": "带 A 的身份，按身份关联而非相同文本"}]}], "log": ["回执与原生回显共同构成界面进度，语义效果是另一层问题。"]}
+          ]}
+        ], "evidence": ["OA-03", "OA-04", "OA-05"]
+      }, "takeaway": "界面只保留一句话，审计记录保留每一次投递尝试。"
+    },
+    {
+      "id": "runtime-differences", "title": "换成另一个 Agent，发送的含义会变吗？",
+      "lead": "同一个输入界面，后端分别切到 Codex、Claude Code 和 Pi。看看队列和子活动哪些信息仍然可见。",
+      "body": ["OAR 没有替换原版 Agent 的推理循环。Codex 走 app-server，Claude Code 走 stream-json，Pi 走进程内 SDK。", "统一的是接入接口，不是每个动作的保证。工作台需要按真实能力决定怎样补充输入、怎样显示队列、能否画出子任务。"],
+      "model": {
+        "id": "oar-runtime-surfaces", "kind": "compare", "title": "保持界面，替换运行时",
+        "controls": [{"id": "runtime", "label": "后端", "type": "select", "default": "codex", "options": [{"value": "codex", "label": "Codex"}, {"value": "claude", "label": "Claude Code"}, {"value": "pi", "label": "Pi"}, {"value": "opaque", "label": "Kimi / Antigravity 选定接口"}]}],
+        "cases": [
+          {"when": {"runtime": "codex"}, "label": "Codex app-server", "explanation": "补充带 expectedTurnId；原生队列与独立子线程可被接入。", "frames": [{"caption": "原生能力不被统一接口抹平", "diagram": [{"label": "OAR", "status": "active"}, {"label": "app-server", "status": "active"}, {"label": "独立子线程", "status": "active"}], "panels": [{"title": "输入与队列", "items": [{"label": "steer", "value": "turn/steer · expectedTurnId"}, {"label": "queue", "value": "thread/queue/add · 原生持久能力声明"}]}, {"title": "子任务与验证", "items": [{"label": "归属", "value": "nested，独立 sessionId"}, {"label": "崩溃恢复", "value": "本研究未做真实 CLI 实验", "state": "unknown"}]}], "log": ["能力声明不能换成已通过崩溃恢复的回执。"]}]},
+          {"when": {"runtime": "claude"}, "label": "Claude stream-json", "explanation": "accepted 表示写入 stdin；排队内容在适配器内存中。", "frames": [{"caption": "接受写入不等于当轮已读", "diagram": [{"label": "OAR", "status": "active"}, {"label": "CLI stdin", "status": "active"}, {"label": "同流子路径", "status": "active"}], "panels": [{"title": "输入与队列", "items": [{"label": "accepted", "value": "写入 stdin，不保证当前模型步骤已读"}, {"label": "queue", "value": "适配器内存队列"}]}, {"title": "子任务与验证", "items": [{"label": "归属", "value": "attributed，同流 agentPath"}, {"label": "恢复范围", "value": "不能把内存 queue 当作持久任务", "state": "unknown"}]}], "log": ["记录 UUID 与原生观察，但不猜输入被语义采纳。"]}]},
+          {"when": {"runtime": "pi"}, "label": "Pi AgentSession", "explanation": "直接调用 SDK，后续轮 queue 由适配器另存。", "frames": [{"caption": "进程内控制，不补出原生子树", "diagram": [{"label": "OAR", "status": "active"}, {"label": "AgentSession", "status": "active"}, {"label": "原生子树", "status": "blocked"}], "panels": [{"title": "输入与队列", "items": [{"label": "steer", "value": "调用 AgentSession SDK"}, {"label": "queue", "value": "适配器内存；durable=false"}]}, {"title": "子任务与验证", "items": [{"label": "归属", "value": "none，不提供原生子 Agent 归属", "state": "blocked"}, {"label": "宿主组合", "value": "应用自己组织的子任务要自己记账"}]}], "log": ["SDK 接入不自动提供原生子 Agent。"]}]},
+          {"when": {}, "label": "opaque ACP 接口", "explanation": "选定传输没有给出完整子活动，不能按文字画一棵子树。", "frames": [{"caption": "缺失的关系保持未知", "diagram": [{"label": "OAR", "status": "active"}, {"label": "ACP 主会话", "status": "active"}, {"label": "子关系", "status": "unknown"}], "panels": [{"title": "输入与队列", "items": [{"label": "steer", "value": "选定接口不支持", "state": "blocked"}, {"label": "queue", "value": "非持久队列声明"}]}, {"title": "子任务与验证", "items": [{"label": "归属", "value": "opaque，不能从文本推断关系", "state": "unknown"}, {"label": "产品本身", "value": "不因此断言产品没有子 Agent"}]}], "log": ["传输没暴露的事实无法由统一层恢复。"]}]}
+        ], "evidence": ["OA-06", "OA-07", "OA-08", "OA-10", "OA-12", "OA-13"]
+      }, "takeaway": "同一个按钮要能解释不同保证，而不是给不同后端贴上同一个“已读”。"
+    },
+    {
+      "id": "timeout-and-end", "title": "超时以后，为什么等待还没返回？",
+      "lead": "已经到 timeout，OAR 发出 abort。切换后端是否报告原生结束，观察等待函数能不能收尾。",
+      "body": ["promptAndWait 的超时路径先调用 abort，随后继续等原生结束，没有第二个硬截止。它没有伪造完成，也不能代替宿主的总截止。", "停滞观察只发通知；下一条记录会重置计时。沉默不是死亡证明，重复派工也可能重复副作用。"],
+      "model": {
+        "id": "oar-abort-wait", "kind": "compare", "title": "中断请求与结束事实",
+        "controls": [{"id": "ended", "label": "根会话报告原生结束", "type": "toggle", "default": true}],
+        "cases": [
+          {"when": {"ended": false}, "label": "收到中断请求，但还未结束", "explanation": "没有原生终态，等待继续；本模型不安排虚假的完成。", "frames": [{"caption": "abort 后仍在等", "diagram": [{"label": "timeout", "status": "done"}, {"label": "abort", "status": "done"}, {"label": "原生终态", "status": "unknown"}], "panels": [{"title": "等待函数", "items": [{"label": "当前", "value": "继续等待原生结束", "state": "active"}, {"label": "第二个硬截止", "value": "本路径没有"}]}, {"title": "宿主责任", "items": [{"label": "任务是否停止", "value": "尚无结束事实", "state": "unknown"}, {"label": "可安排", "value": "独立总截止、进程收尾与外部状态核对"}]}], "log": ["observeStalls 的通知不自动恢复或撤销动作。"]}]},
+          {"when": {}, "label": "根会话给出结束事实", "explanation": "结束筛选只接受指定根 session 与根 Agent；孩子完成不够。", "frames": [{"caption": "根终态让等待收尾", "diagram": [{"label": "abort", "status": "done"}, {"label": "根终态", "status": "done"}, {"label": "等待函数", "status": "done"}], "panels": [{"title": "等待函数", "items": [{"label": "当前", "value": "按本场景的根结束记录收尾", "state": "done"}, {"label": "子任务结束", "value": "不会代替根结束"}]}, {"title": "宿主责任", "items": [{"label": "任务效果", "value": "结束不表示任务通过"}, {"label": "外部动作", "value": "中断前已经发出的动作仍需核对", "state": "unknown"}]}], "log": ["原生结束是等待事实，不是质量评分。"]}]}
+        ], "evidence": ["OA-15", "OA-16"]
+      }, "takeaway": "超时是宿主策略的起点，不是后端必然停下来的证明。"
+    },
+    {
+      "id": "resume-stream", "title": "恢复同一个会话，为什么还要换 streamId？",
+      "lead": "原生 sessionId 不变，新 OAR 流却从 seq 0 开始。切换 streamId，观察界面 reducer 会不会把新记录当成旧记录。",
+      "body": ["cursor 补读的是同一流保留在内存里的记录。native resume 则新开一条流，两者不是同一种恢复。", "一个 frame 还可能投影成多个共享 seq 的事件。seq 既不是所有扁平事件的唯一键，也不能脱离 streamId 表示整段历史。"],
+      "model": {
+        "id": "oar-resume-identity", "kind": "compare", "title": "同一会话，两条流",
+        "controls": [{"id": "stream", "label": "恢复流的身份", "type": "select", "default": "fresh", "options": [{"value": "fresh", "label": "分配新的 streamId"}, {"value": "reused", "label": "错误复用旧 streamId"}]}],
+        "cases": [
+          {"when": {"stream": "reused"}, "label": "seq 重置撞上旧身份", "explanation": "这是现有合同测试覆盖的错误组合，不是丢掉原生消息的真实运行演示。", "frames": [{"caption": "新记录可能被误判为读过", "diagram": [{"label": "原生 session", "status": "active"}, {"label": "旧 streamId", "status": "blocked"}, {"label": "reducer", "status": "blocked"}], "panels": [{"title": "恢复入口", "items": [{"label": "sessionId", "value": "仍是原生会话 S"}, {"label": "流", "value": "错误复用旧 streamId；seq 从 0 开始"}]}, {"title": "界面投影", "items": [{"label": "风险", "value": "较小 seq 被当成旧记录", "state": "blocked"}, {"label": "要修复", "value": "保留原生身份，另分配流实例身份"}]}], "log": ["同一原生会话不等于同一条流实例。"]}]},
+          {"when": {}, "label": "保留会话，区分新流", "explanation": "新 streamId 把重置后的 seq 放回正确的实例范围。", "frames": [{"caption": "新流可以独立投影", "diagram": [{"label": "原生 session", "status": "active"}, {"label": "新 streamId", "status": "active"}, {"label": "reducer", "status": "active"}], "panels": [{"title": "恢复入口", "items": [{"label": "sessionId", "value": "仍是原生会话 S"}, {"label": "流", "value": "新的 streamId；seq 从 0 开始"}]}, {"title": "界面投影", "items": [{"label": "处理", "value": "按新的流实例接纳记录", "state": "active"}, {"label": "仍需注意", "value": "同一 frame 的多个扁平事件可共享 seq"}]}], "log": ["使用流实例身份，不按文本或单个 seq 猜去重。"]}]}
+        ], "evidence": ["OA-02", "OA-03", "OA-05", "OA-22", "OA-23"]
+      }, "takeaway": "OAR 给产品一份可核对的记录。数据库、隔离和进程托管仍要由产品补上。"
+    }
+  ],
+  "closing": ["适合借鉴的不是一张无差别能力表，而是把“请求了什么、后端接受什么、原生报告什么”分别留存。", "固定源码的默认接入多为无人值守设置。不要把自动批准、默认宽权限或统一日志当作隔离边界。"]
+}

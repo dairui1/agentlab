@@ -1494,6 +1494,11 @@
                 height: auto;
                 display: block;
             }
+            .guide-implementation-records { margin: 28px 0; border-top: 1px solid var(--rule); padding: 16px 0; font-size: 14px; }
+            .guide-implementation-records > summary { cursor: pointer; font-weight: 700; }
+            .guide-implementation-record { border-top: 1px solid var(--rule); margin-top: 18px; padding-top: 14px; scroll-margin-top: 24px; }
+            .guide-implementation-record h3 { font-size: 16px; }
+            .guide-implementation-record code { overflow-wrap: anywhere; font-size: 11px; }
             .ck-log {
                 font: 12.5px/1.5 var(--mono);
                 max-height: 260px;

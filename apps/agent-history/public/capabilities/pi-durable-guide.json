@@ -21,9 +21,27 @@
   "translation": {
     "language": "zh-CN",
     "scope": "完整正文、表格、图示和全部动态交互文案；API 名称保留原文",
-    "sectionIds": ["why", "shape", "nouns", "run", "once", "inbox", "tasks", "docs", "ext", "ctx", "watch", "storage"],
+    "sectionIds": [
+      "why",
+      "shape",
+      "nouns",
+      "run",
+      "once",
+      "inbox",
+      "tasks",
+      "docs",
+      "ext",
+      "ctx",
+      "watch",
+      "storage"
+    ],
     "translator": "AgentLab",
-    "adaptations": ["外链改成原站完整地址", "本地站点入口与署名", "样式适配中文与本地字体", "独立译注说明模型与实际运行的区别"]
+    "adaptations": [
+      "外链改成原站完整地址",
+      "本地站点入口与署名",
+      "样式适配中文与本地字体",
+      "独立译注说明模型与实际运行的区别"
+    ]
   },
   "boundary": "第三方交互指南译文，依据原作所述 Pi Durable 1.0.2。所有面板是浏览器内的教学模型，不是实际 Harness、SQLite、支付、模型调用或崩溃测试；没有独立复现上游运行。",
   "assets": [
@@ -37,42 +55,71 @@
   ],
   "evidence": [
     {
-      "id": "PG-01", "kind": "observation", "confidence": "high",
+      "id": "PG-01",
+      "kind": "observation",
+      "confidence": "high",
       "title": "原作是可操作的教学指南",
       "statement": "原页包含 12 个章节；崩溃恢复模型同时展示进程内存、存储提交、对话记录、任务树和文档，允许在不同步骤终止并重开。译文保留这些面板和操作。",
-      "artifact": "site/durable.html", "locator": "#run",
+      "artifact": "site/durable.html",
+      "locator": "#run",
       "sha256": "146753ee7fdeab0e5a2369aa1adb54a43e88afb75f1641cc3df9ea2e623c0bb7",
       "evidenceClass": "third-party-explainer",
       "boundary": "这些变化由浏览器内的 JavaScript 模型计算，不是实际 Harness 的运行回执。",
-      "source": {"label": "Pi Pocket 固定原页源码", "url": "https://github.com/TannerMidd/pi-pocket/blob/d01f763b02f06ff6144d4366eb966a76dbb35577/site/durable.html"}
+      "source": {
+        "label": "Pi Pocket 固定原页源码",
+        "url": "https://github.com/TannerMidd/pi-pocket/blob/d01f763b02f06ff6144d4366eb966a76dbb35577/site/durable.html"
+      }
     },
     {
-      "id": "PG-02", "kind": "observation", "confidence": "high",
+      "id": "PG-02",
+      "kind": "observation",
+      "confidence": "high",
       "title": "提交去重与外部动作分开看",
       "statement": "原作第 5 节演示手机丢失回复后再次发送，携带相同 requestId 时找回同一提交项；计数展示提交项数量与启动次数。",
-      "artifact": "site/durable.html", "locator": "#once",
+      "artifact": "site/durable.html",
+      "locator": "#once",
       "sha256": "146753ee7fdeab0e5a2369aa1adb54a43e88afb75f1641cc3df9ea2e623c0bb7",
       "evidenceClass": "third-party-explainer",
       "boundary": "Exactly-once submission 指提交接收层的去重，不是外部部署、付款或任意工具只执行一次的保证。",
-      "source": {"label": "原页提交去重模型", "url": "https://tannermidd.github.io/pi-pocket/durable.html#once"}
+      "source": {
+        "label": "原页提交去重模型",
+        "url": "https://tannermidd.github.io/pi-pocket/durable.html#once"
+      }
     },
     {
-      "id": "PG-03", "kind": "observation", "confidence": "high",
+      "id": "PG-03",
+      "kind": "observation",
+      "confidence": "high",
       "title": "原作版本与再发布许可",
       "statement": "原页注明参考 2026-10-01 发布公告及 Pi Durable 1.0.2 的 README 和示例。Pi Pocket 仓库采用 MIT 许可证，译页保留原作者署名与完整许可。",
-      "artifact": "LICENSE", "locator": "MIT License",
+      "artifact": "LICENSE",
+      "locator": "MIT License",
       "sha256": "41384dc5cf15ef69653ce54c918e0e90e6771eec108ab080ab02021f56b07ebe",
       "evidenceClass": "source-provenance",
       "boundary": "译文的版本背景属于原作，不替代 AgentLab 另行进行的 1.1.0 固定源码研究。",
-      "source": {"label": "Pi Pocket MIT 许可证", "url": "https://github.com/TannerMidd/pi-pocket/blob/d01f763b02f06ff6144d4366eb966a76dbb35577/LICENSE"},
-      "compare": {"label": "原作版本说明", "url": "https://tannermidd.github.io/pi-pocket/durable.html#storage"}
+      "source": {
+        "label": "Pi Pocket MIT 许可证",
+        "url": "https://github.com/TannerMidd/pi-pocket/blob/d01f763b02f06ff6144d4366eb966a76dbb35577/LICENSE"
+      },
+      "compare": {
+        "label": "原作版本说明",
+        "url": "https://tannermidd.github.io/pi-pocket/durable.html#storage"
+      }
     }
   ],
   "unknowns": [
     {
-      "id": "PG-U1", "title": "真实系统是否表现得与教学模型相同",
+      "id": "PG-U1",
+      "title": "真实系统是否表现得与教学模型相同",
       "text": "本次工作翻译并检验了页面交互，没有运行原作所依据的 1.0.2 Harness、真实模型、支付或主机崩溃实验。",
       "needed": "固定实现版本、环境和实际调用，分别验证恢复、外部动作与持久化结果。"
     }
-  ]
+  ],
+  "relatedImplementation": {
+    "data": "/capabilities/pi-durable.json",
+    "packageVersion": "1.1.0",
+    "revision": "1cedd32724abfcb0915f76cc61b6827e2c16dbad",
+    "presentation": "independent-source-records",
+    "runtimeExperiment": "not-run"
+  }
 }

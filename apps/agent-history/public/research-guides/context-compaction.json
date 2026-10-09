@@ -1,0 +1,781 @@
+{
+  "id": "context-compaction",
+  "title": "上下文压缩",
+  "subtitle": "对话还在磁盘上，模型却已经不再逐字看它。",
+  "intro": [
+    "长任务快把模型窗口填满时，Agent 可以把一段历史整理成替换上下文，带着摘要和近期内容继续工作。",
+    "先看上下文怎样被安装，再改变 hook 的决定、预算和清理方式。磁盘历史与模型下一窗也会一起显示。"
+  ],
+  "versionNote": "固定资料：Claude Code 2.1.226、Codex 0.147.0、opencode V1 1.18.15，核验日 2026-08-10。Claude 的前向文档配置不当成该构建已核验能力。",
+  "source": {
+    "label": "固定版本压缩证据",
+    "href": "/dossiers/context-compaction-evidence.json",
+    "boundary": "以下只演示预算与历史投影，不调用真实总结模型，不测信息保留率或真实 token 用量。"
+  },
+  "chapters": [
+    {
+      "id": "post-hook",
+      "title": "把长历史整理好，再继续",
+      "lead": "沿 Codex 的 replacement 生成、安装与 PostCompact 走一遍。",
+      "body": [
+        "压缩准备一份新 history，安装后更新 active context，再运行 PostCompact。正常路径继续推进；把 hook 切成 Stop，看看哪一层停住，哪一层已经改变。"
+      ],
+      "model": {
+        "id": "post-hook-model",
+        "kind": "timeline",
+        "title": "Codex：新上下文怎样生效",
+        "controls": [
+          {
+            "id": "post",
+            "label": "PostCompact 返回",
+            "type": "select",
+            "default": "continue",
+            "options": [
+              {
+                "value": "continue",
+                "label": "继续"
+              },
+              {
+                "value": "stop",
+                "label": "Stop"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "post": "stop"
+            },
+            "label": "turn 中断，replacement 不回滚",
+            "explanation": "item completed 与 interrupted turn 可以同时成立。",
+            "frames": [
+              {
+                "caption": "生成 replacement",
+                "diagram": [
+                  {
+                    "label": "旧 active history",
+                    "status": "active"
+                  },
+                  {
+                    "label": "replacement",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "上下文",
+                    "items": [
+                      {
+                        "label": "active",
+                        "value": "旧 history"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "生命周期",
+                    "items": [
+                      {
+                        "label": "compaction item",
+                        "value": "进行中",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "正在准备替换，不判断语义保留率。"
+                ]
+              },
+              {
+                "caption": "安装并完成 item",
+                "diagram": [
+                  {
+                    "label": "replacement 安装",
+                    "status": "done"
+                  },
+                  {
+                    "label": "item completed",
+                    "status": "done"
+                  },
+                  {
+                    "label": "PostCompact",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "上下文",
+                    "items": [
+                      {
+                        "label": "active",
+                        "value": "新 replacement",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "生命周期",
+                    "items": [
+                      {
+                        "label": "compaction item",
+                        "value": "completed",
+                        "state": "done"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "PostCompact 现在才运行。"
+                ]
+              },
+              {
+                "caption": "hook Stop",
+                "diagram": [
+                  {
+                    "label": "replacement",
+                    "status": "done"
+                  },
+                  {
+                    "label": "turn",
+                    "status": "blocked"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "上下文",
+                    "items": [
+                      {
+                        "label": "active",
+                        "value": "仍是新 replacement",
+                        "state": "done"
+                      },
+                      {
+                        "label": "旧前缀",
+                        "value": "仍在 rollout 存储"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "生命周期",
+                    "items": [
+                      {
+                        "label": "turn",
+                        "value": "interrupted",
+                        "state": "blocked"
+                      },
+                      {
+                        "label": "回滚",
+                        "value": "没有发生",
+                        "state": "idle"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "Stop 不撤销已安装的 history。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "hook 继续，生命周期正常推进",
+            "explanation": "没有 Stop 造成的中断；这依然不验证摘要是否保留了每个约束。",
+            "frames": [
+              {
+                "caption": "生成 replacement",
+                "diagram": [
+                  {
+                    "label": "旧 active history",
+                    "status": "active"
+                  },
+                  {
+                    "label": "replacement",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "上下文",
+                    "items": [
+                      {
+                        "label": "active",
+                        "value": "旧 history"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "生命周期",
+                    "items": [
+                      {
+                        "label": "compaction item",
+                        "value": "进行中",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "开始有损或实现相关的替换。"
+                ]
+              },
+              {
+                "caption": "安装并完成 item",
+                "diagram": [
+                  {
+                    "label": "replacement 安装",
+                    "status": "done"
+                  },
+                  {
+                    "label": "PostCompact",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "上下文",
+                    "items": [
+                      {
+                        "label": "active",
+                        "value": "新 replacement",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "生命周期",
+                    "items": [
+                      {
+                        "label": "compaction item",
+                        "value": "completed",
+                        "state": "done"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "安装先于 PostCompact。"
+                ]
+              },
+              {
+                "caption": "hook 允许继续",
+                "diagram": [
+                  {
+                    "label": "replacement",
+                    "status": "done"
+                  },
+                  {
+                    "label": "下一阶段",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "上下文",
+                    "items": [
+                      {
+                        "label": "active",
+                        "value": "新 replacement",
+                        "state": "done"
+                      },
+                      {
+                        "label": "旧前缀",
+                        "value": "仍在 rollout 存储",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "生命周期",
+                    "items": [
+                      {
+                        "label": "PostCompact",
+                        "value": "未要求停止",
+                        "state": "done"
+                      },
+                      {
+                        "label": "下一阶段",
+                        "value": "按原 phase 推进",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "完成事件不等于摘要正确性报告。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "CMP-CX-08",
+          "CMP-CX-09"
+        ]
+      },
+      "takeaway": "拦截之前和安装之后，是两种不同权限。"
+    },
+    {
+      "id": "scene",
+      "title": "一段历史，有两种‘还在’",
+      "lead": "记录里还在，不代表模型当前看得见。",
+      "body": [
+        "磁盘历史负责追溯；模型当前上下文负责下一步推理。压缩可以保留旧记录，同时把模型输入换成摘要和少量近期内容。",
+        "摘要可能遗漏约束。压缩流程结束只是技术终态，重要事实有没有保住，要另做检查或从稳定来源重新注入。"
+      ],
+      "takeaway": "审计历史和当前模型输入，不能画成同一份列表。"
+    },
+    {
+      "id": "budget",
+      "title": "同样写着 90%，分母是什么？",
+      "lead": "这里仅演示 Codex 固定版本的默认 90% 自动阈值与 95% 硬上限。",
+      "body": [
+        "把已解析窗口归一化成 100 格，方便看边界；格数不是实测 token。真实触发量围绕活跃窗口，累计 total 不是同一个口径。",
+        "Claude 的有效自动窗口、opencode 的 usable 公式又不同，不能把这个百分比直接抄过去。"
+      ],
+      "model": {
+        "id": "budget-model",
+        "kind": "budget",
+        "title": "Codex：自动边界与硬边界",
+        "controls": [
+          {
+            "id": "used",
+            "label": "场景中的活跃占用",
+            "type": "range",
+            "default": 86,
+            "min": 0,
+            "max": 100,
+            "step": 1,
+            "unit": "格"
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "used": {
+                "lt": 90
+              }
+            },
+            "label": "尚未越过默认自动阈值",
+            "explanation": "这个场景不考虑模型 downshift 或 comp_hash 变化等独立触发原因。",
+            "frames": [
+              {
+                "caption": "当前活跃窗口 {{used}} / 100",
+                "diagram": [
+                  {
+                    "label": "活跃历史",
+                    "status": "active"
+                  },
+                  {
+                    "label": "90% 自动边界",
+                    "status": "idle"
+                  },
+                  {
+                    "label": "95% 硬边界",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "预算",
+                    "items": [
+                      {
+                        "label": "活跃占用",
+                        "value": "{{used}} 格 / 100 格"
+                      },
+                      {
+                        "label": "自动阈值",
+                        "value": "默认 90 格"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "下一步",
+                    "items": [
+                      {
+                        "label": "按用量触发",
+                        "value": "本场景尚未越线",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "累计 total",
+                        "value": "不能替代活跃量"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "窗口归一化只是教学表示。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {
+              "used": {
+                "gte": 90,
+                "lt": 95
+              }
+            },
+            "label": "进入自动压缩区间",
+            "explanation": "触发时点还依赖 pre-turn 或 mid-turn；不是 UI 刚到 90% 就保证已经压缩完成。",
+            "frames": [
+              {
+                "caption": "自动阈值已越过，硬边界尚未越过",
+                "diagram": [
+                  {
+                    "label": "活跃历史",
+                    "status": "active"
+                  },
+                  {
+                    "label": "自动压缩",
+                    "status": "active"
+                  },
+                  {
+                    "label": "硬边界",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "预算",
+                    "items": [
+                      {
+                        "label": "活跃占用",
+                        "value": "{{used}} 格 / 100 格"
+                      },
+                      {
+                        "label": "硬上限",
+                        "value": "默认 95 格"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "下一步",
+                    "items": [
+                      {
+                        "label": "按用量触发",
+                        "value": "进入压缩判断路径",
+                        "state": "active"
+                      },
+                      {
+                        "label": "完成",
+                        "value": "仍需等待 lifecycle 终态",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "自动 limit 与 hard cap 不是同一条线。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "超过默认硬可用边界",
+            "explanation": "长新输入仍可能导致后续请求超限。不能从有自动压缩推断每次请求都被事前救回。",
+            "frames": [
+              {
+                "caption": "自动机制不保证请求永不超长",
+                "diagram": [
+                  {
+                    "label": "活跃历史",
+                    "status": "active"
+                  },
+                  {
+                    "label": "硬边界",
+                    "status": "blocked"
+                  },
+                  {
+                    "label": "本次请求结果",
+                    "status": "unknown"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "预算",
+                    "items": [
+                      {
+                        "label": "活跃占用",
+                        "value": "{{used}} 格 / 100 格"
+                      },
+                      {
+                        "label": "硬上限",
+                        "value": "默认 95 格",
+                        "state": "blocked"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "下一步",
+                    "items": [
+                      {
+                        "label": "请求能否继续",
+                        "value": "unknown：取决于阶段和实际请求",
+                        "state": "unknown"
+                      },
+                      {
+                        "label": "检查",
+                        "value": "incoming user 大小、压缩终态与 provider 错误"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "这些格数没有调用 tokenizer 或 provider。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "CMP-CX-01",
+          "CMP-CX-02",
+          "CMP-CX-10"
+        ]
+      },
+      "takeaway": "看公式、分母和阶段，不只看一个百分比。"
+    },
+    {
+      "id": "projection",
+      "title": "压缩和清理工具输出，是不是一回事？",
+      "lead": "opencode V1 的 prune 默认关闭；下面打开它，只比较历史投影。",
+      "body": [
+        "compact 生成有损摘要并安装新的 active projection。prune 则标记旧工具结果，让模型投影不再带完整 output；旧存储内容仍然留着。",
+        "以下假定旧工具输出已满足 prune 的保护范围条件，不模拟真实预算计算。"
+      ],
+      "model": {
+        "id": "projection-model",
+        "kind": "compare",
+        "title": "opencode：磁盘历史与模型输入",
+        "controls": [
+          {
+            "id": "operation",
+            "label": "发生的操作",
+            "type": "select",
+            "default": "compact",
+            "options": [
+              {
+                "value": "none",
+                "label": "不改变投影"
+              },
+              {
+                "value": "compact",
+                "label": "compact 成功"
+              },
+              {
+                "value": "prune",
+                "label": "仅 prune 旧工具输出"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "operation": "none"
+            },
+            "label": "旧输出仍进模型输入",
+            "explanation": "场景从尚未压缩、尚未 prune 的旧历史开始。",
+            "frames": [
+              {
+                "caption": "两份历史暂时相近",
+                "diagram": [
+                  {
+                    "label": "旧 messages",
+                    "status": "done"
+                  },
+                  {
+                    "label": "旧 tool output",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "磁盘",
+                    "items": [
+                      {
+                        "label": "旧 messages",
+                        "value": "保存",
+                        "state": "done"
+                      },
+                      {
+                        "label": "旧 tool output",
+                        "value": "保存",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "模型下一窗",
+                    "items": [
+                      {
+                        "label": "历史",
+                        "value": "仍沿当前原始投影"
+                      },
+                      {
+                        "label": "旧 output",
+                        "value": "场景中尚未遮蔽",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "这里只展示示意记录。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {
+              "operation": "compact"
+            },
+            "label": "记录保留，模型输入换了",
+            "explanation": "成功摘要、marker 和旧 messages 都持久化；模型输入使用 compaction text、摘要及预算允许的尾段。",
+            "frames": [
+              {
+                "caption": "摘要成为当前输入的一部分",
+                "diagram": [
+                  {
+                    "label": "持久 marker",
+                    "status": "done"
+                  },
+                  {
+                    "label": "有损 summary",
+                    "status": "active"
+                  },
+                  {
+                    "label": "可选 recent tail",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "磁盘",
+                    "items": [
+                      {
+                        "label": "旧 messages",
+                        "value": "仍保存",
+                        "state": "done"
+                      },
+                      {
+                        "label": "新记录",
+                        "value": "marker + summary",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "模型下一窗",
+                    "items": [
+                      {
+                        "label": "旧 head",
+                        "value": "不再逐字发送",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "当前输入",
+                        "value": "summary + 可选 tail"
+                      },
+                      {
+                        "label": "所有约束保留",
+                        "value": "unknown：有损总结",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "默认近期两轮是目标，不是保证。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "清理投影，不生成摘要",
+            "explanation": "prune 标记旧 completed output；它不删除存储，也不是摘要生成前必经的一步。",
+            "frames": [
+              {
+                "caption": "旧 output 在模型投影里被替换",
+                "diagram": [
+                  {
+                    "label": "旧 ToolPart",
+                    "status": "done"
+                  },
+                  {
+                    "label": "prune 标记",
+                    "status": "done"
+                  },
+                  {
+                    "label": "清理占位文本",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "磁盘",
+                    "items": [
+                      {
+                        "label": "旧 ToolPart output",
+                        "value": "仍保存",
+                        "state": "done"
+                      },
+                      {
+                        "label": "新增 summary",
+                        "value": "没有",
+                        "state": "idle"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "模型下一窗",
+                    "items": [
+                      {
+                        "label": "旧 output",
+                        "value": "[Old tool result content cleared]",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "其他历史",
+                        "value": "不因此统一换成摘要"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "prune 与 compact 的执行路径分开。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "CMP-OC-04",
+          "CMP-OC-05",
+          "CMP-OC-06",
+          "CMP-OC-07"
+        ]
+      },
+      "takeaway": "少发送一些内容，不代表少存了一些内容。"
+    },
+    {
+      "id": "keep",
+      "title": "真正不能忘的东西，别只靠摘要",
+      "lead": "把长期约束放进可重建的来源。",
+      "body": [
+        "接口约束、目标、已确认结论和未决问题应从文件或结构化状态重新读取。摘要帮助延长对话，不该成为唯一账本。",
+        "恢复时分别核对：压缩有没有发生、当前输入用了哪个 replacement、任务有没有继续，以及关键约束能否从稳定来源找回。"
+      ],
+      "takeaway": "摘要是工作记忆，不是完整档案。"
+    }
+  ],
+  "closing": [
+    "先看现在实际发送给模型的内容，再讨论它为什么忘了。",
+    "教学窗格不是模型预算测量；摘要保真度和故障恢复仍要真实实验。"
+  ]
+}

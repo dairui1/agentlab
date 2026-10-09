@@ -25,9 +25,9 @@ test("Pi Durable keeps its research pinned and runtime evidence explicit", () =>
 
 test("all Pi Durable citations are complete, pinned and used", () => {
   const study = loadStudy();
-  const html = read("capabilities/pi-durable.html");
+  const html = read("capabilities/pi-durable-guide.html");
   const ids = new Set(study.evidence.map((item) => item.id));
-  assert.ok(ids.size > 0);
+  assert.equal(ids.size, 25);
   assert.equal(ids.size, study.evidence.length);
   const cited = new Set();
   for (const [, references] of html.matchAll(/data-evidence="([^"]+)"/g)) {
@@ -45,87 +45,69 @@ test("all Pi Durable citations are complete, pinned and used", () => {
   }
 });
 
-test("Pi Durable has static article anchors and shared evidence navigation", () => {
-  const study = loadStudy();
-  const html = read("capabilities/pi-durable.html");
-  const attribute = (tag, name) => tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
-  const sections = [...html.matchAll(/<section\b[^>]*\bdata-article-section\b[^>]*>/g)].map(([tag]) => attribute(tag, "id"));
-  const sectionIds = new Set(sections);
-  assert.ok(sections.length > 1);
-  assert.ok(sections.every(Boolean));
-  assert.equal(sectionIds.size, sections.length);
-  const anchors = new Set([...html.matchAll(/href="#([^"]+)"/g)].map(([, id]) => id));
-  for (const id of sectionIds) assert.ok(anchors.has(id), id);
-  for (const id of anchors) assert.ok(sectionIds.has(id), id);
-  assert.match(html, /data-evidence-source="\/capabilities\/pi-durable.json"/);
-  assert.match(html, /role="dialog"[^>]+inert/);
-  assert.match(html, /src="\/capability-article.js"/);
-  const entry = JSON.parse(read("research-index.json")).studies.find((item) => item.id === study.id);
-  assert.ok(entry);
-  assert.equal(entry.evidenceCount, study.evidence.length);
-  assert.equal(entry.unknownCount, study.unknowns.length);
-  assert.equal(require("../public/site-navigation.js").researchItems.find((item) => item.id === study.id).href, entry.legacyHref);
-  for (const id of entry.headlineEvidence) assert.ok(study.evidence.some((item) => item.id === id), id);
+test("Pi Durable has one reading entry and the retired article redirects to it", () => {
+  const legacy = read("capabilities/pi-durable.html");
+  const guide = JSON.parse(read("capabilities/pi-durable-guide.json"));
+  const piIds = new Set(["pi-durable", "pi-durable-guide"]);
+  const entries = JSON.parse(read("research-index.json")).studies.filter((item) => piIds.has(item.id));
+  const navigation = require("../public/site-navigation.js").researchItems.filter((item) => piIds.has(item.id));
+  assert.equal(entries.length, 1);
+  assert.equal(navigation.length, 1);
+  const entry = entries[0];
+  assert.equal(entry.id, "pi-durable-guide");
+  assert.equal(entry.legacyHref, "/capabilities/pi-durable-guide.html");
+  assert.equal(entry.data, "/capabilities/pi-durable-guide.json");
+  assert.equal(navigation[0].id, entry.id);
+  assert.equal(navigation[0].href, entry.legacyHref);
+  assert.equal(entry.evidenceCount, guide.evidence.length);
+  assert.equal(entry.unknownCount, guide.unknowns.length);
+  for (const id of entry.headlineEvidence) assert.ok(guide.evidence.some((item) => item.id === id), id);
+  assert.match(legacy, /<meta\b[^>]*http-equiv="refresh"[^>]*content="0;url=\/capabilities\/pi-durable-guide\.html"/);
+  assert.match(legacy, /<link\b[^>]*rel="canonical"[^>]*href="https:\/\/agentlab\.dairui1\.com\/capabilities\/pi-durable-guide"/);
+  assert.match(legacy, /<a\b[^>]*href="\/capabilities\/pi-durable-guide\.html"/);
+  assert.doesNotMatch(legacy, /data-article-section|data-evidence=|src="\/pi-durable\.js"/);
+  assert.equal(guide.relatedImplementation.data, "/capabilities/pi-durable.json");
+  assert.equal(guide.relatedImplementation.revision, revision);
+  assert.equal(guide.relatedImplementation.packageVersion, "1.1.0");
 });
 
-test("Pi Durable keeps six narrative sections above closed, reachable technical notes", () => {
-  const html = read("capabilities/pi-durable.html");
+test("Pi Durable keeps all 25 implementation sources in closed, reachable guide notes", () => {
+  const html = read("capabilities/pi-durable-guide.html");
+  const study = loadStudy();
   const attribute = (tag, name) => tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1];
-  const mainIds = ["position", "commit", "recovery", "tools", "fit", "verification"];
-  const sections = [...html.matchAll(/<section\b[^>]*\bdata-article-section\b[^>]*>/g)].map(([tag]) => attribute(tag, "id"));
-  assert.deepEqual(sections, mainIds);
-  const toc = html.match(/<aside\b[^>]*\bdata-article-toc\b[^>]*>([\s\S]*?)<\/aside>/)?.[1];
-  assert.ok(toc);
-  assert.deepEqual([...toc.matchAll(/href="#([^"]+)"/g)].map(([, id]) => id), mainIds);
-
-  const stack = [];
-  const notes = [];
-  const cited = new Set();
-  let ownershipNote;
-  for (const [tag] of html.matchAll(/<\/?(?:section|details|summary|button|p)\b[^>]*>/g)) {
-    const name = tag.match(/^<\/?(\w+)/)[1];
-    const closing = tag.startsWith("</");
-    if (name === "button") {
-      if (closing || !/\bdata-evidence=/.test(tag)) continue;
-      assert.equal(attribute(tag, "type"), "button");
-      assert.match(tag, /\bdata-evidence-trigger(?:\s|>)/);
-      const enclosing = stack.filter((node) => node.name === "details");
-      for (const node of enclosing) node.note.citations += 1;
-      for (const id of attribute(tag, "data-evidence").split(/\s+/)) cited.add(id);
-      continue;
-    }
-    if (name === "p") {
-      if (!closing && attribute(tag, "id") === "ownership") {
-        ownershipNote = stack.findLast((node) => node.name === "details")?.id;
-      }
-      continue;
-    }
-    if (closing) {
-      assert.equal(stack.pop()?.name, name, `unbalanced ${name}`);
-      continue;
-    }
-    const id = attribute(tag, "id");
-    const node = { name, id };
-    if (name === "details") {
-      assert.doesNotMatch(tag, /\bopen(?:\s|=|>)/, `${id} is open by default`);
-      assert.deepEqual(stack.filter((entry) => entry.name === "section").map((entry) => entry.id), ["verification"], id);
-      node.note = { id, summaries: 0, citations: 0 };
-      notes.push(node.note);
-    }
-    if (name === "summary") {
-      const detail = stack.at(-1);
-      assert.equal(detail?.name, "details", "native summary is a direct child of details");
-      detail.note.summaries += 1;
-    }
-    stack.push(node);
+  const note = html.match(/(<details\b[^>]*\bid="implementation-source"[^>]*>)([\s\S]*?)<\/details>/);
+  assert.ok(note, "implementation sources remain in native details");
+  assert.doesNotMatch(note[1], /\bopen(?:\s|=|>)/);
+  assert.equal([...html.matchAll(/\bid="implementation-source"/g)].length, 1);
+  assert.match(note[2], /^<summary>AgentLab 源码记录 · Pi Durable 1\.1\.0<\/summary>/);
+  assert.equal([...note[2].matchAll(/<summary\b/g)].length, 1);
+  assert.match(html.slice(0, note.index), /href="#implementation-source"/);
+  assert.doesNotMatch(html.slice(0, note.index), /data-evidence="PD-/);
+  assert.match(note[2], /href="\/capabilities\/pi-durable\.json"/);
+  const records = [...note[2].matchAll(/<div\b[^>]*\bid="implementation-(PD-\d+)"[^>]*>([\s\S]*?)<\/div>/g)];
+  assert.equal(records.length, 25);
+  assert.equal(new Set(records.map(([, id]) => id)).size, records.length);
+  assert.deepEqual(new Set(records.map(([, id]) => id)), new Set(study.evidence.map((item) => item.id)));
+  const decode = (value) => value.replace(/&(amp|lt|gt|quot|#39);/g, (_, entity) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[entity]);
+  for (const [, id, markup] of records) {
+    const item = study.evidence.find((entry) => entry.id === id);
+    const links = [...markup.matchAll(/<a\b[^>]*>/g)].map(([tag]) => tag);
+    assert.equal(links.length, 1, id);
+    assert.equal(attribute(links[0], "data-evidence"), id);
+    assert.equal(decode(attribute(links[0], "href")), item.source.url);
+    assert.equal(attribute(links[0], "target"), "_blank");
+    assert.match(attribute(links[0], "rel"), /\bnoopener\b/);
+    const text = decode(markup.replace(/<[^>]*>/g, ""));
+    assert.ok(text.includes(item.statement), `${id} statement remains unchanged`);
+    assert.ok(text.includes(item.boundary), `${id} boundary remains unchanged`);
+    assert.ok(text.includes(item.artifact), `${id} artifact`);
+    assert.ok(text.includes(item.locator), `${id} locator`);
+    assert.ok(text.includes(item.sha256), `${id} complete artifact hash`);
   }
-  assert.equal(stack.length, 0);
-  assert.deepEqual(notes.map((note) => note.id), ["generation", "inbox", "documents", "extensions", "compaction", "deployment", "test-scope"]);
-  assert.ok(notes.every((note) => note.summaries === 1 && note.citations > 0));
-  assert.equal(ownershipNote, "inbox");
-  assert.deepEqual(cited, new Set(loadStudy().evidence.map((item) => item.id)));
+  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => id));
+  for (const [, id] of records) assert.ok(ids.has(`implementation-${id}`), `${id} deep-link target`);
   assert.match(html, /src="\/pi-durable.js"/);
-  assert.ok(html.indexOf('src="/capability-article.js"') < html.indexOf('src="/pi-durable.js"'));
+  assert.ok(html.indexOf('src="/pi-durable-guide.js"') < html.indexOf('src="/pi-durable.js"'));
 });
 
 function hashNavigation(hash = "") {

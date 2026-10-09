@@ -77,8 +77,12 @@ test("tool extractor skips JSON examples and reads the final schema", async () =
 test("Claude Tag is discoverable from both the shared navigation and research index", () => {
   const nav = require("../public/site-navigation.js");
   const entry = JSON.parse(read("research-index.json")).studies.find((s) => s.id === "claude-tag");
-  assert.equal(entry.legacyHref, "/capabilities/claude-tag.html");
+  assert.equal(entry.legacyHref, "/guides/claude-tag.html");
+  assert.equal(entry.archiveHref, "/capabilities/claude-tag.html");
+  assert.equal(entry.guideData, "/research-guides/claude-tag.json");
   assert.equal(nav.researchItems.find((s) => s.id === "claude-tag").href, entry.legacyHref);
+  assert.match(read(entry.legacyHref.slice(1)), /\/capabilities\/claude-tag\.html\?source=1/);
+  assert.match(html, /src="\/research-reading\.js"/);
   assert.equal(entry.evidenceCount, study.evidence.length);
   assert.equal(entry.unknownCount, study.unknowns.length);
 });

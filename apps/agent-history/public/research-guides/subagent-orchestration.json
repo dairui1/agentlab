@@ -1,0 +1,928 @@
+{
+  "id": "subagent-orchestration",
+  "title": "Sub-agent 编排",
+  "subtitle": "把两件事交给两个助手之后，谁看见什么，谁在改文件，谁还在等？",
+  "intro": [
+    "你把接口调查交给一个助手，把实现交给另一个。它们各自完成任务，再把结果送回主助手，主助手检查并汇合产物。",
+    "先走一遍派工与回报。随后再改变消息方式、历史来源和文件工作面，看哪一层跟着变化。"
+  ],
+  "versionNote": "固定资料：Claude Code 2.1.226、Codex 0.147.0、opencode V1 1.18.15，核验日 2026-08-10。Claude 的文档合同与构建捕获按原证据分别标注，不外推到当前版本。",
+  "source": {
+    "label": "固定版本编排证据",
+    "href": "/dossiers/subagent-evidence.json",
+    "boundary": "下面只模拟资料中的控制合同，不创建真实 Agent、不修改工作区，也不测试并发性能。"
+  },
+  "chapters": [
+    {
+      "id": "mailbox",
+      "title": "先派工，再收到回报",
+      "lead": "Codex 给已有助手补一个任务，先启动工作，最后通过结果通道回报。",
+      "body": [
+        "followup_task 会在目标 idle 时启动一轮；目标运行中则等可投递的边界。正常路径里，子助手完成后，final answer 异步回到主助手。",
+        "把发送方式切成 send_message：消息仍能投递，却不会仅凭这次调用启动空闲目标。"
+      ],
+      "model": {
+        "id": "mailbox-model",
+        "kind": "timeline",
+        "title": "Codex：发消息与启动工作",
+        "controls": [
+          {
+            "id": "delivery",
+            "label": "发送方式",
+            "type": "select",
+            "default": "followup",
+            "options": [
+              {
+                "value": "message",
+                "label": "send_message"
+              },
+              {
+                "value": "followup",
+                "label": "followup_task"
+              }
+            ]
+          },
+          {
+            "id": "initial",
+            "label": "目标状态",
+            "type": "select",
+            "default": "idle",
+            "options": [
+              {
+                "value": "idle",
+                "label": "空闲"
+              },
+              {
+                "value": "running",
+                "label": "正在运行"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "initial": "idle",
+              "delivery": "message"
+            },
+            "label": "投递后仍然空闲",
+            "explanation": "没有新 turn 被启动，不能把投递回执当成执行回执。",
+            "frames": [
+              {
+                "caption": "发送前",
+                "diagram": [
+                  {
+                    "label": "父助手",
+                    "status": "active"
+                  },
+                  {
+                    "label": "mailbox",
+                    "status": "idle"
+                  },
+                  {
+                    "label": "子助手",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "状态",
+                        "value": "未投递"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "子 turn",
+                        "value": "空闲",
+                        "state": "idle"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "目标地址仍然存在。"
+                ]
+              },
+              {
+                "caption": "send_message 投递",
+                "diagram": [
+                  {
+                    "label": "父助手",
+                    "status": "done"
+                  },
+                  {
+                    "label": "mailbox",
+                    "status": "active"
+                  },
+                  {
+                    "label": "子助手",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "状态",
+                        "value": "已投递",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "子 turn",
+                        "value": "仍空闲",
+                        "state": "idle"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "纯投递不触发新 turn。"
+                ]
+              },
+              {
+                "caption": "下一刻",
+                "diagram": [
+                  {
+                    "label": "mailbox",
+                    "status": "done"
+                  },
+                  {
+                    "label": "新 turn",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "回执",
+                        "value": "投递与结果分开"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "开始工作",
+                        "value": "没有由此调用启动",
+                        "state": "idle"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "需要唤醒时，应使用 followup_task。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {
+              "initial": "idle",
+              "delivery": "followup"
+            },
+            "label": "启动任务，随后回报",
+            "explanation": "场景假定子任务正常完成。启动回执与随后送达的 final answer 是两次不同信号。",
+            "frames": [
+              {
+                "caption": "发送前",
+                "diagram": [
+                  {
+                    "label": "父助手",
+                    "status": "active"
+                  },
+                  {
+                    "label": "子助手",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "状态",
+                        "value": "未投递"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "子 turn",
+                        "value": "空闲",
+                        "state": "idle"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "选择已有目标地址。"
+                ]
+              },
+              {
+                "caption": "followup_task 投递并启动",
+                "diagram": [
+                  {
+                    "label": "mailbox",
+                    "status": "done"
+                  },
+                  {
+                    "label": "新 turn",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "状态",
+                        "value": "已投递",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "子 turn",
+                        "value": "已触发",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "空闲节点开始新 turn。"
+                ]
+              },
+              {
+                "caption": "子任务完成并回报",
+                "diagram": [
+                  {
+                    "label": "子助手",
+                    "status": "done"
+                  },
+                  {
+                    "label": "final answer",
+                    "status": "done"
+                  },
+                  {
+                    "label": "主助手汇合",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "结果通道",
+                        "value": "final answer 异步送达",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "子 turn",
+                        "value": "场景中完成",
+                        "state": "done"
+                      },
+                      {
+                        "label": "主助手",
+                        "value": "检查结果与文件，再汇合产物",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "正常路径完成；不要把第一步启动回执当成这一步。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "正在运行，等待投递边界",
+            "explanation": "不能把 followup 理解成同时启动第二个 turn；运行中的投递会在采样边界或待处理工具调用之后到达。",
+            "frames": [
+              {
+                "caption": "目标还在工作",
+                "diagram": [
+                  {
+                    "label": "子 turn",
+                    "status": "active"
+                  },
+                  {
+                    "label": "新消息",
+                    "status": "idle"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "发送方式",
+                        "value": "{{delivery}}"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "子 turn",
+                        "value": "已有一轮运行",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "已有 turn 不因消息变成两个。"
+                ]
+              },
+              {
+                "caption": "消息等待边界",
+                "diagram": [
+                  {
+                    "label": "mailbox",
+                    "status": "active"
+                  },
+                  {
+                    "label": "当前工具调用",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "到达",
+                        "value": "采样边界或工具调用之后"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "当前工作",
+                        "value": "尚未因投递自动终止",
+                        "state": "active"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "这是转向消息，不是取消。"
+                ]
+              },
+              {
+                "caption": "到达可处理边界",
+                "diagram": [
+                  {
+                    "label": "消息",
+                    "status": "done"
+                  },
+                  {
+                    "label": "任务结果",
+                    "status": "unknown"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "消息",
+                    "items": [
+                      {
+                        "label": "投递",
+                        "value": "可交给运行中的目标",
+                        "state": "done"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "运行",
+                    "items": [
+                      {
+                        "label": "是否按新要求完成",
+                        "value": "要等结果确认",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "interrupt_agent 才是单独的中断操作。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "CX-05",
+          "CX-06",
+          "CX-08"
+        ]
+      },
+      "takeaway": "投递、唤醒、中断、完成，各自要看各自的回执。"
+    },
+    {
+      "id": "context-files",
+      "title": "没看父对话，为什么还能改到父文件？",
+      "lead": "在 Claude 的这条合同里，fresh/fork 与 worktree 是两根独立的轴。",
+      "body": [
+        "fresh 让子助手从新对话开始；fork 复制父历史。worktree 改变 checkout，既不会替 fresh 补历史，也不会替 fork 清掉历史。"
+      ],
+      "model": {
+        "id": "context-files-model",
+        "kind": "compare",
+        "title": "Claude：对话与文件分别选择",
+        "controls": [
+          {
+            "id": "context",
+            "label": "子对话",
+            "type": "select",
+            "default": "fresh",
+            "options": [
+              {
+                "value": "fresh",
+                "label": "新对话"
+              },
+              {
+                "value": "fork",
+                "label": "复制父历史"
+              }
+            ]
+          },
+          {
+            "id": "files",
+            "label": "文件工作面",
+            "type": "select",
+            "default": "worktree",
+            "options": [
+              {
+                "value": "shared",
+                "label": "共享 checkout"
+              },
+              {
+                "value": "worktree",
+                "label": "独立 worktree"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "context": "fresh",
+              "files": "shared"
+            },
+            "label": "新对话，共享文件",
+            "explanation": "它不知道父对话的细节，却能看到当前工作面的文件改动。",
+            "frames": [
+              {
+                "caption": "两根轴没有绑定",
+                "diagram": [
+                  {
+                    "label": "父对话",
+                    "status": "done"
+                  },
+                  {
+                    "label": "子对话：fresh",
+                    "status": "active"
+                  },
+                  {
+                    "label": "共享 checkout",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "子助手看见的对话",
+                    "items": [
+                      {
+                        "label": "父历史",
+                        "value": "不复制",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "任务",
+                        "value": "本次委派 prompt"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "文件",
+                    "items": [
+                      {
+                        "label": "工作面",
+                        "value": "与父助手共享",
+                        "state": "active"
+                      },
+                      {
+                        "label": "冲突",
+                        "value": "没有因 fresh 自动消失",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "fresh 不是文件隔离。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {
+              "context": "fork",
+              "files": "shared"
+            },
+            "label": "旧历史，共享文件",
+            "explanation": "历史复制与文件共享同时存在。两个人仍需划分写入范围。",
+            "frames": [
+              {
+                "caption": "复制对话，没有复制 checkout",
+                "diagram": [
+                  {
+                    "label": "父历史",
+                    "status": "done"
+                  },
+                  {
+                    "label": "子对话：fork",
+                    "status": "done"
+                  },
+                  {
+                    "label": "共享 checkout",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "子助手看见的对话",
+                    "items": [
+                      {
+                        "label": "父历史",
+                        "value": "继承完整历史",
+                        "state": "done"
+                      },
+                      {
+                        "label": "工具与模型",
+                        "value": "按固定 fork 合同继承"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "文件",
+                    "items": [
+                      {
+                        "label": "工作面",
+                        "value": "与父助手共享",
+                        "state": "active"
+                      },
+                      {
+                        "label": "冲突",
+                        "value": "仍需协调",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "知道得更多，不等于写得更安全。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {
+              "context": "fresh",
+              "files": "worktree"
+            },
+            "label": "新对话，独立文件",
+            "explanation": "子助手有独立 checkout，但任务背景仍须写进委派 prompt。",
+            "frames": [
+              {
+                "caption": "只隔开文件",
+                "diagram": [
+                  {
+                    "label": "父 checkout",
+                    "status": "idle"
+                  },
+                  {
+                    "label": "子 worktree",
+                    "status": "active"
+                  },
+                  {
+                    "label": "子对话：fresh",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "子助手看见的对话",
+                    "items": [
+                      {
+                        "label": "父历史",
+                        "value": "不复制",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "任务",
+                        "value": "需要明确补充约束"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "文件",
+                    "items": [
+                      {
+                        "label": "工作面",
+                        "value": "独立 Git worktree",
+                        "state": "done"
+                      },
+                      {
+                        "label": "合并",
+                        "value": "仍是后续工作，不自动完成"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "worktree 没有替它读过父对话。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "旧历史，独立文件",
+            "explanation": "这次同时选择历史继承和独立 checkout。两项能力来自两个选择。",
+            "frames": [
+              {
+                "caption": "分别设置，分别生效",
+                "diagram": [
+                  {
+                    "label": "父历史",
+                    "status": "done"
+                  },
+                  {
+                    "label": "子对话：fork",
+                    "status": "done"
+                  },
+                  {
+                    "label": "子 worktree",
+                    "status": "active"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "子助手看见的对话",
+                    "items": [
+                      {
+                        "label": "父历史",
+                        "value": "继承完整历史",
+                        "state": "done"
+                      },
+                      {
+                        "label": "工具与模型",
+                        "value": "按固定 fork 合同继承"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "文件",
+                    "items": [
+                      {
+                        "label": "工作面",
+                        "value": "独立 Git worktree",
+                        "state": "done"
+                      },
+                      {
+                        "label": "合并",
+                        "value": "仍需检查并合并结果"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "上下文和工作区终于同时分清了。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "CC-02",
+          "CC-06"
+        ]
+      },
+      "takeaway": "对话隔离管‘知道什么’，worktree 管‘在哪儿写’。"
+    },
+    {
+      "id": "scene",
+      "title": "两个助手，三份状态",
+      "lead": "把任务交出去，不会自动把所有东西隔开。",
+      "body": [
+        "子助手的对话可以从零开始，也可以复制父对话；文件则可能仍是同一份。一个选项决定它知道多少，另一个选项决定它在哪儿动手。",
+        "Claude 的可选 worktree、Codex 的共享工作区、opencode 的 child Session，不是同一种对象。下面分别走三条固定路径，不用一个‘子代理’名字抹平差异。"
+      ],
+      "takeaway": "先问对话从哪来、文件在哪改，再问有没有并行。"
+    },
+    {
+      "id": "continuation",
+      "title": "同一个任务句柄，会不会悄悄变成新任务？",
+      "lead": "opencode 的 task_id 指向 child Session，失效时却可能静默新建。",
+      "body": [
+        "因此不能只检查‘调用没报错’。把返回的 child 身份与保存的句柄对一下，才知道是在续跑，还是从头另起一段对话。",
+        "前台结果只取最后一个 text part，不会把子会话的全部工具过程带回来。"
+      ],
+      "model": {
+        "id": "continuation-model",
+        "kind": "compare",
+        "title": "opencode：旧句柄与返回文本",
+        "controls": [
+          {
+            "id": "handle",
+            "label": "task_id 查询",
+            "type": "select",
+            "default": "found",
+            "options": [
+              {
+                "value": "found",
+                "label": "能找到旧 Session"
+              },
+              {
+                "value": "missing",
+                "label": "查询失败"
+              }
+            ]
+          }
+        ],
+        "cases": [
+          {
+            "when": {
+              "handle": "found"
+            },
+            "label": "续跑既有子会话",
+            "explanation": "沿旧 child Session 发送新的 prompt，不是恢复整个编排器。",
+            "frames": [
+              {
+                "caption": "已有身份被复用",
+                "diagram": [
+                  {
+                    "label": "task_id",
+                    "status": "done"
+                  },
+                  {
+                    "label": "旧 child Session",
+                    "status": "active"
+                  },
+                  {
+                    "label": "最后文本",
+                    "status": "done"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "会话",
+                    "items": [
+                      {
+                        "label": "身份",
+                        "value": "沿用查询到的 child",
+                        "state": "done"
+                      },
+                      {
+                        "label": "文件",
+                        "value": "仍沿用工作区"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "父助手收到",
+                    "items": [
+                      {
+                        "label": "前台结果",
+                        "value": "最后一个 text part"
+                      },
+                      {
+                        "label": "完整 transcript",
+                        "value": "不在直接结果里",
+                        "state": "idle"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "Session continuation 不是编排 checkpoint replay。"
+                ]
+              }
+            ]
+          },
+          {
+            "when": {},
+            "label": "调用成功，却是新子会话",
+            "explanation": "lookup failure 被转成 undefined，之后走 fresh child 路径。旧工作的完整恢复不能从这个成功结果推出。",
+            "frames": [
+              {
+                "caption": "失效句柄没有拦住创建",
+                "diagram": [
+                  {
+                    "label": "task_id 查询",
+                    "status": "blocked"
+                  },
+                  {
+                    "label": "fresh child",
+                    "status": "active"
+                  },
+                  {
+                    "label": "最后文本",
+                    "status": "done"
+                  }
+                ],
+                "panels": [
+                  {
+                    "title": "会话",
+                    "items": [
+                      {
+                        "label": "身份",
+                        "value": "新建 child Session",
+                        "state": "active"
+                      },
+                      {
+                        "label": "旧历史",
+                        "value": "未由这条路径续接",
+                        "state": "idle"
+                      }
+                    ]
+                  },
+                  {
+                    "title": "父助手收到",
+                    "items": [
+                      {
+                        "label": "前台结果",
+                        "value": "仍只有最后一个 text part"
+                      },
+                      {
+                        "label": "旧任务恢复",
+                        "value": "不能因调用返回就认定",
+                        "state": "unknown"
+                      }
+                    ]
+                  }
+                ],
+                "log": [
+                  "核对 child Session 身份，而不只核对 HTTP 或 tool success。"
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence": [
+          "OC-01",
+          "OC-02",
+          "OC-03"
+        ]
+      },
+      "takeaway": "保存句柄之后，还要检查它这次解析成了谁。"
+    },
+    {
+      "id": "join",
+      "title": "汇合时，把文件和结果一起收回来",
+      "lead": "主助手需要的是可核对的产物，不是一排‘完成’灯。",
+      "body": [
+        "给每个子任务划定文件范围、输入背景和输出要求。保存 child 身份，区分运行状态与消息状态，再检查文件 diff 和任务结果。",
+        "固定捕获中的并发槽位、默认深度和后台行为都有自己的作用域。不要把某次工具合同里的数字变成所有部署的能力保证。"
+      ],
+      "takeaway": "编排成功，要落到产物和状态，不落到工具名字。"
+    }
+  ],
+  "closing": [
+    "先拆任务，再拆状态。对话是否继承、文件是否隔离、节点是否运行，都可以单独发生变化。",
+    "详细来源仍保留在固定证据里；教学模型没有创建或运行任何真实子助手。"
+  ]
+}

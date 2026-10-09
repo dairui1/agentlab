@@ -1,0 +1,95 @@
+{
+  "id": "code-mode",
+  "title": "Code Mode",
+  "subtitle": "一段程序接过工具调用以后，模型还需要知道什么？",
+  "intro": ["要比较三个仓库的版本，模型可以逐次问工具，也可以写一段程序：查询、筛选、比较，最后只交回有用的结果。Code Mode 把这段中间工作交给程序。", "先看程序怎样接过查询，再让它请宿主写一次文件。沿着这两件事，观察程序状态、外部动作和模型看到的输出怎样分开。"],
+  "versionNote": "依据 2026-10-07 固定源码：Pi 592fb57b（含 1.0.4 后未发布修改）、Codex b17c74cf；不以此断言当前安装版本行为。",
+  "source": {"label": "Pi Code Mode 固定源码", "href": "https://github.com/badlogic/pi-mono/tree/592fb57b70e34a7f1011f3d7f20b556dce17c321", "boundary": "所有面板是依据 Pi 与 Codex 固定源码的教学推演；未运行模型对照、上游测试或安全攻防，完整版本与未知项保留在证据层。"},
+  "chapters": [
+    {
+      "id": "query-and-compare", "title": "查三个仓库，哪些中间步骤还要交回模型？",
+      "lead": "设定任务是查出三个仓库的版本，再按同一条件筛选。默认让程序接过查询与比较，再切回逐次调用工具。",
+      "body": ["普通工具调用把每次结果交给模型，再由模型决定下一次调用。Code Mode 让工具结果先回到程序；程序可以继续查询、循环、比较，最后才打印要交回的内容。", "模型不是退出任务。它先写下要执行的程序，再根据输出决定后续工作。变的是中间计算发生在哪里。"],
+      "model": {
+        "id": "cm-query-composition", "kind": "timeline", "title": "同一查询任务，两条结果路径",
+        "controls": [{"id": "mode", "label": "组织方式", "type": "select", "default": "program", "options": [{"value": "program", "label": "程序查询并比较"}, {"value": "ordinary", "label": "逐次把工具结果交回模型"}]}],
+        "cases": [
+          {"when": {"mode": "program"}, "label": "结果先回到程序", "explanation": "程序接过可明确写下的中间步骤，模型接收最终打印的结果。", "frames": [
+            {"caption": "模型写下查询和筛选程序", "diagram": [{"label": "模型", "status": "done"}, {"label": "脚本", "status": "active"}, {"label": "查询工具", "status": "idle"}], "panels": [{"title": "中间工作", "items": [{"label": "接下来", "value": "脚本按任务条件组织三个仓库查询"}, {"label": "工具能力", "value": "通过宿主工具请求，不直接联网"}]}, {"title": "模型看见什么", "items": [{"label": "输入", "value": "原任务与工具说明"}, {"label": "下一次输出", "value": "等待脚本交回结果"}]}], "log": ["模型先表达步骤，沙盒负责执行这段程序。"]},
+            {"caption": "工具结果回到脚本变量", "diagram": [{"label": "查询工具", "status": "done"}, {"label": "脚本变量", "status": "active"}, {"label": "模型", "status": "idle"}], "panels": [{"title": "中间工作", "items": [{"label": "结果位置", "value": "三个仓库的查询结果在程序中处理", "state": "active"}, {"label": "比较", "value": "按同一条件筛选需要的字段"}]}, {"title": "模型看见什么", "items": [{"label": "中间原始结果", "value": "不必每次都作为模型输入"}, {"label": "下一动作", "value": "由程序中的后续语句继续执行"}]}], "log": ["工具返回到程序，不必逐次交回模型决策。"]},
+              {"caption": "程序只打印需要的比较结果", "diagram": [{"label": "程序比较", "status": "done"}, {"label": "文本输出", "status": "done"}, {"label": "模型", "status": "active"}], "panels": [{"title": "中间工作", "items": [{"label": "交回内容", "value": "程序选出的比较字段", "state": "done"}, {"label": "原始数据", "value": "可以不全部打印"}]}, {"title": "模型看见什么", "items": [{"label": "收到", "value": "脚本输出与成功返回值", "state": "active"}, {"label": "后续判断", "value": "基于比较结果决定继续查询或回答"}]}], "log": ["程序完成后，模型收到被选出并打印的内容。"]}
+          ]},
+          {"when": {}, "label": "逐次交回模型", "explanation": "每次工具结果成为模型的下一步上下文，模型继续安排调用。", "frames": [
+            {"caption": "模型发起第一项查询", "diagram": [{"label": "模型", "status": "active"}, {"label": "查询工具", "status": "active"}, {"label": "中间脚本", "status": "idle"}], "panels": [{"title": "中间工作", "items": [{"label": "组织者", "value": "模型安排下一项工具调用"}, {"label": "脚本", "value": "本路径没有组合脚本"}]}, {"title": "模型看见什么", "items": [{"label": "当前", "value": "第一项查询的工具说明与参数"}]}], "log": ["普通工具入口把调用直接交给宿主工具。"]},
+            {"caption": "结果交回模型，再安排其余查询", "diagram": [{"label": "工具结果", "status": "done"}, {"label": "模型", "status": "active"}, {"label": "其余查询", "status": "active"}], "panels": [{"title": "中间工作", "items": [{"label": "后续调用", "value": "模型根据已返回结果继续安排", "state": "active"}]}, {"title": "模型看见什么", "items": [{"label": "中间数据", "value": "逐次返回的工具结果进入模型上下文"}, {"label": "比较位置", "value": "仍在模型的后续处理里"}]}], "log": ["查询、返回、再次决策形成普通调用链。"]},
+              {"caption": "模型整理查询结果", "diagram": [{"label": "各项工具结果", "status": "done"}, {"label": "模型比较", "status": "active"}, {"label": "回答", "status": "idle"}], "panels": [{"title": "中间工作", "items": [{"label": "比较", "value": "模型从多项返回内容中整理字段", "state": "active"}]}, {"title": "模型看见什么", "items": [{"label": "上下文", "value": "包含已交回的各项工具输出"}, {"label": "最终回答", "value": "由模型归纳比较结果"}]}], "log": ["中间比较仍在模型侧完成，而不是交给组合脚本。"]}
+          ]}
+        ], "evidence": ["CM-01", "CM-05"]
+      }, "takeaway": "Code Mode 让程序处理确定的中间工作，再把有用的结果交回模型。"
+    },
+    {
+      "id": "script-and-world", "title": "脚本失败了，文件也会回到原样吗？",
+      "lead": "设定一段 Pi 脚本先写文件，再修改 store，最后交回结果。把失败放在写入之后，看看哪一份状态会被保留。",
+      "body": ["Pi 在每次执行前读出当前会话分支的 store。脚本成功且 store 确实变化，才追加 codemode-store 记录；脚本失败不会保存这次 store 修改。", "文件写入是宿主工具执行的另一个动作。store 没提交，不表示工具已经做过的事情也被撤销了。"],
+      "model": {
+        "id": "pi-store-commit", "kind": "timeline", "title": "同一段写入，改变最后一步",
+        "controls": [{"id": "outcome", "label": "写入后的脚本", "type": "select", "default": "success", "options": [{"value": "success", "label": "正常返回"}, {"value": "error", "label": "抛出错误"}]}],
+        "cases": [
+          {"when": {"outcome": "error"}, "label": "写入之后失败", "explanation": "外部动作与 store 提交没有一起构成事务。",
+            "frames": [
+              {"caption": "读出当前分支的 store", "diagram": [{"label": "会话分支", "status": "active"}, {"label": "脚本", "status": "idle"}, {"label": "宿主工具", "status": "idle"}], "panels": [{"title": "程序状态", "items": [{"label": "store", "value": "执行前版本"}]}, {"title": "外部文件", "items": [{"label": "内容", "value": "写入前内容"}]}], "log": ["执行前从会话分支读取 store。"]},
+              {"caption": "设定宿主写文件工具已完成", "diagram": [{"label": "脚本", "status": "active"}, {"label": "宿主工具", "status": "done"}, {"label": "store记录", "status": "idle"}], "panels": [{"title": "程序状态", "items": [{"label": "store", "value": "脚本中的新值，尚未保存", "state": "active"}]}, {"title": "外部文件", "items": [{"label": "内容", "value": "本场景已写入新内容", "state": "done"}]}], "log": ["工具经宿主执行；外部写入先发生。"]},
+              {"caption": "脚本抛错，store 不提交", "diagram": [{"label": "脚本", "status": "blocked"}, {"label": "外部写入", "status": "done"}, {"label": "store记录", "status": "blocked"}], "panels": [{"title": "下一次执行", "items": [{"label": "store", "value": "仍读取执行前版本", "state": "blocked"}, {"label": "输出", "value": "保留部分输出，不是完整返回"}]}, {"title": "外部文件", "items": [{"label": "内容", "value": "新内容不会随脚本错误自动撤销", "state": "done"}]}], "log": ["失败路径留下部分输出，不追加这次 codemode-store。"]}
+            ]},
+          {"when": {}, "label": "写入之后正常返回", "explanation": "成功脚本的 store 变化与外部写入都能保留，但来源不同。",
+            "frames": [
+              {"caption": "读出当前分支的 store", "diagram": [{"label": "会话分支", "status": "active"}, {"label": "脚本", "status": "idle"}], "panels": [{"title": "程序状态", "items": [{"label": "store", "value": "执行前版本"}]}, {"title": "外部文件", "items": [{"label": "内容", "value": "写入前内容"}]}], "log": ["新执行从会话保存的 store 开始。"]},
+              {"caption": "设定工具写入完成，脚本继续", "diagram": [{"label": "脚本", "status": "active"}, {"label": "宿主工具", "status": "done"}], "panels": [{"title": "程序状态", "items": [{"label": "store", "value": "脚本中的新值，尚未保存", "state": "active"}]}, {"title": "外部文件", "items": [{"label": "内容", "value": "本场景写入的新内容", "state": "done"}]}], "log": ["工具结果回到程序，程序可以继续处理。"]},
+              {"caption": "正常返回并保存变化", "diagram": [{"label": "脚本", "status": "done"}, {"label": "外部写入", "status": "done"}, {"label": "store记录", "status": "done"}], "panels": [{"title": "下一次执行", "items": [{"label": "store", "value": "读取新保存的值", "state": "done"}, {"label": "输出", "value": "文本输出与成功返回值"}]}, {"title": "会话与文件", "items": [{"label": "会话", "value": "追加 codemode-store"}, {"label": "文件", "value": "保留工具写入内容"}]}], "log": ["仅在成功且 store 有变化时追加保存记录。"]}
+            ]}
+        ], "evidence": ["CM-01", "CM-03", "CM-12"]
+      },
+      "takeaway": "恢复时至少核对两处：程序保存了什么，工具实际改了什么。"
+    },
+    {
+      "id": "yield-is-not-exit", "title": "收到 cell ID，是已经结束了吗？",
+      "lead": "Codex 的程序还在等工具，模型却先拿到了一个 cell ID。改变后续动作，观察运行环境和输出各自停在哪里。",
+      "body": ["exec 到了等待时间仍没结束，可以先把控制交回模型。程序留在正在运行的 cell 里，wait 再收取新增输出。", "暂时返回不是执行失败。terminate 才是在请求停止 cell；已经发到远端的动作，要另外核对。"],
+      "model": {
+        "id": "codex-cell-lifetime", "kind": "compare", "title": "返回之后做什么",
+        "controls": [{"id": "action", "label": "模型的下一动作", "type": "select", "default": "wait", "options": [{"value": "wait", "label": "继续 wait"}, {"value": "terminate", "label": "请求 terminate"}]}],
+        "cases": [
+          {"when": {"action": "wait"}, "label": "继续收取输出", "explanation": "同一个运行中的 cell 可以多次交回控制。", "frames": [{"caption": "wait 等待新增输出", "diagram": [{"label": "模型", "status": "active"}, {"label": "V8 cell", "status": "active"}, {"label": "宿主调用", "status": "active"}], "panels": [{"title": "程序", "items": [{"label": "cell", "value": "未完成，仍在运行", "state": "active"}, {"label": "工具", "value": "由宿主 ToolCallRuntime 执行"}]}, {"title": "模型视图", "items": [{"label": "收到什么", "value": "本次新增输出，或仍在运行的 cell ID"}, {"label": "完成判断", "value": "以最终执行结果为准，不以首次返回为准"}]}], "log": ["wait 只返回上次交回控制之后的新输出。"]}]},
+          {"when": {}, "label": "请求停止 cell", "explanation": "停止代码环境与撤销宿主动作不是同一件事。", "frames": [{"caption": "terminate 要求停止程序", "diagram": [{"label": "模型", "status": "active"}, {"label": "V8 cell", "status": "blocked"}, {"label": "远端动作", "status": "unknown"}], "panels": [{"title": "程序", "items": [{"label": "cell", "value": "收到终止请求", "state": "blocked"}, {"label": "未等待的 Promise", "value": "程序结束后不会继续留在 isolate 中"}]}, {"title": "外部世界", "items": [{"label": "已派发动作", "value": "是否完成需要读取真实工具或远端状态", "state": "unknown"}, {"label": "不能直接显示", "value": "已撤销全部动作"}]}], "log": ["terminate 不提供外部副作用的事务回滚。"]}]}
+        ], "evidence": ["CM-05", "CM-06", "CM-08"]
+      }, "takeaway": "把“暂时返回”“程序结束”和“外部动作结束”分别显示。"
+    },
+    {
+      "id": "bridge-and-hooks", "title": "同样调用工具，为什么接法重要？",
+      "lead": "把 Pi 内置接入切换成独立内核。工具名字没有变，调用前后的检查却可能换了负责人。",
+      "body": ["脚本不能直接读文件或联网。它发消息给宿主，由宿主查找工具并执行。工具返回值再穿过桥回到脚本。", "Pi 内置 codemode 通过会话的 executeTool 派发。独立接入直接调用 tool.execute 时，README 提醒会跳过前后 hooks；接入者要自己补齐。"],
+      "model": {
+        "id": "pi-dispatch-route", "kind": "compare", "title": "切换工具派发路线",
+        "controls": [{"id": "route", "label": "接入方式", "type": "select", "default": "builtin", "options": [{"value": "builtin", "label": "Pi 内置会话"}, {"value": "standalone", "label": "独立内核直接接工具"}]}],
+        "cases": [
+          {"when": {"route": "builtin"}, "label": "走会话工具接口", "explanation": "内置接法沿着现有会话派发，不在 VM 中另造文件工具。", "frames": [{"caption": "脚本 → 宿主 → 会话工具", "diagram": [{"label": "QuickJS", "status": "active"}, {"label": "消息桥", "status": "active"}, {"label": "ctx.executeTool", "status": "active"}], "panels": [{"title": "派发", "items": [{"label": "工具来源", "value": "ctx.tools"}, {"label": "执行入口", "value": "ctx.executeTool"}]}, {"title": "调用管理", "items": [{"label": "状态", "value": "running / ok / error / cancelled"}, {"label": "权限验证", "value": "具体工具的权限仍要逐项审计", "state": "unknown"}]}], "log": ["请求带调用 ID，经会话入口处理。"]}]},
+          {"when": {}, "label": "接入者直接派发", "explanation": "独立内核提供运行机制，不自动接上所有会话策略。", "frames": [{"caption": "脚本 → 宿主 → tool.execute", "diagram": [{"label": "QuickJS", "status": "active"}, {"label": "消息桥", "status": "active"}, {"label": "会话 hooks", "status": "blocked"}], "panels": [{"title": "派发", "items": [{"label": "执行入口", "value": "tool.execute"}, {"label": "工具注册", "value": "由独立宿主提供"}]}, {"title": "调用管理", "items": [{"label": "前后 hooks", "value": "直接调用会跳过，需接入者另接", "state": "blocked"}, {"label": "授权与取消", "value": "不能凭内核接通就认定已接齐", "state": "unknown"}]}], "log": ["独立接入需要明确 hooks、授权与取消的责任。"]}]}
+        ], "evidence": ["CM-04", "CM-09", "CM-11", "CM-12"]
+      }, "takeaway": "工具能被调用只是起点。安全规则要看它实际经过的派发路径。"
+    },
+    {
+      "id": "script-surface", "title": "沙盒限制的是谁？",
+      "lead": "一个脚本不能直接访问网络，却能请工具访问网络。改变动作来源，看看限制落在哪一层。",
+      "body": ["Pi 给脚本 VM 设置 256 MB 内存上限；Codex 的新 V8 isolate 不提供 Node、文件系统或直接联网。它们都把外部操作交给宿主工具。", "所以 VM 隔离不能替代工具授权。脚本的资源限制，也不是它调用的每个进程和服务的总预算。"],
+      "model": {
+        "id": "vm-versus-host", "kind": "compare", "title": "谁在请求外部动作",
+        "controls": [{"id": "caller", "label": "请求路径", "type": "select", "default": "tool", "options": [{"value": "tool", "label": "脚本通过已提供的工具"}, {"value": "direct", "label": "脚本直接读文件或联网"}]}],
+        "cases": [
+          {"when": {"caller": "direct"}, "label": "VM 不提供直接入口", "explanation": "这类能力不在脚本环境中。", "frames": [{"caption": "直接能力与宿主能力分开", "diagram": [{"label": "脚本 VM", "status": "active"}, {"label": "直接文件 / 网络", "status": "blocked"}, {"label": "宿主工具", "status": "idle"}], "panels": [{"title": "脚本环境", "items": [{"label": "直接访问", "value": "没有文件系统或联网入口", "state": "blocked"}, {"label": "Pi VM 内存", "value": "256 MB"}]}, {"title": "宿主", "items": [{"label": "工具请求", "value": "本路径没有通过工具派发"}, {"label": "需要外部动作时", "value": "改为请求宿主提供的工具"}]}], "log": ["没有直接入口，外部动作必须经过工具桥。"]}]},
+          {"when": {}, "label": "由宿主执行工具", "explanation": "脚本不能直接做的动作，可以由获提供的工具代做。", "frames": [{"caption": "能力穿过工具桥", "diagram": [{"label": "脚本 VM", "status": "active"}, {"label": "工具桥", "status": "active"}, {"label": "宿主工具", "status": "active"}], "panels": [{"title": "脚本环境", "items": [{"label": "直接访问", "value": "仍然没有直接入口"}, {"label": "Pi VM 内存", "value": "仍是 256 MB，不涵盖所有外部服务"}]}, {"title": "宿主", "items": [{"label": "外部动作", "value": "取决于工具提供的能力与授权", "state": "active"}, {"label": "取消", "value": "AbortSignal 要工具配合；不撤销已完成动作"}]}], "log": ["工具能力、授权和资源限制要在宿主一侧另行核对。"]}]}
+        ], "evidence": ["CM-01", "CM-05", "CM-10", "CM-12"]
+      }, "takeaway": "Code Mode 改变工具组合方式，没有把工具本身变成无副作用的计算。"
+    }
+  ],
+  "closing": ["这条思路适合把查询、筛选和重复步骤交给程序，让模型集中看决定性的结果。是否更快、更省或更安全，要在相同任务与预算下测量。", "先读懂三份状态，再谈恢复：脚本在内存里做到哪里，会话保存了什么，外部工具留下了什么。"]
+}

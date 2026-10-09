@@ -1,0 +1,55 @@
+{
+  "id": "raft-multi-agent", "title": "Raft 多 Agent", "subtitle": "两个人都算出 8，怎样避免报出两个 8？",
+  "intro": ["A 和 B 都读到房间最后报了 7，随后都准备回复 8。A 先发完，B 的答案就已经过时了。问题不在算术，而在决定与提交之间，现场变了。", "沿着读消息、暂缓草稿和认领任务，看看工作区怎样给 Agent 一次重新判断的机会。"],
+  "versionNote": "原作者 Tenny 的博客发布于 2026-05-21；源码固定到 v1.13.0-source.1 / 05f7d8fd77d2535f993d5d90b85118438bc18216，晚于博客。",
+  "source": {"label": "Raft 博客完整中文译文与原图", "href": "https://raft.build/resources/blog/is-having-agents-in-the-room-meant-to-be-chaotic/", "boundary": "教学模型依据较晚的固定源码；原文观点与原图独立保留，未运行 Raft 或并发实验。"},
+  "chapters": [
+    {
+      "id": "reading", "title": "收到一条新消息，是否等于读到了这里？",
+      "lead": "第 99 条说“不要发布”，第 100 条才 @了你。只拿到第 100 条，不能把第 99 条也算成看过。",
+      "body": ["inbox check 返回摘要；message check 拉取离散消息。普通历史读取会推进目标下的读取边界，around 定位读取则不会。", "换一种读取方式，同时看模型拿到的内容和连续游标。两者不总是一起前进。"],
+      "model": {"id": "read-boundary", "kind": "compare", "title": "查看 99、100 两条消息", "controls": [{"id": "read", "label": "读取动作", "type": "select", "default": "history", "options": [{"value": "inbox", "label": "inbox check 摘要"}, {"value": "check", "label": "message check 离散取出"}, {"value": "history", "label": "message read 普通历史"}, {"value": "around", "label": "message read --around 定位"}]}], "cases": [
+        {"when": {"read": "inbox"}, "label": "知道有人找你，还没读正文", "explanation": "本场景的原连续边界为 98。", "frames": [{"caption": "摘要不消费消息", "diagram": [{"label": "消息 99", "status": "idle"}, {"label": "消息 100", "status": "idle"}, {"label": "目标摘要", "status": "active"}], "panels": [{"title": "模型得到", "items": [{"label": "内容", "value": "目标与待处理数量"}, {"label": "正文", "value": "未由该路径返回", "state": "idle"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "仍为 98"}, {"label": "待处理消息", "value": "未在这条摘要路径消费"}]}], "log": ["摘要回答哪里有事情，不回答每条事情是什么。"]}]},
+        {"when": {"read": "check"}, "label": "拿到了新 mention，不能越过旧缺口", "explanation": "假定本次离散事件只包含 100；这不是连续历史窗口。", "frames": [{"caption": "稀疏可见与连续边界分开", "diagram": [{"label": "消息 99", "status": "unknown"}, {"label": "消息 100", "status": "done"}, {"label": "连续游标", "status": "idle"}], "panels": [{"title": "模型得到", "items": [{"label": "100：@你", "value": "本次已返回", "state": "done"}, {"label": "99：不要发布", "value": "本次没返回", "state": "unknown"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "仍为 98"}, {"label": "最大已见序号", "value": "不能直接当成连续已读位置"}]}], "log": ["message check 不把稀疏 events 写成 seenUpToSeq。"]}]},
+        {"when": {"read": "history"}, "label": "普通窗口推进目标读取边界", "explanation": "本场景的历史窗口包含 99 与 100。", "frames": [{"caption": "读取到这一段历史", "diagram": [{"label": "消息 99", "status": "done"}, {"label": "消息 100", "status": "done"}, {"label": "目标边界 100", "status": "active"}], "panels": [{"title": "模型得到", "items": [{"label": "99：不要发布", "value": "已返回", "state": "done"}, {"label": "100：@你", "value": "已返回", "state": "done"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "记录到返回窗口最大序号 100"}, {"label": "理解程度", "value": "边界不测量模型是否理解", "state": "unknown"}]}], "log": ["记录读到哪里，与模型有没有照做仍是两回事。"]}]},
+        {"when": {}, "label": "定点查看不会推进连续游标", "explanation": "around 返回定位上下文，但不记成普通历史的 read-through。", "frames": [{"caption": "看见局部，不声明连续已读", "diagram": [{"label": "定位上下文", "status": "done"}, {"label": "连续边界 98", "status": "idle"}, {"label": "后续发送", "status": "unknown"}], "panels": [{"title": "模型得到", "items": [{"label": "定位附近正文", "value": "已返回"}, {"label": "读取方式", "value": "around 局部窗口"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "仍为 98"}, {"label": "以后是否暂缓", "value": "还要核对未见消息"}]}], "log": ["看一个位置，不等于看完这个位置之前的一切。"]}]}
+      ], "evidence": ["RM-01", "RM-02", "RM-03", "RM-04"]},
+      "takeaway": "消息到达、正文可见、连续读取，分别需要自己的状态。"
+    },
+    {
+      "id": "sending", "title": "草稿写完后，先看一眼房间发生了什么",
+      "lead": "B 写好了 8。这时房间里可能已经有 A 的 8，也可能只是有人说“继续”。系统不能替 B 猜。",
+      "body": ["发送请求带上读到哪里。Daemon 先查目标未见消息，Server 再查相应的新消息；暂缓时保存草稿，而不是自动再发一遍。", "这里让 A 先提交完，再让 B 来检查。真正两个请求同时跨过检查的情况，不在这个模型里假定被消除。"],
+      "model": {"id": "held-draft", "kind": "timeline", "title": "B 的 8 到底发不发？", "controls": [{"id": "send", "label": "B 来到发送口时", "type": "select", "default": "fresh", "options": [{"value": "fresh", "label": "没有边界后的新消息"}, {"value": "new-message", "label": "A 已发送，新消息尚未读"}, {"value": "override", "label": "明确原样发送并绕过 freshness"}]}], "cases": [
+        {"when": {"send": "new-message"}, "label": "先留下草稿", "explanation": "下面画出本地有可解析未见序号的路径；若本地放行，服务端仍有自己的检查。", "frames": [
+          {"caption": "B 根据旧快照写好草稿", "diagram": [{"label": "B 读到 7", "status": "done"}, {"label": "A 已发 8", "status": "done"}, {"label": "B 草稿 8", "status": "active"}], "panels": [{"title": "B 的现场", "items": [{"label": "读取依据", "value": "A 发送之前的快照"}, {"label": "准备内容", "value": "8"}]}, {"title": "房间", "items": [{"label": "新消息", "value": "A：8"}, {"label": "B 的 8", "value": "尚未投递", "state": "idle"}]}], "log": ["两个推理可以都正确，第二份草稿仍会过时。"]},
+          {"caption": "本地检查发现未见消息", "diagram": [{"label": "目标未见消息", "status": "active"}, {"label": "local_hold", "status": "blocked"}, {"label": "广播投递", "status": "idle"}], "panels": [{"title": "返回给 B", "items": [{"label": "结果", "value": "local_hold", "state": "blocked"}, {"label": "上下文", "value": "待补的新消息"}]}, {"title": "房间与草稿", "items": [{"label": "B 的 8", "value": "没有因此投递"}, {"label": "草稿", "value": "保存内容与读取边界"}]}], "log": ["hold 是一个结果，不是发送成功。"]},
+          {"caption": "把下一步留给 B", "diagram": [{"label": "读取变化", "status": "active"}, {"label": "修改或放弃", "status": "unknown"}, {"label": "再次发送", "status": "unknown"}], "panels": [{"title": "现在可选择", "items": [{"label": "重复的 8", "value": "可以放弃或修改"}, {"label": "仍有必要的草稿", "value": "可以再次提交检查"}]}, {"title": "CLI 状态", "items": [{"label": "错误码", "value": "SEND_HELD_AS_DRAFT"}, {"label": "自动重试", "value": "retryable 为 false", "state": "blocked"}]}], "log": ["系统返回变化，Agent 决定草稿还有没有价值。"]}
+        ]},
+        {"when": {"send": "fresh"}, "label": "离开检查，才进入投递路径", "explanation": "假定本地与服务端都没有需要暂缓的新消息；不模拟后续网络故障。", "frames": [
+          {"caption": "B 准备发送", "diagram": [{"label": "读取依据", "status": "done"}, {"label": "草稿 8", "status": "active"}, {"label": "投递", "status": "idle"}], "panels": [{"title": "请求", "items": [{"label": "内容", "value": "8"}, {"label": "边界", "value": "包含当前目标的最新读取位置"}]}, {"title": "现场", "items": [{"label": "新消息", "value": "场景中没有"}, {"label": "房间", "value": "尚未收到这份草稿"}]}], "log": ["准备好了不等于发出去了。"]},
+          {"caption": "两层 freshness 检查不暂缓", "diagram": [{"label": "Daemon 检查", "status": "done"}, {"label": "Server 检查", "status": "done"}, {"label": "投递", "status": "active"}], "panels": [{"title": "检查结果", "items": [{"label": "本地", "value": "继续转发"}, {"label": "服务端", "value": "未 hold"}]}, {"title": "下一调用", "items": [{"label": "广播", "value": "broadcastAndDeliver"}, {"label": "结果", "value": "还需要实际投递回执", "state": "unknown"}]}], "log": ["未暂缓才进入真正的提交调用。"]},
+          {"caption": "假定投递成功后清理草稿", "diagram": [{"label": "成功回执", "status": "done"}, {"label": "房间消息", "status": "done"}, {"label": "本地草稿", "status": "done"}], "panels": [{"title": "房间", "items": [{"label": "B 的 8", "value": "场景假定投递成功", "state": "done"}, {"label": "消息数", "value": "新增这一条"}]}, {"title": "CLI 状态", "items": [{"label": "已保存草稿", "value": "成功后清理"}, {"label": "现实核对", "value": "以实际回执与消息为准"}]}], "log": ["最后一步是场景假定，不是线上发送记录。"]}
+        ]},
+        {"when": {}, "label": "绕过是选择，不是重试奖励", "explanation": "continueAnyway 与 sendDraft 组合可明确绕过；三次 hold 只是建议提示，不是硬授权门槛。", "frames": [
+          {"caption": "已有一份暂缓草稿", "diagram": [{"label": "新消息 A：8", "status": "done"}, {"label": "B 草稿 8", "status": "blocked"}, {"label": "原样发送", "status": "idle"}], "panels": [{"title": "保存内容", "items": [{"label": "草稿", "value": "8"}, {"label": "恢复方式", "value": "--send-draft --anyway"}]}, {"title": "现场", "items": [{"label": "已有消息", "value": "A：8"}, {"label": "重复风险", "value": "仍存在", "state": "active"}]}], "log": ["重新判断以后，调用方仍可以坚持发送。"]},
+          {"caption": "明确 bypass freshness", "diagram": [{"label": "continueAnyway", "status": "active"}, {"label": "freshness 暂缓", "status": "idle"}, {"label": "投递调用", "status": "active"}], "panels": [{"title": "检查分支", "items": [{"label": "本地", "value": "明确 bypass"}, {"label": "服务端", "value": "override 不按新增消息 hold"}]}, {"title": "仍未保证", "items": [{"label": "投递成功", "value": "仍需回执", "state": "unknown"}, {"label": "内容不重复", "value": "不是此分支的保证", "state": "unknown"}]}], "log": ["freshness 不是无例外的全局锁。"]},
+          {"caption": "假定投递成功，房间可能有两个 8", "diagram": [{"label": "A：8", "status": "done"}, {"label": "B：8", "status": "done"}, {"label": "后续协调", "status": "active"}], "panels": [{"title": "房间", "items": [{"label": "消息", "value": "A：8；B：8"}, {"label": "场景条件", "value": "显式绕过并假定投递成功"}]}, {"title": "责任", "items": [{"label": "系统", "value": "提供变化与选择"}, {"label": "调用方", "value": "决定是否继续发送"}]}], "log": ["不把本地暂缓写成全链路去重保证。"]}
+        ]}
+      ], "evidence": ["RM-05", "RM-06", "RM-07", "RM-08", "RM-10", "RM-13", "RM-15"]},
+      "takeaway": "暂缓不是替 Agent 改答案，而是在公开提交前，把新的现场交回去。"
+    },
+    {
+      "id": "claim", "title": "轮流说话之后，还要决定谁来动手",
+      "lead": "两只 Agent 同时看到 revision 7 的任务都无人认领。谁先写入，不能只看谁先宣布“我来”。",
+      "body": ["任务认领检查 revision 和可认领状态。先成功的写入更新归属与版本，拿旧版本的请求随后会冲突。", "这里锁住的是同一条任务记录。另建一条同名任务，或者绕过认领直接改文件，是另外的问题。"],
+      "model": {"id": "task-claim", "kind": "compare", "title": "两个 revision 7 的认领请求", "controls": [{"id": "first", "label": "先到数据库的请求", "type": "select", "default": "A", "options": [{"value": "A", "label": "Agent A 先写入"}, {"value": "B", "label": "Agent B 先写入"}]}], "cases": [
+        {"when": {"first": "A"}, "label": "A 拿到任务，B 需要重读", "explanation": "假定 revision 7 的任务原本可认领。", "frames": [{"caption": "条件更新之后", "diagram": [{"label": "A：revision 7", "status": "done"}, {"label": "任务 revision 8", "status": "active"}, {"label": "B：revision 7", "status": "blocked"}], "panels": [{"title": "任务记录", "items": [{"label": "assignee", "value": "A"}, {"label": "revision", "value": "8"}]}, {"title": "两份回执", "items": [{"label": "A", "value": "条件更新成功", "state": "done"}, {"label": "B", "value": "旧版本冲突，重新读取", "state": "blocked"}]}], "log": ["数据库没有替 A 或 B 锁住共享工作目录。"]}]},
+        {"when": {}, "label": "B 拿到任务，A 需要重读", "explanation": "改变到达顺序，归属和冲突结果一起改变。", "frames": [{"caption": "条件更新之后", "diagram": [{"label": "B：revision 7", "status": "done"}, {"label": "任务 revision 8", "status": "active"}, {"label": "A：revision 7", "status": "blocked"}], "panels": [{"title": "任务记录", "items": [{"label": "assignee", "value": "B"}, {"label": "revision", "value": "8"}]}, {"title": "两份回执", "items": [{"label": "A", "value": "旧版本冲突，重新读取", "state": "blocked"}, {"label": "B", "value": "条件更新成功", "state": "done"}]}], "log": ["先认领再执行，还需要调用流程与行为规则配合。"]}]}
+      ], "evidence": ["RM-14"]},
+      "takeaway": "同一记录的条件更新能仲裁归属，不能自动去重所有工作或保护所有副作用。"
+    },
+    {"id": "reading-source", "title": "带着这三种状态，再读原作者的房间", "lead": "原文把问题放在共享房间里：Agent 需要知道发生了什么，也需要有机会改变主意。", "body": ["完整中文译文和作者的五张原图保留在独立来源层。原图是作者的叙述与演示，不冒充我们跑出的结果。", "还有一个值得留意的反例：一次 hold 可以有五条新消息，只返回三条正文，并确认到最新位置。边界推进，不等于五条正文全部展示。", "真正同时通过检查的两个请求是否再次仲裁，需要并发实验回答。这个教学模型故意不替它补一个成功保证。"], "takeaway": "更好的房间提供清楚的变化、草稿与归属状态，而不是承诺 Agent 从此不会犯错。"}
+  ],
+  "closing": ["读到哪里、草稿是否提交、任务归谁，分别是三份状态。把它们混成一个“Agent 已处理”，就会漏掉问题。", "读者可以操作这些状态；原作者的全文与固定源码仍是独立可查的依据。"]
+}

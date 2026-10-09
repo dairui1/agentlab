@@ -86,7 +86,7 @@ async function main(args) {
   assert.ok(remote || local, "Usage: node scripts/verify_pi_durable_sources.mjs --source-root <pi> | --fetch");
   const publicRoot = fileURLToPath(new URL("../public/", import.meta.url));
   const study = JSON.parse(await readFile(path.join(publicRoot, "capabilities/pi-durable.json"), "utf8"));
-  const html = await readFile(path.join(publicRoot, "capabilities/pi-durable.html"), "utf8");
+  const html = await readFile(path.join(publicRoot, "capabilities/pi-durable-guide.html"), "utf8");
   const sourceRoot = local ? path.resolve(args[1]) : null;
   if (local) {
     const checkout = execFileSync("git", ["-C", sourceRoot, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
