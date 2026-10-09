@@ -66,7 +66,7 @@
               "delivery": "message"
             },
             "label": "投递后仍然空闲",
-            "explanation": "没有新 turn 被启动，不能把投递回执当成执行回执。",
+            "explanation": "没有新 turn 被启动，不能把投递回执当成执行回执。 本例任务标签 task-1、助手 worker-A 与文件内容均为场景示例。",
             "frames": [
               {
                 "caption": "发送前",
@@ -91,6 +91,18 @@
                       {
                         "label": "状态",
                         "value": "未投递"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -100,6 +112,11 @@
                       {
                         "label": "子 turn",
                         "value": "空闲",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
                         "state": "idle"
                       }
                     ]
@@ -133,6 +150,18 @@
                         "label": "状态",
                         "value": "已投递",
                         "state": "done"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -142,6 +171,11 @@
                       {
                         "label": "子 turn",
                         "value": "仍空闲",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
                         "state": "idle"
                       }
                     ]
@@ -170,6 +204,18 @@
                       {
                         "label": "回执",
                         "value": "投递与结果分开"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -179,6 +225,16 @@
                       {
                         "label": "开始工作",
                         "value": "没有由此调用启动",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "产物",
+                        "value": "尚无 task-1 修复回报",
                         "state": "idle"
                       }
                     ]
@@ -196,7 +252,7 @@
               "delivery": "followup"
             },
             "label": "启动任务，随后回报",
-            "explanation": "场景假定子任务正常完成。启动回执与随后送达的 final answer 是两次不同信号。",
+            "explanation": "场景假定子任务正常完成。启动回执与随后送达的 final answer 是两次不同信号。 本例任务标签 task-1、助手 worker-A 与文件内容均为场景示例。",
             "frames": [
               {
                 "caption": "发送前",
@@ -217,6 +273,18 @@
                       {
                         "label": "状态",
                         "value": "未投递"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -226,6 +294,11 @@
                       {
                         "label": "子 turn",
                         "value": "空闲",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
                         "state": "idle"
                       }
                     ]
@@ -255,6 +328,18 @@
                         "label": "状态",
                         "value": "已投递",
                         "state": "done"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -265,6 +350,11 @@
                         "label": "子 turn",
                         "value": "已触发",
                         "state": "active"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
+                        "state": "idle"
                       }
                     ]
                   }
@@ -297,6 +387,18 @@
                         "label": "结果通道",
                         "value": "final answer 异步送达",
                         "state": "done"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "task-1 回报：已修复空密码分支，登录测试通过（示例结果）"
                       }
                     ]
                   },
@@ -312,6 +414,11 @@
                         "label": "主助手",
                         "value": "检查结果与文件，再汇合产物",
                         "state": "active"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:false（示例改动）",
+                        "state": "done"
                       }
                     ]
                   }
@@ -325,7 +432,7 @@
           {
             "when": {},
             "label": "正在运行，等待投递边界",
-            "explanation": "不能把 followup 理解成同时启动第二个 turn；运行中的投递会在采样边界或待处理工具调用之后到达。",
+            "explanation": "不能把 followup 理解成同时启动第二个 turn；运行中的投递会在采样边界或待处理工具调用之后到达。 本例任务标签 task-1、助手 worker-A 与文件内容均为场景示例。",
             "frames": [
               {
                 "caption": "目标还在工作",
@@ -346,6 +453,18 @@
                       {
                         "label": "发送方式",
                         "value": "{{delivery}}"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -356,6 +475,11 @@
                         "label": "子 turn",
                         "value": "已有一轮运行",
                         "state": "active"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
+                        "state": "idle"
                       }
                     ]
                   }
@@ -383,6 +507,18 @@
                       {
                         "label": "到达",
                         "value": "采样边界或工具调用之后"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -393,6 +529,11 @@
                         "label": "当前工作",
                         "value": "尚未因投递自动终止",
                         "state": "active"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
+                        "state": "idle"
                       }
                     ]
                   }
@@ -421,6 +562,18 @@
                         "label": "投递",
                         "value": "可交给运行中的目标",
                         "state": "done"
+                      },
+                      {
+                        "label": "任务标签",
+                        "value": "task-1（示例派工标签，不是原生 job ID）"
+                      },
+                      {
+                        "label": "接收助手",
+                        "value": "worker-A · /root/worker_a"
+                      },
+                      {
+                        "label": "委派内容",
+                        "value": "修复空密码登录测试；只改 src/login.ts 与 tests/login.test.ts"
                       }
                     ]
                   },
@@ -430,6 +583,16 @@
                       {
                         "label": "是否按新要求完成",
                         "value": "要等结果确认",
+                        "state": "unknown"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:true（示例缺陷）",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "产物",
+                        "value": "仍等待 task-1 的最终回报",
                         "state": "unknown"
                       }
                     ]

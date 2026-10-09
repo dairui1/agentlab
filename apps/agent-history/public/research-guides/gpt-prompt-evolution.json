@@ -7,11 +7,21 @@
     {
       "id": "intent", "title": "诊断、修复、发消息，是否都该直接做？", "lead": "一份行动模板需要分清：用户要一个答案，还是已经授权改变东西。",
       "body": ["5.5 已偏向端到端执行。5.6 更明确地按请求类别分流：诊断先解释，不因发现问题就自动修复。", "GPT-6 把已有授权和用户意图前置，但没有把“持续完成”变成新权限。给别人发消息仍需明确授权。"],
-      "model": {"id": "intent-routing", "kind": "compare", "title": "把一句请求放进三份模板", "controls": [{"id": "request", "label": "用户请求", "type": "select", "default": "diagnose", "options": [{"value": "diagnose", "label": "为什么测试失败？"}, {"value": "fix", "label": "把这个测试修好"}, {"value": "message", "label": "修好后可能需要通知同事"}]}], "cases": [
-        {"when": {"request": "diagnose"}, "label": "诊断不自动变成修复", "explanation": "这里列出模板规则与解释空间，不生成模型动作。", "frames": [{"caption": "请求类型影响行动边界", "diagram": [{"label": "只读定位", "status": "active"}, {"label": "解释原因", "status": "active"}, {"label": "修改文件", "status": "unknown"}], "panels": [{"title": "5.5 / 5.6", "items": [{"label": "5.5", "value": "排除纯咨询后偏向直接实现；诊断是否属于咨询要看意图"}, {"label": "5.6", "value": "诊断先给解释，未经修复请求不修改", "state": "done"}]}, {"title": "GPT-6 / 本题", "items": [{"label": "GPT-6", "value": "结合意图和已有授权；先做已授权的独立工作"}, {"label": "不能推出", "value": "问原因就是授权任意修复", "state": "blocked"}]}], "log": ["条款更具体，不等于运行中绝无误判。"]}]},
-        {"when": {"request": "fix"}, "label": "在既有范围内完成实现与验收", "explanation": "三份样本都不是“一律先问再做”。", "frames": [{"caption": "修复请求的持续执行", "diagram": [{"label": "读代码", "status": "active"}, {"label": "修改", "status": "active"}, {"label": "适当验收", "status": "active"}], "panels": [{"title": "5.5 / 5.6", "items": [{"label": "5.5", "value": "推进实现、测试与交付"}, {"label": "5.6", "value": "修改类请求持续到完成，但不扩大权限"}]}, {"title": "GPT-6 / 本题", "items": [{"label": "GPT-6", "value": "必要批准前先做好已授权、可审阅的工作"}, {"label": "真实完成", "value": "仍由文件状态与测试证明", "state": "unknown"}]}], "log": ["持久性不是 GPT-6 从零新增的特性。"]}]},
-        {"when": {}, "label": "可能需要通知，不是已经授权发出", "explanation": "GPT-6 主模板明确写出对外消息授权；不把较早模板的缺句视为许可。", "frames": [{"caption": "把准备与对外副作用分开", "diagram": [{"label": "完成修复", "status": "active"}, {"label": "准备通知", "status": "active"}, {"label": "发给同事", "status": "blocked"}], "panels": [{"title": "样本内条款", "items": [{"label": "5.5 / 5.6", "value": "持续工作不能自动解释为新增外部授权"}, {"label": "GPT-6", "value": "给他人发消息仍需明确授权", "state": "done"}]}, {"title": "本题边界", "items": [{"label": "已授权", "value": "修复任务与必要验收"}, {"label": "未明确授权", "value": "代表用户发消息", "state": "blocked"}]}], "log": ["模板文本不能代替宿主权限与用户批准。"]}]}
-      ], "evidence": ["GP-03", "GP-04", "GP-05", "GP-06"]},
+      "model": {
+        "id": "intent-routing", "kind": "compare", "title": "把一句请求放进三份模板",
+        "controls": [{"id":"request","label":"用户请求","type":"select","default":"diagnose","options":[{"value":"diagnose","label":"为什么测试失败？"},{"value":"fix","label":"把这个测试修好"},{"value":"message","label":"修好后可能需要通知同事"}]}],
+        "cases": [
+          {"when": {"request":"diagnose"}, "label": "诊断不自动变成修复", "explanation": "这里列出模板规则与解释空间，不生成模型动作。", "frames": [
+            {"caption":"示例请求 · 请求类型影响行动边界","diagram":[{"label":"只读定位","status":"active"},{"label":"解释原因","status":"active"},{"label":"修改文件","status":"unknown"}],"panels":[{"title":"5.5 / 5.6","items":[{"label":"5.5","value":"排除纯咨询后偏向直接实现；诊断是否属于咨询要看意图"},{"label":"5.6","value":"诊断先给解释，未经修复请求不修改","state":"done"}]},{"title":"GPT-6 / 本题","items":[{"label":"GPT-6","value":"结合意图和已有授权；先做已授权的独立工作"},{"label":"不能推出","value":"问原因就是授权任意修复","state":"blocked"}]},{"title":"具体任务现场（示例）","items":[{"label":"用户原话","value":"示例：“为什么 login_retry_test 在重连时超时？”"},{"label":"测试材料","value":"示例输出：expected connected；received timeout。未授权修改文件。"}]}],"log":["条款更具体，不等于运行中绝无误判。"]}
+          ]},
+          {"when": {"request":"fix"}, "label": "在既有范围内完成实现与验收", "explanation": "三份样本都不是“一律先问再做”。", "frames": [
+            {"caption":"示例请求 · 修复请求的持续执行","diagram":[{"label":"读代码","status":"active"},{"label":"修改","status":"active"},{"label":"适当验收","status":"active"}],"panels":[{"title":"5.5 / 5.6","items":[{"label":"5.5","value":"推进实现、测试与交付"},{"label":"5.6","value":"修改类请求持续到完成，但不扩大权限"}]},{"title":"GPT-6 / 本题","items":[{"label":"GPT-6","value":"必要批准前先做好已授权、可审阅的工作"},{"label":"真实完成","value":"仍由文件状态与测试证明","state":"unknown"}]},{"title":"具体任务现场（示例）","items":[{"label":"用户原话","value":"示例：“修好 login_retry_test；保留 refresh API”。"},{"label":"验收清单","value":"示例：[ ] 登录重连测试通过；[ ] refresh API 未改。"}]}],"log":["持久性不是 GPT-6 从零新增的特性。"]}
+          ]},
+          {"when": {}, "label": "可能需要通知，不是已经授权发出", "explanation": "GPT-6 主模板明确写出对外消息授权；不把较早模板的缺句视为许可。", "frames": [
+            {"caption":"示例请求 · 把准备与对外副作用分开","diagram":[{"label":"完成修复","status":"active"},{"label":"准备通知","status":"active"},{"label":"发给同事","status":"blocked"}],"panels":[{"title":"样本内条款","items":[{"label":"5.5 / 5.6","value":"持续工作不能自动解释为新增外部授权"},{"label":"GPT-6","value":"给他人发消息仍需明确授权","state":"done"}]},{"title":"本题边界","items":[{"label":"已授权","value":"修复任务与必要验收"},{"label":"未明确授权","value":"代表用户发消息","state":"blocked"}]},{"title":"具体任务现场（示例）","items":[{"label":"用户原话","value":"示例：“修好登录后，可能需要通知同事”。"},{"label":"准备内容","value":"示例草稿：“登录修复与测试已整理，待确认通知对象”；未发出。"}]}],"log":["模板文本不能代替宿主权限与用户批准。"]}
+          ]}
+        ], "evidence": ["GP-03","GP-04","GP-05","GP-06"]
+      },
       "takeaway": "更主动不等于更有权限；能先做的部分，也不必陪着待批准的部分一起停住。"
     },
     {

@@ -38,7 +38,7 @@
               "override": false
             },
             "label": "沿当前配置使用 A",
-            "explanation": "省略本次 model 字段，沿当前会话配置。场景假定请求正常返回。",
+            "explanation": "省略本次 model 字段，沿当前会话配置。场景假定请求正常返回。 示例任务是检查 src/login.ts，A/B 与下述请求、回复均为假定数据。",
             "frames": [
               {
                 "caption": "读取当前配置",
@@ -68,6 +68,14 @@
                       {
                         "label": "阶段",
                         "value": "准备请求"
+                      },
+                      {
+                        "label": "输入文本",
+                        "value": "检查 src/login.ts：空密码是否会被拒绝？"
+                      },
+                      {
+                        "label": "turn/start.model",
+                        "value": "省略；当前有效配置 model=A"
                       }
                     ]
                   },
@@ -81,6 +89,15 @@
                       {
                         "label": "能力",
                         "value": "按有效模型的 catalog 核对"
+                      },
+                      {
+                        "label": "配置记录",
+                        "value": "thread-demo-login · effective model=A"
+                      },
+                      {
+                        "label": "请求记录",
+                        "value": "provider 请求使用 model=A",
+                        "state": "active"
                       }
                     ]
                   }
@@ -117,6 +134,14 @@
                       {
                         "label": "阶段",
                         "value": "请求中"
+                      },
+                      {
+                        "label": "输入文本",
+                        "value": "检查 src/login.ts：空密码是否会被拒绝？"
+                      },
+                      {
+                        "label": "turn/start.model",
+                        "value": "省略；当前有效配置 model=A"
                       }
                     ]
                   },
@@ -130,6 +155,15 @@
                       {
                         "label": "能力",
                         "value": "按有效模型的 catalog 核对"
+                      },
+                      {
+                        "label": "配置记录",
+                        "value": "thread-demo-login · effective model=A"
+                      },
+                      {
+                        "label": "请求记录",
+                        "value": "provider 请求使用 model=A",
+                        "state": "active"
                       }
                     ]
                   }
@@ -166,6 +200,14 @@
                       {
                         "label": "阶段",
                         "value": "完成"
+                      },
+                      {
+                        "label": "输入文本",
+                        "value": "检查 src/login.ts：空密码是否会被拒绝？"
+                      },
+                      {
+                        "label": "turn/start.model",
+                        "value": "省略；当前有效配置 model=A"
                       }
                     ]
                   },
@@ -179,6 +221,15 @@
                       {
                         "label": "能力",
                         "value": "按有效模型的 catalog 核对"
+                      },
+                      {
+                        "label": "配置记录",
+                        "value": "thread-demo-login · effective model=A"
+                      },
+                      {
+                        "label": "示例回复",
+                        "value": "空密码分支应返回拒绝，不应建立登录态。",
+                        "state": "done"
                       }
                     ]
                   }
@@ -192,7 +243,7 @@
           {
             "when": {},
             "label": "本次与后续改为 B",
-            "explanation": "turn/start 的显式 model 覆盖当前及后续 turns，不是只换这一次调用。",
+            "explanation": "turn/start 的显式 model 覆盖当前及后续 turns，不是只换这一次调用。 示例任务是检查 src/login.ts，A/B 与下述请求、回复均为假定数据。",
             "frames": [
               {
                 "caption": "turn/start 指定 B",
@@ -222,6 +273,14 @@
                       {
                         "label": "阶段",
                         "value": "更新配置"
+                      },
+                      {
+                        "label": "输入文本",
+                        "value": "检查 src/login.ts：空密码是否会被拒绝？"
+                      },
+                      {
+                        "label": "turn/start.model",
+                        "value": "B（显式覆盖）"
                       }
                     ]
                   },
@@ -235,6 +294,15 @@
                       {
                         "label": "能力",
                         "value": "按有效模型的 catalog 核对"
+                      },
+                      {
+                        "label": "配置记录",
+                        "value": "thread-demo-login · effective model=B"
+                      },
+                      {
+                        "label": "请求记录",
+                        "value": "provider 请求使用 model=B",
+                        "state": "active"
                       }
                     ]
                   }
@@ -271,6 +339,14 @@
                       {
                         "label": "阶段",
                         "value": "请求中"
+                      },
+                      {
+                        "label": "输入文本",
+                        "value": "检查 src/login.ts：空密码是否会被拒绝？"
+                      },
+                      {
+                        "label": "turn/start.model",
+                        "value": "B（显式覆盖）"
                       }
                     ]
                   },
@@ -284,6 +360,15 @@
                       {
                         "label": "能力",
                         "value": "按有效模型的 catalog 核对"
+                      },
+                      {
+                        "label": "配置记录",
+                        "value": "thread-demo-login · effective model=B"
+                      },
+                      {
+                        "label": "请求记录",
+                        "value": "provider 请求使用 model=B",
+                        "state": "active"
                       }
                     ]
                   }
@@ -320,6 +405,14 @@
                       {
                         "label": "阶段",
                         "value": "完成"
+                      },
+                      {
+                        "label": "输入文本",
+                        "value": "检查 src/login.ts：空密码是否会被拒绝？"
+                      },
+                      {
+                        "label": "turn/start.model",
+                        "value": "B（显式覆盖）"
                       }
                     ]
                   },
@@ -333,6 +426,15 @@
                       {
                         "label": "能力",
                         "value": "按有效模型的 catalog 核对"
+                      },
+                      {
+                        "label": "配置记录",
+                        "value": "thread-demo-login · effective model=B"
+                      },
+                      {
+                        "label": "示例回复",
+                        "value": "空密码分支应返回拒绝，不应建立登录态。",
+                        "state": "done"
                       }
                     ]
                   }

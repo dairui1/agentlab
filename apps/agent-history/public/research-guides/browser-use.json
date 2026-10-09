@@ -7,11 +7,21 @@
     {
       "id": "routing", "title": "登录态在哪个浏览器，就先去那个浏览器", "lead": "浏览器不是随便可替换的容器。换一个实例，账号、Cookie 和已开标签页也可能变了。",
       "body": ["Browser 与 Chrome 入口共享同一份 browser-client。IAB、extension 和 CDP 是接入方式；页面工具、locator、节点编号和坐标则是操作方式。", "用户明确选浏览器时要尊重这个选择。没有明确指定时，客户端才按 URL、已开标签页和默认偏好选择。"],
-      "model": {"id": "browser-routing", "kind": "compare", "title": "这个任务该落在哪个实例", "controls": [{"id": "task", "label": "任务现场", "type": "select", "default": "signed-in", "options": [{"value": "signed-in", "label": "用户指定已登录的 Chrome 标签页"}, {"value": "local", "label": "验证 localhost 页面，未指定浏览器"}, {"value": "default", "label": "新网址，未指定浏览器且 IAB 可用"}]}], "cases": [
-        {"when": {"task": "signed-in"}, "label": "保持用户选择的 Chrome 身份", "explanation": "场景给定正确的 extension 实例和标签页引用；仍需按当前快照接管标签页。", "frames": [{"caption": "已有登录态的报表任务", "diagram": [{"label": "用户 Chrome", "status": "active"}, {"label": "Extension 连接", "status": "active"}, {"label": "目标标签页", "status": "active"}], "panels": [{"title": "选择依据", "items": [{"label": "优先依据", "value": "用户明确指定的浏览器与标签页"}, {"label": "实例身份", "value": "extensionInstanceId"}]}, {"title": "接下来", "items": [{"label": "标签页", "value": "匹配当前 ID、title、URL 快照后 claim"}, {"label": "接口", "value": "从这个 backend 的能力生成，不借用另一个实例"}]}], "log": ["不能为方便操作，静默换掉用户登录的浏览器。"]}]},
-        {"when": {"task": "local"}, "label": "localhost 的 URL 路由优先 IAB", "explanation": "场景假定 IAB 已连接；用户的显式选择仍优先。", "frames": [{"caption": "本地页面验证", "diagram": [{"label": "localhost URL", "status": "done"}, {"label": "IAB", "status": "active"}, {"label": "App-owned tab", "status": "active"}], "panels": [{"title": "选择依据", "items": [{"label": "URL 分类", "value": "localhost / file"}, {"label": "实例身份", "value": "Codex session 与 IAB 实例"}]}, {"title": "接下来", "items": [{"label": "标签页", "value": "创建或选择 IAB 中的页面"}, {"label": "登录态", "value": "不是自动继承用户 Chrome profile"}]}], "log": ["本地验证选择 IAB，和真实网站的账号选择是两件事。"]}]},
-        {"when": {}, "label": "没有匹配标签页时按默认偏好选择", "explanation": "场景给定无 URL 匹配的已开 tab、IAB 可用；不模拟实际发现过程。", "frames": [{"caption": "新网址的默认实例", "diagram": [{"label": "URL 匹配", "status": "idle"}, {"label": "可用 IAB", "status": "active"}, {"label": "新标签页", "status": "active"}], "panels": [{"title": "选择依据", "items": [{"label": "已有 tab", "value": "本场景没有 URL 匹配"}, {"label": "默认偏好", "value": "IAB 优先，再考虑 extension 等实例"}]}, {"title": "接下来", "items": [{"label": "标签页身份", "value": "新建的 agent tab"}, {"label": "可用接口", "value": "按选中 backend 的 advertised capabilities 投影"}]}], "log": ["api.json 是最大接口合同，不是每次连接都暴露的全集。"]}]}
-      ], "evidence": ["BU-04", "BU-07", "BU-08", "BU-09", "BU-19", "BU-20"]},
+      "model": {
+        "id": "browser-routing", "kind": "compare", "title": "这个任务该落在哪个实例",
+        "controls": [{"id":"task","label":"任务现场","type":"select","default":"signed-in","options":[{"value":"signed-in","label":"用户指定已登录的 Chrome 标签页"},{"value":"local","label":"验证 localhost 页面，未指定浏览器"},{"value":"default","label":"新网址，未指定浏览器且 IAB 可用"}]}],
+        "cases": [
+          {"when": {"task":"signed-in"}, "label": "保持用户选择的 Chrome 身份", "explanation": "场景给定正确的 extension 实例和标签页引用；仍需按当前快照接管标签页。", "frames": [
+            {"caption":"示例：Chrome 中的本月报表","diagram":[{"label":"用户 Chrome","status":"active"},{"label":"Extension 连接","status":"active"},{"label":"目标标签页","status":"active"}],"panels":[{"title":"选择依据","items":[{"label":"优先依据","value":"示例指定：Chrome / ext-demo-A / tab 42；标题“月度报表”；https://reports.example.invalid/monthly。"},{"label":"实例身份","value":"示例 extensionInstanceId=ext-demo-A；用户已在该实例登录。"}]},{"title":"接下来","items":[{"label":"标签页","value":"当前快照也为 tab 42、“月度报表”、同一 URL；逐项匹配后 claim。"},{"label":"接口","value":"使用 ext-demo-A 的支持面；不换成另一个未登录实例。"}]}],"log":["域名、实例与 tab ID 都是教学示例；这里没有接管真实标签页。"]}
+          ]},
+          {"when": {"task":"local"}, "label": "localhost 的 URL 路由优先 IAB", "explanation": "场景假定 IAB 已连接；用户的显式选择仍优先。", "frames": [
+            {"caption":"示例：http://localhost:4317/report","diagram":[{"label":"localhost URL","status":"done"},{"label":"IAB","status":"active"},{"label":"App-owned tab","status":"active"}],"panels":[{"title":"选择依据","items":[{"label":"URL 分类","value":"示例任务：检查 http://localhost:4317/report；未指定浏览器。"},{"label":"实例身份","value":"示例 IAB 实例 iab-demo，session-demo；可用连接已给定。"}]},{"title":"接下来","items":[{"label":"标签页","value":"在 iab-demo 选择或创建 /report 页面；示例 tab=local-demo。"},{"label":"登录态","value":"Chrome 的 ext-demo-A 登录态不会自动跟着转移。"}]}],"log":["本地验证选择 IAB，和真实网站的账号选择是两件事。"]}
+          ]},
+          {"when": {}, "label": "没有匹配标签页时按默认偏好选择", "explanation": "场景给定无 URL 匹配的已开 tab、IAB 可用；不模拟实际发现过程。", "frames": [
+            {"caption":"示例：新报表网址，没有已开 tab","diagram":[{"label":"URL 匹配","status":"idle"},{"label":"可用 IAB","status":"active"},{"label":"新标签页","status":"active"}],"panels":[{"title":"选择依据","items":[{"label":"已有 tab","value":"示例待开 https://reports.example.invalid/monthly；当前 openTabs=[]。"},{"label":"默认偏好","value":"场景给定 iab-demo 可用；没有 exact URL、pathname 或 hostname 匹配。"}]},{"title":"接下来","items":[{"label":"标签页身份","value":"为 reports.example.invalid 新建示例 agent tab=report-demo。"},{"label":"可用接口","value":"以 iab-demo 当前报告的 capabilities 生成接口与文档。"}]}],"log":["api.json 是最大接口合同，不是每次连接都暴露的全集。"]}
+          ]}
+        ], "evidence": ["BU-04","BU-07","BU-08","BU-09","BU-19","BU-20"]
+      },
       "takeaway": "先保住正确的账号和标签页身份，再谈操作方法。"
     },
     {

@@ -48,7 +48,7 @@
               "post": "stop"
             },
             "label": "turn 中断，replacement 不回滚",
-            "explanation": "item completed 与 interrupted turn 可以同时成立。",
+            "explanation": "item completed 与 interrupted turn 可以同时成立。 本例直接给定 replacement 文本，不把示例摘要内容当成真实总结保真保证。",
             "frames": [
               {
                 "caption": "生成 replacement",
@@ -69,6 +69,15 @@
                       {
                         "label": "active",
                         "value": "旧 history"
+                      },
+                      {
+                        "label": "任务约束",
+                        "value": "用户：不要改变 login() 的公开接口。"
+                      },
+                      {
+                        "label": "当前可读内容",
+                        "value": "旧 history：登录测试失败 → 修复空密码分支 → 待验证",
+                        "state": "active"
                       }
                     ]
                   },
@@ -79,6 +88,11 @@
                         "label": "compaction item",
                         "value": "进行中",
                         "state": "active"
+                      },
+                      {
+                        "label": "压缩记录",
+                        "value": "compaction-demo-login：started（示例标签）",
+                        "state": "done"
                       }
                     ]
                   }
@@ -111,6 +125,15 @@
                         "label": "active",
                         "value": "新 replacement",
                         "state": "done"
+                      },
+                      {
+                        "label": "任务约束",
+                        "value": "用户：不要改变 login() 的公开接口。"
+                      },
+                      {
+                        "label": "当前可读内容",
+                        "value": "示例 replacement：已修复空密码；保持接口；下一步 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -120,6 +143,11 @@
                       {
                         "label": "compaction item",
                         "value": "completed",
+                        "state": "done"
+                      },
+                      {
+                        "label": "压缩记录",
+                        "value": "compaction-demo-login：completed；replacement 已安装",
                         "state": "done"
                       }
                     ]
@@ -153,6 +181,15 @@
                       {
                         "label": "旧前缀",
                         "value": "仍在 rollout 存储"
+                      },
+                      {
+                        "label": "任务约束",
+                        "value": "用户：不要改变 login() 的公开接口。"
+                      },
+                      {
+                        "label": "当前可读内容",
+                        "value": "示例 replacement：已修复空密码；保持接口；下一步 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -168,6 +205,16 @@
                         "label": "回滚",
                         "value": "没有发生",
                         "state": "idle"
+                      },
+                      {
+                        "label": "压缩记录",
+                        "value": "compaction-demo-login：completed；replacement 已安装",
+                        "state": "done"
+                      },
+                      {
+                        "label": "下一请求",
+                        "value": "未推进到 npm test；仍沿新 replacement",
+                        "state": "blocked"
                       }
                     ]
                   }
@@ -181,7 +228,7 @@
           {
             "when": {},
             "label": "hook 继续，生命周期正常推进",
-            "explanation": "没有 Stop 造成的中断；这依然不验证摘要是否保留了每个约束。",
+            "explanation": "没有 Stop 造成的中断；这依然不验证摘要是否保留了每个约束。 本例直接给定 replacement 文本，不把示例摘要内容当成真实总结保真保证。",
             "frames": [
               {
                 "caption": "生成 replacement",
@@ -202,6 +249,15 @@
                       {
                         "label": "active",
                         "value": "旧 history"
+                      },
+                      {
+                        "label": "任务约束",
+                        "value": "用户：不要改变 login() 的公开接口。"
+                      },
+                      {
+                        "label": "当前可读内容",
+                        "value": "旧 history：登录测试失败 → 修复空密码分支 → 待验证",
+                        "state": "active"
                       }
                     ]
                   },
@@ -212,6 +268,11 @@
                         "label": "compaction item",
                         "value": "进行中",
                         "state": "active"
+                      },
+                      {
+                        "label": "压缩记录",
+                        "value": "compaction-demo-login：started（示例标签）",
+                        "state": "done"
                       }
                     ]
                   }
@@ -240,6 +301,15 @@
                         "label": "active",
                         "value": "新 replacement",
                         "state": "done"
+                      },
+                      {
+                        "label": "任务约束",
+                        "value": "用户：不要改变 login() 的公开接口。"
+                      },
+                      {
+                        "label": "当前可读内容",
+                        "value": "示例 replacement：已修复空密码；保持接口；下一步 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -249,6 +319,11 @@
                       {
                         "label": "compaction item",
                         "value": "completed",
+                        "state": "done"
+                      },
+                      {
+                        "label": "压缩记录",
+                        "value": "compaction-demo-login：completed；replacement 已安装",
                         "state": "done"
                       }
                     ]
@@ -283,6 +358,15 @@
                         "label": "旧前缀",
                         "value": "仍在 rollout 存储",
                         "state": "done"
+                      },
+                      {
+                        "label": "任务约束",
+                        "value": "用户：不要改变 login() 的公开接口。"
+                      },
+                      {
+                        "label": "当前可读内容",
+                        "value": "示例 replacement：已修复空密码；保持接口；下一步 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -297,6 +381,16 @@
                       {
                         "label": "下一阶段",
                         "value": "按原 phase 推进",
+                        "state": "active"
+                      },
+                      {
+                        "label": "压缩记录",
+                        "value": "compaction-demo-login：completed；replacement 已安装",
+                        "state": "done"
+                      },
+                      {
+                        "label": "下一请求",
+                        "value": "沿新 replacement 继续验证登录测试",
                         "state": "active"
                       }
                     ]

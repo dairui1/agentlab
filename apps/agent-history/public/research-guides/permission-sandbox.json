@@ -44,7 +44,7 @@
               "approved": false
             },
             "label": "审批门未放行",
-            "explanation": "即使路径规则允许，也不能从文件可写推出提案已获批准。",
+            "explanation": "即使路径规则允许，也不能从文件可写推出提案已获批准。 提案与文件内容为场景示例，准入满足时才可进入写入。",
             "frames": [
               {
                 "caption": "停在准入阶段",
@@ -70,6 +70,14 @@
                         "label": "提案",
                         "value": "未获批准",
                         "state": "blocked"
+                      },
+                      {
+                        "label": "提案",
+                        "value": "修改项目 src/login.ts 的空密码分支。"
+                      },
+                      {
+                        "label": "计划内容",
+                        "value": "把空密码返回值由 ok:true 改为 ok:false。"
                       }
                     ]
                   },
@@ -83,6 +91,19 @@
                       {
                         "label": "实际写入",
                         "value": "本场景未进入执行",
+                        "state": "idle"
+                      },
+                      {
+                        "label": "项目根",
+                        "value": "/demo-app（示例项目）"
+                      },
+                      {
+                        "label": "目标",
+                        "value": "/demo-app/src/login.ts"
+                      },
+                      {
+                        "label": "当前内容",
+                        "value": "空密码仍返回 ok:true；写入尚待工具执行。",
                         "state": "idle"
                       }
                     ]
@@ -100,7 +121,7 @@
               "path": false
             },
             "label": "批准了提案，边界仍不允许",
-            "explanation": "普通 approval resolution 不等于把任意路径或网络加入 grant；额外权限需要相应提案与 host 决策。",
+            "explanation": "普通 approval resolution 不等于把任意路径或网络加入 grant；额外权限需要相应提案与 host 决策。 提案与文件内容为场景示例，准入满足时才可进入写入。",
             "frames": [
               {
                 "caption": "两道门给出不同答案",
@@ -131,6 +152,14 @@
                         "label": "执行完成",
                         "value": "尚无回执",
                         "state": "unknown"
+                      },
+                      {
+                        "label": "提案",
+                        "value": "修改项目 src/login.ts 的空密码分支。"
+                      },
+                      {
+                        "label": "计划内容",
+                        "value": "把空密码返回值由 ok:true 改为 ok:false。"
                       }
                     ]
                   },
@@ -145,6 +174,19 @@
                       {
                         "label": "下一步",
                         "value": "改路径，或提出受支持的额外权限申请"
+                      },
+                      {
+                        "label": "项目根",
+                        "value": "/demo-app（示例项目）"
+                      },
+                      {
+                        "label": "目标",
+                        "value": "/demo-app/src/login.ts"
+                      },
+                      {
+                        "label": "当前内容",
+                        "value": "空密码仍返回 ok:true；写入尚待工具执行。",
+                        "state": "idle"
                       }
                     ]
                   }
@@ -158,7 +200,7 @@
           {
             "when": {},
             "label": "两道准入条件都满足",
-            "explanation": "这里只得出可以进入相应执行路径；工具成功、文件正确和跨平台隔离仍需要各自证据。",
+            "explanation": "这里只得出可以进入相应执行路径；工具成功、文件正确和跨平台隔离仍需要各自证据。 提案与文件内容为场景示例，准入满足时才可进入写入。",
             "frames": [
               {
                 "caption": "准入满足，进入工具执行",
@@ -184,6 +226,14 @@
                         "label": "提案",
                         "value": "已批准",
                         "state": "done"
+                      },
+                      {
+                        "label": "提案",
+                        "value": "修改项目 src/login.ts 的空密码分支。"
+                      },
+                      {
+                        "label": "计划内容",
+                        "value": "把空密码返回值由 ok:true 改为 ok:false。"
                       }
                     ]
                   },
@@ -199,6 +249,19 @@
                         "label": "下一步",
                         "value": "执行工具后读取 commandExecution terminal",
                         "state": "active"
+                      },
+                      {
+                        "label": "项目根",
+                        "value": "/demo-app（示例项目）"
+                      },
+                      {
+                        "label": "目标",
+                        "value": "/demo-app/src/login.ts"
+                      },
+                      {
+                        "label": "当前内容",
+                        "value": "空密码仍返回 ok:true；写入尚待工具执行。",
+                        "state": "idle"
                       }
                     ]
                   }

@@ -8,12 +8,24 @@
       "id": "reading", "title": "收到一条新消息，是否等于读到了这里？",
       "lead": "第 99 条说“不要发布”，第 100 条才 @了你。只拿到第 100 条，不能把第 99 条也算成看过。",
       "body": ["inbox check 返回摘要；message check 拉取离散消息。普通历史读取会推进目标下的读取边界，around 定位读取则不会。", "换一种读取方式，同时看模型拿到的内容和连续游标。两者不总是一起前进。"],
-      "model": {"id": "read-boundary", "kind": "compare", "title": "查看 99、100 两条消息", "controls": [{"id": "read", "label": "读取动作", "type": "select", "default": "history", "options": [{"value": "inbox", "label": "inbox check 摘要"}, {"value": "check", "label": "message check 离散取出"}, {"value": "history", "label": "message read 普通历史"}, {"value": "around", "label": "message read --around 定位"}]}], "cases": [
-        {"when": {"read": "inbox"}, "label": "知道有人找你，还没读正文", "explanation": "本场景的原连续边界为 98。", "frames": [{"caption": "摘要不消费消息", "diagram": [{"label": "消息 99", "status": "idle"}, {"label": "消息 100", "status": "idle"}, {"label": "目标摘要", "status": "active"}], "panels": [{"title": "模型得到", "items": [{"label": "内容", "value": "目标与待处理数量"}, {"label": "正文", "value": "未由该路径返回", "state": "idle"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "仍为 98"}, {"label": "待处理消息", "value": "未在这条摘要路径消费"}]}], "log": ["摘要回答哪里有事情，不回答每条事情是什么。"]}]},
-        {"when": {"read": "check"}, "label": "拿到了新 mention，不能越过旧缺口", "explanation": "假定本次离散事件只包含 100；这不是连续历史窗口。", "frames": [{"caption": "稀疏可见与连续边界分开", "diagram": [{"label": "消息 99", "status": "unknown"}, {"label": "消息 100", "status": "done"}, {"label": "连续游标", "status": "idle"}], "panels": [{"title": "模型得到", "items": [{"label": "100：@你", "value": "本次已返回", "state": "done"}, {"label": "99：不要发布", "value": "本次没返回", "state": "unknown"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "仍为 98"}, {"label": "最大已见序号", "value": "不能直接当成连续已读位置"}]}], "log": ["message check 不把稀疏 events 写成 seenUpToSeq。"]}]},
-        {"when": {"read": "history"}, "label": "普通窗口推进目标读取边界", "explanation": "本场景的历史窗口包含 99 与 100。", "frames": [{"caption": "读取到这一段历史", "diagram": [{"label": "消息 99", "status": "done"}, {"label": "消息 100", "status": "done"}, {"label": "目标边界 100", "status": "active"}], "panels": [{"title": "模型得到", "items": [{"label": "99：不要发布", "value": "已返回", "state": "done"}, {"label": "100：@你", "value": "已返回", "state": "done"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "记录到返回窗口最大序号 100"}, {"label": "理解程度", "value": "边界不测量模型是否理解", "state": "unknown"}]}], "log": ["记录读到哪里，与模型有没有照做仍是两回事。"]}]},
-        {"when": {}, "label": "定点查看不会推进连续游标", "explanation": "around 返回定位上下文，但不记成普通历史的 read-through。", "frames": [{"caption": "看见局部，不声明连续已读", "diagram": [{"label": "定位上下文", "status": "done"}, {"label": "连续边界 98", "status": "idle"}, {"label": "后续发送", "status": "unknown"}], "panels": [{"title": "模型得到", "items": [{"label": "定位附近正文", "value": "已返回"}, {"label": "读取方式", "value": "around 局部窗口"}]}, {"title": "读取状态", "items": [{"label": "连续边界", "value": "仍为 98"}, {"label": "以后是否暂缓", "value": "还要核对未见消息"}]}], "log": ["看一个位置，不等于看完这个位置之前的一切。"]}]}
-      ], "evidence": ["RM-01", "RM-02", "RM-03", "RM-04"]},
+      "model": {
+        "id": "read-boundary", "kind": "compare", "title": "查看 99、100 两条消息",
+        "controls": [{"id":"read","label":"读取动作","type":"select","default":"history","options":[{"value":"inbox","label":"inbox check 摘要"},{"value":"check","label":"message check 离散取出"},{"value":"history","label":"message read 普通历史"},{"value":"around","label":"message read --around 定位"}]}],
+        "cases": [
+          {"when": {"read":"inbox"}, "label": "知道有人找你，还没读正文", "explanation": "本场景的原连续边界为 98。", "frames": [
+            {"caption":"示例 #login-fix 收件箱摘要","diagram":[{"label":"消息 99","status":"idle"},{"label":"消息 100","status":"idle"},{"label":"目标摘要","status":"active"}],"panels":[{"title":"模型得到","items":[{"label":"内容","value":"#login-fix：2 条待处理消息；目标任务 demo-task-42。"},{"label":"正文","value":"没有返回消息 99、100 的正文。","state":"idle"}]},{"title":"读取状态","items":[{"label":"连续边界","value":"seenUpToSeq=98；目标是 #login-fix。"},{"label":"待处理消息","value":"消息 99、100 仍在待处理记录里。"}]}],"log":["摘要回答哪里有事情，不回答每条事情是什么。"]}
+          ]},
+          {"when": {"read":"check"}, "label": "拿到了新 mention，不能越过旧缺口", "explanation": "假定本次离散事件只包含 100；这不是连续历史窗口。", "frames": [
+            {"caption":"示例：只取出 @agent-A 的消息 100","diagram":[{"label":"消息 99","status":"unknown"},{"label":"消息 100","status":"done"},{"label":"连续游标","status":"idle"}],"panels":[{"title":"模型得到","items":[{"label":"100：本次已返回","value":"同事：@agent-A 请检查 demo-task-42 的登录修复。","state":"done"},{"label":"99：本次未返回","value":"这条正文没有进入本次上下文，仍在 #login-fix。","state":"unknown"}]},{"title":"读取状态","items":[{"label":"连续边界","value":"seenUpToSeq=98；不能因为见到 100 就跳过 99。"},{"label":"最大已见序号","value":"不能直接当成连续已读位置"}]}],"log":["message check 不把稀疏 events 写成 seenUpToSeq。"]}
+          ]},
+          {"when": {"read":"history"}, "label": "普通窗口推进目标读取边界", "explanation": "本场景的历史窗口包含 99 与 100。", "frames": [
+            {"caption":"示例 #login-fix 的完整两条历史","diagram":[{"label":"消息 99","status":"done"},{"label":"消息 100","status":"done"},{"label":"目标边界 100","status":"active"}],"panels":[{"title":"模型得到","items":[{"label":"99：已返回正文","value":"人类：demo-task-42 只提交，不发布。","state":"done"},{"label":"100：已返回正文","value":"同事：@agent-A 请检查 demo-task-42 的登录修复。","state":"done"}]},{"title":"读取状态","items":[{"label":"连续边界","value":"目标 #login-fix；seenUpToSeq 从 98 记录到 100。"},{"label":"理解程度","value":"可见清单包含“只提交，不发布”；是否遵守另看实际动作。","state":"unknown"}]}],"log":["记录读到哪里，与模型有没有照做仍是两回事。"]}
+          ]},
+          {"when": {}, "label": "定点查看不会推进连续游标", "explanation": "around 返回定位上下文，但不记成普通历史的 read-through。", "frames": [
+            {"caption":"示例：在消息 100 附近定点查看","diagram":[{"label":"定位上下文","status":"done"},{"label":"连续边界 98","status":"idle"},{"label":"后续发送","status":"unknown"}],"panels":[{"title":"模型得到","items":[{"label":"定位附近正文","value":"示例定位窗口：99“只提交，不发布”；100“@agent-A 检查 demo-task-42”。"},{"label":"读取方式","value":"message read --around 100；不是普通连续历史读取。"}]},{"title":"读取状态","items":[{"label":"连续边界","value":"seenUpToSeq 仍为 98；本次定位不推进它。"},{"label":"以后是否暂缓","value":"还要核对未见消息"}]}],"log":["看一个位置，不等于看完这个位置之前的一切。"]}
+          ]}
+        ], "evidence": ["RM-01","RM-02","RM-03","RM-04"]
+      },
       "takeaway": "消息到达、正文可见、连续读取，分别需要自己的状态。"
     },
     {

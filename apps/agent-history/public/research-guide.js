@@ -63,7 +63,7 @@
     const copy = caseCopy(model, scenario, initial, values);
     const iconButton = (action, icon, title) => `<button type="button" class="rg-icon-button" data-action="${action}" aria-label="${title}" title="${title}"><i data-lucide="${icon}" aria-hidden="true"></i></button>`;
     const transport = model.kind === "timeline" ? `<div class="rg-transport" hidden>${iconButton("back", "skip-back", "上一步")}${iconButton("play", "play", "播放场景")}${iconButton("next", "step-forward", "下一步")}${iconButton("reset", "rotate-ccw", "重置场景")}<output data-progress>1 / ${scenario.frames.length}</output></div>` : `<div class="rg-transport" hidden>${iconButton("reset", "rotate-ccw", "重置条件")}</div>`;
-    return `<div class="rg-model" data-model="${escape(model.id)}" data-kind="${escape(model.kind)}"><header class="rg-model-header"><h3>${escape(model.title)}</h3>${transport}</header><fieldset class="rg-controls" disabled><legend class="rg-sr-only">${escape(model.title)}的场景条件</legend>${model.controls.map((control) => controlMarkup(control, model.id, values)).join("")}</fieldset><div class="rg-observation" aria-live="polite" aria-atomic="true">${frameMarkup(scenario.frames[initial], values)}</div><div class="rg-reading"><strong data-case-label>${escape(copy.label)}</strong><p data-case-explanation>${escape(copy.explanation)}</p></div><footer class="rg-model-footer"><a href="#rg-source-${escape(model.evidence[0])}" data-source-link>查看依据 <i data-lucide="arrow-down-right" aria-hidden="true"></i></a></footer></div>`;
+    return `<div class="rg-model" data-model="${escape(model.id)}" data-kind="${escape(model.kind)}"><header class="rg-model-header"><h3>${escape(model.title)}</h3>${transport}</header><fieldset class="rg-controls" disabled><legend class="rg-sr-only">${escape(model.title)}的场景条件</legend>${model.controls.map((control) => controlMarkup(control, model.id, values)).join("")}</fieldset><div class="rg-observation" aria-live="polite" aria-atomic="true">${frameMarkup(scenario.frames[initial], values)}</div><div class="rg-reading"${model.kind === "timeline" ? " hidden" : ""}><strong data-case-label>${escape(copy.label)}</strong><p data-case-explanation>${escape(copy.explanation)}</p></div><footer class="rg-model-footer"><a href="#rg-source-${escape(model.evidence[0])}" data-source-link>查看依据 <i data-lucide="arrow-down-right" aria-hidden="true"></i></a></footer></div>`;
   }
   function mountModel(element, model, root) {
     let values = defaults(model);
@@ -77,6 +77,7 @@
       const copy = caseCopy(model, scenario, position, values);
       element.querySelector("[data-case-label]").textContent = copy.label;
       element.querySelector("[data-case-explanation]").textContent = copy.explanation;
+      element.querySelector(".rg-reading").hidden = model.kind === "timeline" && position < scenario.frames.length - 1;
       const progress = element.querySelector("[data-progress]");
       if (progress) progress.textContent = `${position + 1} / ${scenario.frames.length}`;
       const back = element.querySelector('[data-action="back"]');

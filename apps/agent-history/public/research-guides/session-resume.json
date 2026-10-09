@@ -48,7 +48,7 @@
               "storage": "durable"
             },
             "label": "记录可以重建模型历史",
-            "explanation": "冷恢复从记录创建新的 live instance，不是让旧进程复活。",
+            "explanation": "冷恢复从记录创建新的 live instance，不是让旧进程复活。 下面的 thread-demo-login、消息和文件状态均为示例记录。",
             "frames": [
               {
                 "caption": "记录已保存",
@@ -70,6 +70,20 @@
                         "label": "历史",
                         "value": "已写入且可读",
                         "state": "done"
+                      },
+                      {
+                        "label": "threadId",
+                        "value": "thread-demo-login（示例）"
+                      },
+                      {
+                        "label": "用户消息",
+                        "value": "修复 src/login.ts 的空密码分支。",
+                        "state": "done"
+                      },
+                      {
+                        "label": "助手消息",
+                        "value": "已修复空密码处理；下一步运行 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -80,6 +94,14 @@
                         "label": "旧 instance",
                         "value": "运行中",
                         "state": "active"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:false（示例）"
+                      },
+                      {
+                        "label": "背景任务",
+                        "value": "没有在本例启动后台任务"
                       }
                     ]
                   }
@@ -108,6 +130,20 @@
                         "label": "历史",
                         "value": "仍在持久介质",
                         "state": "done"
+                      },
+                      {
+                        "label": "threadId",
+                        "value": "thread-demo-login（示例）"
+                      },
+                      {
+                        "label": "用户消息",
+                        "value": "修复 src/login.ts 的空密码分支。",
+                        "state": "done"
+                      },
+                      {
+                        "label": "助手消息",
+                        "value": "已修复空密码处理；下一步运行 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -118,6 +154,14 @@
                         "label": "旧 instance",
                         "value": "不存在",
                         "state": "blocked"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:false（示例）"
+                      },
+                      {
+                        "label": "背景任务",
+                        "value": "旧进程没有因读回消息而复活"
                       }
                     ]
                   }
@@ -146,6 +190,20 @@
                         "label": "模型历史",
                         "value": "从记录重建",
                         "state": "done"
+                      },
+                      {
+                        "label": "threadId",
+                        "value": "thread-demo-login（示例）"
+                      },
+                      {
+                        "label": "用户消息",
+                        "value": "修复 src/login.ts 的空密码分支。",
+                        "state": "done"
+                      },
+                      {
+                        "label": "助手消息",
+                        "value": "已修复空密码处理；下一步运行 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -161,6 +219,19 @@
                         "label": "旧后台工作",
                         "value": "不能由此认定复活",
                         "state": "unknown"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:false（示例）"
+                      },
+                      {
+                        "label": "背景任务",
+                        "value": "旧进程没有因读回消息而复活"
+                      },
+                      {
+                        "label": "新输入",
+                        "value": "继续执行登录测试。",
+                        "state": "active"
                       }
                     ]
                   }
@@ -174,7 +245,7 @@
           {
             "when": {},
             "label": "旧进程退出，内存记录也没了",
-            "explanation": "ephemeral 没有冷恢复、跨进程发现、archive 或 rollback 的持久介质。",
+            "explanation": "ephemeral 没有冷恢复、跨进程发现、archive 或 rollback 的持久介质。 下面的 thread-demo-login、消息和文件状态均为示例记录。",
             "frames": [
               {
                 "caption": "只有内存",
@@ -200,6 +271,20 @@
                         "label": "path",
                         "value": "null",
                         "state": "idle"
+                      },
+                      {
+                        "label": "threadId",
+                        "value": "thread-demo-login（示例）"
+                      },
+                      {
+                        "label": "用户消息",
+                        "value": "修复 src/login.ts 的空密码分支。",
+                        "state": "done"
+                      },
+                      {
+                        "label": "助手消息",
+                        "value": "已修复空密码处理；下一步运行 npm test。",
+                        "state": "done"
                       }
                     ]
                   },
@@ -210,6 +295,14 @@
                         "label": "loaded list",
                         "value": "可以看见当前内存对象",
                         "state": "active"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:false（示例）"
+                      },
+                      {
+                        "label": "背景任务",
+                        "value": "没有在本例启动后台任务"
                       }
                     ]
                   }
@@ -238,6 +331,20 @@
                         "label": "冷恢复介质",
                         "value": "没有",
                         "state": "blocked"
+                      },
+                      {
+                        "label": "threadId",
+                        "value": "thread-demo-login（示例）"
+                      },
+                      {
+                        "label": "用户消息",
+                        "value": "旧内存消息已不可回读",
+                        "state": "blocked"
+                      },
+                      {
+                        "label": "助手消息",
+                        "value": "旧内存消息已不可回读",
+                        "state": "blocked"
                       }
                     ]
                   },
@@ -248,6 +355,14 @@
                         "label": "loaded object",
                         "value": "随进程消失",
                         "state": "blocked"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:false（示例）"
+                      },
+                      {
+                        "label": "背景任务",
+                        "value": "旧进程没有因读回消息而复活"
                       }
                     ]
                   }
@@ -276,6 +391,20 @@
                         "label": "旧历史",
                         "value": "无法从此路径冷恢复",
                         "state": "blocked"
+                      },
+                      {
+                        "label": "threadId",
+                        "value": "thread-demo-login（示例）"
+                      },
+                      {
+                        "label": "用户消息",
+                        "value": "旧内存消息已不可回读",
+                        "state": "blocked"
+                      },
+                      {
+                        "label": "助手消息",
+                        "value": "旧内存消息已不可回读",
+                        "state": "blocked"
                       }
                     ]
                   },
@@ -285,6 +414,14 @@
                       {
                         "label": "下一步",
                         "value": "新会话与显式交接，不冒充旧会话"
+                      },
+                      {
+                        "label": "文件现场",
+                        "value": "src/login.ts：空密码返回 ok:false（示例）"
+                      },
+                      {
+                        "label": "背景任务",
+                        "value": "旧进程没有因读回消息而复活"
                       }
                     ]
                   }

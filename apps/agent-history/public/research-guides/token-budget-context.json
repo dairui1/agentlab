@@ -7,10 +7,18 @@
     {
       "id": "paths", "title": "同一条 compact，为什么会走两条路？", "lead": "界面都显示 compaction，不代表底下都生成了一份摘要。",
       "body": ["未开启 TokenBudget 时，旧的本地或远端摘要路径仍在。开启后，手动与自动 compact 都可以转向 fresh window。", "新窗口仍注入标准初始上下文与当前环境状态。所谓无摘要，是不替旧对话生成 replacement summary，不是空 prompt。"],
-      "model": {"id": "compaction-branch", "kind": "compare", "title": "切换 TokenBudget 分支", "controls": [{"id": "feature", "label": "TokenBudget", "type": "toggle", "default": true}], "cases": [
-        {"when": {"feature": true}, "label": "新工作窗口，不总结旧 conversation", "explanation": "本场景明确开启 feature；固定 0.151.0 并非默认如此。", "frames": [{"caption": "fresh-window 分支", "diagram": [{"label": "旧 conversation", "status": "done"}, {"label": "新 window ID", "status": "active"}, {"label": "初始上下文与 world state", "status": "active"}], "panels": [{"title": "下一请求", "items": [{"label": "旧消息", "value": "不整批继续发送"}, {"label": "replacement summary", "value": "不为旧对话生成"}]}, {"title": "仍保留的东西", "items": [{"label": "生命周期", "value": "PreCompact / PostCompact 与 started / completed"}, {"label": "文件、thread 与外部动作", "value": "不因换窗回滚"}]}], "log": ["客户端仍看见 compaction item，不能单凭名字辨认内部路径。"]}]},
-        {"when": {}, "label": "传统摘要路径没有消失", "explanation": "具体走 remote V2、remote V1 还是 local，另由配置与提供商决定。", "frames": [{"caption": "未开启 TokenBudget", "diagram": [{"label": "旧 conversation", "status": "done"}, {"label": "摘要分支", "status": "active"}, {"label": "压缩后上下文", "status": "active"}], "panels": [{"title": "下一请求", "items": [{"label": "旧记录", "value": "以压缩表示替换或保留部分内容"}, {"label": "摘要入口", "value": "本地或远端配置决定"}]}, {"title": "仍需核对", "items": [{"label": "旧约束", "value": "是否留在摘要或尾部消息里", "state": "unknown"}, {"label": "固定默认", "value": "0.151.0 的 TokenBudget 关闭"}]}], "log": ["“新代码已发布”不等于所有会话已全局取消摘要。"]}]}
-      ], "evidence": ["TB-01", "TB-02", "TB-03", "TB-04", "TB-08"]},
+      "model": {
+        "id": "compaction-branch", "kind": "compare", "title": "切换 TokenBudget 分支",
+        "controls": [{"id":"feature","label":"TokenBudget","type":"toggle","default":true}],
+        "cases": [
+          {"when": {"feature":true}, "label": "新工作窗口，不总结旧 conversation", "explanation": "本场景明确开启 feature；固定 0.151.0 并非默认如此。", "frames": [
+            {"caption":"示例窗口 A → B · fresh-window 分支","diagram":[{"label":"旧 conversation","status":"done"},{"label":"新 window ID","status":"active"},{"label":"初始上下文与 world state","status":"active"}],"panels":[{"title":"下一请求","items":[{"label":"旧消息","value":"示例 A/u1：“不要改 refresh API”；A/t1：“login_retry_test 超时”。旧消息不整批发送。"},{"label":"replacement summary","value":"不为 A/u1、A/t1 生成 replacement summary；新窗口 B 从标准初始上下文开始。"}]},{"title":"仍保留的东西","items":[{"label":"生命周期","value":"PreCompact / PostCompact 与 started / completed"},{"label":"文件、thread 与外部动作","value":"示例磁盘：auth/session.rs 已改；Git 未提交；服务未发布。换窗不回滚它们。"}]}],"log":["场景假定：窗口 A 中的原话与失败输出保留为旧记录，但不自动成为窗口 B 的当前消息。"]}
+          ]},
+          {"when": {}, "label": "传统摘要路径没有消失", "explanation": "具体走 remote V2、remote V1 还是 local，另由配置与提供商决定。", "frames": [
+            {"caption":"示例窗口 A · 传统摘要分支","diagram":[{"label":"旧 conversation","status":"done"},{"label":"摘要分支","status":"active"},{"label":"压缩后上下文","status":"active"}],"panels":[{"title":"下一请求","items":[{"label":"旧记录","value":"待压缩示例：A/u1“不要改 refresh API”；A/t1“login_retry_test 超时”。"},{"label":"摘要入口","value":"本地或远端配置决定"}]},{"title":"仍需核对","items":[{"label":"旧约束","value":"需要核对“A/u1：不要改 refresh API”是否留在摘要或尾部消息中。","state":"unknown"},{"label":"固定默认","value":"0.151.0 的 TokenBudget 关闭"}]},{"title":"外部现场（示例）","items":[{"label":"工作文件","value":"auth/session.rs 已修改；不会因 compact 自动回滚。"}]}],"log":["“新代码已发布”不等于所有会话已全局取消摘要。"]}
+          ]}
+        ], "evidence": ["TB-01","TB-02","TB-03","TB-04","TB-08"]
+      },
       "takeaway": "判断换窗还是摘要，需要看 feature、提供商或实际 trace，不能只看客户端事件名。"
     },
     {
