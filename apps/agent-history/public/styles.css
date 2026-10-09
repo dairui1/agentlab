@@ -1740,6 +1740,7 @@ a.source-layer:hover {
   color: var(--text-soft);
   font-size: 14px;
   line-height: 1.75;
+  overflow-wrap: anywhere;
 }
 
 .changelog-highlights li::marker {

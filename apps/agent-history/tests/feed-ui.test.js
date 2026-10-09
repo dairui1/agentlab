@@ -145,6 +145,11 @@ test("runtime placeholders cannot enter the actual-request diff viewer", () => {
   );
 });
 
+test("changelog highlights wrap long source paths within their grid track", () => {
+  const styles = fs.readFileSync(path.join(publicRoot, "styles.css"), "utf8");
+  assert.match(styles, /\.changelog-highlights\s*\{[^}]*overflow-wrap: anywhere/);
+});
+
 test("deterministic summaries are not attributed to Codex", () => {
   assert.match(app, /generator\?\.model \|\| entry\?\.model/);
   assert.match(app, /=== "deterministic-no-change"/);
