@@ -26,6 +26,6 @@
   },
   "devDependencies": {
     "monaco-editor": "0.52.2",
-    "wrangler": "4.114.0"
+    "wrangler": "4.149.0"
   }
 }
