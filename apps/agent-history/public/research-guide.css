@@ -29,6 +29,12 @@
     --rg-active: #80cbe6; --rg-done: #8dd5a7; --rg-blocked: #ff939b; --rg-unknown: #e5c56c;
   }
 }
+:root[data-theme] .rg-page {
+  --rg-paper: var(--theme-page);
+  --rg-ink: var(--theme-text);
+  --rg-muted: var(--theme-text-soft);
+  --rg-rule: var(--theme-border-strong);
+}
 .rg-page *, .rg-page *::before, .rg-page *::after { box-sizing: border-box; letter-spacing: 0; }
 .rg-page [hidden] { display: none !important; }
 .rg-page a { color: inherit; text-underline-offset: 4px; }

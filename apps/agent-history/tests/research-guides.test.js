@@ -83,6 +83,8 @@ test("rendered model text is escaped and control values are not executable code"
   assert.doesNotMatch(js, /\beval\s*\(|new Function|new WebSocket|new XMLHttpRequest/);
   assert.match(js, /pagehide/);
   assert.match(js, /交互暂时未能加载，正文与默认场景仍可阅读/);
+  const css = fs.readFileSync(path.join(root, "research-guide.css"), "utf8");
+  for (const [local, shared] of [["paper", "page"], ["ink", "text"], ["muted", "text-soft"], ["rule", "border-strong"]]) assert.ok(css.includes(`--rg-${local}: var(--theme-${shared})`), `guide breaks shared theme ${shared}`);
 });
 
 test("legacy research routes retain deliberate source access without being the reading default", () => {
