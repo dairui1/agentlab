@@ -62,6 +62,21 @@ test("case matching respects AND conditions, booleans, and exact threshold edges
   assert.ok(engine.matches({}, {}));
 });
 
+test("catalog return preserves filters on both canonical and html paths, without accepting foreign destinations", () => {
+  const current = "https://agentlab.example/guides/code-mode";
+  for (const pathname of ["/capabilities", "/capabilities.html"]) {
+    const returned = new URL(engine.catalogReturn(current, `${pathname}?study=code-mode&search=Code+Mode&topic=tools&product=pi&evidence=CM-01`), current);
+    assert.equal(returned.pathname, pathname);
+    assert.equal(returned.searchParams.get("search"), "Code Mode");
+    assert.equal(returned.searchParams.get("topic"), "tools");
+    assert.equal(returned.searchParams.get("product"), "pi");
+    assert.ok(!returned.searchParams.has("study") && !returned.searchParams.has("evidence"));
+  }
+  assert.equal(engine.catalogReturn(current, "https://other.example/capabilities?search=private"), "/capabilities.html");
+  assert.equal(engine.catalogReturn(current, "javascript:alert(1)"), "/capabilities.html");
+  assert.equal(engine.catalogReturn(current, "http://["), "/capabilities.html");
+});
+
 test("a running timeline never displays a future success or failure as its current result", () => {
   const model = { kind: "timeline" };
   const scenario = { label: "命令成功，wrapper 完成", explanation: "退出码为零。", frames: [

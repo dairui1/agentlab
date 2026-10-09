@@ -40,6 +40,15 @@
     }
     return { label: scenario.label, explanation: format(scenario.explanation, values) };
   }
+  function catalogReturn(currentHref, from) {
+    try {
+      const current = new URL(currentHref);
+      const url = new URL(from || "/capabilities.html", current.origin);
+      if (url.origin !== current.origin || !["/capabilities", "/capabilities.html"].includes(url.pathname)) return "/capabilities.html";
+      for (const key of ["study", "evidence", "type", "q", "agent"]) url.searchParams.delete(key);
+      return `${url.pathname}${url.search}`;
+    } catch { return "/capabilities.html"; }
+  }
   function frameMarkup(frame, values) {
     const text = (value) => escape(format(value, values));
     const state = (value) => statuses.has(value) ? value : "idle";
@@ -197,13 +206,7 @@
     }
     const back = document.querySelector("[data-catalog-back]");
     const from = new URL(root.location.href).searchParams.get("from");
-    if (from && back) try {
-      const url = new URL(from, root.location.origin);
-      if (url.origin === root.location.origin && url.pathname === "/capabilities.html") {
-        for (const key of ["study", "evidence", "type", "q", "agent"]) url.searchParams.delete(key);
-        back.href = `${url.pathname}${url.search}`;
-      }
-    } catch { /* An invalid return link must not prevent the teaching models from loading. */ }
+    if (back) back.href = catalogReturn(root.location.href, from);
     try {
       const response = await root.fetch(`/research-guides/${page.dataset.guide}.json`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -228,5 +231,5 @@
       status.append(retry);
     }
   }
-  return { defaults, matches, resolve, format, caseCopy, frameMarkup, controlMarkup, modelMarkup, mountModel, start };
+  return { defaults, matches, resolve, format, caseCopy, catalogReturn, frameMarkup, controlMarkup, modelMarkup, mountModel, start };
 });
