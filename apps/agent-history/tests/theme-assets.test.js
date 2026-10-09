@@ -11,7 +11,7 @@ test("all entry pages apply saved themes before paint and load compatibility ove
   const pages = fs.readdirSync(publicRoot).filter((file) => file.endsWith(".html"));
   pages.push(...fs.readdirSync(path.join(publicRoot, "capabilities"))
     .filter((file) => file.endsWith(".html")).map((file) => `capabilities/${file}`));
-  assert.equal(pages.length, 23);
+  assert.equal(pages.length, 24);
   for (const file of pages) {
     const head = read(file).split("</head>")[0];
     const themeScript = head.indexOf('src="/site-theme.js"');

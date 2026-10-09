@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Pi Durable 交互指南 · Pi Pocket 中文译文 · AgentLab</title>
+        <meta
+            name="description"
+            content="Pi Pocket 的 Pi Durable 完整中文交互指南：亲手操作提交、任务、崩溃恢复、分叉、扩展、压缩与存储的教学模型。"
+        />
+        <link rel="canonical" href="https://agentlab.dairui1.com/capabilities/pi-durable-guide" />
+        <link rel="icon" href="/assets/agentlab-mark.png" type="image/png" />
+        <meta property="og:type" content="article" />
+        <meta property="og:site_name" content="AgentLab" />
+        <meta property="og:title" content="Pi Durable 交互指南 · Pi Pocket 中文译文" />
+        <meta
+            property="og:description"
+            content="亲手操作 Pi Durable 的教学模型，观察哪些状态留在存储，哪些会随进程消失。"
+        />
+        <meta property="og:url" content="https://agentlab.dairui1.com/capabilities/pi-durable-guide" />
+        <meta name="twitter:card" content="summary" />
+        <script src="/site-theme.js"></script>
+        <link rel="stylesheet" href="/styles.css" />
+        <link rel="stylesheet" href="/pi-durable-guide.css" />
+        <script src="/site-navigation.js"></script>
+        <link rel="stylesheet" href="/site-theme.css" />
+        <link rel="stylesheet" href="/site-theme-compat.css" />
+    </head>
+    <body>
+        <a class="guide-skip" href="#top">跳到正文</a>
+        <header class="guide-sitebar">
+            <div class="topbar">
+                <a class="brand" href="/" aria-label="AgentLab 首页"><img src="/assets/agentlab-mark.png" alt="" width="28" height="28" /><strong>AgentLab</strong></a>
+                <agentlab-navigation current="pi-durable-guide"></agentlab-navigation>
+                <div class="header-links"><a href="https://tannermidd.github.io/pi-pocket/durable.html" target="_blank" rel="noopener noreferrer">英文原页 ↗</a></div>
+            </div>
+        </header>
+        <div class="shell">
+            <nav class="toc" aria-label="目录">
+                <a class="brand" href="#top"
+                    ><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+                        <rect
+                            x="1"
+                            y="1"
+                            width="16"
+                            height="16"
+                            rx="2"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        />
+                        <rect x="5" y="5" width="8" height="8" fill="var(--commit)" /></svg
+                    >Pi Durable</a
+                >
+                <ol id="toc">
+                    <li>
+                        <a href="#why"><span class="n">01</span>用途</a>
+                    </li>
+                    <li>
+                        <a href="#shape"><span class="n">02</span>架构</a>
+                    </li>
+                    <li>
+                        <a href="#nouns"><span class="n">03</span>核心术语</a>
+                    </li>
+                    <li>
+                        <a href="#run"><span class="n">04</span>崩溃恢复</a>
+                    </li>
+                    <li>
+                        <a href="#once"><span class="n">05</span>提交去重</a>
+                    </li>
+                    <li>
+                        <a href="#inbox"><span class="n">06</span>运行中输入</a>
+                    </li>
+                    <li>
+                        <a href="#tasks"><span class="n">07</span>任务归属</a>
+                    </li>
+                    <li>
+                        <a href="#docs"><span class="n">08</span>文档与分叉</a>
+                    </li>
+                    <li>
+                        <a href="#ext"><span class="n">09</span>扩展</a>
+                    </li>
+                    <li>
+                        <a href="#ctx"><span class="n">10</span>上下文压缩</a>
+                    </li>
+                    <li>
+                        <a href="#watch"><span class="n">11</span>观察</a>
+                    </li>
+                    <li>
+                        <a href="#storage"><span class="n">12</span>存储</a>
+                    </li>
+                </ol>
+                <a class="part2" href="https://tannermidd.github.io/pi-pocket/architecture.html"
+                    ><b>第二部分 · 英文</b>Pi Pocket 与 Pi Durable &rarr;</a
+                >
+            </nav>
+
+            <main id="top">
+                <!-- ================= HERO ================= -->
+                <header class="hero">
+                    <p class="guide-credit">Tanner Middleton 原作 · AgentLab 中文翻译 · <time datetime="2026-10-09">2026 年 10 月 9 日</time></p>
+                    <div class="crumb">
+                        <span>Earendil</span><span>/</span><span>Pi 1.0</span><span>/</span
+                        ><b>@earendil-works/pi-durable</b><span>实验性</span>
+                    </div>
+                    <h1>Pi <span class="dur">Durable</span></h1>
+                    <p class="thesis">
+                        一个<em>先保存每一步，再把它显示出来</em>的 Agent Harness。
+                    </p>
+                    <p class="lede">
+                        Pi Durable 负责运行与语言模型的对话。每一步都以原子提交写入存储，客户端只显示已提交的数据。
+                        进程停止后，新进程打开同一份存储，就能从最后一次提交继续。下面的每个面板都是可以操作的教学模型。
+                    </p>
+
+                    <div class="tape" aria-label="动态提交日志">
+                        <div class="tape-head">
+                            <span>提交日志 &middot; 一条原子提交序列</span>
+                            <span class="legend">
+                                <span><i class="dot" style="--c: var(--entry)"></i>条目</span>
+                                <span><i class="dot" style="--c: var(--task)"></i>任务</span>
+                                <span><i class="dot" style="--c: var(--doc)"></i>文档</span>
+                                <span><i class="dot" style="--c: var(--sub)"></i>提交项</span>
+                            </span>
+                        </div>
+                        <div class="tape-strip" id="tape"></div>
+                    </div>
+
+                    <div class="breath">
+                        <div>
+                            <b>每一步都是一个任务。</b>
+                            <p>
+                                任务是一个小型状态机，每走一步就保存一个检查点。模型调用、工具调用和压缩都是任务。
+                            </p>
+                        </div>
+                        <div>
+                            <b>每次变更都是一次提交。</b>
+                            <p>
+                                一次提交可以同时添加条目、修改文档、创建任务。存储要么全部保留，要么全部不保留。
+                            </p>
+                        </div>
+                        <div>
+                            <b>客户端只显示已提交的状态。</b>
+                            <p>
+                                各个客户端都显示已提交的状态。手机重新连接后，看到的数据与笔记本一致。
+                            </p>
+                        </div>
+                    </div>
+                    <aside class="guide-translation-note" aria-label="译注">
+                        <b>译注</b>：原页依据 Pi Durable 1.0.2，保留了原作全部 12 节和交互模型。
+                        这里的进程、数据库、付款、Token 与费用均是浏览器内的教学模拟，不是真实 Harness 或测试回执。
+                        “提交去重”不保证外部动作只执行一次。1.1.0 的源码核验和存储边界另见
+                        <a href="/capabilities/pi-durable.html">AgentLab 研究</a>。
+                    </aside>
+                </header>
+
+                <!-- ================= WHY ================= -->
+                <section class="sec" id="why">
+                    <div class="eyebrow">用途</div>
+                    <h2>为 Agent 应用保存持久状态</h2>
+                    <p class="lede">
+                        Pi Coding Agent 面向一个人在一个终端里的工作。它把会话存进文件，但正在进行的运行留在进程内存里。
+                        进程停止，运行也就停止，你得再让 Agent 继续。Pi Durable 则面向 Agent 应用：
+                        它们会长时间运行，服务多个用户，在重启后接着工作，还会在运行期间更新代码。
+                        下表把 Pi Durable 与通常将状态保存在内存中的 Agent 循环作了对比。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head"><span class="title">对比</span></div>
+                        <div class="scrollx">
+                            <table class="compare">
+                                <thead>
+                                    <tr>
+                                        <th>发生什么</th>
+                                        <th>状态保存在内存中的 Agent 循环</th>
+                                        <th>Pi Durable</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>进程停止</td>
+                                        <td class="bad">
+                                            正在进行的运行、未完成的回答和队列都丢失了。
+                                        </td>
+                                        <td class="good">
+                                            新进程打开存储，从最后一个检查点继续。
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>客户端再次发送请求</td>
+                                        <td class="bad">
+                                            Agent 可能收到两次相同消息。
+                                        </td>
+                                        <td class="good">
+                                            相同的 <code>requestId</code> 会找到存储中已有的提交项。
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>另一台设备连接</td>
+                                        <td class="bad">
+                                            下一次事件到来之前，设备上没有内容。
+                                        </td>
+                                        <td class="good">
+                                            设备取得已提交的视图，包括流式文本和正在运行的工具。
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>尝试另一条路径</td>
+                                        <td class="bad">
+                                            你得自己复制历史记录。
+                                        </td>
+                                        <td class="good">
+                                            从某条条目分叉，新分支得到截至该条目的历史。各文档按自己的分叉策略处理。
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>工具代码发生变化</td>
+                                        <td class="bad">
+                                            重启进程，当前运行随之停止。
+                                        </td>
+                                        <td class="good">
+                                            安装新扩展。正在进行的调用继续使用旧代码，下一次调用使用新代码。
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>上下文已满</td>
+                                        <td class="bad">Agent 停下来生成摘要。</td>
+                                        <td class="good">
+                                            Agent 继续工作，后台任务生成摘要。Harness 在下一个边界加入摘要。
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= SHAPE ================= -->
+                <section class="sec" id="shape">
+                    <div class="eyebrow">架构</div>
+                    <h2>五层架构，一条提交序列</h2>
+                    <p class="lede">
+                        发布公告将 Harness 定义为“存储，加上并行运行一个或多个大语言模型对话所需的机制”。
+                        点击任意一层，就能看到它的组成。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">架构层</span
+                            ><span class="small muted"
+                                >约 15,000 行 TypeScript</span
+                            >
+                        </div>
+                        <div class="bench-body stack">
+                            <div>
+                                <div class="layers" id="layers"></div>
+                                <div class="side-tools" style="margin-top: 10px">
+                                    <div>
+                                        <b>pi-ai</b>接入模型和提供商，也处理流式输出与登录。
+                                    </div>
+                                    <div>
+                                        <b>ExecutionEnv</b>为工具提供文件和 Shell 访问。每个对话可以使用不同的环境。
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="detail" id="layer-detail" aria-live="polite"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= NOUNS ================= -->
+                <section class="sec" id="nouns">
+                    <div class="eyebrow">术语</div>
+                    <h2>核心术语</h2>
+                    <p class="lede">
+                        API 使用下面这 11 个术语。页面上的每种颜色都代表一类记录，所有章节使用同一套颜色。
+                    </p>
+                    <div class="nouns" id="nouns-grid"></div>
+                </section>
+
+                <!-- ================= RUN / SIM ================= -->
+                <section class="sec" id="run">
+                    <div class="eyebrow">崩溃恢复</div>
+                    <h2>回答到一半，让进程停止</h2>
+                    <p class="lede">
+                        Harness 用一串任务回答输入，每个任务向对话记录添加条目。下面列出 README 中的任务链，
+                        后面的模拟器会运行同样的流程。你可以在任意一步终止进程，再重新打开。
+                    </p>
+
+                    <div class="flow" aria-label="一次输入得到回答的过程">
+                        <div class="fl">
+                            <span class="pip" style="border-color: var(--sub)"></span
+                            ><span class="txt"
+                                ><span class="k sub">submit(input)</span> &rarr;
+                                <span class="k entry">pi.user</span></span
+                            >
+                        </div>
+                        <div class="fl ind1">
+                            <span class="pip" style="border-color: var(--task)"></span
+                            ><span class="txt"
+                                ><span class="k task">pi.generation</span> &rarr;
+                                <span class="k entry">pi.system</span
+                                ><span class="muted small">仅在 Prompt 或工具发生变化时</span
+                                >, <span class="k entry">pi.assistant</span
+                                ><span class="muted small">包含工具调用</span></span
+                            >
+                        </div>
+                        <div class="fl ind2">
+                            <span class="pip" style="border-color: var(--task)"></span
+                            ><span class="txt"
+                                ><span class="k task">pi.tool &times; n</span> &rarr;
+                                <span class="k entry">pi.tool-result &times; n</span
+                                ><span class="muted small"
+                                    >这些任务归生成任务所有，生成任务等待它们完成</span
+                                ></span
+                            >
+                        </div>
+                        <div class="fl ind1">
+                            <span class="pip" style="border-color: var(--task)"></span
+                            ><span class="txt"
+                                ><span class="k task">pi.generation</span> &rarr;
+                                <span class="k entry">pi.assistant</span
+                                ><span class="muted small">最终回答</span> &rarr;
+                                <span class="k sub">提交项完成</span></span
+                            >
+                        </div>
+                    </div>
+
+                    <div class="bench" id="sim">
+                        <div class="bench-head">
+                            <span class="title"
+                                ><span class="dot" style="--c: var(--commit)"></span>模拟器
+                                &middot; 输入：“登录测试为什么失败？”</span
+                            >
+                            <div class="row">
+                                <button class="btn primary" id="sim-run">
+                                    <span id="sim-run-label">运行</span>
+                                </button>
+                                <button class="btn" id="sim-step">
+                                    单步 <span class="key">&rarr;</span>
+                                </button>
+                                <button class="btn danger" id="sim-kill">终止进程</button>
+                                <button class="btn go" id="sim-open" disabled>
+                                    重开并 resume()
+                                </button>
+                                <button class="btn" id="sim-reset">重置</button>
+                            </div>
+                        </div>
+                        <div class="bench-body">
+                            <div
+                                class="row"
+                                style="justify-content: space-between; margin-bottom: 12px"
+                            >
+                                <label class="toggle"
+                                    ><input type="checkbox" id="sim-safe" />
+                                    <span
+                                        >为 <code>bash</code> 设置 <code>replay: "safe"</code></span
+                                    ></label
+                                >
+                                <span class="legend">
+                                    <span
+                                        ><span class="buf" style="padding: 0 8px; min-height: 0"
+                                            >虚线</span
+                                        >
+                                        仅在内存中</span
+                                    >
+                                    <span><span class="k commit">#n</span> 已提交到存储</span>
+                                </span>
+                            </div>
+                            <div class="sim-top">
+                                <div class="pane proc" id="sim-proc">
+                                    <h4>
+                                        <span>进程内存</span
+                                        ><span class="hb" id="sim-hb"
+                                            ><i></i><span>运行中</span></span
+                                        >
+                                    </h4>
+                                    <div class="pb" id="sim-mem"></div>
+                                </div>
+                                <div class="pane">
+                                    <h4>
+                                        <span>存储：session.sqlite</span
+                                        ><span id="sim-seq" class="k commit">序号 0</span>
+                                    </h4>
+                                    <div class="ledger" id="sim-ledger"></div>
+                                </div>
+                            </div>
+                            <div class="sim-view">
+                                <div class="pane">
+                                    <h4>
+                                        <span>对话记录条目</span
+                                        ><span class="k entry">根对话 root</span>
+                                    </h4>
+                                    <div class="pb tx" id="sim-tx"></div>
+                                </div>
+                                <div class="pane">
+                                    <h4><span>任务</span><span class="muted">按归属排列</span></h4>
+                                    <div class="pb tree" id="sim-tree"></div>
+                                </div>
+                                <div class="pane">
+                                    <h4>
+                                        <span>文档</span
+                                        ><span class="muted">内置文档与提交项</span>
+                                    </h4>
+                                    <div class="pb docs" id="sim-docs"></div>
+                                </div>
+                            </div>
+                            <div class="narr" id="sim-narr" aria-live="polite"></div>
+                            <ol class="tries">
+                                <li>
+                                    点击<b>运行</b>。每次提交先进入存储，然后才显示在对话记录中。
+                                </li>
+                                <li>
+                                    点击<b>重置</b>、<b>运行</b>。当 <code>bash</code> 出现输出时，点击<b>终止进程</b>，
+                                    再点击<b>重开并 resume()</b>。运行会自动继续，不必再点运行。
+                                </li>
+                                <li>
+                                    在 <code>bash</code> 开始之前，为它设置 <code>replay: "safe"</code>，再做一次第 2 步。
+                                    这次 <code>bash</code> 会重新执行。<code>read</code> 仍保留默认值 <code>"unsafe"</code>。
+                                </li>
+                                <li>
+                                    在首次回答过程中，等一次输出写入存储后再终止进程。已提交的部分会留在对话记录中，标记为中止的回答。
+                                </li>
+                                <li>
+                                    当某段输出还以虚线显示时终止进程，Harness 只会丢失那一段。
+                                    一段通常约为 100 ms 的输出；工具输出很大时，这个间隔可能更长。
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= ONCE ================= -->
+                <section class="sec" id="once">
+                    <div class="eyebrow">提交去重 · Exactly-once submission</div>
+                    <h2>再次发送，不重复接收</h2>
+                    <p class="lede">
+                        手机发送“部署到预发布环境”。服务器保存消息，开始工作，但回复在网络中丢失了，手机便再次发送。
+                        没有幂等键，Agent 就会部署两次。有了 <code>requestId</code>，第二次提交会找到第一次的提交项。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">回复丢失</span>
+                            <div class="row">
+                                <label class="toggle"
+                                    ><input type="checkbox" id="rid-on" checked />
+                                    <span>携带 <code>requestId</code></span></label
+                                >
+                                <button class="btn primary" id="rid-send">
+                                    发送、丢失回复、再发一次
+                                </button>
+                                <button class="btn" id="rid-reset">清空</button>
+                            </div>
+                        </div>
+                        <div class="bench-body">
+                            <div class="rid">
+                                <div class="pane">
+                                    <h4><span>客户端</span><span class="muted">手机</span></h4>
+                                    <div class="pb small" id="rid-client"></div>
+                                </div>
+                                <div class="wire" aria-hidden="true">
+                                    <span class="pkt" id="rid-pkt" style="opacity: 0"></span>
+                                </div>
+                                <div class="pane">
+                                    <h4><span>存储 &middot; 提交项</span></h4>
+                                    <div class="pb subs" id="rid-subs"></div>
+                                </div>
+                            </div>
+                            <div class="tally">
+                                <span><b id="rid-n-sub">0</b>个存储中的提交项</span
+                                ><span><b id="rid-n-run">0</b>次部署启动</span>
+                            </div>
+                            <pre
+                                class="code"
+                                style="margin-top: 14px"
+                            ><span class="f">root.submit</span>({ type: <span class="s">"input"</span>, content: <span class="s">"部署到预发布环境"</span>, <span class="h">requestId: <span class="s">"deploy-7f3a"</span></span> }, ctx)
+<span class="c">// 重启或重试后，相同的 requestId 返回已保存的提交项。</span>
+<span class="c">// again.id === submission.id。用 harness.submission(id) 找回它并等待。</span></pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= INBOX ================= -->
+                <section class="sec" id="inbox">
+                    <div class="eyebrow">运行中输入</div>
+                    <h2>对话忙着工作时，新的输入怎么办</h2>
+                    <p class="lede">
+                        一次运行尚未结束时，对话处于忙碌状态。这时的新提交项会进入 <span class="k doc">pi.inbox</span> 文档，
+                        Harness 在边界处把它加入对话记录。边界可以是一轮工具调用结束，也可以是整个运行结束，由提交项类型决定。
+                        如果对话空闲，提交项就直接进入对话记录。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">运行进行中</span>
+                            <div class="row">
+                                <button class="btn" id="ib-steer" style="color: var(--sub)">
+                                    steer
+                                </button>
+                                <button class="btn" id="ib-follow" style="color: var(--entry)">
+                                    follow-up
+                                </button>
+                                <button class="btn" id="ib-write" style="color: var(--doc)">
+                                    write
+                                </button>
+                                <button class="btn" id="ib-reject">whenBusy: "reject"</button>
+                                <button class="btn" id="ib-restart">重新运行</button>
+                            </div>
+                        </div>
+                        <div class="bench-body">
+                            <div class="lane" id="ib-lane">
+                                <div class="segs" id="ib-segs"></div>
+                                <div class="playhead" id="ib-head"></div>
+                            </div>
+                            <div class="toast" id="ib-toast" aria-live="polite"></div>
+                            <div class="inbox-grid">
+                                <div class="pane">
+                                    <h4><span>pi.inbox</span><span class="muted">排队中</span></h4>
+                                    <div class="pb" id="ib-q"></div>
+                                </div>
+                                <div class="pane">
+                                    <h4><span>已加入对话记录</span></h4>
+                                    <div class="pb" id="ib-placed"></div>
+                                </div>
+                            </div>
+                            <div class="scrollx" style="margin-top: 14px">
+                                <table class="compare">
+                                    <thead>
+                                        <tr>
+                                            <th>提交项类型</th>
+                                            <th>边界</th>
+                                            <th>结果</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><span class="k sub">whenBusy: "steer"</span></td>
+                                            <td>当前工具轮次结束</td>
+                                            <td>
+                                                提交项加入当前运行，下一次模型请求会包含它。如果运行先结束，这条 steer 就启动下一次运行。
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <span class="k entry">follow-up</span>
+                                                <span class="muted small">默认</span>
+                                            </td>
+                                            <td>整个运行结束</td>
+                                            <td>提交项启动下一次运行。</td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="k doc">type: "write"</span></td>
+                                            <td>下一个边界</td>
+                                            <td>
+                                                Harness 添加一条条目，不发送模型请求。
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><span class="k crash">whenBusy: "reject"</span></td>
+                                            <td>无</td>
+                                            <td>
+                                                <code>submit()</code> 抛出 <code>ConversationBusy</code>。
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="small muted" style="margin: 10px 0 0">
+                                每个边界都会加入所有排队中的 write。默认还会加入一条 steer；运行结束时，再加入一条 follow-up。
+                                想一次加入所有排队中的 steer 或 follow-up，可以在 Harness 设置中使用
+                                <code>steeringMode: "all"</code> 或 <code>followUpMode: "all"</code>。
+                                用 <code>submission.abort()</code> 可以移除排队中的提交项。
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= TASKS ================= -->
+                <section class="sec" id="tasks">
+                    <div class="eyebrow">任务归属</div>
+                    <h2>任务归属与取消顺序</h2>
+                    <p class="lede">
+                        每个任务都有归属，可以归属于一个对话，也可以归属于另一个任务。
+                        任务可以创建子任务，然后提交 <code>waiting</code> 状态。
+                        等待中的任务不运行代码，直到子任务完成。README 中的例子是一笔结账任务，
+                        同时向四张卡扣款。点击按钮，运行不同情况。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">example.checkout &middot; 策略 failFast</span>
+                            <div class="row">
+                                <button class="btn primary" id="ck-ok">全部支付成功</button>
+                                <button class="btn" id="ck-decline">第 2 张卡已过期</button>
+                                <button class="btn danger" id="ck-cancel">顾客取消</button>
+                                <button class="btn go" id="ck-restart">
+                                    支付期间重启
+                                </button>
+                            </div>
+                        </div>
+                        <div class="bench-body ck">
+                            <div class="pane">
+                                <h4>
+                                    <span>任务树</span
+                                    ><span class="muted" id="ck-phase">空闲</span>
+                                </h4>
+                                <div class="pb diagram-scroll" tabindex="0" role="region" aria-label="结账任务树，可横向滚动">
+                                    <svg
+                                        id="ck-svg"
+                                        viewBox="0 0 560 270"
+                                        role="img"
+                                        aria-label="结账任务树"
+                                    ></svg>
+                                </div>
+                            </div>
+                            <div class="pane">
+                                <h4><span>事件日志</span></h4>
+                                <div class="pb ck-log" id="ck-log"></div>
+                            </div>
+                        </div>
+                        <div class="bench-body" style="padding-top: 0">
+                            <pre
+                                class="code"
+                            ><span class="c">// "pay" 阶段创建四个归属于结账任务的 Payment 子任务，然后等待。</span>
+<span class="f">pay</span>: <span class="f">async</span> (task, runtime, ctx) =&gt; {
+  <span class="f">await</span> runtime.commit(<span class="f">async</span> (tx) =&gt; {
+    <span class="f">const</span> payments = [];
+    <span class="f">for</span> (<span class="f">const</span> card <span class="f">of</span> task.input.cards)
+      payments.push(<span class="f">await</span> tx.createTask(Payment, { card }, { <span class="h">ownership: { kind: <span class="s">"task"</span>, taskId: task.id }</span> }));
+    <span class="f">return</span> { status: <span class="s">"waiting"</span>, checkpoint: { phase: <span class="s">"decide"</span>, payments }, on: payments, <span class="h">policy: <span class="s">"failFast"</span></span> };
+  }, ctx);
+},
+<span class="c">// 每个 Payment 的取消处理函数退回已扣款项。先执行子任务的取消处理。</span></pre>
+                        </div>
+                    </div>
+                    <div class="prose">
+                        <p>
+                            <b>子 Agent 使用同一种归属模型。</b>子 Agent 是一个归属于工具调用任务的对话。
+                            如果工具调用取消或失败，子对话也会取消。子对话进入空闲状态之前，父对话一直保持忙碌。
+                        </p>
+                        <p>
+                            带有 <code>{ background: true }</code> 的任务构成一道边界。
+                            父级取消后，它拥有的工作仍会继续，也不会让父级保持忙碌。
+                            持久运行的后台子 Agent 就利用这道边界：每个子对话归属于一个锚定任务，
+                            另有一个报告任务把每次回答作为后续输入发给父对话。
+                        </p>
+                    </div>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">任务状态</span
+                            ><span class="small muted">任务图中已提交的状态</span>
+                        </div>
+                        <div class="bench-body">
+                            <div class="diagram-scroll" tabindex="0" role="region" aria-label="任务状态生命周期，可横向滚动">
+                                <svg
+                                    id="life-svg"
+                                    viewBox="0 0 800 185"
+                                    role="img"
+                                    aria-label="任务状态生命周期"
+                                ></svg>
+                            </div>
+                            <p class="small muted" style="margin: 8px 0 0">
+                                结果 <code>faulted</code> 表示任务违反了任务规则，例如抛出了未捕获的错误。
+                                如果 Harness 取消一个没有已安装代码能够运行的任务，它会从待运行（pending）或等待（waiting）
+                                直接进入终态（terminal），结果为 <code>orphaned</code>。
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= DOCS ================= -->
+                <section class="sec" id="docs">
+                    <div class="eyebrow">应用状态</div>
+                    <h2>文档与分叉</h2>
+                    <p class="lede">
+                        文档是带类型的 JSON，Harness 把它与对话记录一起存储。
+                        一次提交可以同时修改文档、追加条目。因此，如果一次提交同时修改了文档和对话记录，
+                        崩溃恢复后，两者仍然一致。每种文档都有一个<b>作用域</b>：会话、对话或任务。
+                        对话文档还可以设置<b>历史记录方式</b>（<code>latest</code> 或 <code>rewindable</code>）
+                        和<b>分叉策略</b>。分叉策略决定新分支的起始值。选择一个分叉点和一种策略，看看区别。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">app.todos &middot; 分叉策略：</span>
+                            <div class="seg" id="fk-policy" role="group" aria-label="分叉策略">
+                                <button aria-pressed="false" data-p="initial">"initial"</button>
+                                <button aria-pressed="true" data-p="asOf">"asOf"</button>
+                                <button aria-pressed="false" data-p="current">"current"</button>
+                            </div>
+                        </div>
+                        <div class="bench-body fork">
+                            <div class="pane">
+                                <h4>
+                                    <span>父对话记录</span
+                                    ><span class="muted">点击条目，从这里分叉</span>
+                                </h4>
+                                <div class="pb fx" id="fk-entries"></div>
+                            </div>
+                            <div
+                                style="display: grid; gap: 12px; align-content: start; min-width: 0"
+                            >
+                                <div class="docval" id="fk-parent"></div>
+                                <div
+                                    class="docval"
+                                    id="fk-child"
+                                    style="border-color: var(--sub)"
+                                ></div>
+                                <p class="small" id="fk-why" style="margin: 0"></p>
+                            </div>
+                        </div>
+                        <div class="bench-body" style="padding-top: 0">
+                            <pre
+                                class="code"
+                            ><span class="f">const</span> Todos = <span class="f">defineDoc</span>&lt;{ items: string[] }&gt;({
+  kind: <span class="s">"app.todos"</span>, version: 1, scope: <span class="s">"conversation"</span>,
+  history: <span class="s" id="fk-hist">"rewindable"</span>, <span class="c" id="fk-hist-c">// "asOf" 需要 "rewindable"，因为它要读取历史值</span>
+  fork: <span class="h"><span class="s" id="fk-code">"asOf"</span></span>,  <span class="c">// 新分支从什么值开始</span>
+  initial: () =&gt; ({ items: [] }),
+});
+<span class="f">await</span> root.commit(<span class="f">async</span> (tx) =&gt; { (<span class="f">await</span> tx.doc(Todos, root.id)).items.push(<span class="s">"编写文档"</span>); }, ctx);</pre>
+                        </div>
+                    </div>
+                    <div class="prose">
+                        <p>Harness 内置五种文档：</p>
+                        <ul>
+                            <li>
+                                <span class="k doc">pi.agent</span>：模型、思考深度、扩展、工具、指令和工作目录。
+                                模型保存为提供商与模型 ID，扩展和工具保存的是名称，而不是代码。
+                            </li>
+                            <li>
+                                <span class="k doc">pi.provider</span>：一个 UUIDv7 会话标识，用于提供商的 Prompt 缓存。
+                            </li>
+                            <li>
+                                <span class="k doc">pi.live</span>：当前运行、流式回答、正在执行的工具，以及正在进行的压缩。
+                            </li>
+                            <li><span class="k doc">pi.inbox</span>：排队中的提交项。</li>
+                            <li>
+                                <span class="k doc">pi.usage</span>：各个模型的 Token 用量与费用，以及会报告用量的工具的用量与费用。
+                                失败和取消的尝试也计入其中。
+                            </li>
+                        </ul>
+                        <p>分叉会获得新的提供商会话标识。</p>
+                    </div>
+                </section>
+
+                <!-- ================= EXTENSIONS ================= -->
+                <section class="sec" id="ext">
+                    <div class="eyebrow">扩展</div>
+                    <h2>扩展、钩子与热重载</h2>
+                    <p class="lede">
+                        扩展是一组有名称的<b>工具</b>、系统 Prompt <b>片段</b>、<b>钩子</b>、
+                        <b>包装器</b>和<b>任务</b>。对话保存的是扩展名称，而不是代码。
+                        Harness 每次使用扩展时，都从注册表获取代码。点击一个钩子，看看它在哪一步运行。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head"><span class="title">钩子接入点</span></div>
+                        <div class="bench-body pipe">
+                            <div>
+                                <div
+                                    class="small muted"
+                                    style="margin-bottom: 6px; font-family: var(--mono)"
+                                >
+                                    GenerationTask
+                                </div>
+                                <div class="pipeline" id="pipe-gen"></div>
+                            </div>
+                            <div>
+                                <div
+                                    class="small muted"
+                                    style="margin-bottom: 6px; font-family: var(--mono)"
+                                >
+                                    ToolTask
+                                </div>
+                                <div class="pipeline" id="pipe-tool"></div>
+                            </div>
+                            <div
+                                class="narr"
+                                id="hook-narr"
+                                aria-live="polite"
+                                style="margin-top: 0"
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">热重载：registry.install()</span>
+                            <div class="row">
+                                <button class="btn primary" id="rl-call">
+                                    调用 <code>count</code>
+                                </button>
+                                <button class="btn" id="rl-install">安装 count v2</button>
+                                <button class="btn" id="rl-reset">重置</button>
+                            </div>
+                        </div>
+                        <div class="bench-body reload">
+                            <div class="pane">
+                                <h4>
+                                    <span>注册表</span
+                                    ><span class="muted">在内存中，不在持久存储中</span>
+                                </h4>
+                                <div class="pb reg" id="rl-reg"></div>
+                            </div>
+                            <div class="pane">
+                                <h4><span>工具调用</span></h4>
+                                <div class="pb calls" id="rl-calls"></div>
+                            </div>
+                        </div>
+                        <div class="bench-body" style="padding-top: 0">
+                            <div class="narr" id="rl-narr" style="margin-top: 0"></div>
+                        </div>
+                    </div>
+                    <div class="prose">
+                        <p>
+                            两个被选中的扩展可以包含同名工具。这时，后一个扩展的工具会替换前一个。
+                            <code>wrapTool()</code> 给最终保留的工具添加行为。
+                            例如，某些对话可以使用在 Python 虚拟环境中运行的 <code>bash</code> 工具，
+                            再由一个计时包装器测量各个对话中 <code>bash</code> 的执行时间。
+                        </p>
+                    </div>
+                </section>
+
+                <!-- ================= COMPACTION ================= -->
+                <section class="sec" id="ctx">
+                    <div class="eyebrow">上下文管理</div>
+                    <h2>后台压缩</h2>
+                    <p class="lede">
+                        对话变长时，压缩任务会总结较早的条目，并在对话记录末尾追加一个
+                        <span class="k entry">pi.compaction</span> 条目，指向第一条保留的条目。
+                        此后，模型收到摘要，而不是这个保留点之前的原条目。压缩期间，Agent 继续工作。
+                        旧条目仍保存在存储中，因此工具还能读取它们。移动滑杆，改变 Token 数量。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">上下文窗口：200,000 Token</span>
+                            <div class="row">
+                                <button class="btn danger" id="cx-over">上下文超限</button
+                                ><button class="btn" id="cx-manual">root.compact()</button
+                                ><button class="btn" id="cx-reset">root.reset(note)</button>
+                            </div>
+                        </div>
+                        <div class="bench-body">
+                            <div class="legend">
+                                <span
+                                    ><i class="dot" style="--c: var(--entry)"></i>已用 Token</span
+                                ><span
+                                    ><i class="dot" style="--c: var(--commit)"></i>后台压缩区间（backgroundTokens）</span
+                                ><span
+                                    ><i class="dot" style="--c: var(--crash)"></i>预留区间：下一次请求等待（reserveTokens）</span
+                                >
+                            </div>
+                            <div class="gauge" id="cx-gauge" style="margin-top: 12px">
+                                <div class="zone bg" id="cx-zbg"></div>
+                                <div class="zone rs" id="cx-zrs"></div>
+                                <div class="fill" id="cx-fill"></div>
+                            </div>
+                            <div class="gauge-labels" id="cx-labels"></div>
+                            <label for="cx-range" class="small muted"
+                                >下一次请求中的 Token：
+                                <b id="cx-val" class="mono" style="color: var(--ink)"></b
+                            ></label>
+                            <input
+                                type="range"
+                                id="cx-range"
+                                min="0"
+                                max="200000"
+                                step="1000"
+                                value="120000"
+                            />
+                            <div class="row" style="margin-top: 10px">
+                                <span class="status-pill" id="cx-state"></span>
+                            </div>
+                            <div class="ctx" id="cx-ctx"></div>
+                            <div class="narr" id="cx-narr"></div>
+                            <pre class="code" style="margin-top: 14px">settings: { compaction: {
+  enabled: <span class="f">true</span>,
+  reserveTokens: <span class="s">16384</span>,     <span class="c">// 超过窗口减去预留量的阈值后，下一次请求等待压缩</span>
+  keepRecentTokens: <span class="s">20000</span>,  <span class="c">// 近期上下文大约保留多少 Token 原文</span>
+  backgroundTokens: <span class="s">32768</span>,  <span class="c">// 比上述阈值低这么多 Token 时，开始后台压缩</span>
+} }</pre>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ================= WATCH ================= -->
+                <section class="sec" id="watch">
+                    <div class="eyebrow">状态观察</div>
+                    <h2>客户端显示已提交的状态</h2>
+                    <p class="lede">
+                        界面的所有数据都来自已提交的状态。
+                        <code>viewState()</code> 提供实时的只读视图。
+                        <code>watch()</code> 提供相同的视图，以及每次提交的操作，逐次调用回调。
+                        较晚连接的客户端会拿到当前视图，Harness 不会重放旧提交。
+                    </p>
+                    <div class="bench">
+                        <div class="bench-head">
+                            <span class="title">一个对话，多个客户端</span>
+                            <div class="row">
+                                <button class="btn primary" id="w-run">持续产生提交</button>
+                                <button class="btn" id="w-join">连接手机</button>
+                                <label class="toggle"
+                                    ><input type="checkbox" id="w-slow" />
+                                    <span>笔记本连接变慢</span></label
+                                >
+                            </div>
+                        </div>
+                        <div class="bench-body">
+                            <div class="clients" id="w-clients"></div>
+                            <div class="narr" id="w-narr"></div>
+                        </div>
+                    </div>
+                    <div class="prose">
+                        <p>
+                            较慢的 watch 最多保留 100 帧尚未交付的数据。
+                            达到上限后，Harness 用包含最新完整视图的一帧替换这些帧。
+                            Harness 提交部分回答和工具输出的频率不超过每 100 ms 一次；工具输出很大时，间隔会更长。
+                            <code>watchEvents()</code> 从提交中生成编程 Agent 事件，例如
+                            <code>message_update</code> 和 <code>tool_execution_start</code>。
+                        </p>
+                    </div>
+                </section>
+
+                <!-- ================= STORAGE ================= -->
+                <section class="sec" id="storage">
+                    <div class="eyebrow">存储</div>
+                    <h2>存储后端</h2>
+                    <p class="lede">
+                        使用 SQLite 时，Harness 只把当前工作所需的数据留在内存中，较早的消息留在磁盘上，
+                        直到需要时才读取。JSONL 后端则把全部记录保留在内存中。
+                        同一份存储一次只能由一个进程使用，存储本身不会阻止第二个进程访问。
+                    </p>
+                    <div class="stores">
+                        <div class="store">
+                            <span class="k task">测试与演示</span>
+                            <h3>内存</h3>
+                            <p>不持久保存数据。</p>
+                            <span class="imp">MemoryStorage</span>
+                        </div>
+                        <div class="store">
+                            <span class="k commit">通常的选择</span>
+                            <h3>SQLite</h3>
+                            <p>
+                                一个使用 WAL 模式的数据库文件，设置为
+                                <code>synchronous = NORMAL</code>。进程崩溃后，已提交的数据仍会保留。
+                                断电或主机故障可能丢失最新提交。
+                            </p>
+                            <span class="imp">openNodeSqliteStorage(file)</span>
+                        </div>
+                        <div class="store">
+                            <span class="k doc">只追加</span>
+                            <h3>JSONL</h3>
+                            <p>
+                                同一目录中的只追加文件。设置 <code>{ fsync: true }</code>，
+                                在每次写入提交标记之前把数据刷入磁盘。
+                            </p>
+                            <span class="imp">openNodeJsonlStorage(dir, ctx)</span>
+                        </div>
+                    </div>
+                    <div class="prose">
+                        <p>
+                            SQLite 和 JSONL 的核心不依赖 Node API。加上一个小型数据库或文件系统适配器，
+                            它们就能在 Bun 或 Cloudflare Durable Objects 中运行。
+                            自定义后端可以使用 <code>/testing</code> 中的一致性测试套件。
+                            SQLite 的表结构包括：
+                        </p>
+                    </div>
+                    <div class="tables">
+                        <span>conversations</span><span>entries</span><span>documents</span
+                        ><span>document_revisions</span><span>tasks</span><span>submissions</span
+                        ><span>record_ids</span><span>durable_metadata</span
+                        ><span>durable_schema</span>
+                    </div>
+
+                    <a class="next-part" href="https://tannermidd.github.io/pi-pocket/architecture.html">
+                        <div>
+                            <div class="eyebrow">第二部分 · 英文原文</div>
+                            <h3>Pi Pocket 与 Pi Durable</h3>
+                            <p>
+                                Pi Pocket 是面向 Pi Agent 的 Web 应用，支持多人使用，也能在手机上运行。
+                                第二部分展示它的各项功能分别使用了 Pi Durable 的哪些部分。
+                            </p>
+                        </div>
+                        <span class="go" aria-hidden="true">&rarr;</span>
+                    </a>
+                    <footer class="foot">
+                        原文来源：Earendil 的
+                        <a
+                            href="https://earendil.com/posts/pi-durable/"
+                            target="_blank"
+                            rel="noopener"
+                            >Pi Durable 发布文章</a
+                        >
+                        （2026 年 10 月 1 日），以及 <code>@earendil-works/pi-durable</code> 1.0.2
+                        的 README 和示例。Pi Durable 仍处于实验阶段，不同版本之间 API 可能变化。
+                        本页模拟器是教学模型，不是真实的 Harness。
+                        Tanner Middleton 原作，AgentLab 中文翻译。<a href="https://tannermidd.github.io/pi-pocket/durable.html">英文原文</a> ·
+                        <a href="https://github.com/TannerMidd/pi-pocket/blob/d01f763b02f06ff6144d4366eb966a76dbb35577/site/durable.html">固定版本源码</a> ·
+                        <a href="/assets/source-media/pi-pocket/LICENSE.txt">MIT 许可</a> ·
+                        <a href="https://tannermidd.github.io/pi-pocket/">Pi Pocket 首页</a> ·
+                        <a href="https://tannermidd.github.io/pi-pocket/engineering.html">工程说明（英文）</a>
+                    </footer>
+                </section>
+            </main>
+        </div>
+        <script src="/vendor/lucide/lucide.min.js"></script>
+        <script src="/pi-durable-guide.js"></script>
+    </body>
+</html>

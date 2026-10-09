@@ -159,7 +159,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Pi Durable", "Code Mode", "OAR Agent 接口", "Raven Harness 改进", "MiMo Agent", "Autoresearch", "Raft 多 Agent 博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Pi Durable", "Pi Durable 交互译文", "Code Mode", "OAR Agent 接口", "Raven Harness 改进", "MiMo Agent", "Autoresearch", "Raft 多 Agent 博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/capabilities.html?study=goal-mode");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/capabilities/token-budget-context.html");
   assert.match(siteNavigationSource, /searchParams\.get\("study"\) === "goal-mode" \? "goal" : "research"/);
@@ -214,7 +214,7 @@ test("the research landing puts questions and engineering decisions before the e
 
   assert.ok(researchIndex.studies.length > 0);
   assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, researchIndex.studies.length);
-  assert.deepEqual(new Set(researchIndex.studies.map((study) => study.kind)), new Set(["comparison", "fixed-build", "paper-study"]));
+  assert.deepEqual(new Set(researchIndex.studies.map((study) => study.kind)), new Set(["comparison", "fixed-build", "paper-study", "interactive-guide"]));
   assert.ok(researchIndex.studies.some((study) => study.evidence));
   assert.ok(researchIndex.studies.some((study) => study.data));
   assert.ok(researchIndex.studies.every((study) => Boolean(study.data) !== Boolean(study.evidence && study.summary)));
@@ -299,6 +299,7 @@ test("research navigation preserves index context and lets evidence deep links o
 
 test("headline evidence keeps the direct anchors selected in adversarial review", () => {
   const directAnchors = {
+    "pi-durable-guide": ["PG-01", "PG-02", "PG-03"],
     "pi-durable": ["PD-02", "PD-03", "PD-04", "PD-17", "PD-25"],
     "code-mode": ["CM-01", "CM-03", "CM-05", "CM-06"],
     "oar": ["OA-02", "OA-04", "OA-05", "OA-15", "OA-23"],

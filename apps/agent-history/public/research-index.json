@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "pi-durable-guide",
+      "readingLabel": "打开交互指南：Pi Pocket 完整中文译文",
+      "title": "Pi Durable 交互指南：Pi Pocket 中文译文",
+      "question": "亲手终止进程再重开：哪些状态消失，哪些还能继续？",
+      "implication": "先操作模型，把内存、提交和界面中的变化对照起来；再回到固定源码研究核对实际保证。",
+      "boundary": "Tanner Middleton 原作，依据 Pi Durable 1.0.2。全部交互是浏览器内教学模拟，不是实际 Harness 或崩溃实验；中文翻译保留 MIT 署名。",
+      "editorialRank": 24,
+      "verifiedAt": "2026-10-09",
+      "kind": "interactive-guide",
+      "kindLabel": "交互指南 · 中文译文",
+      "topic": "可靠性与恢复",
+      "products": [{"id": "pi", "label": "Pi Durable", "version": "原作 1.0.2 / Pi Pocket d01f763b"}],
+      "fact": "12 节交互指南让读者观察提交、恢复、输入排队、任务归属、文档分叉、扩展更新、压缩和客户端视图。模型可以操作，原作版本与实际运行验证另行区分。",
+      "sourceKinds": ["第三方指南完整译文", "固定原页源码", "教学交互模型", "MIT 许可证"],
+      "headlineEvidence": ["PG-01", "PG-02", "PG-03"],
+      "evidenceCount": 3,
+      "unknownCount": 1,
+      "data": "/capabilities/pi-durable-guide.json",
+      "legacyHref": "/capabilities/pi-durable-guide.html"
+    },
+    {
       "id": "pi-durable",
       "readingLabel": "阅读全文：从一次中断理解 Pi Durable",
       "title": "Pi Durable：Agent 中断以后，从哪里继续",
