@@ -92,6 +92,21 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
         "description": "Crush 终端 Coding Agent 的官方发布与源码演进历史。",
         "projectUrl": "https://github.com/charmbracelet/crush",
     },
+    "gemini-cli": {
+        "label": "Gemini CLI",
+        "description": "Gemini CLI 开源 Coding Agent 的正式发布、静态源码与 Harness 演进历史；暂无 Runtime Prompt 与 Tool Schema 捕获。",
+        "projectUrl": "https://github.com/google-gemini/gemini-cli",
+    },
+    "swe-agent": {
+        "label": "SWE-agent",
+        "description": "SWE-agent 的正式发布、Agent-Computer Interface 与源码演进历史；主要研发已转向 mini-swe-agent，静态源码不代表运行时捕获或基准复现。",
+        "projectUrl": "https://github.com/SWE-agent/SWE-agent",
+    },
+    "mini-swe-agent": {
+        "label": "mini-swe-agent",
+        "description": "mini-swe-agent 轻量 Coding Harness 的正式发布、模型工具循环与执行环境源码演进历史；暂无运行时捕获，不代表基准复现。",
+        "projectUrl": "https://github.com/SWE-agent/mini-swe-agent",
+    },
     "prime-agent": {
         "label": "Prime Agent",
         "description": "Prime Agent 自改进 RLM Harness、持久目标与长任务运行时的版本历史。",
@@ -192,6 +207,9 @@ AGENT_DEFINITIONS: dict[str, dict[str, str]] = {
 PREFERRED_AGENT_ORDER = (
     "claude-code",
     "codex",
+    "gemini-cli",
+    "swe-agent",
+    "mini-swe-agent",
     "maka",
     "crush",
     "prime-agent",

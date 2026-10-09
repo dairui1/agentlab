@@ -17,10 +17,12 @@ from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from official_release_sources import (
+    SOURCE_CAPTURE_BOOTSTRAP_RELEASES,
     SOURCE_CAPTURE_SINCE,
     SOURCE_CAPTURE_SOURCES,
     phistory_agent_ids,
 )
+from sync_official_sources import source_version_key
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
@@ -165,7 +167,8 @@ def parse_timestamp(value: str, *, context: str) -> datetime:
 
 
 def earliest_capture_timestamp(
-    roots: Sequence[Path], agent: str, *, ignore_invalid: bool = False
+    roots: Sequence[Path], agent: str, *, ignore_invalid: bool = False,
+    exclude_source_history: bool = False,
 ) -> datetime | None:
     timestamps: list[datetime] = []
     for root in roots:
@@ -182,6 +185,8 @@ def earliest_capture_timestamp(
                 if ignore_invalid:
                     continue
                 raise
+            if exclude_source_history and metadata.get("capture_kind") == "official-source-history":
+                continue
             value = metadata.get("published_at", metadata.get("captured_at"))
             if isinstance(value, str) and value:
                 timestamps.append(
@@ -568,6 +573,20 @@ def sync(
             )
         )
         overlay_versions = existing_versions(overlay_root, agent)
+        bootstrap_count = SOURCE_CAPTURE_BOOTSTRAP_RELEASES.get(agent, 0)
+        published_versions = sorted(
+            (
+                version for version, release in releases.items()
+                if isinstance(release, dict)
+                and isinstance(release.get("publishedAt"), str)
+                and isinstance(release.get("notes"), dict)
+                and release["notes"].get("sourceKind") == "github-release"
+            ),
+            key=lambda version: source_version_key(version, agent=agent),
+        ) if bootstrap_count else []
+        bootstrap_versions = (
+            set(published_versions[-bootstrap_count:]) if bootstrap_count else set()
+        )
         threshold = parse_timestamp(
             SOURCE_CAPTURE_SINCE, context="source capture rollout"
         )
@@ -576,7 +595,12 @@ def sync(
                 earliest_capture_timestamp((phistory_root,), source)
                 for source in dict.fromkeys((agent, *phistory_agent_ids(agent)))
             ),
-            earliest_capture_timestamp((overlay_root,), agent, ignore_invalid=True),
+            earliest_capture_timestamp(
+                (overlay_root,), agent, ignore_invalid=True,
+                # Bootstrap placeholders must not widen the old-history window
+                # on the next run; genuine runtime coverage still can.
+                exclude_source_history=bool(bootstrap_count),
+            ),
         )
         for coverage_start in coverage_starts:
             if coverage_start is not None:
@@ -591,9 +615,14 @@ def sync(
             # release timestamp they must not invent a source-only history entry.
             if not isinstance(release.get("publishedAt"), str):
                 continue
-            if version not in overlay_versions and parse_timestamp(
+            published_at = parse_timestamp(
                 release_timestamp(release), context=f"{agent} {version} release"
-            ) < threshold:
+            )
+            if (
+                version not in overlay_versions
+                and version not in bootstrap_versions
+                and published_at < threshold
+            ):
                 continue
             changed = write_capture(
                 overlay_root=overlay_root,

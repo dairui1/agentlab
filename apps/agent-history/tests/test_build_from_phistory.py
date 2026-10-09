@@ -271,6 +271,21 @@ class BuildFromPhistoryTests(unittest.TestCase):
         self.assertEqual(builder.OFFICIAL_REPOSITORIES["raven"], "EverMind-AI/Raven")
         self.assertIn("raven", builder.PREFERRED_AGENT_ORDER)
 
+    def test_gemini_and_swe_agents_keep_independent_source_only_identities(self) -> None:
+        repositories = {
+            "gemini-cli": "google-gemini/gemini-cli",
+            "swe-agent": "SWE-agent/SWE-agent",
+            "mini-swe-agent": "SWE-agent/mini-swe-agent",
+        }
+        for agent, repository in repositories.items():
+            with self.subTest(agent=agent):
+                self.assertEqual(builder.OFFICIAL_REPOSITORIES[agent], repository)
+                self.assertEqual(
+                    builder.AGENT_DEFINITIONS[agent]["projectUrl"],
+                    f"https://github.com/{repository}",
+                )
+                self.assertIn(agent, builder.PREFERRED_AGENT_ORDER)
+
     def test_curated_catalog_replaces_wound_down_kimi_cli(self) -> None:
         self.assertNotIn("kimi", builder.AGENT_DEFINITIONS)
         self.assertNotIn("kimi", builder.PREFERRED_AGENT_ORDER)

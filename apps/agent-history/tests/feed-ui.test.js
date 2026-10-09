@@ -1,4 +1,5 @@
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
@@ -104,7 +105,7 @@ test("every configured agent filter option has a local source icon", () => {
   const iconEntries = [...app.matchAll(/^\s*(?:"([a-z0-9-]+)"|([a-z0-9-]+)):\s*"(\/agent-icons\/[^"]+)"/gm)]
     .map((match) => [match[1] || match[2], match[3]]);
   const iconUrls = new Map(iconEntries);
-  for (const agent of ["goose", "cline", "qwen-code", "zcode", "minimax-code-cli"]) {
+  for (const agent of ["goose", "cline", "qwen-code", "gemini-cli", "swe-agent", "mini-swe-agent", "zcode", "minimax-code-cli"]) {
     assert.ok(iconUrls.has(agent), `missing icon mapping for ${agent}`);
   }
   for (const agent of manifest.agents) {
@@ -114,6 +115,18 @@ test("every configured agent filter option has a local source icon", () => {
     const iconPath = path.join(publicRoot, iconUrl);
     assert.ok(fs.existsSync(iconPath), `missing icon ${iconUrl}`);
     assert.ok(fs.statSync(iconPath).size > 0, `empty icon ${iconUrl}`);
+  }
+});
+
+test("Gemini CLI and SWE icons retain their pinned official asset bytes", () => {
+  const icons = {
+    "gemini-cli.png": "351e9f5b1bf863d738cd7be4ed040a625a1419450ae7fc490143e4042b7c2438",
+    "swe-agent.png": "712a12e09cfcd5f6f88fb693d039be4a93da7d6e9763b453b5d72e580b757f16",
+    "mini-swe-agent.svg": "14f549e2a0d3be26c587f188d467ef6ff1419f38671af3ca0dd86dd27ac76d02",
+  };
+  for (const [filename, expected] of Object.entries(icons)) {
+    const bytes = fs.readFileSync(path.join(publicRoot, "agent-icons", filename));
+    assert.equal(crypto.createHash("sha256").update(bytes).digest("hex"), expected, filename);
   }
 });
 

@@ -5,6 +5,43 @@ import re
 
 
 SOURCE_PROFILES = {
+    "gemini-cli": [
+        ("License", "Apache-2.0 License", "LICENSE"),
+        ("Prompt", "System Prompt 组装", "packages/core/src/prompts/promptProvider.ts"),
+        ("Prompt", "现代模型 Prompt 片段", "packages/core/src/prompts/snippets.ts"),
+        ("Prompt", "兼容模型 Prompt 片段", "packages/core/src/prompts/snippets.legacy.ts"),
+        ("Tools", "工具接口与执行契约", "packages/core/src/tools/tools.ts"),
+        ("Tools", "工具注册与模型声明", "packages/core/src/tools/tool-registry.ts"),
+        ("Tools", "Shell 工具实现", "packages/core/src/tools/shell.ts"),
+        ("Harness", "Turn 管理与模型交互", "packages/core/src/core/client.ts"),
+        ("Harness", "工具调度", "packages/core/src/scheduler/scheduler.ts"),
+        ("Harness", "权限策略引擎", "packages/core/src/policy/policy-engine.ts"),
+        ("Harness", "Sandbox 策略管理", "packages/core/src/policy/sandboxPolicyManager.ts"),
+        ("Harness", "Context 压缩", "packages/core/src/context/chatCompressionService.ts"),
+    ],
+    "swe-agent": [
+        ("License", "MIT License", "LICENSE"),
+        ("Prompt", "默认任务与复核 Prompt", "config/default.yaml"),
+        ("Tools", "工具命令契约", "sweagent/tools/commands.py"),
+        ("Tools", "工具配置与执行", "sweagent/tools/tools.py"),
+        ("Tools", "Action 解析", "sweagent/tools/parsing.py"),
+        ("Tools", "文件编辑工具声明", "tools/edit_anthropic/config.yaml"),
+        ("Tools", "文件编辑工具实现", "tools/edit_anthropic/bin/str_replace_editor"),
+        ("Harness", "Agent Loop 与轨迹", "sweagent/agent/agents.py"),
+        ("Harness", "History 处理器", "sweagent/agent/history_processors.py"),
+        ("Harness", "SWE 环境生命周期", "sweagent/environment/swe_env.py"),
+    ],
+    "mini-swe-agent": [
+        ("License", "MIT License", "LICENSE.md"),
+        ("Prompt", "默认任务 Prompt", "src/minisweagent/config/default.yaml"),
+        ("Prompt", "交互 CLI Prompt", "src/minisweagent/config/mini.yaml"),
+        ("Tools", "Bash Action 与 Observation 契约", "src/minisweagent/models/utils/actions_toolcall.py"),
+        ("Tools", "独立本地命令执行", "src/minisweagent/environments/local.py"),
+        ("Harness", "Agent Loop 与轨迹", "src/minisweagent/agents/default.py"),
+        ("Harness", "交互确认与继续执行", "src/minisweagent/agents/interactive.py"),
+        ("Harness", "模型调用与工具反馈", "src/minisweagent/models/litellm_model.py"),
+        ("Harness", "Docker 环境生命周期", "src/minisweagent/environments/docker.py"),
+    ],
     "raven": [
         ("License", "Apache-2.0 License", "LICENSE"),
         ("Prompt", "Raven-Code 工程纪律", "agents/raven-code/plugins/code-flow/prompts/CODE_DISCIPLINE.md"),

@@ -142,6 +142,37 @@ class OfficialSourceTests(unittest.TestCase):
         for agent in ("zcode", "minimax-code-cli"):
             self.assertIn(agent, SOURCE_CAPTURE_SOURCES)
 
+    def test_gemini_and_swe_agents_track_only_stable_product_releases(self) -> None:
+        repositories = {
+            "gemini-cli": "google-gemini/gemini-cli",
+            "swe-agent": "SWE-agent/SWE-agent",
+            "mini-swe-agent": "SWE-agent/mini-swe-agent",
+        }
+        for agent, repository in repositories.items():
+            with self.subTest(agent=agent):
+                config = official.GITHUB_RELEASE_SOURCES[agent]
+                self.assertEqual(config["repository"], repository)
+                self.assertTrue(config["officialOnly"])
+                self.assertIn(agent, SOURCE_CAPTURE_SOURCES)
+                self.assertIn(agent, official.parse_args(["--agents", "all"]).agents)
+                pattern = re.compile(config["tagPattern"])
+                self.assertEqual(pattern.fullmatch("v1.2.3").group(1), "1.2.3")
+                for tag in (
+                    "v1.2.3-preview.0", "v1.2.3-nightly.20261009",
+                    "@google/gemini-cli-core@1.2.3", "tech-report-v1",
+                ):
+                    self.assertIsNone(pattern.fullmatch(tag))
+                releases = official.github_releases(
+                    FakeCache(json.dumps([
+                        {"tag_name": "v1.2.3", "published_at": "2026-10-06T00:00:00Z"},
+                        {"tag_name": "v1.2.4", "prerelease": True},
+                        {"tag_name": "v1.2.5", "draft": True},
+                    ]).encode()),
+                    repository=repository, tag_pattern=pattern, product_name=config["label"],
+                    max_pages=1, timeout=1, allow_stale_on_error=False,
+                )
+                self.assertEqual([release["version"] for release in releases], ["1.2.3"])
+
     def test_version_order_keeps_numeric_revision_source_specific(
         self,
     ) -> None:
@@ -557,12 +588,14 @@ class OfficialSourceTests(unittest.TestCase):
             "antigravity": ("1.1.11", "1.1.11"),
             "cline": ("cli-v3.0.52", "3.0.52"),
             "crush": ("v0.91.0", "0.91.0"),
+            "gemini-cli": ("v0.63.0", "0.63.0"),
             "goose": ("v1.45.0", "v1.45.0"),
             "hermes": ("v2026.7.7.2", "v2026.7.7.2"),
             "kimi-code": ("@moonshot-ai/kimi-code@0.34.0", "0.34.0"),
             "maka": ("v0.1.11", "0.1.11"),
             "mimo": ("v0.1.10", "0.1.10"),
             "minimax-code-cli": ("v0.5.0", "0.5.0"),
+            "mini-swe-agent": ("v2.4.6", "2.4.6"),
             "omp": ("v17.2.12", "17.2.12"),
             "openclaw": ("v2026.7.1-2", "2026.7.1-2"),
             "opencode": ("v1.18.15", "1.18.15"),
@@ -571,6 +604,7 @@ class OfficialSourceTests(unittest.TestCase):
             "qwen-code": ("v0.21.8", "0.21.8"),
             "raven": ("v0.2.3", "0.2.3"),
             "reasonix": ("v1.22.0", "1.22.0"),
+            "swe-agent": ("v1.1.0", "1.1.0"),
         }
 
         self.assertEqual(set(samples), set(official.GITHUB_RELEASE_SOURCES))

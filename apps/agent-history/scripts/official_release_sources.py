@@ -13,12 +13,14 @@ GITHUB_RELEASE_SOURCES = {
     "antigravity": {"repository": "google-antigravity/antigravity-cli", "label": "Antigravity CLI", "tagPattern": r"^(\d+\.\d+\.\d+)$"},
     "cline": {"repository": "cline/cline", "label": "Cline", "tagPattern": r"^cli-v(\d+\.\d+\.\d+)$"},
     "crush": {"repository": "charmbracelet/crush", "label": "Crush", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
+    "gemini-cli": {"repository": "google-gemini/gemini-cli", "label": "Gemini CLI", "tagPattern": r"^v(\d+\.\d+\.\d+)$", "officialOnly": True},
     "goose": {"repository": "aaif-goose/goose", "label": "Goose", "tagPattern": r"^(v\d+\.\d+\.\d+)$"},
     "hermes": {"repository": "NousResearch/hermes-agent", "label": "Hermes Agent", "tagPattern": r"^(v\d+\.\d+\.\d+(?:\.\d+)?)$"},
     "kimi-code": {"repository": "MoonshotAI/kimi-code", "label": "Kimi Code", "tagPattern": r"^@moonshot-ai/kimi-code@(\d+\.\d+\.\d+)$"},
     "maka": {"repository": "apache/maka", "label": "Apache Maka", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "mimo": {"repository": "XiaomiMiMo/MiMo-Code", "label": "MiMo Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "minimax-code-cli": {"repository": "MiniMax-AI/minimax-code", "label": "MiniMax Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
+    "mini-swe-agent": {"repository": "SWE-agent/mini-swe-agent", "label": "mini-swe-agent", "tagPattern": r"^v(\d+\.\d+\.\d+)$", "officialOnly": True},
     "omp": {"repository": "can1357/oh-my-pi", "label": "Oh My Pi", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "openclaw": {"repository": "openclaw/openclaw", "label": "OpenClaw", "tagPattern": r"^v(\d+\.\d+\.\d+(?:-\d+)?)$"},
     "opencode": {"repository": "anomalyco/opencode", "label": "opencode", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
@@ -27,6 +29,7 @@ GITHUB_RELEASE_SOURCES = {
     "qwen-code": {"repository": "QwenLM/qwen-code", "label": "Qwen Code", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "raven": {"repository": "EverMind-AI/Raven", "label": "Raven", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
     "reasonix": {"repository": "esengine/DeepSeek-Reasonix", "label": "Reasonix", "tagPattern": r"^v(\d+\.\d+\.\d+)$"},
+    "swe-agent": {"repository": "SWE-agent/SWE-agent", "label": "SWE-agent", "tagPattern": r"^v(\d+\.\d+\.\d+)$", "officialOnly": True},
 }
 
 # Some active harnesses publish directly from main without tags or Releases.
@@ -121,6 +124,10 @@ def phistory_agent_ids(agent: str) -> tuple[str, ...]:
 # turning an initial sync into an unbounded historical model-analysis backlog.
 SOURCE_CAPTURE_SINCE = "2026-06-09T00:00:00Z"
 
+# Mature projects may have no releases after the source-only rollout. Seed a
+# bounded real release history without changing their publication timestamps.
+SOURCE_CAPTURE_BOOTSTRAP_RELEASES = {"swe-agent": 3}
+
 OFFICIAL_REPOSITORIES = {
     **SPECIAL_OFFICIAL_REPOSITORIES,
     **{agent: str(config["repository"]) for agent, config in GITHUB_RELEASE_SOURCES.items()},
@@ -162,7 +169,7 @@ SOURCE_CAPTURE_SOURCES = {
 
 OFFICIAL_ONLY_AGENTS = frozenset(
     agent
-    for agent, config in NPM_RELEASE_SOURCES.items()
+    for agent, config in {**GITHUB_RELEASE_SOURCES, **NPM_RELEASE_SOURCES}.items()
     if config.get("officialOnly") is True
 )
 

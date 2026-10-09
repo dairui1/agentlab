@@ -6,7 +6,7 @@
 
 Web 界面开发遵循 [设计约定](DESIGN.md)，包括专题详情、长文章、机制工作台及移动端的共同验收要求。
 
-AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、Cline、Qwen Code、DeepSeek Harness、Exo、Reasonix 等 Coding Agent 与 Agent Harness 的公开变化，把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化整理成可检索、可追溯的中文情报。
+AgentLab 持续跟踪 Claude Code、Codex、OpenCode、Pi、OpenClaw、Goose、Cline、Qwen Code、Gemini CLI、SWE-agent、mini-swe-agent、DeepSeek Harness、Exo、Reasonix 等 Coding Agent 与 Agent Harness 的公开变化，把运行时 Prompt、Tools、静态 Prompt、官方发布说明与公开代码变化整理成可检索、可追溯的中文情报。
 
 这个项目不是 Agent 排行榜，也不把模型生成内容当成事实。每条重要结论都应回到公开来源、版本和实际差异，并明确区分事实证据、工程观察与模型推断。
 
@@ -77,6 +77,20 @@ npm test
 ```
 
 `npm run sync` 会在官方来源同步完成后物化 source-only Capture，因此全新缓存也可直接交给 `npm run build:data`。
+
+### Gemini CLI、SWE-agent 与 mini-swe-agent
+
+三项开源项目分别进入官方来源、source-only Capture、证据分析和日更链路，保持独立的 Agent ID，不把 fork 或同组织项目的版本混在一起：
+
+- `gemini-cli` 对应 [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)。它是独立的 Gemini CLI 项目，不是 Antigravity，也不以其他 Agent 的 Gemini Provider 更新代替自身版本变化。
+- `swe-agent` 对应 [SWE-agent/SWE-agent](https://github.com/SWE-agent/SWE-agent)。
+- `mini-swe-agent` 对应 [SWE-agent/mini-swe-agent](https://github.com/SWE-agent/mini-swe-agent)。MiMoAgent 文章对它的提及只是研究背景，不是本次持续跟踪的数据来源。
+
+没有 Phistory Runtime Capture 的版本从官方发布与公开源码建立 source-only 条目。源码中的 Prompt、工具实现和 Agent 执行逻辑与实际模型请求分开展示；源码基线不计作 Runtime Prompt 或 Tool Schema 的增删，也不表示已运行项目、模型任务或复现 benchmark。
+
+只跟踪正式 `vX.Y.Z` 发布，排除 preview、nightly、包内组件标签和 draft/prerelease。SWE-agent 的正式发布早于 source-only 起始日期，因此仅补入最新三个真实 GitHub Releases，保留原发布时间，不改全局入库起点，也不把当前 commit 日期伪装成新发布。新增三项的 focused 更新只同步 Phistory 元数据，不请求不存在的 Capture 目录；完整日更仍使用 `--agents all`。
+
+三项本地图标原样取自官方仓库固定提交，仅用于标识被跟踪产品：[Gemini CLI companion icon](https://github.com/google-gemini/gemini-cli/blob/2ce1a6963e9e53a04afaf76111e4527cfa7c5dd7/packages/vscode-ide-companion/assets/icon.png)、[SWE-agent inspector icon](https://github.com/SWE-agent/SWE-agent/blob/3ea751c087f32b16e039a2233dd6eefecef325d5/sweagent/inspector/icons/swe-agent-logo-50.png)、[mini-swe-agent square icon](https://github.com/SWE-agent/mini-swe-agent/blob/04d809ceab9df28f9adaed044884180159172930/docs/assets/mini_square.svg)。图标回归测试核对本地资产摘要，不联网获取或改绘上游标识。
 
 ### ZCode 与 MiniMax Code
 

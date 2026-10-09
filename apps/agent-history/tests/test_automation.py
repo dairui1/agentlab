@@ -1143,6 +1143,58 @@ class SourceCaptureSyncTests(unittest.TestCase):
         self.assertIn("deepseek-harness", source_sync.SOURCE_AGENTS)
         self.assertIn("exo", source_sync.SOURCE_AGENTS)
 
+    def test_swe_bootstrap_is_bounded_semver_ordered_and_preserves_release_dates(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            official = root / "official"
+            phistory = root / "phistory"
+            overlay = root / "overlay"
+            official.mkdir()
+            (phistory / "captures").mkdir(parents=True)
+            versions = ("0.7.0", "1.0.0", "1.1.0", "1.2.0", "1.9.0", "1.10.0")
+            releases = {
+                version: {
+                    "version": version, "tag": f"v{version}",
+                    "sourceUrl": f"https://github.com/SWE-agent/SWE-agent/releases/tag/v{version}",
+                    "publishedAt": f"2025-05-{index:02d}T00:00:00Z",
+                    "notes": {"sourceKind": "github-release"},
+                }
+                for index, version in enumerate(versions, start=1)
+            }
+            releases["9.0.0"] = {
+                "version": "9.0.0", "tag": "v9.0.0",
+                "sourceUrl": "https://github.com/SWE-agent/SWE-agent/tree/v9.0.0",
+                "notes": {"sourceKind": "github-tag"},
+            }
+            releases["9.1.0"] = {
+                "version": "9.1.0", "tag": "v9.1.0",
+                "sourceUrl": "https://github.com/SWE-agent/SWE-agent/commit/" + "a" * 40,
+                "publishedAt": "2025-05-07T00:00:00Z",
+                "notes": {"sourceKind": "github-commit-snapshot"},
+            }
+            self.write_official_index(official, "swe-agent", {
+                "repository": "SWE-agent/SWE-agent", "releases": releases,
+            })
+            arguments = dict(
+                official_root=official, phistory_root=phistory, overlay_root=overlay,
+                agents=("swe-agent",),
+            )
+            self.assertEqual(source_sync.sync(**arguments), {"swe-agent": 3})
+            directory = overlay / "captures/swe-agent"
+            self.assertEqual({path.name for path in directory.iterdir()}, set(versions[-3:]))
+            for version in versions[-3:]:
+                meta = json.loads((directory / version / "meta.json").read_text())
+                self.assertEqual(meta["published_at"], releases[version]["publishedAt"])
+                self.assertEqual(meta["runtime_prompt_status"], "unavailable")
+                self.assertEqual(meta["tool_schema_status"], "unavailable")
+            self.assertEqual(source_sync.sync(**arguments), {"swe-agent": 0})
+            releases["1.10.0"]["publishedAt"] = "2025-05-06T00:00:00"
+            self.write_official_index(official, "swe-agent", {
+                "repository": "SWE-agent/SWE-agent", "releases": releases,
+            })
+            with self.assertRaisesRegex(source_sync.SourceCaptureError, "timezone"):
+                source_sync.sync(**arguments)
+
     def test_materializes_npm_release_with_artifact_provenance(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -1956,6 +2008,18 @@ class DailyUpdateTests(unittest.TestCase):
             source.command[source.command.index("--agents") + 1],
             "deepseek-harness",
         )
+
+    def test_focused_gemini_and_swe_runs_do_not_require_phistory_capture_paths(self):
+        for agents in ("gemini-cli", "swe-agent", "mini-swe-agent", "gemini-cli,swe-agent,mini-swe-agent"):
+            with self.subTest(agents=agents):
+                steps = daily.build_steps(daily.parse_args(["--agents", agents]))
+                upstream = next(step for step in steps if step.name == "sync upstream")
+                self.assertIn("--metadata-only", upstream.command)
+                self.assertNotIn("--agents", upstream.command)
+                official = next(step for step in steps if step.name == "sync official sources")
+                self.assertEqual(official.command[official.command.index("--agents") + 1], agents)
+                source = next(step for step in steps if step.name == "sync source-only captures")
+                self.assertEqual(source.command[source.command.index("--agents") + 1], agents)
 
     def test_focused_run_cannot_deploy_canonical_data(self):
         with self.assertRaises(SystemExit):
