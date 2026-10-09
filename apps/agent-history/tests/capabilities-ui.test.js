@@ -2,6 +2,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const vm = require("node:vm");
 
 const publicRoot = path.resolve(__dirname, "../public");
 const read = (file) => fs.readFileSync(path.join(publicRoot, file), "utf8");
@@ -15,6 +16,7 @@ const researchNavigation = require("../public/research-navigation-core.js");
 const siteNavigation = require("../public/site-navigation.js");
 const siteNavigationSource = read("site-navigation.js");
 const researchIndex = JSON.parse(read("research-index.json"));
+const retainedGuideIds = new Set(["code-mode", "oar", "goal-mode", "subagent-orchestration", "session-resume", "context-compaction", "token-budget-context", "permission-sandbox", "tool-contract", "mcp-dynamic-tools"]);
 const articleStyles = read("capability-article.css");
 const articleScript = read("capability-article.js");
 const computerUseLabStyles = read("computer-use-lab.css");
@@ -217,7 +219,7 @@ test("the research landing puts questions and engineering decisions before the e
 
   assert.ok(researchIndex.studies.length > 0);
   assert.equal(researchIndex.studies.length, 23);
-  assert.equal(researchIndex.studies.filter((study) => study.guideData).length, 22);
+  assert.deepEqual(new Set(researchIndex.studies.filter((study) => study.guideData).map((study) => study.id)), retainedGuideIds);
   assert.ok(!researchIndex.studies.some((study) => study.id === "pi-durable"));
   assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, researchIndex.studies.length);
   assert.deepEqual(new Set(researchIndex.studies.map((study) => study.kind)), new Set(["comparison", "fixed-build", "paper-study", "interactive-guide"]));
@@ -237,13 +239,18 @@ test("the research landing puts questions and engineering decisions before the e
     assert.equal(new Set(study.headlineEvidence).size, study.headlineEvidence.length);
     assert.ok(study.evidenceCount > 0 && study.unknownCount > 0);
     assert.ok(study.legacyHref.startsWith("/"));
-    if (study.id !== "pi-durable-guide") {
+    if (retainedGuideIds.has(study.id)) {
       assert.equal(study.legacyHref, `/guides/${study.id}.html`);
       assert.equal(study.guideData, `/research-guides/${study.id}.json`);
       assert.ok(study.archiveHref.startsWith("/") && study.archiveHref !== study.legacyHref);
       const sourceUrl = new URL(study.archiveHref, "https://agentlab.test");
       assert.match(read(sourceUrl.pathname.slice(1)), /src="\/research-reading\.js"/);
       assert.ok(fs.existsSync(path.join(publicRoot, study.legacyHref)), `${study.id} guide missing`);
+    } else {
+      assert.ok(!Object.hasOwn(study, "guideData") && !Object.hasOwn(study, "archiveHref"), `${study.id}: restored reading must not be a guide archive`);
+      const readingUrl = new URL(study.legacyHref, "https://agentlab.test");
+      assert.ok(fs.existsSync(path.join(publicRoot, readingUrl.pathname)), `${study.id} original reading missing`);
+      assert.doesNotMatch(study.legacyHref, /^\/guides\//, `${study.id}: catalog still uses teaching-guide entry`);
     }
   }
 
@@ -311,6 +318,25 @@ test("research navigation preserves index context and lets evidence deep links o
   assert.equal(invalid.type, "all");
   assert.equal(invalid.query, "");
   assert.equal(new URL(invalid.href).searchParams.has("evidence"), false);
+});
+
+test("the mixed research catalog opens retained guides directly and restores the original detail reader for the other studies", () => {
+  const source = researchScript.match(/function readingHref\(study\) \{[\s\S]*?\n  \}/)?.[0];
+  assert.ok(source, "catalog reading-link selector missing");
+  const catalogHref = (study) => `/capabilities.html?study=${study.id}&search=恢复&topic=控制与协作`;
+  const readingHref = vm.runInNewContext(`(${source})`, {
+    URL, location: { href: "https://agentlab.test/capabilities.html?search=恢复&topic=控制与协作" }, researchHref: catalogHref,
+  });
+  for (const study of researchIndex.studies) {
+    const href = readingHref(study);
+    if (retainedGuideIds.has(study.id) || study.id === "pi-durable-guide") {
+      const link = new URL(href, "https://agentlab.test");
+      assert.equal(link.pathname, new URL(study.legacyHref, "https://agentlab.test").pathname);
+      assert.equal(link.searchParams.get("from"), catalogHref(study));
+    } else {
+      assert.equal(href, catalogHref(study), `${study.id}: original detail reader bypassed`);
+    }
+  }
 });
 
 test("headline evidence keeps the direct anchors selected in adversarial review", () => {

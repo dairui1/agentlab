@@ -11,6 +11,7 @@ const script = read("mechanisms.js");
 const styles = read("mechanisms.css");
 const workbench = JSON.parse(read("dossiers/subagent-workbench.json"));
 const summary = JSON.parse(read("dossiers/subagent-orchestration.json"));
+const researchIndex = JSON.parse(read("research-index.json"));
 const evidence = JSON.parse(read("dossiers/subagent-evidence.json"));
 const claims = new Map(evidence.claims.map((claim) => [claim.id, claim]));
 const unknowns = new Map(summary.unknowns.map((item) => [item.id, item]));
@@ -67,6 +68,25 @@ test("legacy comparison URLs retain the evidence workbench behind the unified re
   }
   assert.match(html, /src="\/mechanisms\.js\?v=2"/);
   assert.match(html, /href="\/mechanisms\.css\?v=2"/);
+});
+
+test("model routing opens its original evidence workbench while retained contract topics open teaching guides", () => {
+  const routing = researchIndex.studies.find((study) => study.id === "model-routing");
+  assert.equal(routing.legacyHref, "/mechanisms.html?mechanism=model-routing");
+  assert.ok(!Object.hasOwn(routing, "guideData") && !Object.hasOwn(routing, "archiveHref"));
+  for (const id of ["subagent-orchestration", "session-resume", "context-compaction", "permission-sandbox", "tool-contract", "mcp-dynamic-tools"]) {
+    const study = researchIndex.studies.find((entry) => entry.id === id);
+    assert.equal(study.legacyHref, `/guides/${id}.html`);
+    assert.equal(study.archiveHref, id === "subagent-orchestration" ? "/mechanisms.html" : `/mechanisms.html?mechanism=${id}`);
+  }
+  assert.match(script, /model-routing/);
+  const workbench = JSON.parse(read("dossiers/model-routing-workbench.json"));
+  const facts = JSON.parse(read("dossiers/model-routing-evidence.json"));
+  assert.ok(workbench.operations.some((operation) => operation.id === workbench.defaultOperation));
+  assert.equal(facts.claims.length, routing.evidenceCount);
+  assert.equal(JSON.parse(read("dossiers/model-routing-summary.json")).unknowns.length, routing.unknownCount);
+  const claims = new Set(facts.claims.map((claim) => claim.id));
+  for (const id of routing.headlineEvidence) assert.ok(claims.has(id), `model routing lacks ${id}`);
 });
 
 test("article-era repetition and self-built-Agent advice stay deleted", () => {

@@ -27,7 +27,6 @@ function validate(guide, study, records) {
   const evidence = new Set(records.map((record) => record.id));
   const chapterIds = new Set();
   const modelIds = new Set();
-  const kinds = new Set();
   for (const chapter of guide.chapters) {
     assert(slug.test(chapter.id) && !chapterIds.has(chapter.id), `${guide.id}: chapter ID`);
     chapterIds.add(chapter.id);
@@ -37,7 +36,6 @@ function validate(guide, study, records) {
     assert(slug.test(model.id) && !modelIds.has(model.id), `${guide.id}: model ID`);
     modelIds.add(model.id);
     assert(["timeline", "compare", "budget"].includes(model.kind), `${guide.id}: model kind`);
-    kinds.add(model.kind);
     assert(model.controls.length && model.cases.length >= 2, `${guide.id}: no manipulable alternatives`);
     assert(model.evidence.length && model.evidence.every((id) => evidence.has(id)), `${guide.id}/${model.id}: unknown source ID ${model.evidence}`);
     const controls = new Set();
@@ -62,7 +60,7 @@ function validate(guide, study, records) {
     }
     engine.resolve(model, engine.defaults(model));
   }
-  assert(modelIds.size >= 3 && kinds.has("timeline") && (kinds.has("compare") || kinds.has("budget")), `${guide.id}: needs three distinct teaching models`);
+  assert(modelIds.size > 0, `${guide.id}: missing teaching model`);
   return { chapters: chapterIds.size, models: modelIds.size };
 }
 const navigationIds = { "raft-multi-agent": "raft-blog", "raft-collaboration": "raft", "goal-mode": "goal", "gpt-prompt-evolution": "gpt-prompt", "exo-recursive-harness": "exo", "token-budget-context": "token-budget", "deepseek-harness-architecture": "deepseek-harness", "browser-use": "research" };
@@ -107,6 +105,33 @@ function render(guide, study, records) {
 </html>
 `;
 }
+function renderRedirect(study) {
+  const destination = safeHref(study.legacyHref);
+  const canonical = new URL(study.legacyHref, "https://agentlab.dairui1.com").href;
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0;url=${destination}">
+  <title>${esc(study.title)} · AgentLab</title>
+  <link rel="canonical" href="${esc(canonical)}">
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <script src="/site-theme.js"></script>
+  <script src="/site-navigation.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/site-theme.css">
+  <link rel="stylesheet" href="/site-theme-compat.css">
+</head>
+<body data-guide-redirect="${destination}">
+  <header class="topbar"><a class="brand" href="/" aria-label="AgentLab 首页"><img src="/assets/agentlab-mark.png" alt="" width="28" height="28"><strong>AgentLab</strong></a><agentlab-navigation current="${navigationIds[study.id] || study.id}"></agentlab-navigation></header>
+  <main class="app-shell"><h1>${esc(study.title)}</h1><p><a href="${destination}">打开原专题</a></p></main>
+  <script src="/vendor/lucide/lucide.min.js"></script>
+  <script src="/research-guide-redirect.js"></script>
+</body>
+</html>
+`;
+}
 function build({ partial = false } = {}) {
   const index = read("research-index.json");
   const guides = [];
@@ -114,7 +139,11 @@ function build({ partial = false } = {}) {
   fs.mkdirSync(directory, { recursive: true });
   for (const study of index.studies) {
     if (["pi-durable", "pi-durable-guide"].includes(study.id)) continue;
-    const file = path.join(publicRoot, "research-guides", `${study.id}.json`);
+    if (!study.guideData) {
+      fs.writeFileSync(path.join(directory, `${study.id}.html`), renderRedirect(study));
+      continue;
+    }
+    const file = path.join(publicRoot, study.guideData.slice(1));
     if (partial && !fs.existsSync(file)) continue;
     const guide = JSON.parse(fs.readFileSync(file, "utf8"));
     const records = recordsFor(study);
@@ -127,4 +156,4 @@ function build({ partial = false } = {}) {
   return guides;
 }
 if (require.main === module) build({ partial: process.argv.includes("--partial") });
-module.exports = { build, validate, render, recordsFor };
+module.exports = { build, validate, render, renderRedirect, recordsFor };

@@ -1,17 +1,35 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 const { test } = require("node:test");
 const engine = require("../public/research-guide.js");
 const builder = require("../scripts/build_research_guides.cjs");
 const root = path.join(__dirname, "../public");
 const index = JSON.parse(fs.readFileSync(path.join(root, "research-index.json"), "utf8"));
 const studies = index.studies.filter((study) => study.id !== "pi-durable-guide");
-const guides = studies.map((study) => ({ study, guide: JSON.parse(fs.readFileSync(path.join(root, study.guideData), "utf8")) }));
+const retainedIds = ["code-mode", "oar", "goal-mode", "subagent-orchestration", "session-resume", "context-compaction", "token-budget-context", "permission-sandbox", "tool-contract", "mcp-dynamic-tools"];
+const restoredHrefs = {
+  raven: "/capabilities/raven.html",
+  mimoagent: "/capabilities/mimoagent.html",
+  autoresearch: "/capabilities/autoresearch.html",
+  "raft-multi-agent": "/capabilities/raft-multi-agent.html",
+  "raft-collaboration": "/capabilities/raft-collaboration.html",
+  "claude-tag": "/capabilities/claude-tag.html",
+  "gpt-prompt-evolution": "/capabilities/gpt-prompt-evolution.html",
+  "exo-recursive-harness": "/capabilities/exo-recursive-harness.html",
+  "deepseek-harness-architecture": "/capabilities/deepseek-harness-architecture.html",
+  "model-routing": "/mechanisms.html?mechanism=model-routing",
+  "browser-use": "/capabilities/browser-use.html",
+  "computer-use": "/capabilities/computer-use.html",
+};
+const guides = studies.filter((study) => study.guideData).map((study) => ({ study, guide: JSON.parse(fs.readFileSync(path.join(root, study.guideData), "utf8")) }));
 
-test("all 22 other research topics open teaching guides, not evidence reports", () => {
+test("only the ten retained topics open teaching guides while twelve recover their original reading entries", () => {
   assert.equal(studies.length, 22);
   assert.equal(index.studies.length, 23);
+  assert.deepEqual(new Set(guides.map(({ study }) => study.id)), new Set(retainedIds));
+  assert.deepEqual(new Set(fs.readdirSync(path.join(root, "research-guides")).filter((file) => file.endsWith(".json")).map((file) => file.replace(/\.json$/, ""))), new Set(retainedIds));
   assert.ok(!index.studies.some((study) => study.id === "pi-durable"));
   for (const { study, guide } of guides) {
     assert.equal(study.legacyHref, `/guides/${study.id}.html`);
@@ -28,6 +46,44 @@ test("all 22 other research topics open teaching guides, not evidence reports", 
     assert.match(html, /fieldset class="rg-controls" disabled/);
     assert.match(html, /<details class="rg-source-document" id="rg-sources">/);
     assert.match(html, /source=1/);
+  }
+  for (const [id, href] of Object.entries(restoredHrefs)) {
+    const study = studies.find((entry) => entry.id === id);
+    assert.equal(study.legacyHref, href, `${id}: original reading entry not restored`);
+    assert.ok(!Object.hasOwn(study, "guideData") && !Object.hasOwn(study, "archiveHref"), `${id}: still classified as a teaching guide`);
+    const target = new URL(href, "https://agentlab.test");
+    assert.ok(fs.existsSync(path.join(root, target.pathname)), `${id}: restored page missing`);
+    const alias = fs.readFileSync(path.join(root, `guides/${id}.html`), "utf8");
+    assert.equal(alias, builder.renderRedirect(study), `${id}: compatibility alias drift`);
+    assert.match(alias, /http-equiv="refresh"/);
+    assert.ok(alias.includes(href.replaceAll("&", "&amp;")), `${id}: published guide alias misses restored target`);
+    assert.doesNotMatch(alias, /class="rg-model"|data-guide-model|src="\/research-guide\.js"/);
+  }
+});
+
+test("published guide aliases preserve the original destination, catalog context, and valid source hashes without redirect loops", () => {
+  const script = fs.readFileSync(path.join(root, "research-guide-redirect.js"), "utf8");
+  const redirected = (destination, hash = "", from = null) => {
+    let result = null;
+    const url = new URL(`https://agentlab.test/guides/claude-tag?rev=previous${hash}`);
+    if (from !== null) url.searchParams.set("from", from);
+    const context = { URL, document: { body: { dataset: { guideRedirect: destination } } }, location: { href: url.href, replace: (target) => { result = target; } } };
+    vm.runInNewContext(script, context);
+    return result;
+  };
+  for (const [id, href] of Object.entries(restoredHrefs)) {
+    assert.equal(redirected(href), href, `${id}: alias does not open its original reading`);
+    const destination = new URL(redirected(href, "#evidence-CT-02", "/capabilities.html?search=请求&topic=控制与协作"), "https://agentlab.test");
+    const expected = new URL(href, "https://agentlab.test");
+    assert.equal(destination.pathname, expected.pathname);
+    for (const [key, value] of expected.searchParams) assert.equal(destination.searchParams.get(key), value);
+    assert.equal(destination.searchParams.get("from"), "/capabilities.html?search=请求&topic=控制与协作");
+    assert.equal(destination.searchParams.get("rev"), null);
+    assert.equal(destination.hash, "#evidence-CT-02");
+    assert.equal(new URL(redirected(href, "#rg-invented-model"), "https://agentlab.test").hash, "");
+  }
+  for (const href of ["https://other.example/capabilities/claude-tag", "/guides/claude-tag.html", "javascript:alert(1)", ""]) {
+    assert.equal(redirected(href), null, `${href}: unsafe or recursive alias destination`);
   }
 });
 
@@ -102,8 +158,8 @@ test("rendered model text is escaped and control values are not executable code"
   for (const [local, shared] of [["paper", "page"], ["ink", "text"], ["muted", "text-soft"], ["rule", "border-strong"]]) assert.ok(css.includes(`--rg-${local}: var(--theme-${shared})`), `guide breaks shared theme ${shared}`);
 });
 
-test("legacy research routes retain deliberate source access without being the reading default", () => {
-  for (const study of studies) {
+test("retained teaching topics keep source access and the Pi translation keeps its independent implementation evidence", () => {
+  for (const { study } of guides) {
     const archive = new URL(study.archiveHref, "https://agentlab.test");
     const html = fs.readFileSync(path.join(root, archive.pathname), "utf8");
     assert.match(html, /src="\/research-reading.js"/);
@@ -117,4 +173,31 @@ test("legacy research routes retain deliberate source access without being the r
   assert.match(translated, /id="implementation-source"/);
   const records = JSON.parse(fs.readFileSync(path.join(root, "capabilities/pi-durable.json"), "utf8"));
   assert.deepEqual(new Set([...translated.matchAll(/data-evidence="(PD-\d+)"/g)].map(([, id]) => id)), new Set(records.evidence.map((record) => record.id)));
+});
+
+test("old reading URLs only redirect retained topics and leave the restored model-routing workbench available", () => {
+  const script = fs.readFileSync(path.join(root, "research-reading.js"), "utf8");
+  const redirected = (href) => {
+    let destination = null;
+    const context = { URL, location: { href, replace: (target) => { destination = target; } } };
+    vm.runInNewContext(script, context);
+    return destination;
+  };
+  for (const href of Object.values(restoredHrefs)) {
+    for (const pathname of [href, href.replace(/\.html(?=\?|$)/, "")]) {
+      assert.equal(redirected(`https://agentlab.test${pathname}`), null, `${pathname}: original reading should not redirect`);
+    }
+  }
+  for (const id of retainedIds) {
+    const study = studies.find((entry) => entry.id === id);
+    const legacy = new URL(study.archiveHref, "https://agentlab.test");
+    const href = legacy.href;
+    assert.equal(redirected(href), `/guides/${id}.html`, `${id}: retained topic lost old URL forwarding`);
+    legacy.searchParams.set("source", "1");
+    assert.equal(redirected(legacy.href), null, `${id}: explicit source access should not redirect`);
+    legacy.searchParams.delete("source");
+    legacy.searchParams.set("from", "/capabilities.html?search=恢复&topic=控制与协作");
+    const target = new URL(redirected(legacy.href), "https://agentlab.test");
+    assert.equal(target.searchParams.get("from"), legacy.searchParams.get("from"), `${id}: catalog return lost`);
+  }
 });

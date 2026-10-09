@@ -122,7 +122,7 @@
     },
     {
       "id": "raven",
-      "readingLabel": "打开交互专题：Raven：反馈怎样变成下一轮执行的 Harness",
+      "readingLabel": "阅读全文：反馈如何落到执行层",
       "title": "Raven：反馈怎样变成下一轮执行的 Harness",
       "question": "一次交付不合格，下一轮多了一句提醒，还是多了一道真正执行的检查？",
       "implication": "从一次交付问题追到具体检查，再核对检查是否触发、结果是否改善。新版本能安装，只回答了它能否运行。",
@@ -156,13 +156,11 @@
       "evidenceCount": 19,
       "unknownCount": 5,
       "data": "/capabilities/raven.json",
-      "legacyHref": "/guides/raven.html",
-      "archiveHref": "/capabilities/raven.html",
-      "guideData": "/research-guides/raven.json"
+      "legacyHref": "/capabilities/raven.html"
     },
     {
       "id": "mimoagent",
-      "readingLabel": "打开交互专题：MiMo Agent：黑盒接入与白盒训练",
+      "readingLabel": "阅读全文：黑盒接入与白盒训练",
       "title": "MiMo Agent：黑盒接入与白盒训练",
       "question": "怎样训练模型，让它换一个 Agent 框架后仍能工作？",
       "implication": "在可控实现里研究工具和上下文的影响，再用原版 Agent 检查迁移。事件日志有助于排障，但不能直接当成可训练的 token 轨迹。",
@@ -196,13 +194,11 @@
       "evidenceCount": 26,
       "unknownCount": 5,
       "data": "/capabilities/mimoagent.json",
-      "legacyHref": "/guides/mimoagent.html",
-      "archiveHref": "/capabilities/mimoagent.html",
-      "guideData": "/research-guides/mimoagent.json"
+      "legacyHref": "/capabilities/mimoagent.html"
     },
     {
       "id": "autoresearch",
-      "readingLabel": "打开交互专题：Autoresearch：自动对齐研究的原文与批注",
+      "readingLabel": "对照阅读：自动对齐研究的完整正文译文与批注",
       "title": "Autoresearch：自动对齐研究的原文与批注",
       "question": "Agent 可以连续提出方法、训练和评测，谁来判断它真的有进展？",
       "implication": "把实验前方案、代码、模型和分数绑定到同一次运行；共享研究记录，但把最终检验留在优化循环之外。",
@@ -236,13 +232,11 @@
       "evidenceCount": 16,
       "unknownCount": 4,
       "data": "/capabilities/autoresearch.json",
-      "legacyHref": "/guides/autoresearch.html",
-      "archiveHref": "/capabilities/autoresearch.html",
-      "guideData": "/research-guides/autoresearch.json"
+      "legacyHref": "/capabilities/autoresearch.html"
     },
     {
       "id": "raft-multi-agent",
-      "readingLabel": "打开交互专题：Raft 多 Agent：原文与源码对照",
+      "readingLabel": "对照阅读：Raft 原文与九则源码研究",
       "title": "Raft 多 Agent：原文与源码对照",
       "question": "两个 Agent 都没算错，为什么还是报重了？Raft 怎样给它们一次改变主意的机会？",
       "implication": "从报数走到共同做事：Agent 怎样知道房间变了，草稿停下后有哪些选择，任务归属又怎样得到确认。",
@@ -275,13 +269,11 @@
       "evidenceCount": 15,
       "unknownCount": 3,
       "data": "/capabilities/raft-multi-agent.json",
-      "legacyHref": "/guides/raft-multi-agent.html",
-      "archiveHref": "/capabilities/raft-multi-agent.html",
-      "guideData": "/research-guides/raft-multi-agent.json"
+      "legacyHref": "/capabilities/raft-multi-agent.html"
     },
     {
       "id": "raft-collaboration",
-      "readingLabel": "打开交互专题：Raft：协作型 Agent 基础设施",
+      "readingLabel": "阅读全文：协作型 Agent 基础设施",
       "title": "Raft：协作型 Agent 基础设施",
       "question": "多个 Agent 同时接活、漏看新消息或丢失旧线程时，协作系统能保证什么？",
       "implication": "消息送到、模型读到、任务被谁认领和实际动作发生，是不同的事。协作和恢复应分别核对，凭据代理也不能代替主机隔离。",
@@ -314,13 +306,11 @@
       "evidenceCount": 18,
       "unknownCount": 6,
       "data": "/capabilities/raft-collaboration.json",
-      "legacyHref": "/guides/raft-collaboration.html",
-      "archiveHref": "/capabilities/raft-collaboration.html",
-      "guideData": "/research-guides/raft-collaboration.json"
+      "legacyHref": "/capabilities/raft-collaboration.html"
     },
     {
       "id": "claude-tag",
-      "readingLabel": "打开交互专题：Claude Tag：提示词与工具设计",
+      "readingLabel": "阅读全文：提示词与工具设计",
       "title": "Claude Tag：提示词与工具设计",
       "question": "Slack 中的一条请求，怎样变成有归属、可续接、可交付的 Agent 工作？",
       "implication": "先确认谁在发指令，再确定谁执行、谁核对交付。Prompt 中要求认领任务，并不说明服务端已经用锁保证唯一执行。",
@@ -352,9 +342,7 @@
       "evidenceCount": 18,
       "unknownCount": 5,
       "data": "/capabilities/claude-tag.json",
-      "legacyHref": "/guides/claude-tag.html",
-      "archiveHref": "/capabilities/claude-tag.html",
-      "guideData": "/research-guides/claude-tag.json"
+      "legacyHref": "/capabilities/claude-tag.html"
     },
     {
       "id": "goal-mode",
@@ -451,10 +439,7 @@
       "evidenceCount": 22,
       "unknownCount": 6,
       "data": "/capabilities/gpt-prompt-evolution.json",
-      "legacyHref": "/guides/gpt-prompt-evolution.html",
-      "archiveHref": "/capabilities/gpt-prompt-evolution.html",
-      "readingLabel": "打开交互专题：GPT-5.5 → 5.6 → 6：Codex Prompt 演进",
-      "guideData": "/research-guides/gpt-prompt-evolution.json"
+      "legacyHref": "/capabilities/gpt-prompt-evolution.html"
     },
     {
       "id": "exo-recursive-harness",
@@ -490,10 +475,7 @@
       "evidenceCount": 14,
       "unknownCount": 6,
       "data": "/capabilities/exo-recursive-harness.json",
-      "legacyHref": "/guides/exo-recursive-harness.html",
-      "archiveHref": "/capabilities/exo-recursive-harness.html",
-      "readingLabel": "打开交互专题：Exo 递归 Harness",
-      "guideData": "/research-guides/exo-recursive-harness.json"
+      "legacyHref": "/capabilities/exo-recursive-harness.html"
     },
     {
       "id": "deepseek-harness-architecture",
@@ -529,10 +511,7 @@
       "evidenceCount": 14,
       "unknownCount": 4,
       "data": "/capabilities/deepseek-harness-architecture.json",
-      "legacyHref": "/guides/deepseek-harness-architecture.html",
-      "archiveHref": "/capabilities/deepseek-harness-architecture.html",
-      "readingLabel": "打开交互专题：DeepSeek Harness 架构",
-      "guideData": "/research-guides/deepseek-harness-architecture.json"
+      "legacyHref": "/capabilities/deepseek-harness-architecture.html"
     },
     {
       "id": "subagent-orchestration",
@@ -766,10 +745,7 @@
       "unknownCount": 19,
       "evidence": "/dossiers/model-routing-evidence.json",
       "summary": "/dossiers/model-routing-summary.json",
-      "legacyHref": "/guides/model-routing.html",
-      "archiveHref": "/mechanisms.html?mechanism=model-routing",
-      "readingLabel": "打开交互专题：模型路由、Reasoning 与回退",
-      "guideData": "/research-guides/model-routing.json"
+      "legacyHref": "/mechanisms.html?mechanism=model-routing"
     },
     {
       "id": "permission-sandbox",
@@ -953,10 +929,7 @@
       "evidenceCount": 32,
       "unknownCount": 11,
       "data": "/capabilities/browser-use.json",
-      "legacyHref": "/guides/browser-use.html",
-      "archiveHref": "/capabilities/browser-use.html",
-      "readingLabel": "打开交互专题：Browser Use",
-      "guideData": "/research-guides/browser-use.json"
+      "legacyHref": "/capabilities/browser-use.html"
     },
     {
       "id": "computer-use",
@@ -1013,10 +986,7 @@
       "evidenceCount": 38,
       "unknownCount": 13,
       "data": "/capabilities/computer-use.json",
-      "legacyHref": "/guides/computer-use.html",
-      "archiveHref": "/capabilities/computer-use.html",
-      "readingLabel": "打开交互专题：CUA 后台执行与可视化",
-      "guideData": "/research-guides/computer-use.json"
+      "legacyHref": "/capabilities/computer-use.html"
     }
   ]
 }

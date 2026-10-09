@@ -13,6 +13,8 @@ test("every entry page loads the pinned local icon bundle before its behavior sc
     .filter((file) => file.endsWith(".html")).map((file) => `capabilities/${file}`));
   const guides = fs.readdirSync(path.join(root, "guides")).filter((file) => file.endsWith(".html"));
   assert.equal(guides.length, 22);
+  assert.equal(guides.filter((file) => fs.readFileSync(path.join(root, "guides", file), "utf8").includes('class="rg-page"')).length, 10);
+  assert.equal(guides.filter((file) => fs.readFileSync(path.join(root, "guides", file), "utf8").includes('http-equiv="refresh"')).length, 12);
   files.push(...guides.map((file) => `guides/${file}`));
   assert.equal(files.length, 46);
   for (const file of files) {

@@ -74,11 +74,10 @@ test("Raft essay preserves the exact task and recovery source excerpts", () => {
 test("Raft is reachable through shared navigation and searchable research data", () => {
   const entry = JSON.parse(read("research-index.json")).studies.find((s) => s.id === study.id);
   const nav = require("../public/site-navigation.js");
-  assert.equal(entry.legacyHref, "/guides/raft-collaboration.html");
-  assert.equal(entry.archiveHref, "/capabilities/raft-collaboration.html");
-  assert.equal(entry.guideData, "/research-guides/raft-collaboration.json");
-  assert.match(read(entry.legacyHref.slice(1)), /\/capabilities\/raft-collaboration\.html\?source=1/);
-  assert.match(html, /src="\/research-reading\.js"/);
+  assert.equal(entry.legacyHref, "/capabilities/raft-collaboration.html");
+  assert.ok(!Object.hasOwn(entry, "archiveHref") && !Object.hasOwn(entry, "guideData"));
+  assert.match(read("guides/raft-collaboration.html"), /http-equiv="refresh"[\s\S]*\/capabilities\/raft-collaboration\.html/);
+  assert.doesNotMatch(html, /src="\/research-reading\.js"/);
   assert.equal(nav.researchItems.find((s) => s.id === "raft").href, entry.legacyHref);
   assert.equal(entry.evidenceCount, study.evidence.length);
   assert.equal(entry.unknownCount, study.unknowns.length);

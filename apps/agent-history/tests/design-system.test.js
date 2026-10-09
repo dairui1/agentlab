@@ -14,6 +14,8 @@ test("the UI audit enumerates every HTML, research guide, source detail, and mec
   assert.equal(routes.size, rows.length);
   assert.equal(htmlFiles.length, 46);
   assert.equal(htmlFiles.filter((file) => file.startsWith("guides/")).length, 22);
+  assert.equal(htmlFiles.filter((file) => file.startsWith("guides/") && read(file).includes('class="rg-page"')).length, 10);
+  assert.equal(htmlFiles.filter((file) => file.startsWith("guides/") && read(file).includes('http-equiv="refresh"')).length, 12);
   for (const file of htmlFiles) {
     const route = `/${file}`.replace(/\/index\.html$/, "/").replace(/\.html$/, "");
     assert.ok(routes.has(route), `missing HTML route: ${route}`);
@@ -26,6 +28,10 @@ test("the UI audit enumerates every HTML, research guide, source detail, and mec
       source.pathname = source.pathname.replace(/\.html$/, "");
       source.searchParams.set("source", "1");
       assert.ok(routes.has(`${source.pathname}${source.search}`), `missing source archive: ${study.id}`);
+    } else {
+      const reading = new URL(study.legacyHref, "https://agentlab.test");
+      reading.pathname = reading.pathname.replace(/\.html$/, "");
+      assert.ok(routes.has(`${reading.pathname}${reading.search}`), `missing original reading: ${study.id}`);
     }
   }
   for (const [, href] of read("mechanisms.js").matchAll(/href: "(\/mechanisms[^\"]*)"/g)) {

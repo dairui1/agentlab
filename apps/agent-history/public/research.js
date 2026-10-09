@@ -133,6 +133,7 @@
   }
 
   function readingHref(study) {
+    if (!study.guideData && study.id !== "pi-durable-guide") return researchHref(study);
     const url = new URL(study.legacyHref, location.href);
     url.searchParams.set("from", researchHref(study));
     return `${url.pathname}${url.search}`;
@@ -155,7 +156,7 @@
     const fact = el("span", "research-item-fact", study.fact);
     content.append(meta, title, fact);
     const decision = el("div", "research-item-decision");
-    decision.append(el("span", "", "阅读问题"), el("p", "", study.implication));
+    decision.append(el("span", "", study.guideData || study.id === "pi-durable-guide" ? "阅读问题" : "工程判断"), el("p", "", study.implication));
     const open = el("span", "research-item-open");
     open.append(icon("arrow-right"));
     link.append(content, decision, open);

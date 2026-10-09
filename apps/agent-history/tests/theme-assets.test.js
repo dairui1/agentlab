@@ -13,6 +13,8 @@ test("all entry pages apply saved themes before paint and load compatibility ove
     .filter((file) => file.endsWith(".html")).map((file) => `capabilities/${file}`));
   const guides = fs.readdirSync(path.join(publicRoot, "guides")).filter((file) => file.endsWith(".html"));
   assert.equal(guides.length, 22);
+  assert.equal(guides.filter((file) => read(`guides/${file}`).includes('class="rg-page"')).length, 10);
+  assert.equal(guides.filter((file) => read(`guides/${file}`).includes('http-equiv="refresh"')).length, 12);
   pages.push(...guides.map((file) => `guides/${file}`));
   assert.equal(pages.length, 46);
   for (const file of pages) {
