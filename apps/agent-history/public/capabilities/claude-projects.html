@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="依据 pstack 探针报告和 Claude Projects 工具快照，拆解协调者、线程、消息授权与共享记忆；附固定提交行号、63 项工具索引和原创复刻设计。">
+  <title>Claude Projects：从消息到并行线程 · AgentLab</title>
+  <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
+  <script src="/site-theme.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/site-navigation.js"></script>
+  <link rel="stylesheet" href="/capability-article.css?v=3">
+  <link rel="stylesheet" href="/claude-projects.css">
+  <link rel="stylesheet" href="/site-theme.css">
+  <link rel="stylesheet" href="/site-theme-compat.css">
+</head>
+<body class="article-page projects-study" data-evidence-source="/capabilities/claude-projects-sources.json">
+  <div class="article-progress" data-reading-progress aria-hidden="true"><span></span></div>
+  <div class="app-shell article-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="AgentLab 首页"><span class="brand-mark" aria-hidden="true"><img src="/assets/agentlab-mark.png" alt=""></span><strong class="brand-copy">AgentLab</strong></a>
+      <agentlab-navigation current="claude-projects" compare-agent="claude-code"></agentlab-navigation>
+      <div class="header-links"><a class="icon-button" href="/capabilities/claude-projects-blueprint.md" download aria-label="下载复刻设计文档" title="下载复刻设计文档"><i data-lucide="download" aria-hidden="true"></i></a></div>
+    </header>
+    <main>
+      <header class="article-hero">
+        <div class="article-hero-inner">
+          <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Claude Code Projects</span></nav>
+          <div class="projects-title"><img src="/agent-icons/claude-code.png" width="48" height="48" alt="Claude Code 标识"><h1>Claude Projects</h1></div>
+          <p class="article-dek">一条项目消息，怎样变成可追踪、可续接的并行工作。</p>
+          <div class="article-byline"><span>2026-10-17</span><span>2 份固定材料 · 40 条证据 · 63 项工具</span><span>复刻设计，不是后端源码</span></div>
+        </div>
+      </header>
+      <div class="capability-reading">
+        <aside class="article-toc" data-article-toc aria-label="文章目录">
+          <span>实现路径</span>
+          <ol>
+            <li><a href="#starting-point" data-index="01">两份材料各自证明什么</a></li>
+            <li><a href="#architecture" data-index="02">三个角色，四类状态</a></li>
+            <li><a href="#routing" data-index="03">消息怎样变成工作</a></li>
+            <li><a href="#authority" data-index="04">转述不等于用户授权</a></li>
+            <li><a href="#context" data-index="05">仓库与上下文装配</a></li>
+            <li><a href="#memory" data-index="06">Library 与共享记忆</a></li>
+            <li><a href="#local" data-index="07">云线程与本地执行</a></li>
+            <li><a href="#recovery" data-index="08">重启、重试与定时器</a></li>
+            <li><a href="#build" data-index="09">复刻顺序与验收</a></li>
+            <li><a href="#tools" data-index="10">完整工具索引</a></li>
+            <li><a href="#sources" data-index="11">原仓库与研究边界</a></li>
+          </ol>
+        </aside>
+        <article class="capability-article" id="articleBody">
+          <div class="article-opening">
+            <p class="article-lead">你在项目里说“修复登录失败，顺便查一下最近的报错”。几分钟后又补一句“先别上线”。一个像 Projects 的系统，不只是开两个聊天窗口：它必须知道这句补充属于哪项工作，原来的执行者是否收到，谁有权发布，以及进程重启后哪些任务还没有结束。</p>
+            <p>本文研究的是 <strong>Code 里的新版 Projects</strong>，不是 Chat 的知识库项目。阅读顺序是：先看外部实验和工具合同，再把它们转成一份可实现、可验收的产品设计。完整实体、事件、API 伪代码和测试用例在 <a href="/capabilities/claude-projects-blueprint.html">复刻设计文档</a>；工具与证据保留独立、可下载的数据索引。</p>
+          </div>
+
+          <section id="starting-point" data-article-section>
+            <h2>实验回答“发生了什么”，工具参考回答“接口怎样约定”</h2>
+            <p><strong>pstack</strong> 在一个真实项目里安放 canary，观察仓库配置是否加载、线程收到什么、共享文件是否可见，并从 transcript 回读关键事件。它给出了单个项目、单次运行的实测报告，我们没有重新执行这组实验。<button class="evidence-ref" type="button" data-evidence="P01 P16" data-evidence-trigger>实验范围</button></p>
+            <p><strong>dot-tool-reference</strong> 则是一份在项目会话内由模型整理的工具参考：63 项协调者工具，区分作者见过的返回值与仅从描述推定的输出。末尾的工作方式说明也是模型转述，不是服务端源码或逐字系统 Prompt。<button class="evidence-ref" type="button" data-evidence="T01" data-evidence-trigger>材料出处</button></p>
+            <div class="article-table-wrap"><table class="article-table"><caption>本文采用的三种证据等级</caption><thead><tr><th>等级</th><th>可以据此做什么</th><th>不能替代什么</th></tr></thead><tbody>
+              <tr><td>作者实测报告</td><td>重建该次调用与环境的现象，设计回归用例</td><td>本站复现、跨版本与跨账户保证</td></tr>
+              <tr><td>工具契约 / 角色自述</td><td>设计参数、拒绝条件、角色分工</td><td>后端真的执行校验或成功恢复的证明</td></tr>
+              <tr><td>本文原创方案</td><td>直接作为自己的数据库、队列、权限与 UI 设计起点</td><td>Anthropic 内部实现说明</td></tr>
+            </tbody></table></div>
+            <p>两份材料都没有表明自己使用了 REA。这里接入的是公开探针和工具快照，不把“研究过内部行为”改称“已经逆向拿到 Projects 源码”。</p>
+          </section>
+
+          <section id="architecture" data-article-section>
+            <h2>协调者决定工作去向，线程负责持续执行</h2>
+            <p>最重要的划分不是“主模型 / 子模型”，而是三种生命周期。<strong>Coordinator</strong> 面向项目总聊天，接请求、看进度、启动或续接工作；<strong>Thread Session</strong> 绑定一条讨论，持续执行并向该线程交付；<strong>worker</strong> 是一次委派的辅助执行者，结果回到父会话，不能当成新的项目线程。<button class="evidence-ref" type="button" data-evidence="P02 P03 T15 T17" data-evidence-trigger>角色和工具面</button></p>
+            <figure class="article-figure"><div class="projects-layers">
+              <div><span>项目入口</span><strong>Coordinator</strong><p>分流、澄清、派工、回查和汇总</p></div>
+              <div><span>持续工作</span><strong>Thread Session</strong><p>独立执行环境、分支、事件和交付</p></div>
+              <div><span>临时委派</span><strong>worker</strong><p>有限工具、任务上下文、返回父会话</p></div>
+            </div><figcaption>依据两份材料整理的角色关系，不是运行中的系统图。worker 能力随父角色和会话变化。</figcaption></figure>
+            <p>pstack 的协调者没有 Bash、Read、Write 等工具，但它能派出拥有这些工具的 worker。这里的“没有文件工具”不能扩大成“底层没有 VM”。实验中的 worker 就在协调者的 VM 上运行。线程则可以自己执行命令，普通 Agent 子任务也不等于继续创建 Projects 子线程。<button class="evidence-ref" type="button" data-evidence="P03 P11" data-evidence-trigger>执行层的边界</button></p>
+            <p><strong>复刻时至少拆开四类记录：</strong>Project 保存配置；Message 保存谁说了什么；Thread 保存讨论根与工作绑定；Session 保存一次具体执行。不要用一个“chat.status”字段包办所有含义。工具参考会分别返回线程状态、runner 状态；“已解决”也不是“进程退出”的别名。<button class="evidence-ref" type="button" data-evidence="T04 P14" data-evidence-trigger>状态与身份</button></p>
+            <p>建议把身份映射留在适配器数据库里。pstack 观察到一对 <code>cse_</code> 与 <code>session_</code> 的对应关系，但生产系统不应靠替换前缀猜 ID。默认会话列表过滤掉 Projects，会话又可按 ID 查询，也说明“列表没找到”不是“会话不存在”。<button class="evidence-ref" type="button" data-evidence="P07 P14" data-evidence-trigger>样本中的 ID 对应</button></p>
+          </section>
+
+          <section id="routing" data-article-section>
+            <h2>先落消息，再决定答复、续接还是启动</h2>
+            <p>协调者的普通最终文本不自动等于用户看见的消息。pstack 记录它使用 <code>post_message</code> 发言；工具参考进一步区分总聊天、没有执行会话的讨论，以及已经绑定会话的线程。向最后一种线程补充工作，要用 <code>message_thread</code>，不能只往 UI 贴一条看似已经送达的回复。<button class="evidence-ref" type="button" data-evidence="P02 T03" data-evidence-trigger>显示与投递</button></p>
+            <ol>
+              <li><strong>接收：</strong>服务端保存真实用户的消息、作者、项目、时间和附件，得到稳定消息 ID。</li>
+              <li><strong>分流：</strong>已有工作的补充交给对应 Thread；独立工作创建新 Thread；简单问题直接答复；目标不清楚则澄清。上述分类是原文的角色说明，具体分类器由复刻者选择。</li>
+              <li><strong>绑定：</strong>新工作锚定用户消息或协调者自己创建的顶层帖子。不要把已经绑定的线程当新根无限嵌套。</li>
+              <li><strong>启动：</strong>返回 Session 标识和接单回执后异步准备环境。<code>created</code> 不表示模型已开始执行，更不表示任务完成。</li>
+              <li><strong>交付：</strong>线程产生可核对的事件和结果，协调者在需要时摘要回项目，而不是复述每次工具调用。</li>
+            </ol>
+            <p>其中 <code>start_thread_session</code> 的重复调用行为，在参考中是“已有运行会话则复用”的契约。本文建议用数据库唯一约束、幂等键和 transactional outbox 实现这个承诺，而不是让模型记住“不要重试”。这种事务设计是我们的选择。<button class="evidence-ref" type="button" data-evidence="T07 T08 T17" data-evidence-trigger>启动与路由合同</button></p>
+            <p>消息展示还需要版本。pstack 的协调者读到一条被线程稍后编辑的旧结果，误以为报告被截断。工具参考也允许静默编辑消息；因此 UI 应记录 revision，汇总时注明读取到哪个版本，不能把一次摘要当原消息永久副本。<button class="evidence-ref" type="button" data-evidence="P07 T21 T18" data-evidence-trigger>编辑与交付</button></p>
+          </section>
+
+          <section id="authority" data-article-section>
+            <h2>“用户同意了”不能只存在于协调者的转述里</h2>
+            <p>pstack 从 transcript 确认：启动 brief 被装进协调者 relay，明确区分于用户原话。内容基本保真，但每行多了包装缩进。project instructions 也带不可信内容标记。这里值得复刻的是<strong>来源分层</strong>，不是那几个 XML 标签或 nonce 的字面形式。<button class="evidence-ref" type="button" data-evidence="P08 P09 T19" data-evidence-trigger>实际收到的上下文</button></p>
+            <p>工具参考提供了更明确的入口：<code>context_message_ids</code> 由服务端重新读取合格消息，把正文、作者和时间一起复制；它不是允许模型随手拼一个“用户原话”的字符串。<code>message_thread</code> 最多引用 8 条上下文消息，非法引用会让整次发送失败。线程根、来源权限和跨线程标记都要在服务端检查。<button class="evidence-ref" type="button" data-evidence="T05 T08" data-evidence-trigger>原消息引用</button></p>
+            <p>复刻接口可以接受 <code>{text, contextMessageIds}</code>，但可信 envelope 的 <code>actor</code>、<code>origin</code>、<code>authority</code> 必须由鉴权后的服务端生成。模型生成的 brief 只能补充目标；需要本地操作或外部副作用时，继续核对真实用户请求和审批记录。附件也只引用本项目合格的用户上传，不能把任意 URL 或本地路径当可转交文件。<button class="evidence-ref" type="button" data-evidence="T06 T16 T22" data-evidence-trigger>附件、消息和决策</button></p>
+            <p>pstack 还试过用 CLI 按 Session ID 注入一条普通 user turn。那条路径缺少正常项目消息的作者、消息 ID 等 envelope。它是研究发现的另一个入口，<strong>不是本文建议的可信路由实现</strong>，也不是 Projects 的公共兼容 API。<button class="evidence-ref" type="button" data-evidence="P12" data-evidence-trigger>旁路输入的限制</button></p>
+          </section>
+
+          <section id="context" data-article-section>
+            <h2>仓库列在项目设置里，不代表协调者已经读过它</h2>
+            <p>pstack 先把仓库加入项目，协调者仍没有读到仓库的 CLAUDE.md、skills、agents 和 hooks。worker 尝试 clone 也失败。之后实际调用 <code>add_repo</code>，worker 才能 clone、运行脚本并 push；再调用 <code>register_repo_root</code>，协调者才出现仓库说明和扩展配置。<button class="evidence-ref" type="button" data-evidence="P04" data-evidence-trigger>添加、克隆、注册</button></p>
+            <div class="article-table-wrap"><table class="article-table"><caption>pstack 单仓库实验的加载矩阵</caption><thead><tr><th>上下文</th><th>Coordinator 初始</th><th>注册仓库后</th><th>新云 Thread</th></tr></thead><tbody>
+              <tr><td>项目说明 / 记忆</td><td>实验过程中可见，含更新通知</td><td>可见</td><td>均命中 canary</td></tr>
+              <tr><td>CLAUDE.md / skills / agents</td><td>仓库项未加载</td><td>均加载</td><td>均命中 canary</td></tr>
+              <tr><td>仓库 SessionStart hook</td><td>未运行</td><td>仍未运行</td><td>运行并留下痕迹</td></tr>
+              <tr><td>Library 挂载</td><td>worker 可读写</td><td>可读写</td><td>读到此前文件，可再写</td></tr>
+            </tbody></table></div>
+            <p>这张表不涵盖多仓库优先级、所有 worker 或本地线程。特别是协调者启动后注册仓库，并没有补跑 SessionStart；如果你选择在自己的产品里补跑，应标成产品决策，并防止有副作用的 hook 被重复执行。<button class="evidence-ref" type="button" data-evidence="P07 P15" data-evidence-trigger>加载结果与 hook</button></p>
+            <p>复刻的上下文构建器应保存 <code>settings_version</code>、仓库 revision、记忆版本和启用的工具面。工具参考说设置更新作用于后续子会话，正在运行的协调者不会因此重新提示；而较早 pstack 实验观察到项目说明更新通知。这是两份材料在时间和入口上的差异，不能偷偷合并成“所有会话实时热更新”。<button class="evidence-ref" type="button" data-evidence="P02 T14" data-evidence-trigger>配置版本边界</button></p>
+            <p>分支名、模型和 effort 也属于启动配置，而不是让协调者随意优化的细节。工具参考要求模型覆盖来自明确用户选择；分支建议值则可能由服务端追加唯一后缀。<button class="evidence-ref" type="button" data-evidence="T09" data-evidence-trigger>启动参数</button></p>
+          </section>
+
+          <section id="memory" data-article-section>
+            <h2>共享文件可见，不等于并发写入已经安全</h2>
+            <p>Library 在实验中是同一份项目文件存储：协调者的 worker 写入 <code>/mnt/project-files</code>，新线程随后读到，界面也能显示。它适合保存研究笔记和交付文件，但共享可见性不会自动提供任务归属、编辑锁或冲突合并。<button class="evidence-ref" type="button" data-evidence="P05" data-evidence-trigger>跨会话共享文件</button></p>
+            <p>项目记忆是另一条接口。<code>read_memory</code> 读共享 MEMORY.md；<code>update_memory</code> 是整文件替换，不是 append。该端点的 16,384 字节上限只约束这次更新内容，不能解释为整个多文件记忆系统最多 16 KiB。工具参考没有给出 memory-store 工具的完整 Schema。<button class="evidence-ref" type="button" data-evidence="P06 T12 T13" data-evidence-trigger>记忆接口与限额</button></p>
+            <p><strong>复刻建议：</strong>把 MEMORY.md 作为短索引，主题文件保存事实与决策；每次读取返回版本，写入必须带 <code>expected_version</code>，冲突时重新读取和合并。共享文件同样需要路径归一化、项目隔离、大小限制和原子替换。版本比较与 CAS 是本文增加的可靠性设计，原材料没有证明 Claude 使用或缺少这些机制。</p>
+            <p>任务状态不应只写在记忆里。数据库保存会话绑定、审批、投递回执和最后处理的事件；Memory 保存跨任务有用的信息。否则一次模型摘要丢失就可能把“尚未发布”变成“已经完成”。</p>
+          </section>
+
+          <section id="local" data-article-section>
+            <h2>本地文件可访问，与代码在本机运行，是两回事</h2>
+            <p>工具参考区分 <code>start_folder_thread</code> 和 <code>start_rc_session</code>。前者提供受限的本地目录文件访问，不提供本机 shell、工具和账号；后者明确在用户设备上运行 Claude Code。本文选择云端承载前一种文件桥接，但原材料没有直接定位其执行宿主。把两者做成一个含糊的“本地模式”，会让权限与进程位置失真。<button class="evidence-ref" type="button" data-evidence="T10 T11" data-evidence-trigger>两种本地路径</button></p>
+            <p>RC 启动需要真实消息锚点、精确目录或环境选择，并可能先返回 <code>pending_consent</code>。审批卡未确认时没有运行会话。预批准目录也有边界：不要因为某项目获得过一次权限，就向它开放任意目录。设备在线、RC 连接和任务正在推进，应分别显示。<button class="evidence-ref" type="button" data-evidence="T24" data-evidence-trigger>设备与连接状态</button></p>
+            <p>实现上让 CloudRunner、FolderRunner、RemoteControlRunner 共享状态查询与投递接口，但各自声明工具、挂载、凭据、审批和记忆装载能力。两份材料不够完整描述所有本地上下文；因此必须把本地记忆注入列为独立验收项，不能把上面的云线程 canary 表照搬过去。</p>
+          </section>
+
+          <section id="recovery" data-article-section>
+            <h2>用持久事件恢复工作，不靠协调者“记得”</h2>
+            <p>协调者通常按线程摘要掌握进度，但 pstack 已经从 <code>list_events</code> 回读完整 transcript，包括工具结果和 hook 事件。因此设计上应区分“默认注入的少量上下文”和“按需查询的完整日志”。分页游标和事件类型过滤能控制成本，摘要则应记录截至哪个事件。<button class="evidence-ref" type="button" data-evidence="P08 T02" data-evidence-trigger>摘要和事件日志</button></p>
+            <p>工具参考的角色自述提到协调者会被替换，并依据近期消息、线程与记忆接手。但 pstack 没测试重启后仓库 attachment 是否还在，也没测试 routine 创建全新 Session 或线程并发上限。我们可以把恢复作为复刻目标，不能写成已经观测到的可靠性保证。<button class="evidence-ref" type="button" data-evidence="T20 P16" data-evidence-trigger>恢复证据缺口</button></p>
+            <p>本文建议每个 Project 使用一个带租约与 fencing token 的协调者执行权；写入消息时同步写 outbox，消费者按事件 ID 去重；重启先对账 Session，再续接待投递事件。收到消息、队列入列、模型读到、产生交付，分别记录回执。不要承诺网络意义的 exactly-once：外部发布成功而本地回执丢失时，只有下游支持稳定业务幂等键才能直接重试；否则进入 <code>outcome_unknown</code>，先对账或让用户确认。</p>
+            <p>定时器也要持久化。pstack 观察到一次一分钟 check-in 比计划触发时刻晚约 36 秒；工具契约则将 <code>send_later</code> 解释为一次性定时触发。复刻时记录计划、实际投递和完成时间，取消后拒收旧事件，不把单次延迟写成 SLA。<button class="evidence-ref" type="button" data-evidence="P13 T23" data-evidence-trigger>唤醒实验与契约</button></p>
+            <p>最后，pstack 还遇到要求 commit/push 的 Stop hook。这是该实验 Harness 的行为，不应该变成复刻产品默认强制推送用户代码的理由。交付门禁应检查用户授权、测试结果和目标分支，失败时保留未完成状态。<button class="evidence-ref" type="button" data-evidence="P10" data-evidence-trigger>外部副作用</button></p>
+          </section>
+
+          <section id="build" data-article-section>
+            <h2>先做可恢复的单线程，再加并行和本地设备</h2>
+            <p>不必先复刻全部 63 项工具。最小闭环是：用户发消息，协调者创建绑定，Runner 接单，Thread 交付结果，用户补充后仍回到同一份工作。然后在每个边界注入重复、断线和权限错误。</p>
+            <div class="article-table-wrap"><table class="article-table"><caption>实现模块与材料索引；分期是本文建议</caption><thead><tr><th>顺序 / 模块</th><th>先完成什么</th><th>回到原材料</th></tr></thead><tbody>
+              <tr><td>P0 / 数据与时间线</td><td>Project、Message revision、Thread、Session、事件、归属鉴权</td><td><a href="?tool=post_message#tools" data-tool-link="post_message">post_message</a> / <a href="?tool=fetch_thread#tools" data-tool-link="fetch_thread">fetch_thread</a></td></tr>
+              <tr><td>P0 / 协调与执行</td><td>可信上下文、稳定绑定、异步启动、幂等投递、明确回执</td><td><a href="?tool=start_thread_session#tools" data-tool-link="start_thread_session">start_thread_session</a> / <a href="?tool=message_thread#tools" data-tool-link="message_thread">message_thread</a></td></tr>
+              <tr><td>P1 / 上下文与文件</td><td>仓库接入、受限凭据、版本化装配、Library、Memory 冲突处理</td><td><a href="?tool=register_repo_root#tools" data-tool-link="register_repo_root">register_repo_root</a> / <a href="?tool=update_memory#tools" data-tool-link="update_memory">update_memory</a></td></tr>
+              <tr><td>P1 / 持久运行</td><td>分页日志、状态对账、接管、timer/outbox、取消和故障回收</td><td><a href="?tool=list_events#tools" data-tool-link="list_events">list_events</a> / <a href="?tool=send_later#tools" data-tool-link="send_later">send_later</a></td></tr>
+              <tr><td>P2 / 设备与扩展</td><td>RC 审批、FolderRunner、连接器、PR 跟踪与状态页</td><td><a href="?tool=start_rc_session#tools" data-tool-link="start_rc_session">start_rc_session</a> / <a href="?tool=start_folder_thread#tools" data-tool-link="start_folder_thread">start_folder_thread</a></td></tr>
+            </tbody></table></div>
+            <p>实现说明给出了可直接拆成工程任务的实体字段、状态转换、消息校验顺序、事务伪代码、Runner 协议和验收矩阵。每条测试同时注明它来自材料中的合同，还是为解决可靠性缺口增加的设计。</p>
+            <div class="projects-downloads">
+              <a href="/capabilities/claude-projects-blueprint.html"><i data-lucide="file-code" aria-hidden="true"></i><span>复刻设计与验收用例 <small>数据模型、状态机与故障注入</small></span></a>
+              <a href="/capabilities/claude-projects-sources.json"><i data-lucide="file-json" aria-hidden="true"></i><span>40 条来源证据 <small>提交、路径、行号、SHA-256</small></span></a>
+              <a href="/capabilities/claude-projects-tools.json"><i data-lucide="braces" aria-hidden="true"></i><span>63 项工具数据 <small>接口分组与关键约束</small></span></a>
+            </div>
+          </section>
+
+          <section id="tools" data-article-section>
+            <h2>协调者的完整工具索引</h2>
+            <p>固定会话里的 11 项内建工具、13 项 Claude Code Remote 工具、39 项 hearthbot 工具。这里保留原文入口并用中文概述职责，不镜像整份 Prompt 或 Schema。阶段与模块是本文的实现分类；“作者观察”仍指上游记录，不是本站调用结果。</p>
+            <div class="projects-tool-controls" hidden>
+              <label class="projects-search"><i data-lucide="search" aria-hidden="true"></i><span class="sr-only">搜索工具、参数或模块</span><input type="search" id="projectsToolSearch" placeholder="搜索工具、参数或模块" autocomplete="off"></label>
+              <label>工具组<select id="projectsToolGroup"><option value="all">全部</option><option value="builtin">内建</option><option value="claude-code-remote">Claude Code Remote</option><option value="hearthbot">hearthbot</option></select></label>
+              <label>实现阶段<select id="projectsToolStage"><option value="all">全部</option><option value="P0">P0 核心闭环</option><option value="P1">P1 可用性与运行</option><option value="P2">P2 扩展</option></select></label>
+            </div>
+            <p id="projectsToolStatus" class="projects-tool-status" role="status" hidden>正在读取工具索引。</p>
+            <div id="projectsToolList" class="projects-tool-list"></div>
+            <noscript><p><a href="/capabilities/claude-projects-tools.json">完整工具索引 JSON</a> · <a href="https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md">原始工具参考</a></p></noscript>
+            <p>这不是整个产品的工具总数。参考的 worker 章节来自另一次 worker 自查；缺失的 <code>reply</code>、<code>update_status</code> 和 memory-store Schema 仍需补证。协调者与 worker 的工具表不能相加后声称是同一会话能力。<button class="evidence-ref" type="button" data-evidence="T01 T15" data-evidence-trigger>索引覆盖范围</button></p>
+          </section>
+
+          <section id="sources" data-article-section>
+            <h2>保留版本，也保留没测到的部分</h2>
+            <dl class="projects-sources">
+              <div><dt>S1 · 作者探针报告</dt><dd><a href="https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md">janrizmlibres/claude-pstack</a><br><code>spikes/project-coordinator/findings.md</code><br>commit <code>466ef2829b09739a2996b40256e13ccf23492180</code><br>提交于 2026-10-06 UTC；报告标注 2026-10-07。另见 <a href="https://github.com/janrizmlibres/claude-pstack/issues/30#issuecomment-6021658106">作者讨论与实验来由</a>。</dd></div>
+              <div><dt>S2 · 会话工具参考</dt><dd><a href="https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md">trevorprater/dot-tool-reference</a><br><code>claude-projects.md</code><br>commit <code>a7237d6a902a8bd59132883882e5dc5ca3f9e569</code><br>文档日期 2026-10-14；提交于 2026-10-15 UTC。模型整理，含 observed 与 per description 两类输出。</dd></div>
+            </dl>
+            <p>固定提交均未发现明确的仓库许可证。本专题只发布原创研究、事实性约束和行号引用，不分发上游全文，不把公开可读当成可自由再授权。原报告中的账户、项目与 Session 实例标识不复制到本文；代码和实体 ID 都是原创示意。</p>
+            <p>仍待独立验证：跨重启 attachment、真正的并发启动去重、Memory 冲突处理、线程上限、多仓库装配、本地上下文，以及协调者替换后的恢复。工具目录也缺少 Thread 专属接口的完整描述。它们应成为复刻产品的验收目标，而不是依据一份工具表默认已解决的问题。</p>
+            <p><strong>本站未调用真实 Claude Projects、未运行上游探针、未做独立 REA 或模型实验。</strong>来源校验检查固定文件哈希、行号和工具覆盖；页面测试检查目录、筛选、引用与布局。两者都不能替代产品行为验证。</p>
+            <p><a href="/capabilities.html?study=claude-projects">完整证据与待验证问题</a> · <a href="/capabilities/claude-tag.html">相关研究：Claude Tag 的协调与授权</a></p>
+          </section>
+        </article>
+      </div>
+    </main>
+  </div>
+  <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>
+  <aside id="articleEvidence" class="article-evidence" data-evidence-inspector role="dialog" aria-labelledby="articleEvidenceTitle" aria-hidden="true" inert>
+    <header><div><span id="articleEvidenceKicker">来源与边界</span><h2 id="articleEvidenceTitle">这项结论的依据</h2></div><div id="articleEvidencePager" class="article-evidence-pager" hidden></div><button id="closeArticleEvidence" class="icon-button" type="button" aria-label="关闭证据" title="关闭"><i data-lucide="x" aria-hidden="true"></i></button></header>
+    <div id="articleEvidenceContent" class="article-evidence-content" aria-live="polite"></div>
+  </aside>
+  <script src="/vendor/lucide/lucide.min.js"></script>
+  <script src="/capability-article.js"></script>
+  <script src="/claude-projects.js"></script>
+</body>
+</html>

@@ -12,6 +12,7 @@
 
   const researchItems = [
     { id: "research", label: "全部专题", icon: "library", href: "/capabilities.html" },
+    { id: "claude-projects", label: "Claude Projects", icon: "messages-square", href: "/capabilities/claude-projects.html" },
     { id: "pi-durable-guide", label: "Pi Durable", icon: "database", href: "/capabilities/pi-durable-guide.html" },
     { id: "code-mode", label: "Code Mode", icon: "code", href: "/guides/code-mode.html" },
     { id: "oar", label: "OAR Agent 接口", icon: "cable", href: "/guides/oar.html" },

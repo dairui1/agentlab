@@ -1,0 +1,96 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const { chromium } = require("playwright");
+
+async function main() {
+  const base = process.argv[2] || "http://127.0.0.1:4399";
+  const output = process.argv[3] || "/private/tmp/agentlab-claude-projects-ui";
+  await fs.mkdir(output, { recursive: true });
+  const browser = await chromium.launch({ headless: true });
+  const results = [];
+  const noOverflow = async (page, label) => {
+    const size = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, viewport: innerWidth }));
+    assert.ok(size.page <= size.viewport, `${label}: ${JSON.stringify(size)}`);
+    return size;
+  };
+  try {
+    for (const [width, height, colorScheme] of [[1440, 1000, "light"], [1024, 900, "dark"], [390, 844, "light"], [320, 740, "light"], [390, 844, "dark"]]) {
+      const page = await browser.newPage({ viewport: { width, height }, colorScheme, reducedMotion: "reduce" });
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      const name = `${width}-${colorScheme}`;
+      await page.goto(`${base}/capabilities/claude-projects.html`, { waitUntil: "networkidle" });
+      await page.locator(".projects-title img").evaluate((img) => img.decode());
+      assert.equal(await page.locator("[data-article-section]").count(), 11);
+      assert.equal(await page.locator(".projects-tool").count(), 63);
+      await noOverflow(page, name);
+      await page.screenshot({ path: path.join(output, `${name}-top.png`) });
+      const trigger = page.locator('[data-evidence="P08 P09 T19"]');
+      await trigger.click();
+      await page.locator('#articleEvidence:not([aria-hidden="true"])').waitFor();
+      assert.match(await page.locator("#articleEvidenceKicker").textContent(), /作者实测报告/);
+      assert.match(await page.locator(".article-evidence-source").getAttribute("href"), /466ef2829b09739a2996b40256e13ccf23492180/);
+      await page.screenshot({ path: path.join(output, `${name}-evidence.png`) });
+      await page.keyboard.press("Escape");
+      await page.locator('#articleEvidence[aria-hidden="true"]').waitFor();
+      assert.equal(await trigger.evaluate((node) => node === document.activeElement), true);
+      await page.locator('[data-tool-link="message_thread"]').click();
+      const tool = page.locator('[data-tool-name="message_thread"]');
+      assert.equal(await tool.getAttribute("open"), "");
+      await page.waitForFunction(() => document.querySelector('[data-tool-name="message_thread"]')?.textContent.includes("8000"));
+      await noOverflow(page, `${name}-tool`);
+      await page.screenshot({ path: path.join(output, `${name}-tool.png`) });
+      await page.locator("#projectsToolSearch").fill("8192");
+      assert.equal(await page.locator(".projects-tool").count(), 1);
+      await page.locator("#projectsToolSearch").fill("");
+      await page.locator("#projectsToolGroup").selectOption("hearthbot");
+      assert.equal(await page.locator(".projects-tool").count(), 39);
+      await page.locator("#projectsToolStage").selectOption("P2");
+      assert.ok(await page.locator(".projects-tool").count() > 0);
+      await page.locator("#projectsToolSearch").fill("not-a-project-tool");
+      assert.equal(await page.locator(".projects-tool").count(), 0);
+      assert.match(await page.locator("#projectsToolStatus").textContent(), /没有匹配/);
+      await page.reload({ waitUntil: "networkidle" });
+      assert.equal(await page.locator("#projectsToolSearch").inputValue(), "not-a-project-tool");
+      await page.goto(`${base}/capabilities/claude-projects.html?tool=start_thread_session#tools`, { waitUntil: "networkidle" });
+      assert.equal(await page.locator('[data-tool-name="start_thread_session"]').getAttribute("open"), "");
+      await page.goto(`${base}/capabilities/claude-projects-blueprint.html`, { waitUntil: "networkidle" });
+      assert.equal(await page.locator("[data-article-section]").count(), 13);
+      assert.equal(await page.locator(".projects-source-ref").count(), 35);
+      await noOverflow(page, `${name}-blueprint`);
+      await page.screenshot({ path: path.join(output, `${name}-blueprint-top.png`) });
+      await page.locator("#section-4").scrollIntoViewIfNeeded();
+      await noOverflow(page, `${name}-blueprint-code`);
+      await page.screenshot({ path: path.join(output, `${name}-blueprint-code.png`) });
+      await page.locator("#section-11").scrollIntoViewIfNeeded();
+      await page.screenshot({ path: path.join(output, `${name}-blueprint-tests.png`) });
+      assert.deepEqual(errors, [], name);
+      results.push({ width, height, colorScheme, errors, result: "passed" });
+      await page.close();
+    }
+    const page = await browser.newPage();
+    await page.goto(`${base}/capabilities.html?study=claude-projects`, { waitUntil: "networkidle" });
+    await page.locator("#researchLegacyLink").waitFor({ state: "visible" });
+    assert.match(await page.locator("#researchLegacyLink").getAttribute("href"), /claude-projects.html/);
+    await page.locator("#researchLegacyLink").click();
+    await page.waitForURL(/claude-projects(?:\.html)?(?:\?|$)/);
+    await page.goto(`${base}/capabilities/claude-projects.html?evidence=T07`, { waitUntil: "networkidle" });
+    await page.locator('#articleEvidence:not([aria-hidden="true"])').waitFor();
+    assert.match(await page.locator("#articleEvidenceKicker").textContent(), /工具契约/);
+    await page.route("**/claude-projects-tools.json", (route) => route.fulfill({ status: 503, body: "unavailable" }));
+    await page.goto(`${base}/capabilities/claude-projects.html`, { waitUntil: "networkidle" });
+    assert.match(await page.locator("#projectsToolStatus").textContent(), /暂不可用/);
+    assert.equal(await page.locator("#projectsToolSearch").isDisabled(), true);
+    await page.close();
+    const offline = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+    await offline.goto(`${base}/capabilities/claude-projects.html`);
+    assert.equal(await offline.locator(".projects-tool-controls").isVisible(), false);
+    assert.equal(await offline.locator("noscript a").count(), 2);
+    await noOverflow(offline, "no-js");
+    await offline.close();
+    await fs.writeFile(path.join(output, "results.json"), JSON.stringify({ base, checkedAt: new Date().toISOString(), results, deepLinks: true, catalog: true, noJs: true, failureState: true }, null, 2) + "\n");
+    console.log(JSON.stringify({ base, viewportsPassed: results.length, catalog: true, deepLinks: true, failureState: true, noJs: true, output }));
+  } finally { await browser.close(); }
+}
+main().catch((error) => { console.error(error); process.exitCode = 1; });

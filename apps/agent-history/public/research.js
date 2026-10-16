@@ -314,13 +314,14 @@
       ? capabilityAgent(study)
       : (claim.agent === "cross-agent" ? "cross-product" : claim.agent);
     const fields = [
-      claim.id, claim.title, claim.statement, claim.boundary, claim.layer, claim.grade,
+      claim.id, claim.title, claim.statement, claim.boundary, claim.layer, claim.grade, claim.evidenceLabel,
       claim.artifact, claim.locator, claim.sha256, ...(claim.signals || []),
       claim.source?.label, claim.source?.url, claim.compare?.label,
     ].filter(Boolean);
     return {
       id: claim.id,
       type,
+      evidenceLabel: claim.evidenceLabel,
       agent,
       version: claim.version || study.products.find((product) => product.id === agent)?.version || "",
       confidence: String(claim.confidence || "").toLocaleLowerCase(),
@@ -421,7 +422,7 @@
     rail.setAttribute("aria-hidden", "true");
     const copy = el("span", "research-evidence-copy");
     const meta = el("span", "research-evidence-meta");
-    meta.append(el("span", "research-evidence-kind", typeLabel(record.type)), el("code", "", record.id));
+    meta.append(el("span", "research-evidence-kind", record.evidenceLabel || typeLabel(record.type)), el("code", "", record.id));
     if (record.agent && record.agent !== "cross-product") meta.append(el("span", "", `${productLabels[record.agent] || record.agent}${record.version ? ` ${record.version}` : ""}`));
     if (record.confidence) meta.append(el("span", "", confidenceLabel(record.confidence)));
     copy.append(meta, el("strong", "", record.title), el("span", "research-evidence-statement", record.statement));

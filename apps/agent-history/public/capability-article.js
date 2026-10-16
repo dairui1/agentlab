@@ -88,8 +88,8 @@
     select(tabs.find((tab) => tab.getAttribute("aria-selected") === "true") || tabs[0]);
   }
 
-  function evidenceLabel(kind) {
-    return { observation: "文件里直接看到", inference: "根据线索推断" }[kind] || kind;
+  function evidenceLabel(claim) {
+    return claim.evidenceLabel || { observation: "文件里直接看到", inference: "根据线索推断" }[claim.kind] || claim.kind;
   }
 
   function confidenceLabel(confidence) {
@@ -107,10 +107,10 @@
     const claim = state.evidence.get(state.ids[state.index]);
     if (!claim) return;
     evidenceContent.replaceChildren();
-    document.getElementById("articleEvidenceKicker").textContent = `${claim.id} · ${evidenceLabel(claim.kind)}`;
+    document.getElementById("articleEvidenceKicker").textContent = `${claim.id} · ${evidenceLabel(claim)}`;
     document.getElementById("articleEvidenceTitle").textContent = claim.title;
 
-    const kind = el("span", "article-evidence-kind", `${evidenceLabel(claim.kind)} · ${confidenceLabel(claim.confidence)}`);
+    const kind = el("span", "article-evidence-kind", `${evidenceLabel(claim)} · ${confidenceLabel(claim.confidence)}`);
     const statement = el("p", "", claim.statement);
     const meta = el("dl", "article-evidence-meta");
     for (const [label, value] of [["文件", claim.artifact], ["具体位置", claim.locator], ["SHA-256", claim.sha256]]) {

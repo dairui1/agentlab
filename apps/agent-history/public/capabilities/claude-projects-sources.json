@@ -1,0 +1,960 @@
+{
+  "id": "claude-projects",
+  "title": "Claude Code Projects：从证据索引到复刻方案",
+  "verifiedAt": "2026-10-17",
+  "verification": {
+    "method": "固定 Git commit 的 GitHub Contents API 原始文件读取、SHA-256 校验、逐行审读；无上游程序执行、Claude Projects 账号实验或 REA 运行时验证。",
+    "checkedAt": "2026-10-16T16:03:26Z",
+    "confidenceMeaning": "high 只表示本条对公开材料的定位与解读有把握，不把作者报告、工具契约或角色自述提升为独立复现。",
+    "publicationPolicy": "只发布独立中文摘要和不可变原仓库定位，不发布原始 Markdown 全文、完整工具 Prompt 或报告中的个人/session 实例信息。"
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "label": "pstack 项目协调器实验",
+      "repository": "janrizmlibres/claude-pstack",
+      "repo": "janrizmlibres/claude-pstack",
+      "commit": "466ef2829b09739a2996b40256e13ccf23492180",
+      "path": "spikes/project-coordinator/findings.md",
+      "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "lineCount": 207,
+      "commitDate": "2026-10-06T17:21:56Z",
+      "documentDate": "2026-10-07",
+      "provenance": "仓库作者在 claude.ai/code 的单个 Max 项目中做分阶段探针，记录调用结果、线程 transcript 读回和仓库提交。本文核对固定提交的报告，不声称独立重跑，也不把作者的总结外推为所有版本的保证。",
+      "fixture": {
+        "repo": "janrizmlibres/pstack-project-probe",
+        "commit": "6261a85",
+        "verification": "仅为报告自述的 fixture；本专题未获取或运行。"
+      },
+      "relatedIssue": "https://github.com/janrizmlibres/claude-pstack/issues/30#issuecomment-6021658106",
+      "license": {
+        "status": "not-found-at-pinned-commit",
+        "note": "递归检查固定提交的完整 Git tree，未发现 README、LICENSE 或 COPYING。没有据此获得全文再分发许可；本专题只写独立摘要、事实索引与不可变原文链接。"
+      },
+      "privacy": "不转载原文中的个人名字、账号标识、项目/channel/session/environment/device 实例 ID 或个人配置。工具名、ID 前缀和接口字段作为技术标识保留。"
+    },
+    {
+      "id": "S2",
+      "label": "Projects 工具参考",
+      "repository": "trevorprater/dot-tool-reference",
+      "repo": "trevorprater/dot-tool-reference",
+      "commit": "a7237d6a902a8bd59132883882e5dc5ca3f9e569",
+      "path": "claude-projects.md",
+      "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "lineCount": 1719,
+      "commitDate": "2026-10-15T17:07:10Z",
+      "documentDate": "2026-10-14",
+      "provenance": "Claude 为该项目整理的一次可见工具快照：输入来自工具 JSON Schema；输出逐项标成 observed 或 per description。第 4 节由 coordinator 的 worker 编写并加载 deferred schemas；第 5 节明确是角色自述，不是原始系统指令副本。不是 Anthropic 后端源码、官方 SDK 或通用 API 保证。",
+      "readme": {
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/README.md",
+        "note": "该提交的 README 主要说明 2026-10-06 的 Dot 70 接口快照，不能把 README 的工具数量或范围直接套给 claude-projects.md；Claude 文件的 provenance 以其自身 L1-L17、L879-L892、L1662-L1664 为准。"
+      },
+      "license": {
+        "status": "not-found-at-pinned-commit",
+        "note": "递归检查固定提交完整 Git tree，仅发现 README.md，未发现 LICENSE 或 COPYING。不镜像完整工具 Prompt；保留短技术标识、独立摘要及逐行跳转。"
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "id": "P01",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "项目配置先于线程执行",
+      "statement": "作者记录设置页包含项目指令、仓库、云环境、设备开关、预批准目录和 Library；项目指令 UI 显示 16000 字符限制。协调器能在尚无仓库时启动并写入初始记忆。",
+      "sourceId": "S1",
+      "lineStart": 5,
+      "lineEnd": 19,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L5-L19",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "单项目 UI 记录；16000 字符是当时 UI 限制，不等于 S2 API 的 32 KiB。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L5-L19",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L5-L19"
+      }
+    },
+    {
+      "id": "P02",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "协调器与执行工具分离",
+      "statement": "该次 coordinator 工具列表没有 Bash、Read、Write、Edit、Glob、Grep，提供项目控制面、部分远程会话工具以及 Agent(worker)。对用户可见的项目回复由 post_message 发出。",
+      "sourceId": "S1",
+      "lineStart": 21,
+      "lineEnd": 45,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L21-L45",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "依据作者记录的可见工具和角色陈述；不表示 coordinator 没有底层 VM，也不表示 worker 不能替它操作文件。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L21-L45",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L21-L45"
+      }
+    },
+    {
+      "id": "P03",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "worker 有 shell，但不自动获得仓库权限",
+      "statement": "作者记录 worker 在 coordinator 的 VM 执行 shell，初次克隆因缺少可用 git 授权失败；worker 未收到项目指令和 memory canary。",
+      "sourceId": "S1",
+      "lineStart": 59,
+      "lineEnd": 66,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L59-L66",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "只覆盖本次 worker 的上下文与授权状态；没有使用有效访问凭证之前，不能把仓库默认设置视作当前 session 的授权。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L59-L66",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L59-L66"
+      }
+    },
+    {
+      "id": "P04",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "附加仓库、克隆、注册是三个动作",
+      "statement": "add_repo 授权并返回 workspace 后，worker 克隆仓库、运行 Bun 脚本并推送；register_repo_root 随后请求 context reload，协调器才出现仓库 CLAUDE.md 与 skill canary。",
+      "sourceId": "S1",
+      "lineStart": 70,
+      "lineEnd": 82,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L70-L82",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "提交成功由原作者记录；本专题未访问其 fixture 或独立运行。会话替换后是否仍保留仓库附加关系未测试。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L70-L82",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L70-L82"
+      }
+    },
+    {
+      "id": "P05",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "Library 在 coordinator 和线程之间共享",
+      "statement": "线程看到 coordinator 写入的 Library 文件并能追加自己的文件；线程还拥有自己的 checkout 和分支。前面的 worker 探针记录 /mnt/project-files 指向 /mnt/attach/project-files，文件也显示于 Library UI。",
+      "sourceId": "S1",
+      "lineStart": 106,
+      "lineEnd": 110,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L106-L110",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "作者验证文件可读写与 UI 可见，没有测试并发一致性、权限隔离、配额或崩溃恢复。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L106-L110",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L106-L110"
+      },
+      "supportingLocations": [
+        {
+          "lineStart": 63,
+          "lineEnd": 68,
+          "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L63-L68"
+        }
+      ]
+    },
+    {
+      "id": "P06",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "memory 更新接口替换整份文档",
+      "statement": "作者读取到已由 coordinator 更新的 MEMORY.md，再通过 update_memory 写入完整内容并取得成功结果。",
+      "sourceId": "S1",
+      "lineStart": 51,
+      "lineEnd": 55,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L51-L55",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "证明报告中的整文件更新路径；没有双写、锁、版本冲突或丢写实验。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L51-L55",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L51-L55"
+      }
+    },
+    {
+      "id": "P07",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "云线程装配项目和仓库上下文",
+      "statement": "该单仓库线程收到项目指令、memory、CLAUDE.md、skill、agent 与 SessionStart hook canary，运行脚本并在独立分支推送。协调器后来读到一条被线程编辑补全之前的旧报告，误以为完整消息被截断。",
+      "sourceId": "S1",
+      "lineStart": 99,
+      "lineEnd": 112,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L99-L112",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "单仓库云线程的作者报告，不覆盖多仓库优先级、本地 RC 线程或所有 hook 类型。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L99-L112",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L99-L112"
+      }
+    },
+    {
+      "id": "P08",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "协调器能够回查线程 transcript",
+      "statement": "作者通过 coordinator 的 list_events 分页读回线程初始事件，包括 hook/tool 相关内容，避免仅依赖线程对自身输入的复述。",
+      "sourceId": "S1",
+      "lineStart": 115,
+      "lineEnd": 129,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L115-L129",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "报告中的 readback 强于模型回忆，但原始完整 API 响应未在本专题重跑；可读取不代表每轮默认全量注入。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L115-L129",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L115-L129"
+      }
+    },
+    {
+      "id": "P09",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "启动 brief 与用户授权分层传递",
+      "statement": "读回记录区分 session-context、spawn wake 和 coordinator relay。brief 在 wrapper 中保留文本，行首多六个空格；relay 标明来自同行 session，而非用户，不能赋予升级权限。项目指令也带 untrusted 标记。",
+      "sourceId": "S1",
+      "lineStart": 119,
+      "lineEnd": 136,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L119-L136",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "是作者转述的 transcript 结构；模型对信任标记的实际遵循强度未做攻击性测试，服务端授权不能只依靠这些文字。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L119-L136",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L119-L136"
+      }
+    },
+    {
+      "id": "P10",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "线程结束前还有 harness hook",
+      "statement": "报告记录 Stop hook 拒绝带未跟踪文件结束，之后线程提交并推送，说明结束行为不是单纯 final 文本。",
+      "sourceId": "S1",
+      "lineStart": 131,
+      "lineEnd": 134,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L131-L134",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "仅此线程/仓库的一次 hook 轨迹；不可把自动 commit/push 推成所有 Projects 工作必须采用的策略。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L131-L134",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L131-L134"
+      }
+    },
+    {
+      "id": "P11",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "样本中没有线程再建项目线程的工具",
+      "statement": "被测 thread 用 ToolSearch 未找到 start_thread_session 和 create_session；它能列出同项目线程。普通 Agent 子任务与项目线程不是同一层。",
+      "sourceId": "S1",
+      "lineStart": 138,
+      "lineEnd": 149,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L138-L149",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "作者据此提出扁平树，但新会话 routine 路径明确未测试；本专题只采纳该样本的工具可见性，不断言所有版本绝无子协调器。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L138-L149",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L138-L149"
+      }
+    },
+    {
+      "id": "P12",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "普通 cloud 入口与项目消息入口不同",
+      "statement": "原作者从 CLI 向已知 cloud session ID 投递消息，coordinator 与 thread 均被唤醒；coordinator 报告收到的输入没有项目作者和 message ID 包装。",
+      "sourceId": "S1",
+      "lineStart": 151,
+      "lineEnd": 164,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L151-L164",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "这是旁路入口的作者观察，不是建议使用的可信项目 API；本专题不复用真实 session ID，也不把该输入视为生产授权传递范式。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L151-L164",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L151-L164"
+      }
+    },
+    {
+      "id": "P13",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "协调器可安排下一次唤醒",
+      "statement": "作者设置一分钟 send_later，观察到计划时间后约 36 秒唤醒并发出项目消息，投递表现为待处理通知而非项目聊天正文。",
+      "sourceId": "S1",
+      "lineStart": 166,
+      "lineEnd": 168,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L166-L168",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "单次延迟不是 SLA；该观测不能证明跨容器或 coordinator 替换后仍能投递。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L166-L168",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L166-L168"
+      }
+    },
+    {
+      "id": "P14",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "项目线程与远程 session 可关联但不共用列表视图",
+      "statement": "作者的普通 list_sessions 未列出 coordinator 或 threads，而按已知 ID 的 get_session 可读取它们；thread 的 parent 指向 coordinator，并带项目线程标签。",
+      "sourceId": "S1",
+      "lineStart": 170,
+      "lineEnd": 181,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L170-L181",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "仅该账号和查询样本；前缀映射、过滤逻辑和 tag 不应作为复制产品的未文档化兼容 API。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L170-L181",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L170-L181"
+      }
+    },
+    {
+      "id": "P15",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "仓库注册不等于重跑 SessionStart",
+      "statement": "最终 coordinator 已有仓库 CLAUDE.md、skill 与 agent canary，但始终没有自身 SessionStart hook canary。",
+      "sourceId": "S1",
+      "lineStart": 183,
+      "lineEnd": 187,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L183-L187",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "作者能区分来自自身装配与线程报告引用的 canary；该结果不说明所有生命周期 hook 的注册策略。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L183-L187",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L183-L187"
+      }
+    },
+    {
+      "id": "P16",
+      "kind": "observation",
+      "evidenceLabel": "作者实测报告",
+      "confidence": "high",
+      "evidenceClass": "author-report",
+      "title": "实验主动留下了三个空白",
+      "statement": "报告明确未测 coordinator 仓库附加在重启/替换后的持久性、routine 启动新 session 的子协调路径、并发线程上限。",
+      "sourceId": "S1",
+      "lineStart": 207,
+      "lineEnd": 207,
+      "artifact": "spikes/project-coordinator/findings.md",
+      "locator": "L207-L207",
+      "sha256": "4d461cefa92bec64f89e6fd0774728c8a658d0d6e7c61d53a71a07468e008cd9",
+      "boundary": "这些空白必须保留；本专题提出的恢复协议、并发调度与验收用例是复制方案，不是 Anthropic 已验证实现。",
+      "source": {
+        "label": "pstack 项目协调器实验 · L207-L207",
+        "url": "https://github.com/janrizmlibres/claude-pstack/blob/466ef2829b09739a2996b40256e13ccf23492180/spikes/project-coordinator/findings.md#L207-L207"
+      }
+    },
+    {
+      "id": "T01",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "快照清楚区分 schema、观察输出与角色自述",
+      "statement": "文件声明输入来自 JSON Schema；输出分别标记 observed 和 per description。coordinator 当次快照含 11 个内置、13 个远程与 39 个 hearthbot 工具，并说明存在未加载工具。",
+      "sourceId": "S2",
+      "lineStart": 1,
+      "lineEnd": 17,
+      "artifact": "claude-projects.md",
+      "locator": "L1-L17",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "63 是此 session 的工具数量，不是产品总量；工具名称可见不表示动作已获授权，角色自述另见第 5 节。",
+      "source": {
+        "label": "Projects 工具参考 · L1-L17",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L1-L17"
+      }
+    },
+    {
+      "id": "T02",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "事件分页必须看游标，不能看过滤后的数量",
+      "statement": "list_events 返回事件页和 first_id/last_id/has_more；初始请求取最近一页，页内按发生顺序，before_id 回溯旧页。kinds 过滤在读取页之后执行，因此空 data 仍可能 has_more。",
+      "sourceId": "S2",
+      "lineStart": 312,
+      "lineEnd": 323,
+      "artifact": "claude-projects.md",
+      "locator": "L312-L323",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "返回结构和过滤规则在材料中是 per description；本专题未测试服务端边界或并发分页稳定性。",
+      "source": {
+        "label": "Projects 工具参考 · L312-L323",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L312-L323"
+      }
+    },
+    {
+      "id": "T03",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "项目帖子和已有 session 的线程回复走不同入口",
+      "statement": "post_message 可发布顶层消息或回复尚未绑定 session 的线程；已有 session 的线程拒绝该入口，需 message_thread 交给拥有者。attached_outputs 对文件、链接、Artifact 各有归属条件。",
+      "sourceId": "S2",
+      "lineStart": 590,
+      "lineEnd": 602,
+      "artifact": "claude-projects.md",
+      "locator": "L590-L602",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "创建返回 ID 被标为 observed；绑定拒绝和路径校验是描述契约，不是独立后端负例测试。",
+      "source": {
+        "label": "Projects 工具参考 · L590-L602",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L590-L602"
+      }
+    },
+    {
+      "id": "T04",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "线程运行状态不能只看 active",
+      "statement": "list_thread_sessions 分开返回底层 status、看板 status_bucket、分类 status_category 与 worker 状态；worker=disconnected 表示执行端已断，可能仍保留 active 状态。since_ts 过滤后空页也需跟随 next_cursor。",
+      "sourceId": "S2",
+      "lineStart": 556,
+      "lineEnd": 565,
+      "artifact": "claude-projects.md",
+      "locator": "L556-L565",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "材料将此项输出标为 per description；复制版需要自己实现存活检查和 stale 状态修正。",
+      "source": {
+        "label": "Projects 工具参考 · L556-L565",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L556-L565"
+      }
+    },
+    {
+      "id": "T05",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "原文引用由服务端拷贝，不由 coordinator 伪造",
+      "statement": "message_thread 的 text 是 coordinator 便笺，最多 8000 字符；context_message_ids 最多 8 条，由服务端附带原作者与时间。跨线程的人类消息可携带来源，另一线程的 coordinator 帖子不合格；任一 ID 被拒绝则整次不发送。",
+      "sourceId": "S2",
+      "lineStart": 567,
+      "lineEnd": 579,
+      "artifact": "claude-projects.md",
+      "locator": "L567-L579",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "这里的全拒绝是工具描述承诺；未取得事务边界源码或对应失败 trace。字符与 start_thread_session 的字节限制不同。",
+      "source": {
+        "label": "Projects 工具参考 · L567-L579",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L567-L579"
+      }
+    },
+    {
+      "id": "T06",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "附件必须来自该项目中的真实上传",
+      "statement": "message_thread 附件 1–16 项，每项 file_uuid 必填；可随引用的人类消息自动传入。显式附件要求来自本项目的人类上传，且描述限定在自己的 private project。",
+      "sourceId": "S2",
+      "lineStart": 574,
+      "lineEnd": 579,
+      "artifact": "claude-projects.md",
+      "locator": "L574-L579",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "不覆盖 shared project 附件协议、文件存储密钥和实际内容扫描；不能只验证 UUID 格式。",
+      "source": {
+        "label": "Projects 工具参考 · L574-L579",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L574-L579"
+      }
+    },
+    {
+      "id": "T07",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "新建线程是异步操作，并描述已有运行 session 的复用",
+      "statement": "start_thread_session 立即返回后在后台 provision；材料记录 observed 创建返回字段，并说明同一 thread 已有运行 session 时不新建而返回 already_running。",
+      "sourceId": "S2",
+      "lineStart": 763,
+      "lineEnd": 781,
+      "artifact": "claude-projects.md",
+      "locator": "L763-L781",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "异步与 already_running 是描述契约，实际创建返回为 observed；无法据此证明两个并发请求的唯一性、超时重试或失败补偿。",
+      "source": {
+        "label": "Projects 工具参考 · L763-L781",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L763-L781"
+      }
+    },
+    {
+      "id": "T08",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "线程绑定、展示卡片与输入上下文是不同字段",
+      "statement": "thread_id 绑定根消息，project_post_id 决定多线程卡片所在项目帖子；启动始终包含根消息。instructions 最多 8192 字节，ack/project_ack 各 1024 字节；context_message_ids 最多 8 条，附加文本/作者/时间而非裸 ID。",
+      "sourceId": "S2",
+      "lineStart": 768,
+      "lineEnd": 775,
+      "artifact": "claude-projects.md",
+      "locator": "L768-L775",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "限制来自该快照；thread_id 省略仅描述为从一个帖子展开多个线程，不能随意省略后假定授权来源仍明确。",
+      "source": {
+        "label": "Projects 工具参考 · L768-L775",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L768-L775"
+      }
+    },
+    {
+      "id": "T09",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "分支命名与模型选择留给明确的服务端规则",
+      "statement": "outcome_branch 是分支 stem，描述称服务端加 session 唯一后缀，无效字符回退默认值。purpose 仅作指标标签；model/effort 应仅按用户明确要求覆盖，省略继承默认。",
+      "sourceId": "S2",
+      "lineStart": 776,
+      "lineEnd": 781,
+      "artifact": "claude-projects.md",
+      "locator": "L776-L781",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "未验证分支冲突处理、模型实际服务版本或参数默认值冻结时间；复制实现应记录 resolved configuration。",
+      "source": {
+        "label": "Projects 工具参考 · L776-L781",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L776-L781"
+      }
+    },
+    {
+      "id": "T10",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "目录文件访问不等于在用户机器执行",
+      "statement": "start_folder_thread 给线程一个用户目录的沙箱读写能力，不带本机 shell、工具或账号；审批卡或已批准目录决定是否启动。asked/asked_before 只表示卡已存在，started 才有 session。",
+      "sourceId": "S2",
+      "lineStart": 735,
+      "lineEnd": 745,
+      "artifact": "claude-projects.md",
+      "locator": "L735-L745",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "是接口契约，未实测任何设备连接；不要与本机运行 Claude Code 的 Remote Control 混为一个 adapter。",
+      "source": {
+        "label": "Projects 工具参考 · L735-L745",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L735-L745"
+      }
+    },
+    {
+      "id": "T11",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "Remote Control 把本机执行与审批绑定到消息",
+      "statement": "start_rc_session 在用户机器的目录执行，folder 与 environment_id 互斥，返回 pending_consent/started/running。绑定用户消息；coordinator 自己的顶层帖也可作卡片锚点，但始终需审批卡且不用 project_ack。",
+      "sourceId": "S2",
+      "lineStart": 747,
+      "lineEnd": 761,
+      "artifact": "claude-projects.md",
+      "locator": "L747-L761",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "已批准且正在 served 的目录可能免新卡，不代表任意路径免审；本专题没有 RC 启停实测。",
+      "source": {
+        "label": "Projects 工具参考 · L747-L761",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L747-L761"
+      }
+    },
+    {
+      "id": "T12",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "MEMORY.md 是项目范围共享数据",
+      "statement": "read_memory 描述返回完整 MEMORY.md 或无记忆提示；材料记录 observed 返回有 untrusted memory wrapper。",
+      "sourceId": "S2",
+      "lineStart": 678,
+      "lineEnd": 684,
+      "artifact": "claude-projects.md",
+      "locator": "L678-L684",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "这里仅说明该入口，不足以刻画主题文件、索引检索或不同执行适配器的预加载策略。",
+      "source": {
+        "label": "Projects 工具参考 · L678-L684",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L678-L684"
+      }
+    },
+    {
+      "id": "T13",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "16 KiB 是整文件 update_memory 的上限",
+      "statement": "update_memory 替换完整 MEMORY.md，空串清空，追加也需先读再提交完整内容；content 限 16384 字节，材料标记一次更新成功为 observed。",
+      "sourceId": "S2",
+      "lineStart": 836,
+      "lineEnd": 843,
+      "artifact": "claude-projects.md",
+      "locator": "L836-L843",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "这是该端点的限制，不是整个多文件 memory store 容量；schema 未展示 version/CAS，不能据此断言后端一定无锁。",
+      "source": {
+        "label": "Projects 工具参考 · L836-L843",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L836-L843"
+      }
+    },
+    {
+      "id": "T14",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "项目默认配置与运行中 session 分离",
+      "statement": "update_project_settings 描述 model_id/instructions 应用于后续创建的 child sessions，运行中 channel 不重新注入；project-wide add_repo 不会附到当前 channel。API 的 instructions 上限为 32 KiB。",
+      "sourceId": "S2",
+      "lineStart": 855,
+      "lineEnd": 865,
+      "artifact": "claude-projects.md",
+      "locator": "L855-L865",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "S1 手动设置后观察过通知，不能混同本 API 对运行 session 的语义；32 KiB API 与 S1 UI 的 16000 字符并非同一计量单位或入口。",
+      "source": {
+        "label": "Projects 工具参考 · L855-L865",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L855-L865"
+      }
+    },
+    {
+      "id": "T15",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "worker 是执行助手，不是项目发言人",
+      "statement": "第 4 节由 coordinator 的 worker 查看自身工具编写。其列表无 hearthbot、Agent 或 Workflow；它通过报告返回 coordinator，而不是直接读写项目记忆或发项目消息。",
+      "sourceId": "S2",
+      "lineStart": 879,
+      "lineEnd": 892,
+      "artifact": "claude-projects.md",
+      "locator": "L879-L892",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "标题含 thread，但实际采集主体是 worker。不能把 worker 的缺失工具原样套给 thread；部分远程工具只比对名称未重载 schema。",
+      "source": {
+        "label": "Projects 工具参考 · L879-L892",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L879-L892"
+      }
+    },
+    {
+      "id": "T16",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "跨 session 消息的角色与调度分开",
+      "statement": "send_message 把消息标为同行输入而非人类指令；priority 是 now/next/later 的队列提示。调用完成表示已投递，不表示对端任务完成。",
+      "sourceId": "S2",
+      "lineStart": 373,
+      "lineEnd": 388,
+      "artifact": "claude-projects.md",
+      "locator": "L373-L388",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "STANDING 和 Slack 专属字段不应照搬到 Projects；调度和拒绝规则是描述契约，未测试抢占或队列竞争。",
+      "source": {
+        "label": "Projects 工具参考 · L373-L388",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L373-L388"
+      }
+    },
+    {
+      "id": "T17",
+      "kind": "observation",
+      "evidenceLabel": "角色自述",
+      "confidence": "high",
+      "evidenceClass": "role-self-description",
+      "title": "协调器按消息类型路由工作",
+      "statement": "角色概述把新任务绑定用户消息创建 thread，把既有任务的 follow-up 原文转发，能由记忆回答的问题直接回答，致谢用轻反馈，多条近邻任务共用确认帖。",
+      "sourceId": "S2",
+      "lineStart": 1662,
+      "lineEnd": 1678,
+      "artifact": "claude-projects.md",
+      "locator": "L1662-L1678",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "第 5 节明确由 Claude 用自身语言概括 standing instructions；是设计意图，不是所有输入上的实测分类器行为。",
+      "source": {
+        "label": "Projects 工具参考 · L1662-L1678",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L1662-L1678"
+      }
+    },
+    {
+      "id": "T18",
+      "kind": "observation",
+      "evidenceLabel": "角色自述",
+      "confidence": "high",
+      "evidenceClass": "role-self-description",
+      "title": "进度、结果与解决状态是三条不同通道",
+      "statement": "概述将进度放 checklist，结果/阻塞/决策在工作线程回复；文件进入共享目录并附到交付消息，用户完成最后动作后标 resolved。",
+      "sourceId": "S2",
+      "lineStart": 1680,
+      "lineEnd": 1685,
+      "artifact": "claude-projects.md",
+      "locator": "L1680-L1685",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "描述的是期望交互；不能据此推算通知数量、自动解决准确率或后端状态转换。",
+      "source": {
+        "label": "Projects 工具参考 · L1680-L1685",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L1680-L1685"
+      }
+    },
+    {
+      "id": "T19",
+      "kind": "observation",
+      "evidenceLabel": "角色自述",
+      "confidence": "high",
+      "evidenceClass": "role-self-description",
+      "title": "brief 补充事实，不能代替用户批准",
+      "statement": "概述称可逆工作可推进，难撤回或对外动作等待明确批准；brief 只补线程看不到的记忆、默认选择和共享文件分工，批准应引用用户原话而非 coordinator 宣称。",
+      "sourceId": "S2",
+      "lineStart": 1693,
+      "lineEnd": 1703,
+      "artifact": "claude-projects.md",
+      "locator": "L1693-L1703",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "这是角色行为摘要而非完整权限实现；复制产品仍需受认证的 consent record 与 action scope 检查。",
+      "source": {
+        "label": "Projects 工具参考 · L1693-L1703",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L1693-L1703"
+      }
+    },
+    {
+      "id": "T20",
+      "kind": "observation",
+      "evidenceLabel": "角色自述",
+      "confidence": "high",
+      "evidenceClass": "role-self-description",
+      "title": "恢复依赖交接状态，但恢复协议仍未知",
+      "statement": "概述说 coordinator 会被替换，新实例接收近期聊天、线程与 memory；重写前读 memory，共享文件编辑前后回读，外部内容作为数据。",
+      "sourceId": "S2",
+      "lineStart": 1705,
+      "lineEnd": 1713,
+      "artifact": "claude-projects.md",
+      "locator": "L1705-L1713",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "没有 replacement trace、游标、快照原子性或并发测试。读前/写后检查不等于事务或 CAS。",
+      "source": {
+        "label": "Projects 工具参考 · L1705-L1713",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L1705-L1713"
+      }
+    },
+    {
+      "id": "T21",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "静默编辑不产生新的通知",
+      "statement": "update_message 只编辑自己的普通文本帖子，描述称不会通知；需要人注意的新事实应另发消息。",
+      "sourceId": "S2",
+      "lineStart": 845,
+      "lineEnd": 853,
+      "artifact": "claude-projects.md",
+      "locator": "L845-L853",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "材料未给实际编辑事件的版本结构；S1 读到旧报告版本的现象提示复制版需 revision，但 revision 是本专题建议。",
+      "source": {
+        "label": "Projects 工具参考 · L845-L853",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L845-L853"
+      }
+    },
+    {
+      "id": "T22",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "决策卡是异步人类输入",
+      "statement": "ask_decision 发布一个问题、2–4 个选项与推荐下标；选项各有后果，用户选择后作为新事件到达。question/label/consequence 的限制分别为 300/40/200 字节。",
+      "sourceId": "S2",
+      "lineStart": 431,
+      "lineEnd": 444,
+      "artifact": "claude-projects.md",
+      "locator": "L431-L444",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "返回描述不提供完整审批对象 schema，也未声明该卡本身能批准任意高风险动作；复制版应区分偏好选择与权限授权。",
+      "source": {
+        "label": "Projects 工具参考 · L431-L444",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L431-L444"
+      }
+    },
+    {
+      "id": "T23",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "定时消息绑定当前 session",
+      "statement": "send_later 在 at 与 delay_minutes 中二选一，最短一分钟，描述称基于一次性定时任务、返回 trigger_id 可取消，并可跨 container restart 投递。",
+      "sourceId": "S2",
+      "lineStart": 360,
+      "lineEnd": 371,
+      "artifact": "claude-projects.md",
+      "locator": "L360-L371",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "跨 container restart 是契约，不等于 coordinator session 替换也保留；S1 只验证一次普通延时唤醒。",
+      "source": {
+        "label": "Projects 工具参考 · L360-L371",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L360-L371"
+      }
+    },
+    {
+      "id": "T24",
+      "kind": "observation",
+      "evidenceLabel": "工具契约",
+      "confidence": "high",
+      "evidenceClass": "tool-contract",
+      "title": "本机执行状态与设备在线状态分开",
+      "statement": "rc_session_status 返回 pending_consent/active/denied/revoked/terminated、running、served 和 thread/session 关联。list_devices 另列精确目录、approved 与 served/offline/not_served。",
+      "sourceId": "S2",
+      "lineStart": 659,
+      "lineEnd": 666,
+      "artifact": "claude-projects.md",
+      "locator": "L659-L666",
+      "sha256": "e5df37dadfd6835d9abe93ee75e761034b95073616f3537df376193a2c8ef0dc",
+      "boundary": "状态和目录语义来自描述，observed 设备列表仅为空列表。撤销后的执行停止时序和文件句柄回收未验证。",
+      "source": {
+        "label": "Projects 工具参考 · L659-L666",
+        "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L659-L666"
+      },
+      "supportingLocations": [
+        {
+          "lineStart": 503,
+          "lineEnd": 509,
+          "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L503-L509"
+        },
+        {
+          "lineStart": 783,
+          "lineEnd": 791,
+          "url": "https://github.com/trevorprater/dot-tool-reference/blob/a7237d6a902a8bd59132883882e5dc5ca3f9e569/claude-projects.md#L783-L791"
+        }
+      ]
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "U01",
+      "title": "coordinator 替换与恢复",
+      "text": "材料未展示 replacement 的触发条件、handoff 内容的完整 schema、已消费事件游标和仓库授权的保留策略。",
+      "needed": "注入重启/替换，在已入队、已投递和已开始执行三个时点检查重复任务、漏消息与授权恢复。",
+      "evidenceIds": [
+        "P16",
+        "T20",
+        "T23"
+      ]
+    },
+    {
+      "id": "U02",
+      "title": "并发启动与幂等性",
+      "text": "already_running 描述已有运行 session 的返回，不足以证明两个同时 provision 请求只能产生一个 session，也没有线程并发上限数据。",
+      "needed": "同一 root message 的并发创建、客户端超时重试和 provision 中断实验；观察唯一约束与补偿日志。",
+      "evidenceIds": [
+        "T07",
+        "P16"
+      ]
+    },
+    {
+      "id": "U03",
+      "title": "memory 和 Library 的并发一致性",
+      "text": "整文件更新与回读规则可见，但没有 CAS、锁、合并、跨文件事务和双写实验；共享文件可写并非并发安全保证。",
+      "needed": "两线程在同一版本读取后同时写入，验证冲突、丢写、索引与 topic file 原子性；复制实现自行采用版本检查。",
+      "evidenceIds": [
+        "P05",
+        "P06",
+        "T13",
+        "T20"
+      ]
+    },
+    {
+      "id": "U04",
+      "title": "设备授权撤销与隔离",
+      "text": "folder 与 RC 的能力和审批状态有描述，没有实际目录越界、软链逃逸、离线重连或撤销后继续运行的实验。",
+      "needed": "验证路径规范化、设备身份、最小能力、审批范围、撤销传播时限和进程/文件句柄回收。",
+      "evidenceIds": [
+        "T10",
+        "T11",
+        "T24"
+      ]
+    },
+    {
+      "id": "U05",
+      "title": "原文引用与附件的拒绝实现",
+      "text": "message ID 资格、全量拒绝、附件归属在工具契约中明确，但没有失败 trace 或服务端授权源码。",
+      "needed": "用不同作者、项目和线程的合法测试夹具验证拒绝矩阵，并检查失败时没有部分消息或附件投递。",
+      "evidenceIds": [
+        "T05",
+        "T06",
+        "T08"
+      ]
+    },
+    {
+      "id": "U06",
+      "title": "多仓库和不同执行入口的上下文",
+      "text": "S1 只验证单仓库云线程；worker、cloud thread、folder thread、RC 的上下文加载不能互相外推。",
+      "needed": "分别测试多仓库指令优先级、skills/agents/hooks、memory 预加载及默认配置变更对已运行 session 的影响。",
+      "evidenceIds": [
+        "P07",
+        "P15",
+        "T14",
+        "T15"
+      ]
+    },
+    {
+      "id": "U07",
+      "title": "源码、许可与版本代表性",
+      "text": "两份材料不是后端源码，也未明确采用 REA；固定提交中没有许可证。一次探针和一次可见工具快照不代表所有账号、版本或共享项目。",
+      "needed": "复刻采用原创实现；需要转载全文或上游代码时另取得许可。新的版本和部署方式另做可重复实验，不默默覆盖旧证据。",
+      "evidenceIds": [
+        "T01",
+        "P16"
+      ]
+    }
+  ]
+}

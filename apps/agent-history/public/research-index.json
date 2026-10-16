@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "claude-projects",
+      "readingLabel": "打开专题：Claude Projects 的机制与复刻设计",
+      "title": "Claude Projects：从消息到并行线程",
+      "question": "一句新任务和一句追问，怎样进入正确的线程，并在进程重启后继续工作？",
+      "implication": "将角色、消息授权、线程绑定、运行状态和持久记忆分开实现，再用幂等、对账和故障注入补齐工具描述没有证明的可靠性。",
+      "boundary": "两个固定第三方仓库快照：pstack 作者实验报告与模型整理的工具参考。未独立运行 Claude Projects、上游探针或 REA；数据库、CAS、队列与恢复设计均为原创建议。",
+      "editorialRank": 25,
+      "verifiedAt": "2026-10-17",
+      "kind": "fixed-build",
+      "kindLabel": "探针与工具契约",
+      "topic": "架构与扩展",
+      "products": [{ "id": "claude-code", "label": "Claude Code Projects", "version": "pstack 466ef282 / reference a7237d6a" }],
+      "fact": "协调者分流消息，Thread Session 执行持续工作，worker 返回父会话。工具目录保留 63 项入口；40 条证据连到固定提交和行号，原创复刻文档给出实体、事件、运行适配器与 34 项验收用例。",
+      "sourceKinds": ["作者运行探针报告", "模型整理的工具快照", "固定提交与文件散列", "原创复刻设计"],
+      "headlineEvidence": ["P04", "P09", "T05", "T07", "T13"],
+      "evidenceCount": 40,
+      "unknownCount": 7,
+      "data": "/capabilities/claude-projects-sources.json",
+      "legacyHref": "/capabilities/claude-projects.html"
+    },
+    {
       "id": "pi-durable-guide",
       "readingLabel": "打开交互指南：Pi Pocket 完整中文译文",
       "title": "Pi Durable 交互指南：Pi Pocket 中文译文",

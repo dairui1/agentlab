@@ -12,10 +12,10 @@ test("the UI audit enumerates every HTML, research guide, source detail, and mec
   const rows = JSON.parse(execFileSync(process.execPath, [path.resolve(__dirname, "../scripts/ui_audit_routes.mjs")], { encoding: "utf8" }));
   const routes = new Set(rows.map((row) => row.route));
   assert.equal(routes.size, rows.length);
-  assert.equal(htmlFiles.length, 46);
-  assert.equal(htmlFiles.filter((file) => file.startsWith("guides/")).length, 22);
+  assert.equal(htmlFiles.length, 49);
+  assert.equal(htmlFiles.filter((file) => file.startsWith("guides/")).length, 23);
   assert.equal(htmlFiles.filter((file) => file.startsWith("guides/") && read(file).includes('class="rg-page"')).length, 10);
-  assert.equal(htmlFiles.filter((file) => file.startsWith("guides/") && read(file).includes('http-equiv="refresh"')).length, 12);
+  assert.equal(htmlFiles.filter((file) => file.startsWith("guides/") && read(file).includes('http-equiv="refresh"')).length, 13);
   for (const file of htmlFiles) {
     const route = `/${file}`.replace(/\/index\.html$/, "/").replace(/\.html$/, "");
     assert.ok(routes.has(route), `missing HTML route: ${route}`);
@@ -40,7 +40,7 @@ test("the UI audit enumerates every HTML, research guide, source detail, and mec
   assert.ok(routes.has("/?mode=compare"));
   const themeAudit = require("../ops/site-theme/verify_site.cjs");
   const themeRoutes = await themeAudit.routes();
-  assert.equal(themeRoutes.filter((route) => route.startsWith("/guides/")).length, 22);
+  assert.equal(themeRoutes.filter((route) => route.startsWith("/guides/")).length, 23);
   for (const file of htmlFiles) assert.ok(themeRoutes.includes(file === "index.html" ? "/" : `/${file}`), `missing theme audit HTML: ${file}`);
 });
 
