@@ -14,7 +14,7 @@
       "kindLabel": "源码差分与运行时设计",
       "topic": "架构与扩展",
       "products": [{ "id": "deepseek-harness", "label": "DeepSeek Harness", "version": "0.2.0-rc.2 → 0.2.1-rc.2" }],
-      "fact": "沿固定源码区分已有基础、此次扩展与行为约定修复，研究 Code Mode 的执行形式、内存所有者、权限更新、结果通道和取消收尾，并追到动态上下文、子 Agent 等待与模型接入的失败边界。",
+      "fact": "拆解 Code Mode 的五个关键设计：执行形式、状态寿命、工具授权、结果分层与取消收尾。区分已有机制和本次新增，附 20 项自研验收用例。",
       "sourceKinds": ["固定官方源码", "发布标签差分", "上游测试源码审读", "原创验收建议"],
       "headlineEvidence": ["DRE-04", "DRE-12", "DRE-15", "DRE-17", "DRE-22"],
       "evidenceCount": 40,

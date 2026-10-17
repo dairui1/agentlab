@@ -3,11 +3,12 @@
 .dsh-runtime-study .capability-article { min-width: 0; }
 .dsh-runtime-study .article-toc { max-height: calc(100vh - 48px); overflow-y: auto; }
 .dsh-runtime-study .article-toc a { line-height: 1.6; }
-.dsh-runtime-study .article-lead { padding: 0; border: 0; }
-.dsh-runtime-study .capability-article p, .dsh-runtime-study .capability-article li { line-height: 1.95; }
+.dsh-runtime-study .article-lead { padding: 0; border: 0; margin-bottom: 16px; }
+.dsh-runtime-study .capability-article p, .dsh-runtime-study .capability-article li { line-height: 1.85; }
+.dsh-runtime-study .capability-article .study-scope { font-size: 13px; color: var(--muted); }
 .dsh-runtime-study .capability-article h3 { margin: 30px 0 14px; font-size: 19px; line-height: 1.6; }
 .dsh-runtime-study .capability-article a, .dsh-runtime-study .capability-article code { overflow-wrap: anywhere; }
-.dsh-runtime-study .article-byline { flex-wrap: wrap; gap: 8px 18px; }
+.dsh-runtime-study .article-byline { display: flex; flex-wrap: wrap; gap: 8px 18px; }
 .dsh-runtime-study .article-table-wrap { max-width: 100%; overflow-x: auto; }
 .dsh-runtime-study .article-table { font-size: 13px; }
 .dsh-runtime-study .article-table th, .dsh-runtime-study .article-table td { line-height: 1.8; }
@@ -18,8 +19,9 @@
 .dsh-runtime-study .source-code pre code { background: transparent; padding: 0; font: inherit; white-space: pre; overflow-wrap: normal; }
 .dsh-runtime-study .study-notes { border-block: 1px solid var(--border); margin: 24px 0; padding: 16px 0; }
 .dsh-runtime-study .study-notes summary { cursor: pointer; font-weight: 650; line-height: 1.7; }
-.dsh-runtime-study .study-notes p { font-size: 14px; }
-.dsh-runtime-study .article-callout { background: transparent; border: 0; border-left: 3px solid var(--accent); padding: 4px 0 4px 20px; }
+.dsh-runtime-study .study-notes p, .dsh-runtime-study .study-notes li { font-size: 14px; }
+.dsh-runtime-study .study-notes + .study-notes { border-top: 0; margin-top: -24px; }
+.dsh-runtime-study .dsh-sequence { border-left: 3px solid var(--accent); padding-left: 16px; }
 .dsh-contract-flow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin: 26px 0; }
 .dsh-contract-flow > div { border-top: 2px solid var(--border-strong); padding: 14px 0; min-width: 0; }
 .dsh-contract-flow > div:first-child { border-color: var(--accent); }
@@ -33,11 +35,13 @@
   .dsh-runtime-study .capability-reading { grid-template-columns: 170px minmax(0, 1fr); gap: 28px; }
 }
 @media (max-width: 860px) {
+  .dsh-runtime-study .article-hero-inner { gap: 0; }
   .dsh-runtime-study .capability-reading { display: block; }
   .dsh-runtime-study .article-toc { max-height: none; overflow-x: auto; overflow-y: hidden; }
 }
 @media (max-width: 760px) {
   .dsh-runtime-study .article-hero h1 { font-size: 27px; }
+  .dsh-runtime-study .capability-article h2 { font-size: 22px; }
   .dsh-runtime-study .article-table { min-width: 580px; }
   .dsh-contract-flow { grid-template-columns: 1fr; gap: 0; }
   .dsh-runtime-study .source-code pre { font-size: 12px; padding: 14px; }

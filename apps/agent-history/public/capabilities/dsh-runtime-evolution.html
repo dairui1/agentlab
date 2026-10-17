@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="从 DeepSeek Harness 0.2.0 到 0.2.1 的固定源码差异，研究 Code Mode 的执行约定、持久变量与权限隔离、取消收尾、动态上下文和子 Agent 等待，附自研 Harness 的实现取舍与验收用例。">
+  <meta name="description" content="拆解 DSH 0.2.1 的 Code Mode：programFormat、持久 REPL、当前工具授权、结果分层与取消屏障。附实现取舍、固定源码和自研验收清单。">
   <title>DSH 0.2.1：自研 Harness 的运行时设计参考 · AgentLab</title>
   <link rel="canonical" href="https://agentlab.dairui1.com/capabilities/dsh-runtime-evolution.html">
   <link rel="icon" type="image/png" href="/assets/agentlab-mark.png">
@@ -27,226 +27,152 @@
       <header class="article-hero"><div class="article-hero-inner">
         <nav class="article-breadcrumb" aria-label="面包屑"><a href="/capabilities.html">专题研究</a><i data-lucide="chevron-right" aria-hidden="true"></i><span>Harness 工程</span></nav>
         <h1>DeepSeek Harness 0.2.1</h1>
-        <p class="article-dek">Code Mode 开始保留变量以后，谁来保管权限、工作目录和未结束的工具调用？</p>
-        <div class="article-byline"><span>2026-10-17</span><span>0.2.0-rc.2 → 0.2.1-rc.2</span><span>固定源码比较 · 面向自研 Harness 开发者</span></div>
+        <p class="article-dek">Code Mode 的五个关键设计：执行形式、状态寿命、工具授权、结果分层、取消收尾。</p>
+        <div class="article-byline"><span>2026-10-17</span><span>0.2.0-rc.2 → 0.2.1-rc.2</span><span>固定源码研究</span></div>
       </div></header>
       <div class="capability-reading">
-        <aside class="article-toc" data-article-toc aria-label="文章目录"><span>从代码执行到任务收尾</span><ol>
-          <li><a href="#scope" data-index="01">哪些真是本次新增</a></li>
-          <li><a href="#contract" data-index="02">代码的执行约定</a></li>
-          <li><a href="#state" data-index="03">变量究竟活多久</a></li>
-          <li><a href="#authority" data-index="04">旧引用与新权限</a></li>
-          <li><a href="#results" data-index="05">三种不同的结果</a></li>
-          <li><a href="#cancellation" data-index="06">取消以后还没结束</a></li>
-          <li><a href="#context" data-index="07">动态环境与上下文</a></li>
-          <li><a href="#subagents" data-index="08">子 Agent 的完成语义</a></li>
-          <li><a href="#lifecycle" data-index="09">更新与卸载的收尾</a></li>
-          <li><a href="#provider" data-index="10">模型接入的失败边界</a></li>
-          <li><a href="#build" data-index="11">自研时先做什么</a></li>
-          <li><a href="#sources" data-index="12">来源与验证范围</a></li>
+        <aside class="article-toc" data-article-toc aria-label="文章目录"><span>实现细节</span><ol>
+          <li><a href="#contract" data-index="01">执行形式</a></li>
+          <li><a href="#state" data-index="02">状态寿命</a></li>
+          <li><a href="#authority" data-index="03">工具授权</a></li>
+          <li><a href="#results" data-index="04">结果与并发</a></li>
+          <li><a href="#cancellation" data-index="05">取消屏障</a></li>
+          <li><a href="#other" data-index="06">其他值得借鉴的改动</a></li>
+          <li><a href="#build" data-index="07">实现顺序与附录</a></li>
         </ol></aside>
         <article class="capability-article" id="articleBody">
-          <div class="article-opening">
-            <p class="article-lead">给模型一个 <code>run_code</code> 很容易。让它一次查十个文件、过滤结果、只返回几行摘要，也不难。真正需要设计的，是下一次调用：上次的变量还在吗？变量里存着的工具函数，是否仍然有权执行？用户刚收紧权限，旧程序发出去的写操作怎么办？</p>
-            <p>DeepSeek Harness 的 0.2.1 开发周期提供了一组很好的样本。它把这种程序化工具调用称为 Programmatic Tool Calling，简称 PTC。它没有把这些问题都交给一段更长的 Prompt，而是分别放进执行器、工具桥接、Session 状态和任务生命周期。本文沿实际版本差异拆解这些选择。代码用于说明机制，文中的自研方案与验收建议是本文推导，不是 DSH 的官方实现承诺。</p>
-            <p>如果还不熟悉 Code Mode，可以先读<a href="/guides/code-mode.html">用程序连接工具</a>。这里往下走一层：不再讨论“为什么写代码比逐次调用工具方便”，而是讨论一个可长期运行的实现必须守住哪些约定。</p>
+          <div class="article-opening" id="scope">
+            <p class="article-lead"><strong>这轮核心变化是可选的持久 Node REPL，以及配套的授权和回收机制。</strong>DSH 将程序化工具调用称为 PTC。默认仍按次执行；新增能力主要在 alpha 阶段落地，alpha.5 → rc.1 的 355 个文件全部只改版本号。</p>
+            <p class="study-scope">以下讨论整个 0.2.1 周期。源码与测试源码已核对，未运行 DSH 或模型对照；实现建议与上游行为分开标注。</p>
           </div>
 
-          <section id="scope" data-article-section>
-            <h2>先确定基线，否则一段 diff 能讲出三个不同的故事</h2>
-            <p><code>0.2.1-rc.1</code> 的发布说明汇总了自 <code>0.2.0-rc.2</code> 以来的变化，不能当成它相对前一天 alpha.5 的新增清单。本次直接比较官方 Git 对象：<strong>alpha.5 → rc.1 的 355 个改动文件，全部只更新 package.json 的 version 字段。</strong>核验脚本还逐个解析 JSON，检查其他字段没有变化，而不是只看文件名。</p>
-            <div class="article-table-wrap"><table class="article-table"><caption>本文使用的源码坐标</caption><thead><tr><th>版本</th><th>固定提交</th><th>在本文里回答什么</th></tr></thead><tbody>
-              <tr><td>0.2.0-rc.2</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/639ed015397290b3745d163aafe02ffee4aa3f84"><code>639ed015</code></a></td><td>上一个 RC 已经具备哪些基础机制</td></tr>
-              <tr><td>0.2.1-alpha.2</td><td><code>d7432673</code></td><td>工作目录状态、工具呈现方式和子任务路径的整理</td></tr>
-              <tr><td>0.2.1-alpha.3</td><td><code>2fbf4359</code></td><td>保留内存的执行环境及相应生命周期</td></tr>
-              <tr><td>0.2.1-alpha.5 / rc.1</td><td><code>1517a4db / 1600d8a1</code></td><td>运行时对应的 Prompt 修复与本轮主要阅读版本</td></tr>
-              <tr><td>0.2.1-rc.2</td><td><a href="https://github.com/deepseek-ai/deepseek-harness/tree/687f282e8625c6b8d11ff58211a90524be2e4317"><code>687f282e</code></a></td><td>1017 展示标签、Search/Fetch 等后续接入</td></tr>
-            </tbody></table></div>
-            <p>另一个容易误判的地方是大段缩进变化。PTC 桥接代码被新的生命周期包装后，看起来改了几百行；忽略空白再看，工具并发调度、类型化返回值、图片回传和调用结束时排空任务，很多在 0.2.0 已经存在。下面会把<strong>旧基础、此次扩展、期间修复</strong>分开讲。<button class="evidence-ref" type="button" data-evidence="DRE-01 DRE-02" data-evidence-trigger>旧版与新版执行约定</button></p>
-            <p>这也限定了本文与 1017 模型的关系。官方称新模型在训练期间针对 Harness 做过优化，但没有在这份发布材料中给出新旧 Harness 的同模型消融实验。我们能研究工程机制，不能把每项改动换算成跑分提升。rc.2 的 1017 标签本身明确是 display-only，不改变请求路由。<button class="evidence-ref" type="button" data-evidence="DRE-25" data-evidence-trigger>模型标签边界</button></p>
-          </section>
-
           <section id="contract" data-article-section>
-            <h2>Code Mode 的执行约定不只是“执行 JavaScript”</h2>
-            <p>假设模型写了 <code>return await tools.lookup(...)</code>。如果执行器把它包装成 async function body，这段代码成立；如果执行器接收 REPL 程序，顶层 <code>return</code> 就不成立。再假设代码运行成功，却既没打印，也没按当前模式产出返回值或末尾表达式，模型可能拿不到结果。这里并不是模型不懂编程，而是 Harness 没把“这段代码在哪里、以什么形式运行”说准确。</p>
-            <p>DSH 新版让运行时提供 <code>programFormat</code> 等执行信息，工具说明和生成的 SDK 指令据此选择函数体或 REPL 的写法。函数体模式明确允许顶层 <code>await</code> 和 <code>return</code>；REPL 则支持顶层声明、await，通过 <code>console.log</code> 或最后一个可无损表示为 JSON 的表达式输出，不能使用顶层 return。工具 schema、系统里的 SDK 和示例需要同时匹配，修一处还不够。<button class="evidence-ref" type="button" data-evidence="DRE-02 DRE-29" data-evidence-trigger>运行时对应的 SDK</button></p>
-            <figure class="source-code"><figcaption>执行语义示意。lookup 是虚构工具名，不是 DSH 的内置工具。</figcaption><pre tabindex="0"><code>// async function body
-const result = await tools.lookup({ key: "release" });
-return result;
+            <h2>1. 用 programFormat 生成执行说明</h2>
+            <p>alpha.3 加入 REPL 后，同一份“执行 TypeScript”说明不够用了。alpha.5 按 <code>programFormat</code> 修正 SDK 指令与示例：</p>
+            <div class="article-table-wrap"><table class="article-table"><thead><tr><th>执行模式</th><th>程序形式</th><th>输出方式</th></tr></thead><tbody>
+              <tr><td>per-call，默认</td><td>async 函数体；支持顶层 await / return</td><td>console.log 或 return</td></tr>
+              <tr><td>persistent-in-memory，可选</td><td>REPL；支持声明和 await，不支持顶层 return</td><td>console.log 或最后一个无损 JSON 表达式</td></tr>
+            </tbody></table></div>
+            <figure class="source-code"><figcaption>写法差异示意，lookup 为虚构工具。</figcaption><pre tabindex="0"><code>// Function body
+return await tools.lookup({ key: "release" });
 
-// persistent REPL: no top-level return
-const result = await tools.lookup({ key: "release" });
-console.log(result);</code></pre></figure>
-            <p>要准确描述这次变化，还得补一段时间线：0.2.0 原本就说明了函数体、顶层 return 和输出方式；alpha.3 引入另一种执行模型后，部分文案变得笼统；alpha.5 又恢复函数体专属说明，同时保留 REPL 分支。因此值得借鉴的不是“多写一句支持 return”，而是<strong>从运行时能力生成模型可见的执行约定，不让一段固定文案同时描述两种解释器。</strong></p>
-            <p>自研时我会把语言、程序形式、状态寿命和权限模型拆开。<code>language: typescript</code> 回答语法，<code>programFormat</code> 回答顶层怎么执行，<code>stateLifetime</code> 回答下次还能看见什么，<code>authority</code> 回答代码通过什么路径取得能力。Node、V8 isolate 和 Python 不是可以只替换名称的三个后端。</p>
-            <figure class="source-code"><figcaption>本文建议的能力描述，不是 DSH 的原始类型定义，也不是完整实现。</figcaption><pre tabindex="0"><code>type ExecutionContract = {
-  language: "typescript" | "python";
-  programFormat: "function-body" | "repl";
-  stateLifetime: "call" | "live-agent";
-  output: "print-and-return" | "print-and-final-expression";
-  authority: "current-evaluation";
-};
-
-// The same contract drives the executor, SDK and examples.
-const prompt = renderInstructions(contract);
-const examples = renderExamples(contract);</code></pre></figure>
-            <p>还有一项容易遗漏的收敛：工具呈现移除了 <code>both</code> 混合模式，保留 native 与 ptc。PTC 模式下，SDK 里的函数声明不是一个同名的外层工具；模型要把调用写进 <code>run_code</code>。这不只是从 schema 隐藏入口，宿主的直接调用路径也按相同规则拒绝被折叠的工具。如果同时暴露两种入口，就必须承担选择、命名和回放的一致性成本。DSH 选择减少这种组合，但这不是说所有 Harness 都应该禁止双入口。<button class="evidence-ref" type="button" data-evidence="DRE-03 DRE-36 DRE-38" data-evidence-trigger>工具呈现与准入</button></p>
-            <p>也别把这理解成“工具定义不再占上下文”。当前可见工具的参数与返回类型仍会生成完整 SDK，进入模型上下文；TypeScript 类型只是提示，执行前剥离类型语法，不会代替宿主的参数和返回值校验。Code Mode 改的是编排与反馈方式，不自动等于按需发现工具或消除全部 schema token。</p>
+// REPL
+console.log(await tools.lookup({ key: "release" }));</code></pre></figure>
+            <p><strong>自研取舍：</strong>让执行器、schema、SDK 示例共用一份能力描述。不要靠固定 Prompt 猜运行时；0.2.0 本就支持函数体和 return，这次是补齐另一种执行形式。<button class="evidence-ref" type="button" data-evidence="DRE-01 DRE-02 DRE-29" data-evidence-trigger>执行约定</button></p>
+            <details class="study-notes"><summary>工具入口也收敛了，但 SDK 没退出上下文</summary>
+              <p>移除 <code>both</code>，保留 native / ptc。PTC 模式隐藏被折叠的直接入口，宿主也拒绝直接调用；完整工具类型仍进入 SDK。它不是按需发现工具，TypeScript 注解也不代替宿主参数校验。<button class="evidence-ref" type="button" data-evidence="DRE-03 DRE-36 DRE-38" data-evidence-trigger>入口与 SDK</button></p>
+            </details>
           </section>
 
           <section id="state" data-article-section>
-            <h2>保留变量之后，异常处理也成了状态协议</h2>
-            <p>原来每次执行都是独立的一次调用。新增的 in-memory 模式允许同一个 live Agent 在多次运行中复用变量、函数、闭包和导入模块。这对反复处理同一批数据很实用：不必每轮重建所有中间对象。但它是可选项，<strong>默认仍是 per-call</strong>，不能把“升级了客户端”写成“所有 Code Mode 都自动拥有持久内存”。<button class="evidence-ref" type="button" data-evidence="DRE-04" data-evidence-trigger>运行时默认值</button></p>
-            <p>这个“持久”也有准确的边界。桥接层把状态归属绑定到当前 Agent 对象，并在 Agent 生命周期结束时释放运行时；没有 owner 的调用使用临时执行环境。同一 owner 的重叠执行会被拒绝，不同 owner 可以各用自己的状态。它不是按聊天 ID 建一张永不清理的全局变量表，更不是进程重启后的恢复机制。<button class="evidence-ref" type="button" data-evidence="DRE-05 DRE-06" data-evidence-trigger>状态所有者与隔离</button></p>
-            <figure class="source-code"><figcaption>状态语义示意：普通异常不是事务回滚。</figcaption><pre tabindex="0"><code>// First evaluation in an in-memory runtime
-let processed = 0;
-
-// Next evaluation
-processed += 1;
-throw new Error("validation failed");
-
-// A later evaluation can still observe processed === 1.</code></pre></figure>
-            <p>DSH 的测试明确区分了两类失败。普通代码异常可以留下报错前已经发生的内存修改；超时、取消、输出溢出或进程故障则会清掉保留的执行状态。前者意味着用户可以修正代码继续使用已经加载的数据，后者避免把可能仍有异步活动或不完整协议状态的进程继续复用。<button class="evidence-ref" type="button" data-evidence="DRE-07" data-evidence-trigger>异常与中断的状态区别</button></p>
-            <p>这给自研实现提出一个很实际的问题：报错之后，模型下一步能假定什么？如果正常异常保留状态，就要告诉它“变量可能已经变了”；如果中断清空状态，就要明确报告环境失效。只返回一个统一的 <code>ExecutionError</code>，随后让模型自己猜，会把恢复成本转嫁给 Prompt。</p>
-            <p>我的实现建议是从 per-call 起步，先把后面的取消和权限路径做对，再加 owner-scoped 内存。之后再考虑独立的可序列化 checkpoint。不要把堆内存、Session 事件和磁盘文件叫同一个“记忆”：三者的恢复与丢失条件完全不同。</p>
+            <h2>2. 持久状态属于 live Agent，不属于聊天 ID</h2>
+            <p>alpha.3 新增 <code>stateOwner</code>：以当前 Agent 对象关联 Kernel，跨调用保留变量、函数和模块；Agent 销毁时 release。无 owner 就建临时环境，同 owner 重叠执行直接拒绝。<button class="evidence-ref" type="button" data-evidence="DRE-04 DRE-05 DRE-06" data-evidence-trigger>owner 与默认值</button></p>
+            <ul>
+              <li><strong>普通异常：</strong>报错前的修改可能留下。执行 <code>x++; throw Error()</code> 后，x 不会自动回滚。</li>
+              <li><strong>取消、超时、输出溢出、进程故障：</strong>清空环境，下次重建。重启也不会从聊天历史恢复变量。<button class="evidence-ref" type="button" data-evidence="DRE-07" data-evidence-trigger>失效规则</button></li>
+            </ul>
+            <p><strong>自研取舍：</strong>错误返回要区分“代码失败，状态还在”和“环境失效”。先做好 per-call，再加 owner-scoped 内存；durable checkpoint 是另一项功能。</p>
           </section>
 
           <section id="authority" data-article-section>
-            <h2>保存工具引用，不应保存旧一轮的调用资格</h2>
-            <p>持久 REPL 最值得细读的不是能保存 <code>let x = 1</code>，而是下面这种情况：模型先把一个工具函数存进变量，下一轮工具被替换或移除，旧变量还能不能继续调用旧工具？如果能，动态工具配置就成了表面工作。</p>
-            <figure class="source-code"><figcaption>沿上游测试整理的风险场景，value 是测试用工具。</figcaption><pre tabindex="0"><code>// Evaluation A
+            <h2>3. 旧工具引用，走当前一轮的授权</h2>
+            <figure class="source-code"><figcaption>上游测试场景的简化。</figcaption><pre tabindex="0"><code>// Evaluation A
 const saved = tools.value;
-async function query() {
-  return await saved({});
-}
 
-// The host changes or removes the tool before evaluation B.
-// Calling query() must use B's binding, not A's old authority.</code></pre></figure>
-            <p>DSH 的实现将工具调用绑定到<strong>当前 evaluation 的宿主 bindings</strong>。保存下来的 wrapper 再执行时，重新通过当前调用环境找工具；工具已经移除，就不能靠旧引用继续访问。相关测试既覆盖替换后的新结果，也覆盖移除后的失败。另一个测试让旧 evaluation 的异步回调拖到后续运行，再尝试调用工具，要求以 <code>evaluation has ended</code> 拒绝。<button class="evidence-ref" type="button" data-evidence="DRE-08" data-evidence-trigger>闭包与旧回调测试</button></p>
-            <p>这里应该区分两件事：一个已经定义的函数，可以在新 evaluation 里被主动调用；一段旧 evaluation 遗留下来的异步任务，不能因此获得下一轮的宿主工具调用资格。前者是复用代码，后者是越过调用生命周期。测试帮助说明了这个设计意图，但我们没有运行跨进程攻击或验证所有第三方工具都遵守它。</p>
-            <p><strong>这不是一个只能调用 tools 的纯隔离解释器。</strong>Node 模块仍可导入，直接文件访问遵循执行沙箱策略，初始 <code>process.env</code> 为空；这些条件并不证明网络与全部系统资源都被隔离。上游还明确写了一条限制：原始子进程输出按字节到达时正在运行的 evaluation 归属，空闲时输出会被忽略。因此拒绝旧工具回调，不等于消除了所有跨轮输出污染。应等待子进程结束，或在自研实现中给输出增加独立的 evaluation ID 路由。<button class="evidence-ref" type="button" data-evidence="DRE-29" data-evidence-trigger>Node 能力与输出归属</button></p>
-            <p>一次性的权限扩大还多了一层保护。若本次实际策略与常驻策略不同，桥接层不传入保留状态的 owner，而是使用临时环境。这样，临时提权执行不会直接继承普通 REPL 的变量，也不把自己的堆内存带回下一次普通执行。它隔开的是执行环境状态，不会撤销已经写到磁盘或发往网络的副作用。<button class="evidence-ref" type="button" data-evidence="DRE-09" data-evidence-trigger>临时权限与状态 owner</button></p>
-            <p>迁移到自己的 Harness 时，可以把每次 evaluation 看成一个有寿命的授权上下文：有自己的取消信号、当前工具目录、目录快照和策略。跨轮复用宿主工具时重新检查这一轮的资格，不把已授权函数直接塞进全局空间。Node 原生能力是另一条路径，必须由进程隔离、文件及网络策略独立约束，不能借工具 binding 的检查替它背书。</p>
+// Host replaces or removes tools.value.
+// Evaluation B must use the new binding, or reject.
+await saved({});</code></pre></figure>
+            <p>保留的 wrapper 在调用时查询<strong>当前 evaluation 的 bindings</strong>。新一轮主动调用旧函数可以复用代码；旧一轮遗留的异步回调则以 <code>evaluation has ended</code> 拒绝工具调用。<button class="evidence-ref" type="button" data-evidence="DRE-08" data-evidence-trigger>绑定与旧回调</button></p>
+            <p>临时提权时不传 <code>stateOwner</code>，改用独立临时环境，既不继承普通 REPL 的变量，也不把提权环境的变量带回来。<strong>可复用数据，不可顺便复用过期授权。</strong><button class="evidence-ref" type="button" data-evidence="DRE-09" data-evidence-trigger>提权隔离</button></p>
+            <details class="study-notes"><summary>这只约束宿主工具，Node 原生能力另算</summary>
+              <p>模块仍可导入，直接文件访问遵循沙箱策略，初始 process.env 为空；网络和全部系统资源的隔离未验证。原始子进程输出按到达时活跃的 evaluation 归属，因此应等子进程结束，或另加输出路由 ID。<button class="evidence-ref" type="button" data-evidence="DRE-29" data-evidence-trigger>原生能力边界</button></p>
+            </details>
           </section>
 
           <section id="results" data-article-section>
-            <h2>程序、模型和界面，需要三种不同的结果</h2>
-            <p>一个读文件工具可以返回结构化数据，也可以返回供模型阅读的文字，还可以返回供 UI 展开文件差异的元数据。让这三者共用一段字符串，最初很省事，后来程序就得解析 Markdown，界面就得猜文本格式，模型还会被无用信息填满。</p>
+            <h2>4. 三种结果分开，才谈得上少读中间数据</h2>
             <figure class="article-figure"><div class="dsh-contract-flow">
-              <div><span>交给程序</span><strong>Canonical JSON</strong><p>类型化值，用来筛选、循环和比较；失败走异常。</p></div>
-              <div><span>交给模型</span><strong>程序输出与附加内容</strong><p>打印或返回需要的内容；含图片的成功结果另行附带。</p></div>
-              <div><span>交给界面和日志</span><strong>事件与 presentation metadata</strong><p>保留子调用的身份、状态和展示信息，不自动重复注入模型历史。</p></div>
-            </div><figcaption>三条通道的职责图。JSON、日志和模型可见内容不是彼此的完整副本。</figcaption></figure>
-            <p>DSH 让内层工具返回其类型化 canonical value；失败变成带工具名的 <code>ToolCallError</code>，由程序决定捕获还是继续抛出。中间 JSON 不会自动进入对话，程序只输出所需部分。图片有一条例外：成功子调用的最终 <code>content</code> 只要含图片，就把<strong>整份 content</strong> 延后附加到模型上下文，同包文本也会进入；外层代码随后失败，也不必然删除已经安排的附加内容。外层 post-execute 阻断则可以替换掉这些内容，异常与策略阻断不是同一结果。做上下文预算时不能只数 console.log。<button class="evidence-ref" type="button" data-evidence="DRE-10 DRE-35 DRE-40" data-evidence-trigger>返回、异常与图片规则</button></p>
-            <p><strong>这套返回值分层和有界并发调度在 0.2.0 已经存在。</strong>此次值得关注的补齐，是嵌套 PTC 调用也能携带 <code>presentationMeta</code>，跟直接调用走一致的展示路径。会话记录能解释程序内部具体做了什么，又不必把每个子工具结果再次塞给模型。对于自研系统，这比单纯追求“少几个 token”更重要：你不能为了简洁，丢掉排障和审计所需的记录。<button class="evidence-ref" type="button" data-evidence="DRE-11" data-evidence-trigger>嵌套展示元数据</button></p>
-            <p>三条通道分开，也会制造一种很隐蔽的安全误判：<strong>把展示 content 脱敏，并不会自动替换代码拿到的 canonical value。</strong>如果过滤器只把日志里的密钥变成星号，程序仍可能从原始 JSON 中取出并打印它。要阻止访问，必须拒绝调用，或按返回值约定替换 canonical value；文字脱敏不能充当访问控制。<button class="evidence-ref" type="button" data-evidence="DRE-27" data-evidence-trigger>脱敏不等于删除原值</button></p>
-            <p>并发也不是简单的“读并行、写串行”。DSH 要求工具的 <code>isConcurrencySafe(args)</code> 恰好返回 <code>true</code>，才允许调用重叠；未声明、无效返回或分类器抛错，都按 exclusive 处理。工具作者要为这项声明负责。调度器把前置检查、body、后置处理与提交拆开，允许安全的 body 有界重叠，同时保持检查和提交顺序，出队时还会重新分类。这比直接 Promise.all 稳妥，但有序提交也可能产生队头阻塞，不提供数据库式回滚。<button class="evidence-ref" type="button" data-evidence="DRE-28 DRE-37" data-evidence-trigger>并发分类与有序提交</button></p>
+              <div><span>程序</span><strong>Canonical JSON</strong><p>结构化值；失败抛 ToolCallError。</p></div>
+              <div><span>模型</span><strong>程序选择的输出</strong><p>打印、返回值，以及含图的附加 content。</p></div>
+              <div><span>界面与日志</span><strong>调用事件 + meta</strong><p>保留子调用，不重复灌进模型历史。</p></div>
+            </div></figure>
+            <p>分层本来就有；alpha.2 补齐的是<strong>嵌套 PTC 的 presentationMeta</strong>，让子调用也能展示、回放。<button class="evidence-ref" type="button" data-evidence="DRE-10 DRE-11" data-evidence-trigger>结果分层</button></p>
+            <ul>
+              <li><strong>脱敏陷阱：</strong>只改展示 content，代码仍可能拿到原始 JSON。要限制访问，须拒绝调用或替换 canonical value。<button class="evidence-ref" type="button" data-evidence="DRE-27" data-evidence-trigger>原值与展示</button></li>
+              <li><strong>图片例外：</strong>成功子调用的最终 content 含图片时，整包附加给模型，包括同包文字；外层报错也可能保留，post-execute 阻断则可替换。<button class="evidence-ref" type="button" data-evidence="DRE-35 DRE-40" data-evidence-trigger>图片回传</button></li>
+            </ul>
+            <p><strong>并发不是自动识别“读/写”。</strong><code>isConcurrencySafe(args) === true</code> 才允许 body 有界重叠；缺省、无效值、分类器抛错均独占。前后检查与提交仍有序，出队时重新分类。这是已有机制，代价是可能出现队头阻塞。<button class="evidence-ref" type="button" data-evidence="DRE-28 DRE-37" data-evidence-trigger>并发分类与提交</button></p>
           </section>
 
           <section id="cancellation" data-article-section>
-            <h2>取消一个程序，要等它的子调用真正收尾</h2>
-            <p>设想程序已经启动了几个工具调用，用户此时把沙箱从可写改成只读。最危险的实现是立刻把 UI 标成“已取消”，马上接受下一段程序，而旧的写操作仍在后台继续。旧策略和新策略的调用于是重叠，界面显示的权限与现实不再一致。</p>
-            <p>0.2.1 新增的 <code>PtcCalls</code> 按 Session 记录整次调用，监听沙箱模式变化，取消使用旧模式的调用。下一次调用在进入权限解析与执行之前，先等待已取消的前任完成；工具注册表卸载时，也会取消并等待所跟踪的调用。这里跟踪的是<strong>完整调用及其嵌套工具清理</strong>，不只是代码执行器的一段 Promise。它接在提供 sandboxMode 的 runtime 与 Agent 路径上，监听的是 Session 沙箱模式，不应泛化成任意权限或工具配置修改都自动拥有这道屏障。<button class="evidence-ref" type="button" data-evidence="DRE-12" data-evidence-trigger>策略切换的等待屏障</button></p>
-            <figure class="source-code"><figcaption>本文对控制流的简化，不是可以直接复制的 DSH 源码。</figcaption><pre tabindex="0"><code>await drainCancelledPredecessors(session);
-signal.throwIfAborted();
-const authority = readCurrentPolicy(session);
-const cwd = readCurrentDirectory(session);
-
-try {
-  return await evaluate({ authority, cwd, signal });
-} finally {
-  abortNestedCalls();
-  await drainNestedCalls();
-  closeEvaluation();
-}</code></pre></figure>
-            <p>其中 <code>abortNestedCalls → drainNestedCalls</code> 的基础收尾在旧版本就有；新版把它纳入策略变化、保留运行时和 owner 的整体生命周期。程序进程层也要处理策略变化与保留状态的失效，不能只在外面改一个布尔值。<button class="evidence-ref" type="button" data-evidence="DRE-13" data-evidence-trigger>运行时策略与失效</button></p>
-            <p>取消不等于撤销。子工具可能已经写了一半文件，也可能远端已经接受请求，只是本地没收到回执。等待 drain 的意义，是知道本地旧调用何时不再占用执行通道；它不能把现实恢复到调用之前。对于有副作用的工具，自研 Harness 仍需要稳定操作 ID、幂等键或执行后的 readback。</p>
-            <p>也不要从“有 drain”直接推出“永远不会卡住”。如果一个第三方工具忽略取消且不返回，等待本身就可能拖长。应该给宿主进程、远端请求与收尾设计各自的截止条件，明确记录超时后的未知副作用，而不是通过吞掉 Promise 把状态伪装成干净结束。</p>
+            <h2>5. 沙箱模式切换，多了一道取消屏障</h2>
+            <p>旧版已在程序结束时 abort 并排空嵌套调用。alpha.3 的 <code>PtcCalls</code> 把这套收尾接到 Session 沙箱模式变化上：</p>
+            <p class="dsh-sequence"><code>取消旧模式调用 → 等待完整调用收尾 → 读取新策略 → 准入新调用</code></p>
+            <p>进程层的 <code>PolicyProcesses</code> 同时清理旧策略下的常驻进程，包含闲置的 REPL。否则 UI 已变只读，后台还可能保留旧环境。<button class="evidence-ref" type="button" data-evidence="DRE-12 DRE-13" data-evidence-trigger>两层生命周期</button></p>
+            <p><strong>自研取舍：</strong>别把 abort 当“已经结束”，也别当回滚。对不响应取消的工具设置收尾截止；对已发出的写操作记录未知结果，用幂等键或 readback 恢复。此自动屏障针对沙箱模式，不涵盖任意工具配置变更。</p>
           </section>
 
-          <section id="context" data-article-section>
-            <h2>环境事实不能只在会话开始时告诉模型一次</h2>
-            <p>Code Mode 保存状态之后，工作目录的问题会更明显。用户把 Session 从仓库 A 切到 B，REPL 里还保存着 A 的数据，系统 Prompt 又写着最初的 cwd。哪一个才是真的？DSH 把当前目录变成带事件的 Session 状态，并统一文件工具、Shell、子 Agent 和程序执行的目录来源。每次程序启动时捕获当前目录；已经运行的程序仍使用自己的起始目录。当前 cwd、最初的 <code>session.header.cwd</code> 和沙箱允许访问的根目录是三件事，切换目录不等于扩大文件权限。<button class="evidence-ref" type="button" data-evidence="DRE-14 DRE-09" data-evidence-trigger>Session 工作目录</button></p>
-            <p>模型请求的构造也需要防止时间差。pre-step 插件可能改变状态，压缩或 provider preparation 也可能发生在请求真正发出之前。新版在准备请求的路径上再次刷新 runtime context，让当前 cwd 等动态 sections 跟上这些变化。这里刷新的是动态上下文，不是每次重建全部 System Prompt 和工具 schema。<button class="evidence-ref" type="button" data-evidence="DRE-15" data-evidence-trigger>请求准入时刷新</button></p>
-            <p>值得借鉴的是<strong>稳定指令与动态事实分开维护</strong>。Agent 的角色、工具规则可以保持稳定；cwd、当前策略、委派深度属于会改变的环境事实。开发环境上下文里还有一个具体兼容处理：对于包含旧格式 Harness checkout 与 Web GUI URL 段落的 Session，保留这两段原文，当前值另走动态上下文。保护范围只限这两段，其他 Prompt 变化仍可能重写头部，不是所有历史指令都永久不变。这个做法为稳定前缀创造条件，但没有实际请求和缓存计量，不能声称提高了多少命中率。<button class="evidence-ref" type="button" data-evidence="DRE-34" data-evidence-trigger>两段旧模板与当前事实</button></p>
-            <p>自己的实现不一定需要复制 DSH 的整套事件系统，但至少要确定一个事实源，以及各自取快照的时刻。<strong>请求准入时的 cwd，不保证与稍后工具启动时的 cwd 永远相同</strong>，用户可能在两者之间再次切目录。应记录变更事件，让模型请求和工具执行分别能追到自己的快照，而不是宣称整个回合具有原子一致性。测试时故意在 pre-step、压缩完成和重试之间切目录，比只测“第一次打开仓库能读文件”更容易暴露错误。</p>
-          </section>
-
-          <section id="subagents" data-article-section>
-            <h2>子 Agent 没在生成文字，不代表它已经完成</h2>
-            <p>一个子 Agent 进入 idle，收件箱里可能还有新消息；一个子 Agent 正在结束，又可能仍有后代任务在创建或 flush。父 Agent 如果只检查 <code>isRunning === false</code>，就会过早汇报完成。0.2.1 的重要整理，是把原来的 one-shot 与 continuable 等分叉收敛到统一的 activation 管理，让本地与外部执行共享更一致的启动、等待和结果交付方式。<button class="evidence-ref" type="button" data-evidence="DRE-16" data-evidence-trigger>子任务统一激活</button></p>
-            <p>这里也不能把旧约束全部写成新发明。资源池、释放顺序和 flush 后检查等做法，旧 continuable 分支已经有了。新版的价值在于减少另一套返回路径绕过这些约束的机会，并把 host wait 与 Goal 自动续轮接到同一套等待语义上。</p>
-            <p><code>waitForChildren</code> 要区分“还在推进的子树”和“只是停在 inbox 等外部输入的子树”。前者应该等，后者不能让父任务永久挂起。Goal 在准备自动开启新轮次前，先等正在推进的子任务，再复查人类输入、暂停和轮次上限；纯等待不应占掉新的目标执行轮次。<button class="evidence-ref" type="button" data-evidence="DRE-17 DRE-18" data-evidence-trigger>Host 与 Goal 等待</button></p>
-            <p>要区分两个“结束”。单次 activation 交付结果之前，会等待资源清理尝试结束、归还容量并发出通知；但清理失败有独立通道，拿到成功结果不证明每项 teardown 都成功。host wait 返回更只表示此刻没有需要继续等待的推进中工作。停在 inbox 的子 Agent 仍可能驻留，不能把父任务能返回说成“所有子任务都完成且释放”。另外，子任务最后的 flush 失败会告警后继续收尾，是 best effort，不是强持久化提交保证。<button class="evidence-ref" type="button" data-evidence="DRE-33" data-evidence-trigger>结果交付与资源寿命</button></p>
-            <figure class="source-code"><figcaption>Headless 完成判定的逻辑示意，省略错误、取消和具体 API 类型。</figcaption><pre tabindex="0"><code>for (;;) {
-  await parent.whenIdle();
-  const before = session.seq;
-  const joined = await waitForChildren(parent);
-  if (!joined &amp;&amp; parent.isIdle &amp;&amp; session.seq === before) break;
-}</code></pre></figure>
-            <p>为什么等完还要看事件序号？因为等待子任务期间，它的完成消息可能又唤醒了父 Agent。Headless 路径把父级 idle、子树等待和 Session 是否变化结合起来，避免检查完一个标志就提前退出。自研时不要把 idle、waiting、settling 和 completed 压成一个 finished 布尔值；也不必通过不断调用模型，轮询宿主已经掌握的任务状态。<button class="evidence-ref" type="button" data-evidence="DRE-32" data-evidence-trigger>Headless 完成判定</button></p>
-          </section>
-
-          <section id="lifecycle" data-article-section>
-            <h2>热更新和卸载，也会改变任务是否真的结束</h2>
-            <p>插件下载成功，不表示运行中的 Agent 已经用上新版本。DSH 在此前已有开发态 HMR 的基础上，于 alpha.3 扩展了已安装包替换后的重新组合：重新解析入口和依赖映射，计算静态导入的反向依赖范围，再处理受影响的插件。host module 或不受管理的插件不能直接热替换，会保留旧实现并标记待重启；真正进入替换路径后，如果重新加载失败，旧插件也已停止，不能一概宣称自动回滚。已安装包替换与开发源码 HMR 的回滚不是同一条路径。<button class="evidence-ref" type="button" data-evidence="DRE-19 DRE-20" data-evidence-trigger>安装与运行态的区别</button></p>
-            <p>对自研插件系统，最有参考价值的是状态划分：磁盘上装了哪个版本、运行中激活了哪个实现、哪些变更失败、哪些仍待重启，应该分别记录。否则用户看见“更新成功”，模型却仍在用旧工具。失败之后修复依赖或文件，再重新组合，与原子更新、零停机是不同的保证。</p>
-            <p>卸载的顺序同样影响正确性。以 JSONL 会话存储为例，如果先关日志监听器，再让使用它的 Agent 结束，最后的 <code>turn/end</code> 就可能来不及落盘。新版将相关跟踪与监听的寿命延长到消费者 teardown 之后；测试特意阻塞消费者清理，确认存储卸载也在等待，末尾事件仍可写入。<button class="evidence-ref" type="button" data-evidence="DRE-21" data-evidence-trigger>存储卸载测试</button></p>
-            <p>这是明确的卸载路径约束，不是断电恢复证明；上游还注明并发 root disposal 不提供同样的顺序。可以迁移的原则是：<strong>先停止新工作，再取消或完成旧工作，最后关闭它们依赖的记录与资源。</strong>只把所有对象一起 <code>Promise.all(dispose)</code>，可能很快，也可能丢掉最需要保留的最后一条状态。</p>
-            <p>还有一个值得借鉴、但不宜直接依赖的设计：插件自己的会话记录，与给模型看的历史分开。alpha.2 出现的 <code>appendPluginRecord</code> 使用可忽略记录承载插件数据，随 fork/resume 保留，不自动进入模型输入；读取时仍须校验数据，迁移保留也只是 best effort。文档明确把它限定给仓库内 experimental 包，外部插件不应调用。我们可以借鉴这种分层，不能把内部实验接口写成稳定 SDK 教程。<button class="evidence-ref" type="button" data-evidence="DRE-31" data-evidence-trigger>插件状态不等于模型历史</button></p>
-          </section>
-
-          <section id="provider" data-article-section>
-            <h2>模型接入层的收益，常常来自不再无故失败</h2>
-            <p>还有几项没有 Code Mode 显眼，却很影响长期任务。一个例子是流式请求超时：外层已经 abort，<code>finally</code> 却还在 await 一个永远不返回的 <code>iterator.return()</code>。结果“超时保护”自己卡住，后续重试永远进不来。新版不再让这段清理阻塞已经确定的超时结果，而是异步调用 return 并用 <code>.catch(() =&gt; {})</code> 消费其拒绝，传输取消交给 abort 路径。这里没有额外记录清理异常，不能把吞掉拒绝说成已经具备完整观测。<button class="evidence-ref" type="button" data-evidence="DRE-22" data-evidence-trigger>取消后的流清理</button></p>
-            <p>另一个例子是旁路元数据。插件清单读取失败，或者某个扩展准备附加字段失败，不应该自动等同于“模型不能回答”。相关路径按贡献项省略失败的可选字段；HTTP 2xx 之后，accept 回调的异常由 adapter 包装层捕获并转入未接受通知，不直接打断后续流处理。此时 SSE 还没读完，流本身当然仍可能失败。这个取舍只适用于可选扩展，不能照搬到权限检查、必需参数验证或核心消息转换。<button class="evidence-ref" type="button" data-evidence="DRE-23 DRE-39" data-evidence-trigger>可选扩展的失败边界</button></p>
-            <p>历史序列化也遵循类似分层：发往 Messages 接口时过滤空文本和转换后没有内容的 assistant 消息，避免因协议不接受空消息而失败；这不要求重写持久化的 Session 记录。原始事件负责保留事实，provider adapter 负责生成当前协议能接受的投影。支持多个模型供应商时，这条边界比到处修改聊天历史更容易维护。<button class="evidence-ref" type="button" data-evidence="DRE-30" data-evidence-trigger>持久历史与请求投影</button></p>
-            <p>账号模型目录则把模型输入能力、上下文限制和最低客户端版本从服务端读回来，再判断当前客户端是否支持。模型名称不是完整的能力描述；把它写死成一个字符串，会让后来的能力升级或版本限制难以表达。但这里存在门禁机制，不等于已经证明 1017 实际把最低版本设置成 rc.1，更不能泛化到 API Key 路由。<button class="evidence-ref" type="button" data-evidence="DRE-24" data-evidence-trigger>动态能力与最低版本</button></p>
-            <p>把这些放在一起，所谓 Harness “更能发挥模型能力”，有时不是模型多想了几步，而是相同的推理终于能穿过有效历史、正确参数和可收尾的传输，完成一次任务。这是合理的工程解释；量化收益仍需要真实对照。</p>
+          <section id="other" data-article-section>
+            <h2>另外四处，值得带回自己的 Harness</h2>
+            <h3 id="context">动态上下文：在请求准入时刷新</h3>
+            <p>cwd 变成 Session 状态；Agent loop 在 <code>prepareRequest</code> 后、每次尝试发请求前刷新动态 context，不重组整套 tools。请求和工具各取启动时快照，目录变更可追溯；切 cwd 不扩大权限根。<button class="evidence-ref" type="button" data-evidence="DRE-14 DRE-15" data-evidence-trigger>刷新位置</button></p>
+            <h3 id="subagents">子 Agent：等“仍在推进”，不等所有对象消失</h3>
+            <p>启动统一为 activation；<code>waitForChildren</code> 等推进中的子树，但不被 parked inbox 永久卡住。Headless 用“父级 idle + 子树等待 + Session 序号未变”判定退出；Goal 等完再检查用户输入、暂停与轮次资格，不为纯等待消耗新轮次。<button class="evidence-ref" type="button" data-evidence="DRE-16 DRE-17 DRE-18 DRE-32" data-evidence-trigger>完成判定</button></p>
+            <h3 id="provider">模型接入：容错放在可选层，保留原始历史</h3>
+            <p>超时后不再 await 可能挂死的 <code>iterator.return()</code>；可选扩展失败可降级，核心字段冲突仍拒绝。空 assistant 消息在请求序列化时过滤，不改 Session 原始记录。<button class="evidence-ref" type="button" data-evidence="DRE-22 DRE-23 DRE-30 DRE-39" data-evidence-trigger>传输与协议</button></p>
+            <h3 id="lifecycle">插件与存储：区分装上了、跑起来了、收完尾了</h3>
+            <p>alpha.3 支持已安装包替换后的依赖重载；不可替换项保留旧实现、标记待重启，进入替换后失败则不保证回滚。JSONL 存储等消费者 teardown，再关闭监听，接住最后的 <code>turn/end</code>。<button class="evidence-ref" type="button" data-evidence="DRE-19 DRE-20 DRE-21" data-evidence-trigger>更新与卸载</button></p>
+            <details class="study-notes"><summary>兼容与失败边界：四个实现细节</summary>
+              <ul>
+                <li>旧 Prompt 仅保护 checkout、Web GUI URL 两段原文，当前值另走动态上下文；不是所有历史 Prompt 不可变。<button class="evidence-ref" type="button" data-evidence="DRE-34" data-evidence-trigger>模板兼容</button></li>
+                <li>activation 结果在清理尝试、容量归还和通知之后交付，但结果成功不保证 teardown 成功；final flush 为 best effort。<button class="evidence-ref" type="button" data-evidence="DRE-33" data-evidence-trigger>结果与清理</button></li>
+                <li>HTTP 2xx 后的 accept 异常由 adapter 捕获，SSE 后续仍可能失败。iterator 清理拒绝被吞掉，没有额外日志。<button class="evidence-ref" type="button" data-evidence="DRE-22 DRE-39" data-evidence-trigger>容错范围</button></li>
+                <li><code>appendPluginRecord</code> 将插件状态与模型历史分离，但仅供仓库内 experimental 包，外部插件不应依赖。<button class="evidence-ref" type="button" data-evidence="DRE-31" data-evidence-trigger>实验接口</button></li>
+              </ul>
+            </details>
           </section>
 
           <section id="build" data-article-section>
-            <h2>自研时，先写下失败后的约定</h2>
-            <p>如果从零实现，我不会先复制 DSH 的插件目录，也不会第一天就加入持久 REPL。比较稳妥的顺序是：先实现单次执行的工具桥接与明确输出；把取消、嵌套调用和副作用记录补齐；再引入 live-Agent 状态所有者；最后加入工具热替换、临时权限与多 Agent 等待。每扩展一种寿命，就补一组跨边界测试。</p>
-            <p>下面是从本文机制推导的<strong>自研验收用例</strong>，不是本站已经运行的 DSH 测试。即使暂时不做持久 REPL，也可以先把失败后的约定写进自己的测试计划。</p>
-            <div class="article-table-wrap"><table class="article-table"><caption>不要只测成功的 run_code</caption><thead><tr><th>故意制造的情况</th><th>应检查的结果</th><th>防止什么</th></tr></thead><tbody>
-              <tr><td>函数体使用顶层 return；REPL 使用相同代码</td><td>行为与对应 Prompt 一致，错误明确</td><td>执行器与说明不匹配</td></tr>
-              <tr><td>工具返回大对象，程序只输出一个字段</td><td>模型收到约定的程序输出与附加内容；审计保留子调用</td><td>为节省上下文而丢审计</td></tr>
-              <tr><td>工具失败后由程序 catch，再调用另一个工具</td><td>错误类型、工具名与后续执行符合约定</td><td>统一文本错误无法恢复</td></tr>
-              <tr><td>只替换展示 content，再让程序读取原值</td><td>明确 canonical value 是否仍可访问</td><td>把文字脱敏误当访问控制</td></tr>
-              <tr><td>并发分类器未声明、抛错或返回非布尔值</td><td>默认独占，显式安全调用才重叠</td><td>误把 Promise.all 当作权限或事务</td></tr>
-              <tr><td>普通异常发生在变量修改之后</td><td>明确保留或清空，不假装事务回滚</td><td>恢复时误读旧状态</td></tr>
-              <tr><td>超时、取消、输出溢出后继续执行</td><td>失效环境不被悄悄复用，重置可见</td><td>半活进程污染下一轮</td></tr>
-              <tr><td>同一 owner 同时发两次；两个 owner 各发一次</td><td>同 owner 的并发策略明确，跨 owner 不串用保留堆状态</td><td>变量竞争与会话串扰</td></tr>
-              <tr><td>保存工具 wrapper 后替换或移除工具</td><td>新 evaluation 使用当前路由或拒绝</td><td>闭包保存过期能力</td></tr>
-              <tr><td>旧异步回调跨到下一轮并调用宿主工具</td><td>该工具调用被拒绝；原始子进程输出归属另行验证</td><td>工具回调越过寿命</td></tr>
-              <tr><td>普通状态 → 临时扩大权限 → 普通状态</td><td>堆内存与权限不能意外跨域复用</td><td>临时权限变长期权限</td></tr>
-              <tr><td>工具写入中收紧沙箱模式</td><td>取消旧调用、等待收尾后再准入新调用</td><td>新旧策略重叠执行</td></tr>
-              <tr><td>远端接受写操作后，本地断开</td><td>记录未知结果，readback 或幂等恢复</td><td>把取消误当撤销</td></tr>
-              <tr><td>在 pre-step、压缩或重试期间改变 cwd</td><td>请求准入和工具启动各用对应快照，变更可追溯</td><td>环境变化无记录、快照混淆</td></tr>
-              <tr><td>子 Agent idle，但新消息或后代仍在推进</td><td>完成判断包含队列、后代和清理状态</td><td>过早汇报完成</td></tr>
-              <tr><td>子树只停放输入；用户在等待时发来新要求</td><td>不永久阻塞，续轮前重新检查输入</td><td>等待吞掉控制权</td></tr>
-              <tr><td>流不响应 abort，也不完成 iterator.return</td><td>截止后能结束或重试，错误仍可追踪</td><td>超时保护自身挂死</td></tr>
-              <tr><td>可选扩展失败与权限校验失败分别注入</td><td>前者按约定降级，后者严格拒绝</td><td>容错放错层</td></tr>
-              <tr><td>插件更新成功但激活失败</td><td>磁盘版本、运行版本、失败与重启需求可区分</td><td>界面和真实工具漂移</td></tr>
-              <tr><td>存储卸载时 Agent 仍在结束</td><td>末尾事件先完成持久化，再关闭记录通道</td><td>收尾日志丢失</td></tr>
-            </tbody></table></div>
-            <p>验收时应同时保存模型实际收到的 Prompt/schema、evaluation 与子调用 ID、权限和 cwd 快照、终止原因，以及文件或远端服务的最终状态。只保存聊天文本，会漏掉本文最关心的一半问题。</p>
-            <p>DSH 这轮最值得借鉴的，是把“谁拥有状态、谁授予能力、什么时候算结束”分别落实到了代码。一个 Code Mode 做得好不好，不只看它能否执行漂亮的一段程序，还看失败、换环境和继续运行之后，这三个答案是否仍然一致。</p>
-          </section>
-
-          <section id="sources" data-article-section>
-            <h2>来源与验证范围</h2>
-            <p>本文固定比较官方仓库的发布标签，不随 master 漂移。主阅读版本为 <code>1600d8a1e140dcde43a1a0941940a0480712c011</code>，结尾的发布边界检查到 <code>687f282e8625c6b8d11ff58211a90524be2e4317</code>。Code Mode 的前后变化同时回查 0.2.0 与中间 alpha，避免把文件移动、缩进或已有基础机制当成新增。</p>
-            <p><strong>本次做了固定源码、差异和测试源码审读，没有运行 DSH、上游测试、真实模型任务、性能基准或跨平台沙箱攻防。</strong>本站的文件哈希、链接、页面测试与构建验收，只证明研究材料和展示的一致性。它们不替代上游运行验证，也不证明模型性能提升。</p>
-            <p>DSH 固定快照采用 MIT 许可证。本文代码块除注明测试场景者外，均为解释或自研设计示意，不是完整可用的安全执行器。涉及真正复制上游代码时，应保留原许可证和版权声明。<button class="evidence-ref" type="button" data-evidence="DRE-26" data-evidence-trigger>许可证</button></p>
-            <p>公开资料尚不能回答：1017 在不同 Harness 版本下的收益分配、实际账号的最低版本配置、所有系统上的沙箱与取消表现，以及保留 REPL 在真实长任务中的成本。</p>
-            <p><a href="/capabilities.html?study=dsh-runtime-evolution">完整证据与待验证问题</a> · <a href="/capabilities/dsh-runtime-evolution.json">结构化来源与文件哈希</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.1">rc.1 累积发布说明</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2">rc.2 发布说明</a></p>
-            <p>模型背景：<a href="https://x.com/DeepSeekHarness/status/2111376365497077958">官方关于训练期 Harness 优化的说明</a> · <a href="https://api-docs.deepseek.com/updates/">DeepSeek API 更新日志</a>。X 声明通过搜索核对；没有据此推测未披露的具体训练配方。</p>
+            <h2>自研实现顺序</h2>
+            <p><strong>单次工具桥接 → 明确输出 → 取消与 drain → owner-scoped 内存 → 动态授权与多 Agent 等待。</strong>持久 REPL 放在后面：它省下重复计算，也放大每一个生命周期漏洞。</p>
+            <details class="study-notes" id="acceptance-tests"><summary>20 项自研验收用例</summary>
+              <p>以下是推导出的测试清单，未作为 DSH 运行测试执行。记录 Prompt/schema、调用 ID、权限/cwd 快照、终止原因和外部最终状态。</p>
+              <div class="article-table-wrap"><table class="article-table"><thead><tr><th>制造的情况</th><th>验收重点</th></tr></thead><tbody>
+                <tr><td>函数体与 REPL 都写顶层 return</td><td>行为匹配各自说明，报错明确</td></tr>
+                <tr><td>工具返回大对象，只输出一字段</td><td>模型输出受控，审计仍完整；单独核对附加 content</td></tr>
+                <tr><td>catch 工具异常后继续调用</td><td>保留错误类型与工具名，后续可执行</td></tr>
+                <tr><td>只脱敏展示 content</td><td>检查原始 canonical value 是否仍可访问</td></tr>
+                <tr><td>并发分类器缺省、抛错、返回无效值</td><td>全部回退独占</td></tr>
+                <tr><td>修改变量后抛普通异常</td><td>状态保留/清空规则明确</td></tr>
+                <tr><td>取消、超时或输出溢出后再运行</td><td>失效环境不复用，重置可见</td></tr>
+                <tr><td>同 owner 与跨 owner 并发</td><td>同 owner 策略明确，跨 owner 不串堆状态</td></tr>
+                <tr><td>保存 wrapper 后替换/删除工具</td><td>使用新 binding 或拒绝</td></tr>
+                <tr><td>旧回调跨轮调用工具</td><td>拒绝调用；原始子进程输出另测</td></tr>
+                <tr><td>普通 → 临时提权 → 普通</td><td>不跨域继承堆内存</td></tr>
+                <tr><td>写入中收紧沙箱模式</td><td>旧调用收尾后才准入新调用</td></tr>
+                <tr><td>远端接受写入后断开</td><td>未知结果有记录，可幂等恢复或 readback</td></tr>
+                <tr><td>准备、压缩、重试期间切 cwd</td><td>请求与工具各用正确快照</td></tr>
+                <tr><td>父级 idle，后代或消息仍推进</td><td>不提前退出</td></tr>
+                <tr><td>子树 parked；等待时用户发消息</td><td>不永久等待，续轮重新检查输入</td></tr>
+                <tr><td>流忽略 abort，return 也不结束</td><td>截止仍有效，允许后续重试</td></tr>
+                <tr><td>可选扩展失败 / 权限检查失败</td><td>前者降级，后者拒绝</td></tr>
+                <tr><td>插件安装成功、激活失败</td><td>磁盘与运行版本、重启需求可区分</td></tr>
+                <tr><td>存储卸载时 Agent 还在结束</td><td>保留末尾事件，再关记录通道</td></tr>
+              </tbody></table></div>
+            </details>
+            <details class="study-notes" id="model-performance"><summary>这能解释“1017 最大性能”吗？</summary>
+              <p>官方称训练期针对 Harness 优化，但没有公开同一模型切换新旧 Harness 的消融。rc.2 的 1017 标签是 display-only；账号目录支持最低客户端版本门禁，但未取得 1017 的实际配置，也不能泛化到 API Key 路由。<button class="evidence-ref" type="button" data-evidence="DRE-24 DRE-25" data-evidence-trigger>模型与版本门禁</button></p>
+              <p><a href="https://x.com/DeepSeekHarness/status/2111376365497077958">官方声明</a> · <a href="https://api-docs.deepseek.com/updates/">API 更新日志</a></p>
+            </details>
+            <details class="study-notes" id="sources"><summary>来源、版本与验证范围</summary>
+              <p>固定比较 <code>639ed015</code>（0.2.0-rc.2）至 <code>687f282e</code>（0.2.1-rc.2），主阅读版本 <code>1600d8a1</code>（rc.1）。40 条证据均附完整提交、行号与文件哈希；中间 alpha 用于定位变化。仓库采用 MIT 许可证。<button class="evidence-ref" type="button" data-evidence="DRE-26" data-evidence-trigger>许可</button></p>
+              <p>仅做源码差分与上游测试源码审读，未运行 DSH、上游测试、真实模型、性能基准或跨平台沙箱实验。图和代码为机制示意。保留内存不是 durable checkpoint，取消不是外部副作用回滚，正常 teardown 也不是断电恢复保证。</p>
+              <p><a href="/capabilities.html?study=dsh-runtime-evolution">证据与待验证问题</a> · <a href="/capabilities/dsh-runtime-evolution.json">结构化来源与哈希</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.1">rc.1 发布说明</a> · <a href="https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.1-rc.2">rc.2 发布说明</a></p>
+            </details>
           </section>
         </article>
       </div>
-      <nav class="article-next" aria-label="相关研究"><a href="/guides/code-mode.html"><span>继续阅读</span><strong>Code Mode：用程序连接工具</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
+      <nav class="article-next" aria-label="相关研究"><a href="/guides/code-mode.html"><span>基础概念</span><strong>Code Mode：用程序连接工具</strong><i data-lucide="arrow-right" aria-hidden="true"></i></a></nav>
     </main>
   </div>
   <div id="articleEvidenceBackdrop" class="article-evidence-backdrop" hidden></div>

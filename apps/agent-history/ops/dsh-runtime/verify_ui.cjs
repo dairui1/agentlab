@@ -24,7 +24,8 @@ async function main() {
       const name = `${width}-${colorScheme}`;
       await page.goto(`${base}/capabilities/dsh-runtime-evolution.html`, { waitUntil: "networkidle" });
       await page.locator(".brand-mark img").evaluate((img) => img.decode());
-      assert.equal(await page.locator("[data-article-section]").count(), 12);
+      assert.equal(await page.locator("[data-article-section]").count(), 7);
+      assert.equal(await page.locator(".study-notes[open]").count(), 0);
       await noOverflow(page, name);
       await page.screenshot({ path: path.join(output, `${name}-top.png`) });
       await page.locator("#contract .source-code").first().scrollIntoViewIfNeeded();
@@ -41,6 +42,8 @@ async function main() {
       await page.keyboard.press("Escape");
       await page.locator('#articleEvidence[aria-hidden="true"]').waitFor();
       assert.equal(await trigger.evaluate((node) => node === document.activeElement), true);
+      await page.locator("#acceptance-tests > summary").click();
+      assert.equal(await page.locator("#acceptance-tests").getAttribute("open"), "");
       await page.locator("#build table").scrollIntoViewIfNeeded();
       assert.equal(await page.locator("#build tbody tr").count(), 20);
       await noOverflow(page, `${name}-tests`);
@@ -61,11 +64,18 @@ async function main() {
     assert.match(await page.locator("#articleEvidenceKicker").textContent(), /DRE-29/);
     await page.goto(`${base}/guides/dsh-runtime-evolution.html`, { waitUntil: "networkidle" });
     await page.waitForURL(/capabilities\/dsh-runtime-evolution(?:\.html)?(?:\?|$)/);
+    await page.goto(`${base}/capabilities/dsh-runtime-evolution.html#sources`, { waitUntil: "networkidle" });
+    assert.equal(await page.locator("#sources").getAttribute("open"), "");
+    assert.equal(await page.locator("#sources a").first().isVisible(), true);
+    await page.goto(`${base}/capabilities/dsh-runtime-evolution.html#acceptance-tests`, { waitUntil: "networkidle" });
+    assert.equal(await page.locator("#acceptance-tests").getAttribute("open"), "");
     await page.close();
     const noJs = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
     await noJs.goto(`${base}/capabilities/dsh-runtime-evolution.html`);
-    assert.equal(await noJs.locator("[data-article-section]").count(), 12);
+    assert.equal(await noJs.locator("[data-article-section]").count(), 7);
+    await noJs.locator("#sources > summary").click();
     assert.equal(await noJs.locator('a[href="/capabilities/dsh-runtime-evolution.json"]').count(), 1);
+    assert.equal(await noJs.locator('a[href="/capabilities/dsh-runtime-evolution.json"]').isVisible(), true);
     await noOverflow(noJs, "no-js");
     await noJs.close();
     const report = { base, checkedAt: new Date().toISOString(), results, catalog: true, deepLink: true, redirect: true, noJs: true };

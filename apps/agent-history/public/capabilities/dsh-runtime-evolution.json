@@ -1,8 +1,8 @@
 {
   "id": "dsh-runtime-evolution",
   "title": "DSH 0.2.1：自研 Harness 的运行时设计参考",
-  "subtitle": "Code Mode 的执行合同、状态寿命与取消收尾",
-  "description": "从固定发布标签比较 DeepSeek Harness 近期改动，重点研究有状态 Code Mode、工具权限、三种结果通道、动态环境、子 Agent 等待与插件生命周期。",
+  "subtitle": "Code Mode 的五个关键设计",
+  "description": "持久 REPL 怎样保留状态、更新授权、分离结果并取消收尾；附自研验收清单与固定源码。",
   "verifiedAt": "2026-10-17",
   "status": "active",
   "source": {

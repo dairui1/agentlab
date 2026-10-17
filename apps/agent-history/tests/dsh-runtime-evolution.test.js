@@ -80,8 +80,12 @@ test("DSH article references all evidence and keeps section and inspector wiring
   const anchors = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
   assert.equal(new Set(anchors).size, anchors.length, "Duplicate HTML id");
   const sections = [...html.matchAll(/<section id="([^"]+)" data-article-section/g)].map((match) => match[1]);
-  for (const section of ["scope", "contract", "state", "authority", "results", "cancellation", "context", "subagents", "lifecycle", "provider", "build", "sources"]) {
-    assert.ok(sections.includes(section), `Missing article section: ${section}`);
+  assert.deepEqual(sections, ["contract", "state", "authority", "results", "cancellation", "other", "build"]);
+  for (const anchor of ["scope", "context", "subagents", "lifecycle", "provider", "sources"]) {
+    assert.ok(anchors.includes(anchor), `Missing previously published anchor: ${anchor}`);
+  }
+  for (const id of ["acceptance-tests", "model-performance", "sources"]) {
+    assert.match(html, new RegExp(`<details class="study-notes" id="${id}">`), `${id} should be collapsed initially`);
   }
   for (const [, id] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(anchors.includes(id), `Missing anchor: ${id}`);
   assert.match(html, /data-evidence-source="\/capabilities\/dsh-runtime-evolution\.json"/);
