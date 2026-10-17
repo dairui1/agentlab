@@ -1,0 +1,837 @@
+{
+  "id": "dsh-runtime-evolution",
+  "title": "DSH 0.2.1：自研 Harness 的运行时设计参考",
+  "subtitle": "Code Mode 的执行合同、状态寿命与取消收尾",
+  "description": "从固定发布标签比较 DeepSeek Harness 近期改动，重点研究有状态 Code Mode、工具权限、三种结果通道、动态环境、子 Agent 等待与插件生命周期。",
+  "verifiedAt": "2026-10-17",
+  "status": "active",
+  "source": {
+    "repository": "deepseek-ai/deepseek-harness",
+    "revision": "1600d8a1e140dcde43a1a0941940a0480712c011",
+    "release": "dsh-v0.2.1-rc.1",
+    "license": "MIT",
+    "evidenceClass": "official-source-static-diff",
+    "trackingMode": "fixed-release-comparison",
+    "runtimeExperiment": "not-run",
+    "upstreamTests": "inspected-not-run",
+    "historyBoundary": "缓存包含发布标签的浅快照；本文使用 tree-to-tree diff，不声称恢复完整开发提交历史。firstObservedVersion 表示已核对的最早发布标签，不是首次实现时间。",
+    "versions": [
+      {
+        "tag": "dsh-v0.2.0-rc.2",
+        "revision": "639ed015397290b3745d163aafe02ffee4aa3f84"
+      },
+      {
+        "tag": "dsh-v0.2.1-alpha.1",
+        "revision": "5badb15009ae1756c3afe0ae0cef1faafc290ccc"
+      },
+      {
+        "tag": "dsh-v0.2.1-alpha.2",
+        "revision": "d743267388641bc76f17c45ce8b4c231aed1d32c"
+      },
+      {
+        "tag": "dsh-v0.2.1-alpha.3",
+        "revision": "2fbf4359b82fb94c03dcce0b831660d87f12ea5c"
+      },
+      {
+        "tag": "dsh-v0.2.1-alpha.4",
+        "revision": "86a402200d95fecef4529d969836f1fe13c6cb0d"
+      },
+      {
+        "tag": "dsh-v0.2.1-alpha.5",
+        "revision": "1517a4dbca0a2789ff1d41ba439600f8547d23fa"
+      },
+      {
+        "tag": "dsh-v0.2.1-rc.1",
+        "revision": "1600d8a1e140dcde43a1a0941940a0480712c011"
+      },
+      {
+        "tag": "dsh-v0.2.1-rc.2",
+        "revision": "687f282e8625c6b8d11ff58211a90524be2e4317"
+      }
+    ]
+  },
+  "boundary": "固定源码差分与上游测试源码审读。未运行 DSH、上游测试、真实模型、基准或跨平台沙箱实验；本站来源校验和网页测试只验证材料与展示。所有自研伪代码和验收矩阵均为原创建议。",
+  "unknowns": [
+    {
+      "id": "DRE-KU-01",
+      "title": "1017 模型与 Harness 各贡献多少收益",
+      "text": "训练期适配有官方声明，未找到固定同一模型、只切换 Harness 版本的公开消融。",
+      "needed": "固定模型、任务、预算、配置和随机种子，对比成功率、时间、输出与调用成本。"
+    },
+    {
+      "id": "DRE-KU-02",
+      "title": "取消与权限竞态的实际覆盖",
+      "text": "测试源码描述了失效和收尾规则，但本次没有执行竞态、攻击或跨平台实验。",
+      "needed": "受控环境中交错策略切换、工具更新、进程退出与下一轮准入，记录全部事件与副作用。"
+    },
+    {
+      "id": "DRE-KU-03",
+      "title": "文件沙箱之外的隔离范围",
+      "text": "Node 执行环境与工具授权不等于所有网络、系统资源和第三方工具都已隔离。",
+      "needed": "明确 OS、运行账号、网络策略和 provider，在无生产凭据环境验证实际可达范围。"
+    },
+    {
+      "id": "DRE-KU-04",
+      "title": "进程重启后的工作恢复",
+      "text": "in-memory 状态不是 durable checkpoint；收尾测试不证明突然断电或根上下文并发销毁无损。",
+      "needed": "分别测试进程崩溃、写入未完成、持久化失败和完整恢复，核对日志与外部现实。"
+    },
+    {
+      "id": "DRE-KU-05",
+      "title": "不合作的第三方工具如何收尾",
+      "text": "忽略取消的工具或已经接受请求的外部服务，不会被一个 abort 自动撤销。",
+      "needed": "注入不返回和回执丢失，验证截止条件、幂等键、未知结果记录与 readback。"
+    },
+    {
+      "id": "DRE-KU-06",
+      "title": "持久状态与稳定前缀的实际成本",
+      "text": "源码解释了复用与前缀稳定性，但未量化内存、缓存命中、重复声明错误和长任务成本。",
+      "needed": "按 per-call/persistent、任务长度和插件规模分组采集性能与失败分布。"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "DRE-01",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "旧版已约定函数体和显式输出",
+      "statement": "0.2.0-rc.2 的 SDK instructions 已将 run_code 描述为 async TypeScript function body，支持顶层 await/return，并说明打印与返回值才成为程序输出。",
+      "artifact": "packages/core/tools/src/ts-types.ts",
+      "revision": "639ed015397290b3745d163aafe02ffee4aa3f84",
+      "lineStart": 249,
+      "lineEnd": 264,
+      "changeClass": "existing-foundation",
+      "boundary": "不能把 alpha.5 恢复函数体细节描述成相对 0.2.0 首次支持 return。",
+      "sha256": "473562e67f2282579b2abb451acee759e2d2af681a051690c4980af4459016e1",
+      "locator": "L249-L264 · 639ed015",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/core/tools/src/ts-types.ts#L249-L264"
+      }
+    },
+    {
+      "id": "DRE-02",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "根据运行时形式生成 SDK 说明与示例",
+      "statement": "renderSdkInstructions、renderSdkProgramInstructions 和 renderBashExample 接收 function-body/repl，分别选择 return 或 console.log 的说明与示例。",
+      "artifact": "packages/core/tools/src/ts-types.ts",
+      "lineStart": 249,
+      "lineEnd": 296,
+      "changeClass": "contract-repair",
+      "firstObservedVersion": "0.2.1-alpha.5",
+      "boundary": "这是模型可见合同的修复，未测量模型工具成功率；类型声明不等于运行时类型检查。",
+      "sha256": "1211fbc8ee3ae7817e64629da9c587acdf31aafafbea6c07880d9e012871ea09",
+      "locator": "L249-L296 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/ts-types.ts#L249-L296"
+      }
+    },
+    {
+      "id": "DRE-03",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "PTC 按作用域生成入口说明与工具 SDK",
+      "statement": "tools:ptc-only 根据当前 scope 的模式添加入口限制说明；tools:sdk 在非 native 模式下按运行时语言和 programFormat 渲染该 scope 的工具 SDK。",
+      "artifact": "packages/core/tools/src/index.ts",
+      "lineStart": 879,
+      "lineEnd": 916,
+      "changeClass": "mode-consolidation",
+      "firstObservedVersion": "0.2.1-alpha.2",
+      "boundary": "本范围证明模型说明生成，执行拒绝与 wire schemas 另见 DRE-36、DRE-38；完整 SDK 仍占用 Prompt，不能据此宣称按需加载或 schema token 下降。",
+      "sha256": "398bcdeb221e450d088510830b77d99a513e65ab31e40ade71688a19cdf5e6aa",
+      "locator": "L879-L916 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/index.ts#L879-L916"
+      }
+    },
+    {
+      "id": "DRE-04",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "保留内存是可选项，默认仍为 per-call",
+      "statement": "NodeConfig 提供 per-call 和 persistent-in-memory，默认 per-call；同时定义时间、输出、堆、消息和待处理调用上限。",
+      "artifact": "packages/ptc-runtime/ptc-runtime-node/src/config.ts",
+      "lineStart": 7,
+      "lineEnd": 40,
+      "changeClass": "new-state-lifetime",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "配置默认不代表用户的实际 profile；V8 堆限制不覆盖所有原生分配。",
+      "sha256": "84f03c6f67c3757bb8bc454f64c02e20c1e51fd0abd33f11377715019ce86ff2",
+      "locator": "L7-L40 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/ptc-runtime/ptc-runtime-node/src/config.ts#L7-L40"
+      }
+    },
+    {
+      "id": "DRE-05",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "桥接把保留状态绑定到 live Agent",
+      "statement": "桥接为 Agent 注册 runtime.release(agent)，按精确 runtime provider 去重清理；正常策略调用把 Agent 对象作为 stateOwner。",
+      "artifact": "packages/core/tools/src/ptc.ts",
+      "lineStart": 696,
+      "lineEnd": 734,
+      "changeClass": "new-state-lifetime",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "owner 不是可恢复的 Session ID；重启后不会据此重建堆内存。",
+      "sha256": "6f7fbc75413f53196fbf5c7d78884939cb12905b2a5f09741d03d632b84d7ab4",
+      "locator": "L696-L734 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/ptc.ts#L696-L734"
+      }
+    },
+    {
+      "id": "DRE-06",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Kernel 复用依赖精确 owner，清理之后才释放",
+      "statement": "InMemoryExecution.run 按 owner 寻找 Kernel，同 owner 的重叠运行经 assertIdle 拒绝；无 owner 创建临时执行环境，release 等待进程清理再移除归属。",
+      "artifact": "packages/ptc-runtime/ptc-runtime-node/src/persistent.ts",
+      "lineStart": 331,
+      "lineEnd": 374,
+      "changeClass": "new-state-lifetime",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "不能从对象隔离推出宿主机所有资源隔离，也不是对话历史的 durable 恢复。",
+      "sha256": "39bedd52520d335db7183d320e732879e6f966a9724c30e62e3c74ca15147e85",
+      "locator": "L331-L374 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/ptc-runtime/ptc-runtime-node/src/persistent.ts#L331-L374"
+      }
+    },
+    {
+      "id": "DRE-07",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "普通异常和中断有不同的状态后果",
+      "statement": "持久运行时测试覆盖 owner 隔离、并发拒绝、普通报错保留已发生修改，以及取消、超时等清空状态的情况。",
+      "artifact": "packages/ptc-runtime/ptc-runtime-node/tests/persistent.spec.ts",
+      "lineStart": 148,
+      "lineEnd": 225,
+      "changeClass": "new-state-lifetime",
+      "evidenceLabel": "上游测试源码，未运行",
+      "boundary": "只审读测试及对应实现，不将测试文件存在等同本轮已通过；外部副作用不会随内存清空回滚。",
+      "sha256": "d54c309b9053b0935b2b599260bcdcb3016d3c1a360a28bef0a2e53e5d772dab",
+      "locator": "L148-L225 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/ptc-runtime/ptc-runtime-node/tests/persistent.spec.ts#L148-L225"
+      }
+    },
+    {
+      "id": "DRE-08",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "旧工具 wrapper 使用新 bindings，旧回调不能借新轮执行权",
+      "statement": "测试验证保存 tools.value 后，新一轮替换或移除 binding 会影响旧 wrapper；上一轮异步回调不能在后来一轮继续调用工具。",
+      "artifact": "packages/ptc-runtime/ptc-runtime-node/tests/persistent.spec.ts",
+      "lineStart": 60,
+      "lineEnd": 124,
+      "changeClass": "new-state-lifetime",
+      "evidenceLabel": "上游测试源码，未运行",
+      "boundary": "约束的是工具 binding 调用，不等于所有 Node 后台活动或原始子进程输出都被同样归属隔离。",
+      "sha256": "d54c309b9053b0935b2b599260bcdcb3016d3c1a360a28bef0a2e53e5d772dab",
+      "locator": "L60-L124 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/ptc-runtime/ptc-runtime-node/tests/persistent.spec.ts#L60-L124"
+      }
+    },
+    {
+      "id": "DRE-09",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "临时提权不带入常驻 stateOwner",
+      "statement": "实际策略与 standing policy 不同时省略 stateOwner；运行请求使用调用开始时捕获的 cwd，完成后仍要 abort 并排空嵌套工具。",
+      "artifact": "packages/core/tools/src/ptc.ts",
+      "lineStart": 715,
+      "lineEnd": 745,
+      "changeClass": "new-state-lifetime",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "临时环境隔离不撤销磁盘或网络副作用；目录切换不等于更改权限根目录。",
+      "sha256": "6f7fbc75413f53196fbf5c7d78884939cb12905b2a5f09741d03d632b84d7ab4",
+      "locator": "L715-L745 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/ptc.ts#L715-L745"
+      }
+    },
+    {
+      "id": "DRE-10",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "旧版已有类型化值、工具异常和输出筛选",
+      "statement": "Python SDK instructions 说明 tools 返回 canonical JSON，失败抛 ToolCallError，可用 asyncio.gather 提交独立只读调用；print/return 成为程序输出，含图片的成功工具结果在运行后附加。",
+      "artifact": "packages/core/tools/src/py-types.ts",
+      "revision": "639ed015397290b3745d163aafe02ffee4aa3f84",
+      "lineStart": 733,
+      "lineEnd": 749,
+      "changeClass": "existing-foundation",
+      "boundary": "这是旧版模型说明，不是本轮运行结果；当前整份 content 附加及外层失败边界另见 DRE-35、DRE-40。TypedDict 是静态说明，不是运行时可实例化类。",
+      "sha256": "aa912e3f9e5ea1024600f0598f29de46c9308fd2774886576ba1f07ce81488ec",
+      "locator": "L733-L749 · 639ed015",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/639ed015397290b3745d163aafe02ffee4aa3f84/packages/core/tools/src/py-types.ts#L733-L749"
+      }
+    },
+    {
+      "id": "DRE-11",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "嵌套工具的展示元数据独立记录",
+      "statement": "PtcDispatchEventData 新增可选 meta，作为工具拥有的可回放展示元数据，与模型 content 和错误元信息分开；子调用事件不自动重入模型历史。",
+      "artifact": "packages/core/tools/src/types.ts",
+      "lineStart": 17,
+      "lineEnd": 60,
+      "changeClass": "nested-presentation",
+      "firstObservedVersion": "0.2.1-alpha.2",
+      "boundary": "记录元数据不等于强持久化或运行审计已验证；不应将 rendered content 当成程序唯一可见值。",
+      "sha256": "26c2c9ac831526d9bcefe5ee3b9b1a6a8ca313d43efffe579670366790539bb6",
+      "locator": "L17-L60 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/types.ts#L17-L60"
+      }
+    },
+    {
+      "id": "DRE-12",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "沙箱模式改变会取消整次调用并等待前任收尾",
+      "statement": "PtcCalls 监听 sandbox/mode，取消旧模式调用；run 等待已取消的前任 done，再读取新 mode 并准入；工具注册表销毁时等待所有跟踪调用结束。",
+      "artifact": "packages/core/tools/src/ptc-calls.ts",
+      "lineStart": 16,
+      "lineEnd": 63,
+      "changeClass": "policy-lifecycle",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "abort 不能撤销已经发生的外部动作，忽略取消的第三方工具仍需要独立截止和结果核对。",
+      "sha256": "c27670b601c3e5a053b3d954ee5173dae9791798c5390584425b84ccd66517e6",
+      "locator": "L16-L63 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/ptc-calls.ts#L16-L63"
+      }
+    },
+    {
+      "id": "DRE-13",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "运行时进程也按策略失效，包含闲置保留进程",
+      "statement": "PolicyProcesses 跟踪策略所属进程，策略变化触发失效与清理，并为后续进程准入等待被取消前任；不是只改工具层配置。",
+      "artifact": "packages/ptc-runtime/ptc-runtime-node/src/policy-processes.ts",
+      "lineStart": 16,
+      "lineEnd": 78,
+      "changeClass": "policy-lifecycle",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "文件沙箱进程管理不说明网络和全部系统资源的隔离；具体 OS 行为未运行验证。",
+      "sha256": "3f323a64ba7b859f0979267f1ee3fba500f723f0ba772db4af49f61c74dd1936",
+      "locator": "L16-L78 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/ptc-runtime/ptc-runtime-node/src/policy-processes.ts#L16-L78"
+      }
+    },
+    {
+      "id": "DRE-14",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "有效 cwd 属于 Session 的必需动态上下文",
+      "statement": "working-directory 服务注册 required 的 current cwd context；状态由 Session 事件和 projection 提供，不把 cwd 当可选 system prompt 模板值。",
+      "artifact": "packages/session/working-directory/src/index.ts",
+      "lineStart": 83,
+      "lineEnd": 110,
+      "changeClass": "dynamic-context",
+      "firstObservedVersion": "0.2.1-alpha.2",
+      "boundary": "session.header.cwd、有效 cwd 和沙箱权限根目录是不同概念；已经运行的进程不会跟着切目录。",
+      "sha256": "5d8b57ba56fe96f73713f66805342ca5690df50fb530b41846abc7d3d4447fbd",
+      "locator": "L83-L110 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/session/working-directory/src/index.ts#L83-L110"
+      }
+    },
+    {
+      "id": "DRE-15",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "准备请求之后再刷新动态事实",
+      "statement": "Agent loop 每次 await prepareRequest 之后刷新 runtime context，再构造发往模型的请求；buildRequest 保持 assembly 中已组装的 tools。",
+      "artifact": "packages/core/agent-loop/src/agent.ts",
+      "lineStart": 400,
+      "lineEnd": 442,
+      "changeClass": "admission-refresh",
+      "boundary": "不是每轮重建整个 system prompt 或工具目录；未测量实际缓存命中率。",
+      "sha256": "4add12f5c22bb1b8cf1dbc239c9b09fa3351feff2c936cb2b8900036468bd01b",
+      "locator": "L400-L442 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/agent-loop/src/agent.ts#L400-L442"
+      }
+    },
+    {
+      "id": "DRE-16",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "子任务工具统一启动 activation 并返回身份",
+      "statement": "工具通过统一 startActivation 启动子 Agent 并返回 id，具体运行、等待与释放由子任务管理器负责。",
+      "artifact": "packages/subagent/tool-subagent/src/index.ts",
+      "lineStart": 338,
+      "lineEnd": 346,
+      "changeClass": "subagent-consolidation",
+      "boundary": "standard preset 之前已有可继续后台子任务；统一管理不等于首次获得并行能力。",
+      "sha256": "11d0011edc86fb51e219a612e53c7bbc11b4adea3832cf02d3ffc9393db04095",
+      "locator": "L338-L346 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/subagent/tool-subagent/src/index.ts#L338-L346"
+      }
+    },
+    {
+      "id": "DRE-17",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Host wait 区分推进中子树与 parked inbox",
+      "statement": "waitForChildren 扫描运行和创建中的子任务，等待推进中的后代并重扫；仅 idle 加 parked inbox 不阻塞宿主完成，也不伪造子任务结果。",
+      "artifact": "packages/subagent/subagent/src/manager.ts",
+      "lineStart": 247,
+      "lineEnd": 289,
+      "changeClass": "host-wait",
+      "boundary": "不证明跨进程持久 mailbox 或所有结果强持久化；子 settlement 中 final flush 是 best effort。",
+      "sha256": "87298342da27dd567897bd23145fdec7d841e1f26a4e6b5dfa9a48b0b477d03e",
+      "locator": "L247-L289 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/subagent/subagent/src/manager.ts#L247-L289"
+      }
+    },
+    {
+      "id": "DRE-18",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Goal 预约新轮之前等待子任务并重新判断资格",
+      "statement": "Goal 自动续轮在 reserve 前等待 progressing children，并重新检查状态；测试覆盖等待时零新请求、人类输入优先、暂停与卸载。",
+      "artifact": "packages/goal/goal-round-driver/tests/goal-round-driver.spec.ts",
+      "lineStart": 945,
+      "lineEnd": 1009,
+      "changeClass": "goal-wait",
+      "evidenceLabel": "上游测试源码，未运行",
+      "boundary": "保护的是 Goal 轮次，不能改称新增全任务树 token 预算机制；本次未执行这些测试。",
+      "sha256": "c953e20fd4ba10e518514560c7893b07efadd853a39dd8c7d2d43d00b565d745",
+      "locator": "L945-L1009 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/goal/goal-round-driver/tests/goal-round-driver.spec.ts#L945-L1009"
+      }
+    },
+    {
+      "id": "DRE-19",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "已安装包替换需要计算受影响运行时",
+      "statement": "HMR 对已加载包文件建立替换计划，处理静态依赖反向闭包，保留 host-module 或 unmanaged-plugin 等无法热替换的 pending 原因。",
+      "artifact": "packages/boot/hmr/src/index.ts",
+      "lineStart": 808,
+      "lineEnd": 880,
+      "changeClass": "installed-package-reload",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "旧版已有开发态 HMR；本次不是第一次引入热加载，也不保证全部依赖零停机更新。",
+      "sha256": "acea180d2f2dcd386aa80c4676025364db64f271436cc1a0558e520d78c1b944",
+      "locator": "L808-L880 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/boot/hmr/src/index.ts#L808-L880"
+      }
+    },
+    {
+      "id": "DRE-20",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "包替换失败与开发源码回滚不是一条路径",
+      "statement": "profile recomposition 驱逐过期模块与映射，重新加载并记录应用、失败或待重启结果；已安装包替换路径不保留旧缓存作为自动回滚承诺。",
+      "artifact": "packages/boot/hmr/src/index.ts",
+      "lineStart": 912,
+      "lineEnd": 982,
+      "changeClass": "installed-package-reload",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "不能称为原子更新、零停机或任何错误均自动回退；需要区分磁盘版本与实际激活状态。",
+      "sha256": "acea180d2f2dcd386aa80c4676025364db64f271436cc1a0558e520d78c1b944",
+      "locator": "L912-L982 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/boot/hmr/src/index.ts#L912-L982"
+      }
+    },
+    {
+      "id": "DRE-21",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "卸载存储时仍要接住消费者最后的事件",
+      "statement": "测试阻塞消费者 teardown，确认 JSONL provider 尚未卸载且监听仍在；放行后核对最后事件、旧 handle 关闭和 provider 重启。",
+      "artifact": "packages/session/session-persistence-jsonl/tests/teardown-loader.e2e.ts",
+      "lineStart": 17,
+      "lineEnd": 126,
+      "changeClass": "teardown-order",
+      "evidenceLabel": "上游测试源码，未运行",
+      "boundary": "不证明断电无损；并发 root disposal 不提供相同依赖顺序保证。本次只审读测试。",
+      "sha256": "d5eba20300e1fd032b6686b7ebcb0ca684372462ddda94d370353a26b06cc297",
+      "locator": "L17-L126 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/session/session-persistence-jsonl/tests/teardown-loader.e2e.ts#L17-L126"
+      }
+    },
+    {
+      "id": "DRE-22",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "取消后的 iterator 清理不能再次卡住请求",
+      "statement": "DeepSeek adapter abort 后不 await 尚未结束的 iterator.return，避免底层 read 不响应取消导致 finally 永久等待。",
+      "artifact": "packages/llm/llm-deepseek/src/adapter.ts",
+      "lineStart": 65,
+      "lineEnd": 87,
+      "changeClass": "transport-reliability",
+      "boundary": "不表示所有远端工作已经停止，不能无条件重放有副作用的完整程序。",
+      "sha256": "40aa0cc4730d9dc31c66e1e62e84dcaba787b4f6fa956fd6c2185f799bb538c7",
+      "locator": "L65-L87 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/llm/llm-deepseek/src/adapter.ts#L65-L87"
+      }
+    },
+    {
+      "id": "DRE-23",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "可选扩展字段准备失败可以局部降级",
+      "statement": "注册表逐项准备扩展字段；prepare 抛错或结果无法复制时省略该项，非取消情况下按字段首次告警，成功值复制并冻结。调用取消仍可拒绝整次准备。",
+      "artifact": "packages/llm/deepseek-llm-api-extensions/src/index.ts",
+      "lineStart": 103,
+      "lineEnd": 139,
+      "changeClass": "optional-extension-reliability",
+      "boundary": "这里只覆盖注册表准备路径；字段冲突、序列化与 accept 的适配器处理见 DRE-39。安全校验与必需模型字段不属于可随意省略的数据。",
+      "sha256": "bda2206d97137d5761e17a39bdfbd0e9000d0a9191bf8c909b47be81e99f1fbd",
+      "locator": "L103-L139 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/llm/deepseek-llm-api-extensions/src/index.ts#L103-L139"
+      }
+    },
+    {
+      "id": "DRE-24",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "账号模型目录包含能力和最低客户端版本",
+      "statement": "listing 解析 api_capabilities.anthropic_messages 与 client_requirements 中的最低客户端版本，用于构建模型能力目录。",
+      "artifact": "packages/llm/llm-deepseek-account/src/listing.ts",
+      "lineStart": 74,
+      "lineEnd": 109,
+      "changeClass": "remote-model-capabilities",
+      "firstObservedVersion": "0.2.1-alpha.3",
+      "boundary": "没有实际 1017 目录响应，不能断言具体最低版本；账号路由门禁不能泛化到 API Key 路由。",
+      "sha256": "9b079b0b4507fe8196f12f2e9c95f5efa9ef64139a10da308bca8526c0e028f9",
+      "locator": "L74-L109 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/llm/llm-deepseek-account/src/listing.ts#L74-L109"
+      }
+    },
+    {
+      "id": "DRE-25",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "1017 模型标签只改显示",
+      "statement": "DeepSeekModelLabel 文件说明为 display-only release marking，catalog 与 selected route 不变；组件匹配官方 deepseek-flash 显示名后附加标签。",
+      "artifact": "packages/client/ui-deepseek-model-label-1017/src/client/DeepSeekModelLabel.tsx",
+      "revision": "687f282e8625c6b8d11ff58211a90524be2e4317",
+      "lineStart": 1,
+      "lineEnd": 22,
+      "changeClass": "release-label",
+      "firstObservedVersion": "0.2.1-rc.2",
+      "boundary": "不能据标签推断模型路由、能力声明、权重差异或性能提升。",
+      "sha256": "d8996b887891bdc06a365041ca4576f3ea8a510644e331abb8be0eb1d8f12b18",
+      "locator": "L1-L22 · 687f282e",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/packages/client/ui-deepseek-model-label-1017/src/client/DeepSeekModelLabel.tsx#L1-L22"
+      }
+    },
+    {
+      "id": "DRE-26",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "固定源码采用 MIT 许可证",
+      "statement": "LICENSE 声明 MIT License，版权属于 DeepSeek；复制或分发相应软件时需保留版权和许可声明。",
+      "artifact": "LICENSE",
+      "lineStart": 1,
+      "lineEnd": 21,
+      "changeClass": "source-provenance",
+      "boundary": "本记录说明固定仓库文本，不替代对实际依赖和分发内容的许可证审计。",
+      "sha256": "ebb4f09972aee8608be255debaf78451a68e95c290f55c240dec2ecfa16ea6be",
+      "locator": "L1-L21 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/LICENSE#L1-L21"
+      }
+    },
+    {
+      "id": "DRE-27",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "显示内容脱敏不自动替换程序值",
+      "statement": "post-execute 拒绝同时替换 content 和 value；替换 value 会重建成功结果，单独替换 content 则保留原 result 的其余字段，包括程序可读取的 canonical value。",
+      "artifact": "packages/core/tools/src/index.ts",
+      "lineStart": 1789,
+      "lineEnd": 1827,
+      "changeClass": "existing-foundation",
+      "boundary": "本范围没有独立 meta 替换分支。若目的是阻止代码访问原数据，应拒绝执行或按约定替换 canonical value，不能只处理日志文本。",
+      "sha256": "398bcdeb221e450d088510830b77d99a513e65ab31e40ade71688a19cdf5e6aa",
+      "locator": "L1789-L1827 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/index.ts#L1789-L1827"
+      }
+    },
+    {
+      "id": "DRE-28",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "并行请求仍受顺序化的检查与提交约束",
+      "statement": "PTC scheduler 仅让分类为 parallel 的 body 有界重叠，prepare 与结果 commit 沿同一 driver 保序；exclusive 等待已有调用排空且保持提交屏障，队首启动前重新分类。",
+      "artifact": "packages/core/tools/src/ptc.ts",
+      "lineStart": 417,
+      "lineEnd": 532,
+      "changeClass": "existing-foundation",
+      "boundary": "分类条件另见 DRE-37。Promise.all 不等于所有工具同时执行；有序提交可能产生队头阻塞，也不提供事务回滚。",
+      "sha256": "6f7fbc75413f53196fbf5c7d78884939cb12905b2a5f09741d03d632b84d7ab4",
+      "locator": "L417-L532 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/ptc.ts#L417-L532"
+      }
+    },
+    {
+      "id": "DRE-29",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Node REPL 的能力与失效规则是显式合同",
+      "statement": "InMemoryExecution 的说明包含最终 JSON 表达式输出、模块导入、空初始环境变量、文件策略、变量失效与旧回调限制；原始子进程输出按到达时活跃 evaluation 归属。",
+      "artifact": "packages/ptc-runtime/ptc-runtime-node/src/persistent.ts",
+      "lineStart": 287,
+      "lineEnd": 301,
+      "changeClass": "new-state-lifetime",
+      "boundary": "工具 binding 的 evaluation 隔离不能泛化到所有 Node 后台工作；不是无 Node/网络能力的纯 isolate。",
+      "sha256": "39bedd52520d335db7183d320e732879e6f966a9724c30e62e3c74ca15147e85",
+      "locator": "L287-L301 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/ptc-runtime/ptc-runtime-node/src/persistent.ts#L287-L301"
+      }
+    },
+    {
+      "id": "DRE-30",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "历史投影可过滤无效空消息而不改持久记录",
+      "statement": "serialize 对工具调用与 assistant 内容生成 wire history，过滤空文本及转换后无内容的 assistant 消息，避免 Messages 协议拒绝。",
+      "artifact": "packages/llm/llm-deepseek/src/serialize.ts",
+      "lineStart": 26,
+      "lineEnd": 128,
+      "changeClass": "protocol-projection",
+      "boundary": "序列化适配不代表任意协议互转无损；不应为适配一次请求改写原始 Session 证据。",
+      "sha256": "2a9f9ae77bde951bf9dec21ceec36d87dbeb74e4a9d3f784496f19b55ccbe0a1",
+      "locator": "L26-L128 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/llm/llm-deepseek/src/serialize.ts#L26-L128"
+      }
+    },
+    {
+      "id": "DRE-31",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "实验插件记录与模型历史分开，API 不对外承诺",
+      "statement": "Session 文档限定 appendPluginRecord 为仓库 experimental 包使用，外部插件不应调用；ignorable 记录可随 fork/resume 保留，不成为模型输入，读取数据仍需验证。",
+      "artifact": "packages/core/session/README.md",
+      "lineStart": 66,
+      "lineEnd": 76,
+      "changeClass": "experimental-plugin-records",
+      "firstObservedVersion": "0.2.1-alpha.2",
+      "boundary": "只能借鉴状态分层，不作为第三方稳定 API 教程；迁移保留是 best effort，不是强持久化保证。",
+      "sha256": "f9f43d36c4df64279ca8e1fa1baad1c67cd003c5d79fe26cfe5887057a8ab584",
+      "locator": "L66-L76 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/session/README.md#L66-L76"
+      }
+    },
+    {
+      "id": "DRE-32",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "Headless 完成判断同时检查 idle、子任务与事件序号",
+      "statement": "headless 先等待 Agent idle 并记录 Session seq，再等待子任务；只有没有推进中的子任务、父 Agent 仍 idle 且 seq 未变才退出循环，之后 await Session flush 再汇总输出。",
+      "artifact": "packages/bundle/headless/src/index.ts",
+      "lineStart": 379,
+      "lineEnd": 398,
+      "changeClass": "host-wait",
+      "boundary": "这是一次完成观察窗口的稳定性检查，不保证未来永远没有输入；此处 await flush 与子 activation 的 best-effort final flush 不同。",
+      "sha256": "95c0f91a38f038aaa600c7e09cbab545d59549336d2635e5fa7a8b1f800ec62a",
+      "locator": "L379-L398 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/bundle/headless/src/index.ts#L379-L398"
+      }
+    },
+    {
+      "id": "DRE-33",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "执行结果、清理失败与最终落盘是不同通道",
+      "statement": "activation 尝试并等待 handle 清理后归还容量、尝试通知父 Agent、释放归属，再 settle observer 和 result；清理失败会令 observer 收到 error，但成功捕获的执行 result 仍可 resolve。最终 Session flush 失败仅记录告警。",
+      "artifact": "packages/subagent/subagent/src/manager.ts",
+      "lineStart": 1153,
+      "lineEnd": 1218,
+      "changeClass": "subagent-lifecycle",
+      "boundary": "result resolve 不证明 teardown 成功或状态已持久化；父通知也可能失败，源码没有提供 exactly-once 投递或断电无损保证。",
+      "sha256": "87298342da27dd567897bd23145fdec7d841e1f26a4e6b5dfa9a48b0b477d03e",
+      "locator": "L1153-L1218 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/subagent/subagent/src/manager.ts#L1153-L1218"
+      }
+    },
+    {
+      "id": "DRE-34",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "旧 checkout 与 Web URL 段落保留，当前值另走上下文",
+      "statement": "harness-dev-context 从已提交 system/message 中识别两个精确旧模板段落；section 优先原样使用这些已接纳段落，同时独立注册当前 implementation checkout 和 Web GUI URL 的 runtime context。",
+      "artifact": "packages/context/harness-dev-context/src/index.ts",
+      "lineStart": 95,
+      "lineEnd": 164,
+      "changeClass": "dynamic-context-compatibility",
+      "boundary": "只保护这两个匹配的旧段落，不是冻结全部 Prompt，也不是修改 Session 格式；其他指令仍可更新。两个当前值是可选 context，不能泛化为所有动态事实必定出现或缓存命中率提升。",
+      "sha256": "3e4e6b95d47e62550ed731ca4c38f0a8036d12cf85e8807fb5e5ea8a16d10783",
+      "locator": "L95-L164 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/context/harness-dev-context/src/index.ts#L95-L164"
+      }
+    },
+    {
+      "id": "DRE-35",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "成功子调用含图片时附加整份最终 content",
+      "statement": "嵌套调用经 finalize 或 finish 得到最终结果；若成功且 content 任一 block 为 image，桥接把整份 content 以 ptc-mode 来源 deferContext，同包文本也会附加；additionalContexts 另逐项转发。",
+      "artifact": "packages/core/tools/src/ptc.ts",
+      "lineStart": 635,
+      "lineEnd": 649,
+      "changeClass": "existing-foundation",
+      "boundary": "不是只附加图片 block，也不是全部中间结果自动进入历史；外层失败是否保留 deferred context 还受工具后处理影响，见 DRE-40。",
+      "sha256": "6f7fbc75413f53196fbf5c7d78884939cb12905b2a5f09741d03d632b84d7ab4",
+      "locator": "L635-L649 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/ptc.ts#L635-L649"
+      }
+    },
+    {
+      "id": "DRE-36",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "PTC direct-call 拒绝发生在扩展策略之前",
+      "statement": "createExecution 对当前 Agent 可见但被 PTC 折叠的直接调用返回 final-result，不进入 pre-execute、approval 或 guard；诊断要求改从 run_code 内调用，已取消调用保留 pre-dispatch abort 结果。",
+      "artifact": "packages/core/tools/src/index.ts",
+      "lineStart": 1399,
+      "lineEnd": 1480,
+      "changeClass": "mode-consolidation",
+      "boundary": "这是入口约束，不是完整授权机制；可见工具被折叠与真正未知工具的路径不同，嵌套调用仍需经过其正常工具策略。",
+      "sha256": "398bcdeb221e450d088510830b77d99a513e65ab31e40ade71688a19cdf5e6aa",
+      "locator": "L1399-L1480 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/index.ts#L1399-L1480"
+      }
+    },
+    {
+      "id": "DRE-37",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "并发分类器只接受明确的 true",
+      "statement": "executionMode 先解析当前可执行工具；没有 isConcurrencySafe 时按 exclusive，分类器仅在返回值严格等于 true 时给 parallel，无效返回或抛错都回退 exclusive。",
+      "artifact": "packages/core/tools/src/index.ts",
+      "lineStart": 1304,
+      "lineEnd": 1320,
+      "changeClass": "existing-foundation",
+      "boundary": "分类依据工具作者的声明，不是运行时证明无副作用；调度队列与并行上限另见 DRE-28。",
+      "sha256": "398bcdeb221e450d088510830b77d99a513e65ab31e40ade71688a19cdf5e6aa",
+      "locator": "L1304-L1320 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/index.ts#L1304-L1320"
+      }
+    },
+    {
+      "id": "DRE-38",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "PTC 的外层 wire schemas 仅保留 run_code",
+      "statement": "wireSchemas 对 native 返回作用域可见工具；PTC 要求运行时存在，随后把发给模型的 schemas 和 knownNames 折叠为 run_code。完整程序内工具声明另由 SDK 生成。",
+      "artifact": "packages/core/tools/src/index.ts",
+      "lineStart": 1015,
+      "lineEnd": 1037,
+      "changeClass": "mode-consolidation",
+      "boundary": "本范围只证明外层 wire 呈现，不单独授予权限；SDK 仍在 Prompt 中，不等于总 token 减少。",
+      "sha256": "398bcdeb221e450d088510830b77d99a513e65ab31e40ade71688a19cdf5e6aa",
+      "locator": "L1015-L1037 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/src/index.ts#L1015-L1037"
+      }
+    },
+    {
+      "id": "DRE-39",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "适配器区分核心冲突、可选序列化与 accept 失败",
+      "statement": "prepareRequestExtensions 拒绝与基础字段冲突；合并体序列化失败可退回可序列化的 base-only 请求并跳过 acceptance。HTTP 成功后调用的 accept 包装器捕获扩展 acceptance 异常，报告 onUnaccepted 而不主动令请求失败。",
+      "artifact": "packages/llm/llm-deepseek/src/request-extensions.ts",
+      "lineStart": 7,
+      "lineEnd": 57,
+      "changeClass": "optional-extension-reliability",
+      "boundary": "HTTP 2xx 不等于 SSE 已完整成功，后续流仍可失败；注册表 acceptAll 自己会报告回调失败，是适配器包装层将其降级。基础请求自身不能序列化仍抛错。",
+      "sha256": "4ec4c58efb30f6666d5eccad44d0319f7bdac1065140140b4ad85492fcde0d4e",
+      "locator": "L7-L57 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/llm/llm-deepseek/src/request-extensions.ts#L7-L57"
+      }
+    },
+    {
+      "id": "DRE-40",
+      "kind": "observation",
+      "confidence": "high",
+      "title": "外层抛错不自动删除 deferred context，block 会替换它",
+      "statement": "上游测试先让 composite 工具 deferContext 再抛错，断言失败结果仍携带该上下文；加入 outer post-execute block 后，断言只保留 blocker 自己提供的 additionalContexts。",
+      "artifact": "packages/core/tools/tests/tools.spec.ts",
+      "lineStart": 1096,
+      "lineEnd": 1124,
+      "changeClass": "existing-foundation",
+      "evidenceLabel": "上游测试源码，未运行",
+      "boundary": "这是通用 composite 的 deferred context 测试，不是本轮真实图片端到端执行；与 DRE-35 的图片转发实现共同界定行为。",
+      "sha256": "46ffd2de10217cf8dd1872f05f6a49994da67d25bf02c9f87fe63fb614f16610",
+      "locator": "L1096-L1124 · 1600d8a1",
+      "source": {
+        "label": "固定官方源码",
+        "url": "https://github.com/deepseek-ai/deepseek-harness/blob/1600d8a1e140dcde43a1a0941940a0480712c011/packages/core/tools/tests/tools.spec.ts#L1096-L1124"
+      }
+    }
+  ]
+}

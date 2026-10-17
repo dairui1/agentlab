@@ -12,11 +12,11 @@ test("all entry pages apply saved themes before paint and load compatibility ove
   pages.push(...fs.readdirSync(path.join(publicRoot, "capabilities"))
     .filter((file) => file.endsWith(".html")).map((file) => `capabilities/${file}`));
   const guides = fs.readdirSync(path.join(publicRoot, "guides")).filter((file) => file.endsWith(".html"));
-  assert.equal(guides.length, 23);
+  assert.equal(guides.length, 24);
   assert.equal(guides.filter((file) => read(`guides/${file}`).includes('class="rg-page"')).length, 10);
-  assert.equal(guides.filter((file) => read(`guides/${file}`).includes('http-equiv="refresh"')).length, 13);
+  assert.equal(guides.filter((file) => read(`guides/${file}`).includes('http-equiv="refresh"')).length, 14);
   pages.push(...guides.map((file) => `guides/${file}`));
-  assert.equal(pages.length, 49);
+  assert.equal(pages.length, 51);
   for (const file of pages) {
     const head = read(file).split("</head>")[0];
     const themeScript = head.indexOf('src="/site-theme.js"');

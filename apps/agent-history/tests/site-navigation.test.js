@@ -68,7 +68,7 @@ test("research navigation retains all destinations and marks the catalog current
   assert.equal(goal.links.find((link) => link.href === "/guides/goal-mode.html").getAttribute("aria-current"), "page");
   assert.equal(links.filter((link) => link.href.includes("pi-durable")).length, 1);
   assert.equal(links.find((link) => link.href.includes("pi-durable")).href, "/capabilities/pi-durable-guide.html");
-  for (const id of ["claude-tag", "raven", "mimoagent", "autoresearch", "raft-blog", "exo", "gpt-prompt", "computer-use", "raft"]) {
+  for (const id of ["claude-tag", "raven", "mimoagent", "autoresearch", "raft-blog", "exo", "gpt-prompt", "computer-use", "raft", "dsh-runtime"]) {
     const item = researchItems.find((entry) => entry.id === id);
     assert.ok(item, `missing restored navigation entry ${id}`);
     assert.match(item.href, /^\/capabilities\//, `${id}: still opens a teaching guide`);

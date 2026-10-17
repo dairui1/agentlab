@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "dsh-runtime-evolution",
+      "readingLabel": "阅读全文：自研 Harness 的运行时设计参考",
+      "title": "DSH 0.2.1：自研 Harness 的运行时设计参考",
+      "question": "Code Mode 保留变量以后，谁来保管权限、工作目录和未结束的工具调用？",
+      "implication": "分别定义状态寿命、当前授权、请求准入与任务完成，再用跨轮执行、取消竞态和子任务等待测试验证这些约定。",
+      "boundary": "固定官方发布标签的源码差分与测试源码审读；未运行 DSH、上游测试、真实模型或性能基准。自研伪代码与验收用例是原创建议，不是上游实现承诺。",
+      "editorialRank": 26,
+      "verifiedAt": "2026-10-17",
+      "kind": "fixed-build",
+      "kindLabel": "源码差分与运行时设计",
+      "topic": "架构与扩展",
+      "products": [{ "id": "deepseek-harness", "label": "DeepSeek Harness", "version": "0.2.0-rc.2 → 0.2.1-rc.2" }],
+      "fact": "沿固定源码区分已有基础、此次扩展与行为约定修复，研究 Code Mode 的执行形式、内存所有者、权限更新、结果通道和取消收尾，并追到动态上下文、子 Agent 等待与模型接入的失败边界。",
+      "sourceKinds": ["固定官方源码", "发布标签差分", "上游测试源码审读", "原创验收建议"],
+      "headlineEvidence": ["DRE-04", "DRE-12", "DRE-15", "DRE-17", "DRE-22"],
+      "evidenceCount": 40,
+      "unknownCount": 6,
+      "data": "/capabilities/dsh-runtime-evolution.json",
+      "legacyHref": "/capabilities/dsh-runtime-evolution.html"
+    },
+    {
       "id": "claude-projects",
       "readingLabel": "打开专题：Claude Projects 的机制与复刻设计",
       "title": "Claude Projects：从消息到并行线程",
