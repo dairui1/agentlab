@@ -58,6 +58,8 @@ CLAUDE_CHANGELOG_URL = f"https://github.com/{CLAUDE_REPOSITORY}/blob/main/CHANGE
 NPM_REGISTRY_URL = "https://registry.npmjs.org"
 
 MAX_JSON_RESPONSE_BYTES = 32 * 1024 * 1024
+# Release pages include asset metadata before minimization; Codex exceeds 32 MiB.
+MAX_RELEASE_RESPONSE_BYTES = 64 * 1024 * 1024
 MAX_CHANGELOG_BYTES = 4 * 1024 * 1024
 MAX_DIFF_BYTES = 1024 * 1024
 MAX_NOTES_BYTES = 16 * 1024
@@ -1163,7 +1165,7 @@ def github_releases(
         response = cache.fetch(
             url,
             accept="application/vnd.github+json",
-            max_bytes=MAX_JSON_RESPONSE_BYTES,
+            max_bytes=MAX_RELEASE_RESPONSE_BYTES,
             timeout=timeout,
             allow_stale_on_error=allow_stale_on_error,
             cache_variant="github-release-minimal-v1",

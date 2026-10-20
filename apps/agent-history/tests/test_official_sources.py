@@ -85,6 +85,21 @@ class RouteCache:
 
 
 class OfficialSourceTests(unittest.TestCase):
+    def test_release_response_budget_is_bounded_and_endpoint_specific(self) -> None:
+        cache = unittest.mock.Mock()
+        cache.fetch.return_value = FakeCache(b"[]").fetch("fixture")
+        official.github_releases(
+            cache,
+            repository="openai/codex",
+            tag_pattern=official.CODEX_TAG_RE,
+            product_name="Codex",
+            max_pages=1,
+            timeout=1,
+            allow_stale_on_error=False,
+        )
+        self.assertEqual(cache.fetch.call_args.kwargs["max_bytes"], 64 * 1024 * 1024)
+        self.assertEqual(official.MAX_JSON_RESPONSE_BYTES, 32 * 1024 * 1024)
+
     def test_default_release_page_budget_has_growth_headroom(self) -> None:
         args = official.parse_args([])
 
