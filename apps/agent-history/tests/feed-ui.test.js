@@ -105,7 +105,7 @@ test("every configured agent filter option has a local source icon", () => {
   const iconEntries = [...app.matchAll(/^\s*(?:"([a-z0-9-]+)"|([a-z0-9-]+)):\s*"(\/agent-icons\/[^"]+)"/gm)]
     .map((match) => [match[1] || match[2], match[3]]);
   const iconUrls = new Map(iconEntries);
-  for (const agent of ["goose", "cline", "qwen-code", "gemini-cli", "swe-agent", "mini-swe-agent", "zcode", "minimax-code-cli"]) {
+  for (const agent of ["goose", "cline", "qwen-code", "gemini-cli", "swe-agent", "mini-swe-agent", "zcode", "minimax-code-cli", "grokbot"]) {
     assert.ok(iconUrls.has(agent), `missing icon mapping for ${agent}`);
   }
   for (const agent of manifest.agents) {
