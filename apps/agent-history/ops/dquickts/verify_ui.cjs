@@ -84,6 +84,7 @@ async function main() {
     assert.match(await page.locator("[data-catalog-back]").first().getAttribute("href"), /search=dquickts/);
     await page.locator("[data-catalog-back]").first().click();
     await page.waitForURL(/capabilities\?search=dquickts|capabilities\.html\?search=dquickts/);
+    await page.locator('#researchApp[aria-busy="false"]').waitFor({ state: "visible" });
     assert.equal(await page.locator("#researchIndexSearch").inputValue(), "dquickts");
     report.checks.push("catalog-search-article-and-filtered-return");
     await page.goto(`${base}/capabilities?study=dquickts-code-mode&evidence=DQ-03`, { waitUntil: "networkidle" });
