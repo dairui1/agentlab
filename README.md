@@ -110,6 +110,12 @@ ZCode 的本地图标复制自[官方仓库固定提交](https://github.com/zai-
 
 生成的 `public/`、`dist/` 和 `analysis/` 可从已同步的数据重建；`.cache/official-sources/` 还保存有界代码比较的历史账本，应像发布状态一样备份，不能在普通更新前删除。数据来源、版本、摘要以及 Evidence Digest 会写入生成的 `public/data/manifest.json` 和 Changelog JSON，外部用户不需要信任仓库作者机器上的缓存。
 
+## dquickts 执行环境比较
+
+[dquickts 与 Code Mode 专题](https://agentlab.dairui1.com/capabilities/dquickts-code-mode) 是独立长文，不使用旧教学模板。固定 `f9a3efaa`，比较 Monty、QuickJS-WASM、V8/Node/Deno、Cloudflare 的恢复模型，并讨论 Temporal 与完整 sandbox 的适用层级。保留跨进程恢复、native 注册顺序、内存上限、重复加载等实测边界，附 16 组同负载进程计时。
+
+文章与公开实验代码位于 `apps/agent-history/content/dquickts-code-mode`，`npm run stage:guides` 离线生成页面与公开回执。回执保留断言、原始计时和固定来源，省略本机路径与终端转录；没有真实模型、安全认证或生产故障验收。网站单元测试只核对发布内容与证据一致性，不会重新运行上游或性能实验。
+
 ## Pi Durable 持久执行研究
 
 [Pi Durable 专题](https://agentlab.dairui1.com/capabilities/pi-durable) 固定官方 main 提交 `1cedd32724abfcb0915f76cc61b6827e2c16dbad`，从提交、任务检查点、工具 replay、模型重发与 deferred polling，追到消息队列、子任务取消、文档 fork 和存储故障边界。25 条文件证据与 6 项待验证问题，分别保留 API experimental、外部副作用幂等、单进程持有和目录非沙箱的限制。

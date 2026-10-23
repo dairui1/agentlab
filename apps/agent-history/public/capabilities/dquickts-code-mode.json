@@ -1,0 +1,253 @@
+{
+  "id": "dquickts-code-mode",
+  "title": "dquickts 与 Code Mode 执行环境",
+  "verifiedAt": "2026-10-23",
+  "evidence": [
+    {
+      "id": "DQ-01",
+      "title": "跨进程恢复闭包和对象身份",
+      "statement": "进程结束后恢复暂停中的调用，结果保留共享引用、闭包计数与工具返回值。",
+      "boundary": "模拟工具，不是外部服务或模型任务。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "checks: cross-process-resume-closure-and-alias",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-02",
+      "title": "恢复不会继承内存上限",
+      "statement": "8 MiB 上限不在快照内，新 runtime 读取后仍为默认无限值；继续前由宿主重设。",
+      "boundary": "文档规定的宿主配置边界，不是已确认的沙箱逃逸。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "checks: cross-process-resume-closure-and-alias.stderr",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-03",
+      "title": "调换 native 顺序会改变绑定",
+      "statement": "同数量注册表中对调 alpha/beta，快照仍被接受，输出位置随之对调。",
+      "boundary": "这是宿主违反相同顺序契约的实验；应用应另外校验工具 ABI。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "checks: swapped-native-order-is-not-rejected",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-04",
+      "title": "挂起请求不等于硬超时",
+      "statement": "native map 回调中的挂起调用被拒绝；其死循环由第五次硬中断终止，并未挂起。",
+      "boundary": "有限定向样例，不是所有 safepoint 路径的穷举。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "checks: durable-call-inside-native-map-is-rejected; suspension-request-in-map-needs-hard-interrupt",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-05",
+      "title": "WASM 可以桥接异步工具",
+      "statement": "0.32.0 的 Promise job pump 与 Asyncify 两种绑定均得到 42。",
+      "boundary": "仅同一活进程继续，没有验证持久快照。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/wasm-results.json",
+      "locator": "checks: async-host-tool-with-promise-job-pump; asyncify-sync-looking-call-resumes-in-same-process",
+      "sha256": "3b2d29cfe7a73a41ca463d9a4cd233eec661d595adbf35d2ebdac6e72036d7a7",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/wasm-results.json"
+      }
+    },
+    {
+      "id": "DQ-06",
+      "title": "Monty 也能跨进程续跑",
+      "statement": "1.3.0 在工具调用处 dump，新进程恢复共享对象与闭包，输出 [true,42,2,41]。",
+      "boundary": "Python 程序与 JS 程序序列化范围不同，不比较压缩率。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/monty-results.json",
+      "locator": "checks: cross-process-closure-and-alias-resume",
+      "sha256": "de47363490ea75d64cf74399ab477cd312463196d9598e362886876119d3dead",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/monty-results.json"
+      }
+    },
+    {
+      "id": "DQ-07",
+      "title": "Monty 的类型检查可以先拒绝代码",
+      "statement": "显式启用 typeCheck 后拒绝 int/string 冲突；会话仍能继续计算。",
+      "boundary": "只验证一个类型错误，不代表任意代码都安全。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/monty-results.json",
+      "locator": "checks: optional-type-check-rejects-mismatch; session-survives-type-error",
+      "sha256": "de47363490ea75d64cf74399ab477cd312463196d9598e362886876119d3dead",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/monty-results.json"
+      }
+    },
+    {
+      "id": "DQ-08",
+      "title": "启动与长计算的胜负不同",
+      "statement": "同机新进程测试中 dquickts 启动更轻；千万次循环下 Node/Deno 更快。",
+      "boundary": "每组合 15 个计时样本，未测试常驻 isolate、快照延迟或生产负载。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "timings; workloads; environment",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-09",
+      "title": "快照可以重复恢复",
+      "statement": "dquickts 与 Monty 同一份保存状态都能被新进程再次加载。",
+      "boundary": "不提供全局单次消费或外部副作用 exactly-once 保证。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "checks: same-snapshot-can-be-resumed-again",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-10",
+      "title": "远端 CI 不是全绿",
+      "statement": "固定提交 20 个 jobs 中 19 个成功，linux/s390x 测试失败。",
+      "boundary": "未定位失败根因，也不把其他成功 jobs 当成 snapshot 专项覆盖。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "公开 CI 记录",
+      "artifact": "studies/dquickts-code-mode/sources.json",
+      "locator": "dquicktsCi[0].jobs",
+      "sha256": "195f845e31dd7adb5f96e860ff1b9621c86cb188390952a0bfd8f7ac31958a79",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/sources.json"
+      }
+    },
+    {
+      "id": "DQ-11",
+      "title": "TS 解析不包含类型检查",
+      "statement": "number 注解绑定字符串仍成功执行并输出 string。",
+      "boundary": "类型语法支持不等于运行时参数验证。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "checks: typescript-does-not-typecheck",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-12",
+      "title": "本地上游测试集通过",
+      "statement": "make test 与 make test-snapshot 均退出成功；日志摘要保留在回执。",
+      "boundary": "未运行完整 test262、Rust、sanitizer 或 fuzzing；本地日志全文不公开。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/results.json",
+      "locator": "checks: upstream-builtins; upstream-snapshots",
+      "sha256": "20714056bde8e200a9884e217c95191e838a9c7027b801a53cf044365463f40c",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/results.json"
+      }
+    },
+    {
+      "id": "DQ-13",
+      "title": "持久 REPL 正常重启后继续",
+      "statement": "TS class 实例第一次计数为 41，显式退出并重启后继续到 42。",
+      "boundary": "不是 SIGKILL/断电验收；EOF-only 驱动超时后改用明确退出命令。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地机制实验",
+      "artifact": "studies/dquickts-code-mode/repl-results.json",
+      "locator": "checks: restore-session-in-new-process",
+      "sha256": "49ac9e7a7a6b2003200c973b54fe70727d02acccb648fd50f437219d701a882f",
+      "source": {
+        "label": "查看固定回执",
+        "url": "/studies/dquickts-code-mode/repl-results.json"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "DQ-U-1",
+      "title": "恶意快照与沙箱攻击",
+      "text": "没有安全审计、攻击性快照或逃逸测试。",
+      "needed": "可信快照来源验证与独立安全评估。"
+    },
+    {
+      "id": "DQ-U-2",
+      "title": "真实业务副作用",
+      "text": "模拟工具没有覆盖远程请求已成功但本地回执丢失的窗口。",
+      "needed": "真实幂等服务及中途崩溃注入。"
+    },
+    {
+      "id": "DQ-U-3",
+      "title": "快照随堆规模增长的代价",
+      "text": "没有扫描不同堆大小的快照 CPU、恢复延迟和驻留内存。",
+      "needed": "堆规模、对象变更比例和并发会话矩阵。"
+    },
+    {
+      "id": "DQ-U-4",
+      "title": "版本升级与跨架构",
+      "text": "仅同构建本机恢复，未验证升级迁移和不同架构。",
+      "needed": "宿主 ABI 固定与版本迁移矩阵。"
+    },
+    {
+      "id": "DQ-U-5",
+      "title": "模型任务收益",
+      "text": "没有实测 token 成本、成功率或真实模型 E2E。",
+      "needed": "匹配模型与工具任务的受控对照。"
+    },
+    {
+      "id": "DQ-U-6",
+      "title": "其他系统的性能",
+      "text": "Cloudflare、isolated-vm、Temporal 和 E2B 仅作来源比较。",
+      "needed": "各系统部署后使用同一业务工作负载。"
+    }
+  ]
+}

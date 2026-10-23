@@ -2,6 +2,28 @@
   "version": 1,
   "studies": [
     {
+      "id": "dquickts-code-mode",
+      "readingLabel": "阅读全文：Code Mode 执行环境比较",
+      "title": "dquickts 为什么适合 Code Mode",
+      "question": "Code Mode 该保留什么，才能换一个进程继续执行？",
+      "implication": "按持久执行状态、工具副作用、权限和部署范围选型；比较 dquickts、Monty、QuickJS-WASM、V8 与 Cloudflare，不把快照当事务保证。",
+      "boundary": "固定源码、模拟工具与本机恢复实验；16 组进程端到端计时。Cloudflare、isolated-vm、Temporal 和 E2B 未做性能实测，也未运行真实模型、安全攻击或断电验收。",
+      "editorialRank": 27,
+      "verifiedAt": "2026-10-23",
+      "kind": "comparison",
+      "kindLabel": "执行环境对比评测",
+      "topic": "架构与扩展",
+      "products": [{ "id": "dquickts", "label": "dquickts", "version": "f9a3efaa" }, { "id": "monty", "label": "Monty", "version": "1.3.0" }, { "id": "quickjs-wasm", "label": "QuickJS-WASM", "version": "0.32.0" }],
+      "fact": "实测闭包、共享对象与暂停中的调用跨进程恢复；验证恢复后内存限制丢失、native 顺序变化与重复加载边界，附可复跑代码和原始计时。",
+      "sourceKinds": ["固定官方源码", "本地机制实验", "同负载计时", "官方恢复契约"],
+      "headlineEvidence": ["DQ-01", "DQ-02", "DQ-03", "DQ-06", "DQ-08"],
+      "evidenceCount": 13,
+      "unknownCount": 6,
+      "data": "/capabilities/dquickts-code-mode.json",
+      "articleHref": "/capabilities/dquickts-code-mode.html",
+      "legacyHref": "/capabilities/dquickts-code-mode.html"
+    },
+    {
       "id": "dsh-runtime-evolution",
       "readingLabel": "阅读全文：自研 Harness 的运行时设计参考",
       "title": "DSH 0.2.1：自研 Harness 的运行时设计参考",

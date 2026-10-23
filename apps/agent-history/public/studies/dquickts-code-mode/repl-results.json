@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-10-23T15:07:38.602Z",
+  "checks": [
+    {
+      "name": "create-session",
+      "passed": true,
+      "output": "TS class and instance saved; first increment = 41"
+    },
+    {
+      "name": "restore-session-in-new-process",
+      "passed": true,
+      "output": "DREPL_RESULT 42; DREPL_OS undefined"
+    }
+  ],
+  "boundary": "Explicit REPL quit/restart with piped input, not abrupt kill or power-loss recovery.",
+  "initialProbe": "EOF-only piped input did not terminate within 10 seconds; retest uses the documented explicit quit command."
+}

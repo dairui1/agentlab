@@ -161,7 +161,7 @@ function assertEvidence(study, prefix) {
 
 test("all public surfaces expose Goal Mode as the shared current research entry", () => {
   assert.deepEqual(siteNavigation.primaryItems.map((item) => item.label), ["更新情报", "版本比较"]);
-  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Claude Projects", "Pi Durable", "Code Mode", "DSH 运行时", "OAR Agent 接口", "Raven Harness 改进", "MiMo Agent", "Autoresearch", "Raft 多 Agent 博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
+  assert.deepEqual(siteNavigation.researchItems.map((item) => item.label), ["全部专题", "Claude Projects", "Pi Durable", "Code Mode", "dquickts 执行环境", "DSH 运行时", "OAR Agent 接口", "Raven Harness 改进", "MiMo Agent", "Autoresearch", "Raft 多 Agent 博客", "Raft 协作架构", "Claude Tag", "Goal 模式", "GPT Prompt 演进", "Exo 递归 Harness", "TokenBudget", "CUA 交互", "DSH 雷达", "Grok Bot"]);
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "goal").href, "/guides/goal-mode.html");
   assert.equal(siteNavigation.researchItems.find((item) => item.id === "token-budget").href, "/guides/token-budget-context.html");
   assert.deepEqual(siteNavigation.researchItems.filter((item) => item.label.includes("Pi Durable")), [
@@ -213,12 +213,12 @@ test("the research landing puts questions and engineering decisions before the e
   assert.match(capabilitiesHtml, /id="researchHeadlineEvidence"[^>]*aria-label="结论依据"/);
   assert.doesNotMatch(capabilitiesHtml, /researchEvidenceAgent|按产品筛选事实/);
   assert.match(capabilitiesHtml, /href="\/research\.css\?v=11"/);
-  assert.match(capabilitiesHtml, /src="\/research\.js\?v=10"/);
+  assert.match(capabilitiesHtml, /src="\/research\.js\?v=11"/);
   assert.match(capabilitiesHtml, /src="\/research-navigation-core\.js\?v=2"/);
   assert.doesNotMatch(capabilitiesHtml, /CAPABILITY TEARDOWNS|THE COLLECTION|阅读时间|article-number|article-status|capability-library/);
 
   assert.ok(researchIndex.studies.length > 0);
-  assert.equal(researchIndex.studies.length, 25);
+  assert.equal(researchIndex.studies.length, 26);
   assert.deepEqual(new Set(researchIndex.studies.filter((study) => study.guideData).map((study) => study.id)), retainedGuideIds);
   assert.ok(!researchIndex.studies.some((study) => study.id === "pi-durable"));
   assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, researchIndex.studies.length);
@@ -329,7 +329,7 @@ test("the mixed research catalog opens retained guides directly and restores the
   });
   for (const study of researchIndex.studies) {
     const href = readingHref(study);
-    if (retainedGuideIds.has(study.id) || study.id === "pi-durable-guide") {
+    if (study.articleHref || retainedGuideIds.has(study.id) || study.id === "pi-durable-guide") {
       const link = new URL(href, "https://agentlab.test");
       assert.equal(link.pathname, new URL(study.legacyHref, "https://agentlab.test").pathname);
       assert.equal(link.searchParams.get("from"), catalogHref(study));
@@ -341,6 +341,7 @@ test("the mixed research catalog opens retained guides directly and restores the
 
 test("headline evidence keeps the direct anchors selected in adversarial review", () => {
   const directAnchors = {
+    "dquickts-code-mode": ["DQ-01", "DQ-02", "DQ-03", "DQ-06", "DQ-08"],
     "dsh-runtime-evolution": ["DRE-04", "DRE-12", "DRE-15", "DRE-17", "DRE-22"],
     "claude-projects": ["P04", "P09", "T05", "T07", "T13"],
     "pi-durable-guide": ["PG-01", "PG-02", "PG-03"],
@@ -830,7 +831,7 @@ test("the unified Computer Use detail mounts an accessible playback between its 
   assert.match(capabilitiesHtml, /href="\/computer-use-playback\.css\?v=1"/);
   assert.match(
     capabilitiesHtml,
-    /src="\/research-navigation-core\.js\?v=2"[\s\S]*src="\/computer-use-playback-core\.js\?v=1"[\s\S]*src="\/computer-use-playback\.js\?v=1"[\s\S]*src="\/research\.js\?v=10"/,
+    /src="\/research-navigation-core\.js\?v=2"[\s\S]*src="\/computer-use-playback-core\.js\?v=1"[\s\S]*src="\/computer-use-playback\.js\?v=1"[\s\S]*src="\/research\.js\?v=11"/,
     "playback must subscribe before research.js dispatches the detail event",
   );
 });

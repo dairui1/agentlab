@@ -1,0 +1,380 @@
+{
+  "retrievedAt": "2026-10-23T14:50:32.498Z",
+  "repositories": [
+    {
+      "repo": "stencil-hq/dquickts",
+      "commit": "f9a3efaa4d7cadb9dcad7e80a03d2774eb95a406",
+      "commitDate": "2026-10-19T21:36:44Z",
+      "defaultBranch": "master",
+      "license": "NOASSERTION",
+      "createdAt": "2026-10-19T12:06:42Z",
+      "tags": [],
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/stencil-hq/dquickts/blob/f9a3efaa4d7cadb9dcad7e80a03d2774eb95a406/README.md",
+          "sha256": "c544b1123532a651c6a16eec1ad9fd5e65fa99586ef51b75924e38c71bca936a",
+          "lines": 659
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "url": "https://github.com/stencil-hq/dquickts/blob/f9a3efaa4d7cadb9dcad7e80a03d2774eb95a406/.github/workflows/ci.yml",
+          "sha256": "7b6920f6de4c3acd848bcc53a64c1cd5c49cf7c1b591582f9aa340902cd8532d",
+          "lines": 324
+        }
+      ]
+    },
+    {
+      "repo": "justjake/quickjs-emscripten",
+      "commit": "7b7af98e4e69757c64c27aac46a74e1e07229545",
+      "commitDate": "2026-07-23T21:17:35Z",
+      "defaultBranch": "main",
+      "license": "NOASSERTION",
+      "createdAt": "2020-01-05T16:09:48Z",
+      "tags": [
+        {
+          "name": "v0.32.0",
+          "sha": "df4efb9ef2cb25c417ecb57986da462d11b244ed"
+        },
+        {
+          "name": "v0.31.0",
+          "sha": "235f6da2fd4f7354fa4765fde4aea880d2a4aef5"
+        },
+        {
+          "name": "v0.30.0",
+          "sha": "2ca7f5f5f1abda34d2620e55c50eb0b599dd2282"
+        },
+        {
+          "name": "v0.29.2",
+          "sha": "af04b41ece3efd5929f7676a81903b31695a766e"
+        },
+        {
+          "name": "v0.29.1",
+          "sha": "cc9b624930dfb319a0198587386c405b86af4740"
+        }
+      ],
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/justjake/quickjs-emscripten/blob/7b7af98e4e69757c64c27aac46a74e1e07229545/README.md",
+          "sha256": "9a4da4e3d2328f9805fcb13755a16c61c4da5d4da1381c202787060d396d418d",
+          "lines": 926
+        },
+        {
+          "path": "packages/quickjs-emscripten/package.json",
+          "url": "https://github.com/justjake/quickjs-emscripten/blob/7b7af98e4e69757c64c27aac46a74e1e07229545/packages/quickjs-emscripten/package.json",
+          "sha256": "4b2abeea3d26af645983273d08c4abc357e152e4e804a97fa1e653bbd5b5fa69",
+          "lines": 82
+        }
+      ]
+    },
+    {
+      "repo": "laverdet/isolated-vm",
+      "commit": "6f9fa6cf22dbe55f56d1a788b4e82065542ac50f",
+      "commitDate": "2026-09-26T02:38:59Z",
+      "defaultBranch": "main",
+      "license": "ISC",
+      "createdAt": "2017-05-20T05:08:47Z",
+      "tags": [
+        {
+          "name": "v7.0.1",
+          "sha": "699d47a2c9021fbd4953b461bcbca4d7e0e11043"
+        },
+        {
+          "name": "v7.0.0",
+          "sha": "d49138bd41f18fe228f5ef8cd2afda4d8bc9fda7"
+        },
+        {
+          "name": "v6.2.0",
+          "sha": "bdd0823952f2ab2d203d08e91ad69aca7a485263"
+        },
+        {
+          "name": "v6.1.2",
+          "sha": "15bcfc949e9ebfe61c35c75074d2e5124abb8031"
+        },
+        {
+          "name": "v6.1.1",
+          "sha": "75e38f94272fe3d8bcf082397ced425e57512966"
+        }
+      ],
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/laverdet/isolated-vm/blob/6f9fa6cf22dbe55f56d1a788b4e82065542ac50f/README.md",
+          "sha256": "3c12906c5cb2e198ee666e7f725a2ce0887d0352d6f923b6930cf2ba81edf051",
+          "lines": 805
+        },
+        {
+          "path": "package.json",
+          "url": "https://github.com/laverdet/isolated-vm/blob/6f9fa6cf22dbe55f56d1a788b4e82065542ac50f/package.json",
+          "sha256": "b1d3fa30fc4dc386d2a007771474e1f961e6abff34c68330c07c6f2c5ba1eb3e",
+          "lines": 36
+        }
+      ]
+    },
+    {
+      "repo": "cloudflare/agents",
+      "commit": "15e9b625edeb83fa6b470f7b67a6643cd7d178f9",
+      "commitDate": "2026-10-23T13:53:04Z",
+      "defaultBranch": "main",
+      "license": "MIT",
+      "createdAt": "2025-01-29T23:14:04Z",
+      "tags": [
+        {
+          "name": "hono-agents@3.0.12",
+          "sha": "d42494503efe836a073fbf911fae1fbd12253198"
+        },
+        {
+          "name": "hono-agents@3.0.11",
+          "sha": "cbf3e18a0398e0bd80f09f17b401aae52fd8c196"
+        },
+        {
+          "name": "hono-agents@3.0.10",
+          "sha": "2982b019736376b7fe3f7447839946618997a44f"
+        },
+        {
+          "name": "hono-agents@3.0.9",
+          "sha": "f32f2d734e9733856700dc3e02e2eb057ae4f696"
+        },
+        {
+          "name": "hono-agents@3.0.8",
+          "sha": "b035ff1c233837f5632f32230f3319446c6a7fc1"
+        }
+      ],
+      "files": [
+        {
+          "path": "packages/codemode/README.md",
+          "url": "https://github.com/cloudflare/agents/blob/15e9b625edeb83fa6b470f7b67a6643cd7d178f9/packages/codemode/README.md",
+          "sha256": "859b43f1714a117447b06e415fb02741f3131581e5ee2324cf0c1aad2d990563",
+          "lines": 734
+        },
+        {
+          "path": "packages/codemode/package.json",
+          "url": "https://github.com/cloudflare/agents/blob/15e9b625edeb83fa6b470f7b67a6643cd7d178f9/packages/codemode/package.json",
+          "sha256": "4eb3890c3e7377c3e08a6cdaf88cd97d1aa1fb434a4bbdba55e8f323355da016",
+          "lines": 117
+        }
+      ]
+    },
+    {
+      "repo": "pydantic/monty",
+      "commit": "82a9abde5484665a9d1d79c8691eb9b5974d22b6",
+      "commitDate": "2026-10-23T13:49:59Z",
+      "defaultBranch": "main",
+      "license": "MIT",
+      "createdAt": "2023-05-28T11:13:38Z",
+      "tags": [
+        {
+          "name": "v1.3.0",
+          "sha": "9ccbaffdd2cfd5839e0a0ff1248ab901de51eb4c"
+        },
+        {
+          "name": "v1.2.0",
+          "sha": "e8db9aef41aa73f4f709c15a4bc8a2d198be5ead"
+        },
+        {
+          "name": "v1.1.0",
+          "sha": "591527397445bf734873252d1ee20c1b6308fe7f"
+        },
+        {
+          "name": "v1.0.1",
+          "sha": "00e2caf80bb7c82aa780eb0511132a4a6ba27c54"
+        },
+        {
+          "name": "v1.0.0",
+          "sha": "85c5d1f6bef038405cfc40a4eed94806e303567e"
+        }
+      ],
+      "files": [
+        {
+          "path": "README.md",
+          "url": "https://github.com/pydantic/monty/blob/82a9abde5484665a9d1d79c8691eb9b5974d22b6/README.md",
+          "sha256": "bdd3edcb874fad6b78343923f2dc96f96c37e86db2a1daf6f3fcc521e9113461",
+          "lines": 97
+        },
+        {
+          "path": "crates/monty/README.md",
+          "url": "https://github.com/pydantic/monty/blob/82a9abde5484665a9d1d79c8691eb9b5974d22b6/crates/monty/README.md",
+          "sha256": "1c35b9fd9b43d54ca3367ca9a17eca75bb904e1c13f2bf8b7a06c02425463d26",
+          "lines": 168
+        },
+        {
+          "path": "docs/security.md",
+          "url": "https://github.com/pydantic/monty/blob/82a9abde5484665a9d1d79c8691eb9b5974d22b6/docs/security.md",
+          "sha256": "520f046065c431dcc17b0e9c2f7183fa25b1249524a821ac35ac0eac68af53cb",
+          "lines": 529
+        },
+        {
+          "path": "crates/monty-js/README.md",
+          "url": "https://github.com/pydantic/monty/blob/82a9abde5484665a9d1d79c8691eb9b5974d22b6/crates/monty-js/README.md",
+          "sha256": "fcb9bb40e91f2cd5401c32b8d3b1a38defce9ea833bec26d59c13227f6722ee5",
+          "lines": 23
+        }
+      ]
+    }
+  ],
+  "documents": [
+    {
+      "url": "https://developers.cloudflare.com/agents/tools/codemode/how-it-works/",
+      "finalUrl": "https://developers.cloudflare.com/agents/tools/codemode/how-it-works/",
+      "bytes": 187217,
+      "sha256": "d97b68ba386774faa68c241165224e09afe1897ca2427f53ac0c9490f60f0ad9"
+    },
+    {
+      "url": "https://developers.cloudflare.com/agents/tools/codemode/durable-runtime/",
+      "finalUrl": "https://developers.cloudflare.com/agents/tools/codemode/durable-runtime/",
+      "bytes": 205743,
+      "sha256": "c9fc07fda1f4defc74d8f0d3111b823f444fc8897a91aabe6d10dc0b5694fbc0"
+    },
+    {
+      "url": "https://developers.cloudflare.com/dynamic-workers/usage/egress-control/",
+      "finalUrl": "https://developers.cloudflare.com/dynamic-workers/usage/egress-control/",
+      "bytes": 108433,
+      "sha256": "5cdf96e673d7f1d098bfbf9abc69293965ce4608e1370b6f417db3ca81bcac49"
+    },
+    {
+      "url": "https://docs.deno.com/runtime/fundamentals/security/",
+      "finalUrl": "https://docs.deno.com/runtime/fundamentals/security/",
+      "bytes": 104261,
+      "sha256": "a482abe32ac3119937abbc46062aaf9898e5b31dc71d8764c10d2aa1b7f21222"
+    },
+    {
+      "url": "https://docs.e2b.dev/sandbox/persistence",
+      "finalUrl": "https://docs.e2b.dev/sandbox/persistence",
+      "bytes": 1217868,
+      "sha256": "86ca362604328a608a1bf90e59f25140a20358d91359f500338ff1c8246108b6"
+    },
+    {
+      "url": "https://docs.temporal.io/workflow-execution",
+      "finalUrl": "https://docs.temporal.io/workflow-execution",
+      "bytes": 70578,
+      "sha256": "30940d8ea7e35f9585d127d49b5ffdb4a3eead8b5dc423b3c5050fa25b00b89f"
+    },
+    {
+      "url": "https://nodejs.org/download/release/v24.14.0/docs/api/vm.html",
+      "finalUrl": "https://nodejs.org/download/release/v24.14.0/docs/api/vm.html",
+      "bytes": 198593,
+      "sha256": "57b55f044696d73796ec4d67b8f60c12f12876ccb31e2f255bcf10b6512d197b"
+    },
+    {
+      "url": "https://nodejs.org/download/release/v24.14.0/docs/api/v8.html",
+      "finalUrl": "https://nodejs.org/download/release/v24.14.0/docs/api/v8.html",
+      "bytes": 165658,
+      "sha256": "f36acdab947cf5349692fa63225c9c7e278ad108c75389c85c2864f2732e60b7"
+    }
+  ],
+  "dquicktsCi": [
+    {
+      "id": 39482258719,
+      "html_url": "https://github.com/stencil-hq/dquickts/actions/runs/39482258719",
+      "name": "ci",
+      "status": "completed",
+      "conclusion": "failure",
+      "head_sha": "f9a3efaa4d7cadb9dcad7e80a03d2774eb95a406",
+      "jobs": [
+        {
+          "name": "linux-ubsan",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "macos-asan",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "macOS",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "Linux 32bit",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "Linux LTO",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "qemu-alpine (linux/ppc64le)",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "qemu-alpine (linux/arm64)",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "Linux (Ubuntu)",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "macos-ubsan",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "qemu-alpine2 (linux/arm/v7)",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "Windows MSYS2",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "qemu-alpine (linux/s390x)",
+          "conclusion": "failure",
+          "failedSteps": [
+            "Run tests on linux/s390x"
+          ]
+        },
+        {
+          "name": "qemu-alpine (linux/riscv64)",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "qemu-alpine2 (linux/arm/v6)",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "Cosmopolitan",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "MinGW Windows target",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "freebsd",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "linux-msan",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "linux-asan",
+          "conclusion": "success",
+          "failedSteps": []
+        },
+        {
+          "name": "qemu-alpine (linux/386)",
+          "conclusion": "success",
+          "failedSteps": []
+        }
+      ]
+    }
+  ]
+}

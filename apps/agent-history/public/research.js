@@ -133,6 +133,11 @@
   }
 
   function readingHref(study) {
+    if (study.articleHref) {
+      const url = new URL(study.articleHref, location.href);
+      url.searchParams.set("from", researchHref(study));
+      return `${url.pathname}${url.search}`;
+    }
     if (!study.guideData && study.id !== "pi-durable-guide") return researchHref(study);
     const url = new URL(study.legacyHref, location.href);
     url.searchParams.set("from", researchHref(study));

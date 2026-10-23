@@ -10,6 +10,7 @@ const index = JSON.parse(fs.readFileSync(path.join(root, "research-index.json"),
 const studies = index.studies.filter((study) => study.id !== "pi-durable-guide");
 const retainedIds = ["code-mode", "oar", "goal-mode", "subagent-orchestration", "session-resume", "context-compaction", "token-budget-context", "permission-sandbox", "tool-contract", "mcp-dynamic-tools"];
 const restoredHrefs = {
+  "dquickts-code-mode": "/capabilities/dquickts-code-mode.html",
   "dsh-runtime-evolution": "/capabilities/dsh-runtime-evolution.html",
   "claude-projects": "/capabilities/claude-projects.html",
   raven: "/capabilities/raven.html",
@@ -27,9 +28,9 @@ const restoredHrefs = {
 };
 const guides = studies.filter((study) => study.guideData).map((study) => ({ study, guide: JSON.parse(fs.readFileSync(path.join(root, study.guideData), "utf8")) }));
 
-test("only the ten retained topics open teaching guides while fourteen use their original reading entries", () => {
-  assert.equal(studies.length, 24);
-  assert.equal(index.studies.length, 25);
+test("only the ten retained topics open teaching guides while fifteen use independent reading entries", () => {
+  assert.equal(studies.length, 25);
+  assert.equal(index.studies.length, 26);
   assert.deepEqual(new Set(guides.map(({ study }) => study.id)), new Set(retainedIds));
   assert.deepEqual(new Set(fs.readdirSync(path.join(root, "research-guides")).filter((file) => file.endsWith(".json")).map((file) => file.replace(/\.json$/, ""))), new Set(retainedIds));
   assert.ok(!index.studies.some((study) => study.id === "pi-durable"));

@@ -12,11 +12,11 @@ test("every entry page loads the pinned local icon bundle before its behavior sc
   files.push(...fs.readdirSync(path.join(root, "capabilities"))
     .filter((file) => file.endsWith(".html")).map((file) => `capabilities/${file}`));
   const guides = fs.readdirSync(path.join(root, "guides")).filter((file) => file.endsWith(".html"));
-  assert.equal(guides.length, 24);
+  assert.equal(guides.length, 25);
   assert.equal(guides.filter((file) => fs.readFileSync(path.join(root, "guides", file), "utf8").includes('class="rg-page"')).length, 10);
-  assert.equal(guides.filter((file) => fs.readFileSync(path.join(root, "guides", file), "utf8").includes('http-equiv="refresh"')).length, 14);
+  assert.equal(guides.filter((file) => fs.readFileSync(path.join(root, "guides", file), "utf8").includes('http-equiv="refresh"')).length, 15);
   files.push(...guides.map((file) => `guides/${file}`));
-  assert.equal(files.length, 51);
+  assert.equal(files.length, 53);
   for (const file of files) {
     const html = fs.readFileSync(path.join(root, file), "utf8");
     assert.equal((html.match(/src="\/vendor\/lucide\/lucide.min.js"/g) || []).length, 1, file);

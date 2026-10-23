@@ -1,0 +1,194 @@
+{
+  "generatedAt": "2026-10-23T15:07:38.512Z",
+  "package": "@pydantic/monty",
+  "version": "1.3.0",
+  "binarySha256": "d9ffb7f1956df45781400991cbea987fc6466a5c1f5fd4f6fbcdf3d157b0afd0",
+  "lockfile": {
+    "name": "dquickts-monty-baseline-20261023",
+    "lockfileVersion": 3,
+    "requires": true,
+    "packages": {
+      "": {
+        "dependencies": {
+          "@pydantic/monty": "^1.3.0"
+        }
+      },
+      "node_modules/@bytecodealliance/preview2-shim": {
+        "version": "0.19.0",
+        "resolved": "https://registry.npmjs.org/@bytecodealliance/preview2-shim/-/preview2-shim-0.19.0.tgz",
+        "integrity": "sha512-OSUlcM62fXLuzYP0DjBn/SwjKMZ/y/2PMXZ8v5cRiiFcroauntlPRl/oCnx0xYjYiqdYvE0PY50VCNutll0xOw==",
+        "license": "(Apache-2.0 WITH LLVM-exception)"
+      },
+      "node_modules/@opentelemetry/api": {
+        "version": "1.10.0",
+        "resolved": "https://registry.npmjs.org/@opentelemetry/api/-/api-1.10.0.tgz",
+        "integrity": "sha512-lMkyes8iHrG+mk6WH7X70MdCLI2RS0FwNBY1PyQ8UemaijE2m5mv5A0Niy3HtbYTFrgkUEQjFMXmSAk2hQDuPQ==",
+        "license": "Apache-2.0",
+        "engines": {
+          "node": ">=8.0.0"
+        }
+      },
+      "node_modules/@opentelemetry/api-logs": {
+        "version": "0.222.0",
+        "resolved": "https://registry.npmjs.org/@opentelemetry/api-logs/-/api-logs-0.222.0.tgz",
+        "integrity": "sha512-9mb1If+IF6u0ZVXkHQ6ogEae5HwA6ajIVUgpSDQyRASxft6BSXHvBvPooRle3yFN/fKnCdSOnuu0OC3PLcF6+g==",
+        "license": "Apache-2.0",
+        "dependencies": {
+          "@opentelemetry/api": "^1.3.0"
+        },
+        "engines": {
+          "node": ">=8.0.0"
+        }
+      },
+      "node_modules/@pydantic/monty": {
+        "version": "1.3.0",
+        "resolved": "https://registry.npmjs.org/@pydantic/monty/-/monty-1.3.0.tgz",
+        "integrity": "sha512-cYnJMQxz4qzJp3irBFO6Sjntm42tqwIkbhraoWwa27gowyst+hEVlcgU8w2xN+tFTwnEHGUmnfJyMr2wXpT6lQ==",
+        "license": "MIT",
+        "dependencies": {
+          "@bytecodealliance/preview2-shim": "^0.19.0",
+          "@opentelemetry/api": "^1.9.1",
+          "@opentelemetry/api-logs": "^0.222.0"
+        },
+        "engines": {
+          "node": ">= 20"
+        },
+        "optionalDependencies": {
+          "@pydantic/monty-darwin-arm64": "1.3.0",
+          "@pydantic/monty-darwin-x64": "1.3.0",
+          "@pydantic/monty-linux-arm64-gnu": "1.3.0",
+          "@pydantic/monty-linux-x64-gnu": "1.3.0",
+          "@pydantic/monty-win32-x64-msvc": "1.3.0"
+        }
+      },
+      "node_modules/@pydantic/monty-darwin-arm64": {
+        "version": "1.3.0",
+        "resolved": "https://registry.npmjs.org/@pydantic/monty-darwin-arm64/-/monty-darwin-arm64-1.3.0.tgz",
+        "integrity": "sha512-OYFYVjvafc1OgsS8BfB5i06UuEF52aLgjGlHsSqYjJGM8CZAPsUtE1H1rqoCSizPbGRHfEHYrRGFS2XUllzVNQ==",
+        "cpu": [
+          "arm64"
+        ],
+        "license": "MIT",
+        "optional": true,
+        "os": [
+          "darwin"
+        ],
+        "engines": {
+          "node": ">= 20"
+        }
+      },
+      "node_modules/@pydantic/monty-darwin-x64": {
+        "version": "1.3.0",
+        "resolved": "https://registry.npmjs.org/@pydantic/monty-darwin-x64/-/monty-darwin-x64-1.3.0.tgz",
+        "integrity": "sha512-4uOKx/qeunYNeZUU0Fm2SDCNxD4xlFoqI25xJgmyYfOlB4+AC6dRC75Jl57zZH+5E1rAHKNpSWnFu2eR2i494w==",
+        "cpu": [
+          "x64"
+        ],
+        "license": "MIT",
+        "optional": true,
+        "os": [
+          "darwin"
+        ],
+        "engines": {
+          "node": ">= 20"
+        }
+      },
+      "node_modules/@pydantic/monty-linux-arm64-gnu": {
+        "version": "1.3.0",
+        "resolved": "https://registry.npmjs.org/@pydantic/monty-linux-arm64-gnu/-/monty-linux-arm64-gnu-1.3.0.tgz",
+        "integrity": "sha512-mf/eyje3+CQjVkIjwQ8PsPqmvEFtEr49P3Sr5FiCreRe9IFvhY7FqcboAYKP+ztbQbpP3oLFRBxwiixtYA2CSQ==",
+        "cpu": [
+          "arm64"
+        ],
+        "license": "MIT",
+        "optional": true,
+        "os": [
+          "linux"
+        ],
+        "engines": {
+          "node": ">= 20"
+        }
+      },
+      "node_modules/@pydantic/monty-linux-x64-gnu": {
+        "version": "1.3.0",
+        "resolved": "https://registry.npmjs.org/@pydantic/monty-linux-x64-gnu/-/monty-linux-x64-gnu-1.3.0.tgz",
+        "integrity": "sha512-iLlxjNC0wdx23EA5+K0XbjpHjkSG0qEmEd0LR2NnS8N28TJdga990rNr3AvdtBFbPo18WBDFQYw0SeqAcaQJww==",
+        "cpu": [
+          "x64"
+        ],
+        "license": "MIT",
+        "optional": true,
+        "os": [
+          "linux"
+        ],
+        "engines": {
+          "node": ">= 20"
+        }
+      },
+      "node_modules/@pydantic/monty-win32-x64-msvc": {
+        "version": "1.3.0",
+        "resolved": "https://registry.npmjs.org/@pydantic/monty-win32-x64-msvc/-/monty-win32-x64-msvc-1.3.0.tgz",
+        "integrity": "sha512-A2rZ24RwEaK/7zjp3u4/f350w9oiCgnZjgH9brVBV2gfGf9RWEA8yPaeBQrNe6epI6ckyIW6X5AMzWQMsDSKFA==",
+        "cpu": [
+          "x64"
+        ],
+        "license": "MIT",
+        "optional": true,
+        "os": [
+          "win32"
+        ],
+        "engines": {
+          "node": ">= 20"
+        }
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "pause-and-dump",
+      "passed": true,
+      "output": {
+        "bytes": 3869,
+        "function": "tool",
+        "position": {
+          "filename": "<python-input-0>",
+          "start": 185,
+          "end": 191
+        }
+      }
+    },
+    {
+      "name": "cross-process-closure-and-alias-resume",
+      "passed": true,
+      "output": [
+        true,
+        42,
+        2,
+        41
+      ]
+    },
+    {
+      "name": "same-dump-can-be-loaded-again",
+      "passed": true,
+      "output": [
+        true,
+        42,
+        2,
+        41
+      ]
+    },
+    {
+      "name": "optional-type-check-rejects-mismatch",
+      "passed": true
+    },
+    {
+      "name": "session-survives-type-error",
+      "passed": true
+    },
+    {
+      "name": "file-open-without-mount-is-denied",
+      "passed": true
+    }
+  ],
+  "boundary": "Mock tool only. No Python package compatibility benchmark, malicious snapshots, production fault injection, or throughput comparison."
+}

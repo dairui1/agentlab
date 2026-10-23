@@ -15,6 +15,7 @@
     { id: "claude-projects", label: "Claude Projects", icon: "messages-square", href: "/capabilities/claude-projects.html" },
     { id: "pi-durable-guide", label: "Pi Durable", icon: "database", href: "/capabilities/pi-durable-guide.html" },
     { id: "code-mode", label: "Code Mode", icon: "code", href: "/guides/code-mode.html" },
+    { id: "dquickts", label: "dquickts 执行环境", icon: "square-code", href: "/capabilities/dquickts-code-mode.html" },
     { id: "dsh-runtime", label: "DSH 运行时", icon: "cpu", href: "/capabilities/dsh-runtime-evolution.html" },
     { id: "oar", label: "OAR Agent 接口", icon: "cable", href: "/guides/oar.html" },
     { id: "raven", label: "Raven Harness 改进", icon: "workflow", href: "/capabilities/raven.html" },
