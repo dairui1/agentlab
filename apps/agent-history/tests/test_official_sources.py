@@ -85,6 +85,22 @@ class RouteCache:
 
 
 class OfficialSourceTests(unittest.TestCase):
+    def test_codex_small_pages_preserve_history_budget_and_fail_on_overflow(self) -> None:
+        body = json.dumps([
+            {"tag_name": f"rust-v1.0.{index}", "draft": False, "prerelease": False}
+            for index in range(20)
+        ]).encode()
+        cache = unittest.mock.Mock()
+        cache.fetch.return_value = FakeCache(body).fetch("fixture")
+        with self.assertRaisesRegex(official.OfficialSyncError, "exceeds --max-release-pages=1"):
+            official.github_releases(
+                cache, repository=official.CODEX_REPOSITORY,
+                tag_pattern=official.CODEX_TAG_RE, product_name="Codex",
+                max_pages=1, timeout=1, allow_stale_on_error=False,
+            )
+        self.assertEqual(cache.fetch.call_count, 5)
+        self.assertIn("per_page=20&page=5", cache.fetch.call_args.args[0])
+
     def test_release_response_budget_is_bounded_and_endpoint_specific(self) -> None:
         cache = unittest.mock.Mock()
         cache.fetch.return_value = FakeCache(b"[]").fetch("fixture")

@@ -1160,8 +1160,12 @@ def github_releases(
     include_prereleases: bool = False,
 ) -> list[dict[str, object]]:
     releases: dict[str, dict[str, object]] = {}
-    for page in range(1, max_pages + 1):
-        url = f"https://api.github.com/repos/{repository}/releases?per_page=100&page={page}"
+    # Codex asset metadata makes 100-release pages time out at GitHub's gateway.
+    # Preserve the total history budget while using smaller response pages.
+    page_size = 20 if repository == CODEX_REPOSITORY else 100
+    page_limit = max_pages * (100 // page_size)
+    for page in range(1, page_limit + 1):
+        url = f"https://api.github.com/repos/{repository}/releases?per_page={page_size}&page={page}"
         response = cache.fetch(
             url,
             accept="application/vnd.github+json",
@@ -1206,9 +1210,9 @@ def github_releases(
             if isinstance(published, str) and published:
                 record["publishedAt"] = published
             releases.setdefault(version, record)
-        if len(value) < 100:
+        if len(value) < page_size:
             break
-        if page == max_pages:
+        if page == page_limit:
             raise OfficialSyncError(
                 f"GitHub release history exceeds --max-release-pages={max_pages}: "
                 f"{repository}"
