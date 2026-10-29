@@ -2,6 +2,27 @@
   "version": 1,
   "studies": [
     {
+      "id": "oar-2026",
+      "readingLabel": "阅读全文：OAR 多 Agent 接入与可靠性",
+      "title": "OAR：多 Agent 接入与可靠性",
+      "question": "统一多个 Coding Agent 后，哪些状态仍必须由工作台负责？",
+      "implication": "把原生运行时的输入投递、恢复、权限与资源生命周期分开处理；统一接口不能替代可靠调度和隔离。",
+      "boundary": "固定主线源码与六项合成探针；首轮上游测试有 5 项失败，相关文件串行重跑通过。没有真实账号、模型任务或生产隔离验证。",
+      "editorialRank": 28,
+      "verifiedAt": "2026-10-29",
+      "kind": "fixed-build",
+      "kindLabel": "源码研究与合同探针",
+      "topic": "架构与扩展",
+      "products": [{ "id": "oar", "label": "OAR", "version": "v0.75.0 / main 5532d7b" }],
+      "fact": "跨 runtime 统一记录和控制，但恢复、报告投递、进程停止与默认权限仍有不同边界。",
+      "sourceKinds": ["固定官方源码", "本地合成探针", "上游测试", "公开 CI"],
+      "headlineEvidence": ["OAR26-01", "OAR26-02", "OAR26-03", "OAR26-04", "OAR26-05"],
+      "evidenceCount": 6,
+      "unknownCount": 4,
+      "data": "/capabilities/oar-2026.json",
+      "legacyHref": "/capabilities/oar-2026.html"
+    },
+    {
       "id": "dquickts-code-mode",
       "readingLabel": "阅读全文：Code Mode 执行环境比较",
       "title": "dquickts 为什么适合 Code Mode",

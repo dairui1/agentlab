@@ -218,7 +218,7 @@ test("the research landing puts questions and engineering decisions before the e
   assert.doesNotMatch(capabilitiesHtml, /CAPABILITY TEARDOWNS|THE COLLECTION|阅读时间|article-number|article-status|capability-library/);
 
   assert.ok(researchIndex.studies.length > 0);
-  assert.equal(researchIndex.studies.length, 26);
+  assert.equal(researchIndex.studies.length, 27);
   assert.deepEqual(new Set(researchIndex.studies.filter((study) => study.guideData).map((study) => study.id)), retainedGuideIds);
   assert.ok(!researchIndex.studies.some((study) => study.id === "pi-durable"));
   assert.equal(new Set(researchIndex.studies.map((study) => study.id)).size, researchIndex.studies.length);
@@ -341,6 +341,7 @@ test("the mixed research catalog opens retained guides directly and restores the
 
 test("headline evidence keeps the direct anchors selected in adversarial review", () => {
   const directAnchors = {
+    "oar-2026": ["OAR26-01", "OAR26-02", "OAR26-03", "OAR26-04", "OAR26-05"],
     "dquickts-code-mode": ["DQ-01", "DQ-02", "DQ-03", "DQ-06", "DQ-08"],
     "dsh-runtime-evolution": ["DRE-04", "DRE-12", "DRE-15", "DRE-17", "DRE-22"],
     "claude-projects": ["P04", "P09", "T05", "T07", "T13"],

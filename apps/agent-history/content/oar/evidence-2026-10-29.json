@@ -1,0 +1,234 @@
+{
+  "capturedAt": "2026-10-29T15:38:02.170Z",
+  "repository": "botiverse/oar",
+  "revision": "5532d7b2a01f26c553def1f4acb4470c94f0ed36",
+  "release": {
+    "version": "0.75.0",
+    "revision": "51b83c96811735b3a9f045ab20bab7cd20e61cdf",
+    "publishedAt": "2026-10-27T12:19:55Z",
+    "url": "https://github.com/botiverse/oar/releases/tag/v0.75.0"
+  },
+  "articleSha256": "a29b92a3f15bb5687f81671f0f826c4da0bc42c43d7eb3e69e5528ef9861fd2d",
+  "sourceFiles": [
+    {
+      "path": "docs/design/decisions.md",
+      "sha256": "f65d2485db5e4f30d37f1b577db0c5cec4baca2ec77ccb18b5c95581a5a1fd95",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/design/decisions.md"
+    },
+    {
+      "path": "docs/design/roadmap.md",
+      "sha256": "08e2e887a657a0b02434d1cf208ac6c8b1edbc2b9f5ea54eefd19f596438c117",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/design/roadmap.md"
+    },
+    {
+      "path": "docs/development.md",
+      "sha256": "ea5cdb61ae24fc4fd35253af2078760d47b174ef63b8f715d8608f08813d1945",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/development.md"
+    },
+    {
+      "path": "docs/runtimes/crash-resume.md",
+      "sha256": "fbb03f83ca6924c121c42fba0bea4fc14b4ecc3138310b0cf3dc46ccec2b0bd0",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/runtimes/crash-resume.md"
+    },
+    {
+      "path": "docs/runtimes/pi-durable.md",
+      "sha256": "bcba47c4d32d8506831477648b7834f994fdc03e854a7c995cba6f32a9152548",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/runtimes/pi-durable.md"
+    },
+    {
+      "path": "docs/spec/config-form.md",
+      "sha256": "bfa7a47429a2c3ebebe651f200afc995f46ee0e4c297fec06f10288f53c081a2",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/spec/config-form.md"
+    },
+    {
+      "path": "docs/spec/conversation.md",
+      "sha256": "fd66a801fc2a208fec4e832819998bd1bd0f95328665b64cb8cbd2dd44d4ac10",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/spec/conversation.md"
+    },
+    {
+      "path": "docs/spec/orientation.md",
+      "sha256": "8999848313d4c9cf6bf16ef10edbf5e592caa3c5596852f5541000909eb26a8e",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/spec/orientation.md"
+    },
+    {
+      "path": "docs/spec/record-stream.md",
+      "sha256": "e6272566778972082312ffa0019f220576249c218fe207e0fcdd046c44aa84cf",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/spec/record-stream.md"
+    },
+    {
+      "path": "docs/spec/runtime-matrix.md",
+      "sha256": "72c0b1de2061dfe68bb00fcac9c336599cd2abda76e3745bd8a97f1f7b33348d",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/spec/runtime-matrix.md"
+    },
+    {
+      "path": "docs/spec/subagents.md",
+      "sha256": "8ae11093ce6af81e40bc7807c5c3ccd6cb267ffcd872fe9312b02de08bc5c825",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/docs/spec/subagents.md"
+    },
+    {
+      "path": "experiments/antigravity-steering-2026-10-29.md",
+      "sha256": "1b1b08dc1606975ef538bfdece1cc048170330f621ee7c3fc1b937eaefed6d3a",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/experiments/antigravity-steering-2026-10-29.md"
+    },
+    {
+      "path": "experiments/runtime-resources-2026-10-28.md",
+      "sha256": "328c9ad743687bf2bc96a39a401cc7c9d3ab0596a0f6819074f905eca106e562",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/experiments/runtime-resources-2026-10-28.md"
+    },
+    {
+      "path": "packages/oar/package.json",
+      "sha256": "badea564b29caa6564b797a39358910a7c9f3c3131ea04b857751c65976e02d7",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/package.json"
+    },
+    {
+      "path": "packages/oar/src/agents/crew.ts",
+      "sha256": "64f7aa0ba3bb000a2a068dd8880b00315d8d2b9de095c28498675c73a16ed194",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/agents/crew.ts"
+    },
+    {
+      "path": "packages/oar/src/index.ts",
+      "sha256": "efe293c757ab5320369ac1c761b37a3e9b799e043dc7884cbab7625ecb1949e2",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/index.ts"
+    },
+    {
+      "path": "packages/oar/src/mcp/serve-tools.ts",
+      "sha256": "11542e608613ddddaf669231ea7f93e01b8d2256a169549a3ded96e47f346147",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/mcp/serve-tools.ts"
+    },
+    {
+      "path": "packages/oar/src/observe/turns.ts",
+      "sha256": "9c582ed05b5adac1e53c57c765e63180504e4993964dc63f164067bb9ac75d97",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/observe/turns.ts"
+    },
+    {
+      "path": "packages/oar/src/runtimes/claude/launch-args.ts",
+      "sha256": "7031c6b8545899622e960dedc36f51128530ce261a152468c9871db3d4b6791b",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/runtimes/claude/launch-args.ts"
+    },
+    {
+      "path": "packages/oar/src/runtimes/claude/launch.ts",
+      "sha256": "64dad7dc405346d3fccac101c69c1614057f526ebeae806c07b9ef918da386f7",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/runtimes/claude/launch.ts"
+    },
+    {
+      "path": "packages/oar/src/runtimes/codex/session.ts",
+      "sha256": "f2ec8c7d63eafd8703ca2bab7ccc29424a768280babf4419b21dfb2d1faca06c",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/runtimes/codex/session.ts"
+    },
+    {
+      "path": "packages/oar/src/runtimes/pi-durable/session.ts",
+      "sha256": "790a3196bb8ae81accdf23f127c280914e34701876ce62ba3b222771a6d768cc",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/runtimes/pi-durable/session.ts"
+    },
+    {
+      "path": "packages/oar/src/shared/deliver.ts",
+      "sha256": "b08f64ef71af3d1f211e9c56fb027c460aedbe24120b5794b2804e6ac246526e",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/shared/deliver.ts"
+    },
+    {
+      "path": "packages/oar/src/shared/session-kernel.ts",
+      "sha256": "3899442662587a004be34b8feee91e267ed609450dd74242a9dfd2469d6423d2",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/shared/session-kernel.ts"
+    },
+    {
+      "path": "packages/oar/src/voyage.ts",
+      "sha256": "5f34277e97ab468bba66347e456031ca6205162bb08e6ca8239ef7d6bd9b003e",
+      "url": "https://github.com/botiverse/oar/blob/5532d7b2a01f26c553def1f4acb4470c94f0ed36/packages/oar/src/voyage.ts"
+    }
+  ],
+  "independentVerification": {
+    "node": "v24.22.1",
+    "pnpm": "11.22.0",
+    "dependencyScripts": false,
+    "temporaryHome": true,
+    "scrubbedEnvironment": true,
+    "libraryBuild": "passed: tsrs -p packages/oar/tsconfig.build.json",
+    "upstreamTests": {
+      "workers": 4,
+      "sha256": "c34836eeebf6332fa15c30cf9c79dcdb8fa4efbb9605c50f136b15fa5dd1c90d",
+      "success": false,
+      "files": 282,
+      "total": 2394,
+      "passed": 2287,
+      "failed": 5,
+      "skipped": 102,
+      "failures": [
+        {
+          "file": "tests/login/claude-login.test.ts",
+          "name": "a deadline after `Login successful.` is not a timeout: the stored login is confirmed by the status",
+          "error": "Error: Snapshot `a deadline after `Login successful.` is not a timeout: the stored login is confirmed by the status 1` mismatched"
+        },
+        {
+          "file": "tests/login/claude-login.test.ts",
+          "name": "past the deadline the login is stopped with everything it started",
+          "error": "AssertionError [ERR_ASSERTION]: the fake reported no pid"
+        },
+        {
+          "file": "tests/login/claude-logout.test.ts",
+          "name": "past the deadline the logout is stopped with everything it started, and the status decides",
+          "error": "AssertionError [ERR_ASSERTION]: the fake reported no pid"
+        },
+        {
+          "file": "tests/login/codex-login.test.ts",
+          "name": "a deadline after codex reported success is not a timeout: account/read still names the account",
+          "error": "Error: Snapshot `a deadline after codex reported success is not a timeout: account/read still names the account 1` mismatched"
+        },
+        {
+          "file": "tests/login/codex-login.test.ts",
+          "name": "past the deadline the app-server is stopped with everything it started",
+          "error": "AssertionError [ERR_ASSERTION]: the fake reported no pid"
+        }
+      ]
+    },
+    "unchangedSerialRerun": {
+      "workers": 1,
+      "sha256": "3b65e06b528f309797ba0bf0b153497ecb386840c6ad613b005c3e4a26921989",
+      "success": true,
+      "files": 3,
+      "total": 37,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0,
+      "failures": []
+    },
+    "mockBehaviorSuite": {
+      "passed": 18,
+      "skipped": 1,
+      "failed": 0,
+      "skippedCase": "account-usage.snapshot",
+      "note": "Counts transcribed from the completed command output, not the misleading 19/19 clean summary."
+    },
+    "syntheticProbe": {
+      "file": "probe-2026-10-29.json",
+      "passed": 6,
+      "failed": 0
+    },
+    "realModelCalls": 0,
+    "realVendorCliRuns": 0
+  },
+  "upstreamCiObservations": [
+    {
+      "revision": "51b83c96811735b3a9f045ab20bab7cd20e61cdf",
+      "status": "completed",
+      "conclusion": "success",
+      "successfulJobs": 26,
+      "url": "https://github.com/botiverse/oar/actions/runs/40495932395"
+    },
+    {
+      "revision": "5532d7b2a01f26c553def1f4acb4470c94f0ed36",
+      "status": "in_progress",
+      "conclusion": null,
+      "url": "https://github.com/botiverse/oar/actions/runs/40806718709",
+      "note": "Last observed status during research; not a claim about its later outcome."
+    }
+  ],
+  "externalReferences": [
+    "https://agentclientprotocol.com/get-started/introduction",
+    "https://ai-sdk.dev/docs/ai-sdk-harnesses/overview",
+    "https://ai-sdk.dev/docs/ai-sdk-harnesses/harness-adapters",
+    "https://ai-sdk.dev/docs/ai-sdk-harnesses/harness-agent",
+    "https://github.com/botiverse/oar/issues/402",
+    "https://github.com/botiverse/oar/issues/343"
+  ],
+  "boundary": "Source analysis, local synthetic tests, and separately attributed upstream reports. No real-model quality, real login, crash-recovery, isolation, or production acceptance claim. Existing published research was not changed or deployed."
+}

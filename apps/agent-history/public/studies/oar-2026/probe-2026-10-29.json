@@ -1,0 +1,48 @@
+{
+  "revision": "5532d7b2a01f26c553def1f4acb4470c94f0ed36",
+  "checkedAt": "2026-10-29T02:38:22.506Z",
+  "node": "v24.22.1",
+  "evidenceClass": "local-synthetic-contract-probes",
+  "realModelCalls": 0,
+  "realVendorCliRuns": 0,
+  "boundary": "In-process synthetic sessions only. These observations do not validate vendor processes, OS isolation, model quality, crash recovery or production task delivery.",
+  "results": [
+    {
+      "id": "timeout-is-not-a-hard-deadline",
+      "passed": true,
+      "timeoutMs": 10,
+      "pendingAtObservationAfterMs": 100,
+      "syntheticExitOutcome": "aborted"
+    },
+    {
+      "id": "report-hook-is-not-delivery-ack",
+      "passed": true,
+      "parentDelivery": "rejected",
+      "parentCode": "runtime_exited",
+      "unreadReports": 0
+    },
+    {
+      "id": "running-limit-does-not-bound-idle-sessions",
+      "passed": true,
+      "maxRunning": 1,
+      "retainedIdleSessions": 3
+    },
+    {
+      "id": "env-refusal-prevents-subagent-open",
+      "passed": true,
+      "code": "open_failed",
+      "opens": 0
+    },
+    {
+      "id": "flat-event-seq-is-not-a-unique-id",
+      "passed": true,
+      "eventCount": 2,
+      "distinctSeqCount": 1
+    },
+    {
+      "id": "child-end-does-not-end-parent",
+      "passed": true,
+      "parentOutcome": null
+    }
+  ]
+}

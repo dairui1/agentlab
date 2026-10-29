@@ -15,7 +15,7 @@
     "analyze": "python3 scripts/analyze_changelogs.py --analysis-root analysis",
     "local": "python3 scripts/daily_update.py --require-codex --agents codex --max-releases 5",
     "stage:monaco": "node scripts/stage_monaco.mjs",
-    "stage:guides": "node scripts/build_dquickts_study.mjs && node scripts/build_research_guides.cjs && node scripts/build_claude_projects_blueprint.mjs",
+    "stage:guides": "node scripts/build_dquickts_study.mjs && node scripts/build_oar_2026_study.mjs && node scripts/build_research_guides.cjs && node scripts/build_claude_projects_blueprint.mjs",
     "build": "npm run stage:monaco && npm run stage:guides && npm run build:data && node scripts/build_dist.mjs",
     "pretest": "npm run stage:monaco && npm run stage:guides",
     "test": "python3 -m unittest discover -s tests -v && node --test tests/*.test.js",

@@ -1,0 +1,129 @@
+{
+  "id": "oar-2026",
+  "title": "OAR：多 Agent 接入与可靠性",
+  "verifiedAt": "2026-10-29",
+  "evidence": [
+    {
+      "id": "OAR26-01",
+      "title": "超时不是硬截止",
+      "statement": "10 ms 超时后发出 abort；100 ms 观察时仍未结束，合成退出后才返回。",
+      "boundary": "合成适配器，不是厂商实际卡死复现。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地合成探针",
+      "artifact": "studies/oar-2026/probe-2026-10-29.json",
+      "locator": "results: timeout-is-not-a-hard-deadline",
+      "sha256": "441210b57a97652f5431a9befdf401b38da4be127a139a09e3c035d658933399",
+      "source": {
+        "label": "查看合成探针回执",
+        "url": "/studies/oar-2026/probe-2026-10-29.json"
+      }
+    },
+    {
+      "id": "OAR26-02",
+      "title": "报告回调不是交付回执",
+      "statement": "父会话已退出时报告投递被拒，回调返回后报告不在未读列表。",
+      "boundary": "仅为本地合成会话，宿主可另行保存报告。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地合成探针",
+      "artifact": "studies/oar-2026/probe-2026-10-29.json",
+      "locator": "results: report-hook-is-not-delivery-ack",
+      "sha256": "441210b57a97652f5431a9befdf401b38da4be127a139a09e3c035d658933399",
+      "source": {
+        "label": "查看合成探针回执",
+        "url": "/studies/oar-2026/probe-2026-10-29.json"
+      }
+    },
+    {
+      "id": "OAR26-03",
+      "title": "运行上限不限制空闲会话",
+      "statement": "maxRunning 为 1，三个任务串行结束后仍保留三个空闲会话。",
+      "boundary": "未测真实进程内存或生产负载。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地合成探针",
+      "artifact": "studies/oar-2026/probe-2026-10-29.json",
+      "locator": "results: running-limit-does-not-bound-idle-sessions",
+      "sha256": "441210b57a97652f5431a9befdf401b38da4be127a139a09e3c035d658933399",
+      "source": {
+        "label": "查看合成探针回执",
+        "url": "/studies/oar-2026/probe-2026-10-29.json"
+      }
+    },
+    {
+      "id": "OAR26-04",
+      "title": "不支持 env 的 runtime 不能作为 crew 子会话",
+      "statement": "合成 runtime 声明拒绝 env 时，spawn 在打开会话前返回 open_failed。",
+      "boundary": "这是针对该声明的合成合同检查。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地合成探针",
+      "artifact": "studies/oar-2026/probe-2026-10-29.json",
+      "locator": "results: env-refusal-prevents-subagent-open",
+      "sha256": "441210b57a97652f5431a9befdf401b38da4be127a139a09e3c035d658933399",
+      "source": {
+        "label": "查看合成探针回执",
+        "url": "/studies/oar-2026/probe-2026-10-29.json"
+      }
+    },
+    {
+      "id": "OAR26-05",
+      "title": "扁平事件的 seq 可以重复",
+      "statement": "同一原生 frame 的两条事件共享一个 seq。",
+      "boundary": "seq 是记录位置，不是扁平事件唯一 ID。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地合成探针",
+      "artifact": "studies/oar-2026/probe-2026-10-29.json",
+      "locator": "results: flat-event-seq-is-not-a-unique-id",
+      "sha256": "441210b57a97652f5431a9befdf401b38da4be127a139a09e3c035d658933399",
+      "source": {
+        "label": "查看合成探针回执",
+        "url": "/studies/oar-2026/probe-2026-10-29.json"
+      }
+    },
+    {
+      "id": "OAR26-06",
+      "title": "子会话结束不结束父会话",
+      "statement": "独立子会话的结束记录不满足根会话的结束等待。",
+      "boundary": "合成事件，不是实测 Codex 子线程。",
+      "kind": "observation",
+      "confidence": "high",
+      "evidenceLabel": "本地合成探针",
+      "artifact": "studies/oar-2026/probe-2026-10-29.json",
+      "locator": "results: child-end-does-not-end-parent",
+      "sha256": "441210b57a97652f5431a9befdf401b38da4be127a139a09e3c035d658933399",
+      "source": {
+        "label": "查看合成探针回执",
+        "url": "/studies/oar-2026/probe-2026-10-29.json"
+      }
+    }
+  ],
+  "unknowns": [
+    {
+      "id": "OAR26-U-1",
+      "title": "真实 Agent 任务",
+      "text": "本次没有真实账号、模型任务或跨 runtime 质量对照。",
+      "needed": "在隔离环境运行对应版本和真实任务。"
+    },
+    {
+      "id": "OAR26-U-2",
+      "title": "崩溃后的外部副作用",
+      "text": "本次没有独立复现进程崩溃和外部服务执行状态。",
+      "needed": "注入故障并核对目标系统的幂等与状态。"
+    },
+    {
+      "id": "OAR26-U-3",
+      "title": "权限与隔离",
+      "text": "没有独立安全审计或操作系统隔离验收。",
+      "needed": "使用受限账户、隔离环境和攻击性测试。"
+    },
+    {
+      "id": "OAR26-U-4",
+      "title": "长期资源开销",
+      "text": "没有本地生产规模长会话或并发性能测试。",
+      "needed": "按目标负载测量内存、进程和延迟。"
+    }
+  ]
+}
