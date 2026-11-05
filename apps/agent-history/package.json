@@ -27,6 +27,6 @@
   "devDependencies": {
     "marked": "18.1.1",
     "monaco-editor": "0.52.2",
-    "wrangler": "4.114.0"
+    "wrangler": "4.151.1"
   }
 }
